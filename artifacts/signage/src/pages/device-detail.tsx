@@ -332,7 +332,7 @@ export default function DeviceDetail() {
 
   function copyUrl() {
     if (!device) return;
-    const url = `${window.location.origin}${import.meta.env.BASE_URL}display/${device.deviceKey}`;
+    const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
