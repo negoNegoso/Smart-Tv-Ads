@@ -1,0 +1,786 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.2.0
+  description: Digital Signage API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: announcements
+  - name: clients
+  - name: devices
+  - name: telemetry
+  - name: analytics
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── Announcements (global media library) ────────────────────────────────────
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      summary: List all announcements
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [announcements]
+      summary: Create announcement (multipart/form-data)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          description: Bad request
+
+  /announcements/active:
+    get:
+      operationId: listActiveAnnouncements
+      tags: [announcements]
+      summary: List active announcements (global)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+
+  /announcements/stats:
+    get:
+      operationId: getAnnouncementStats
+      tags: [announcements]
+      summary: Global announcement stats
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementStats"
+
+  /announcements/reorder:
+    post:
+      operationId: reorderAnnouncements
+      tags: [announcements]
+      summary: Reorder announcements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderInput"
+      responses:
+        "200":
+          description: OK
+
+  /announcements/{id}:
+    get:
+      operationId: getAnnouncement
+      tags: [announcements]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAnnouncement
+      tags: [announcements]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteAnnouncement
+      tags: [announcements]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /announcements/{id}/toggle:
+    patch:
+      operationId: toggleAnnouncement
+      tags: [announcements]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "404":
+          description: Not found
+
+  # ── Clients ──────────────────────────────────────────────────────────────────
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List all clients
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          description: Bad request
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateClient
+      tags: [clients]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /clients/{id}/stats:
+    get:
+      operationId: getClientStats
+      tags: [clients]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientStats"
+        "404":
+          description: Not found
+
+  # ── Devices ──────────────────────────────────────────────────────────────────
+  /devices:
+    get:
+      operationId: listDevices
+      tags: [devices]
+      summary: List devices, optionally filtered by client
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+    post:
+      operationId: createDevice
+      tags: [devices]
+      summary: Create a device linked to a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "400":
+          description: Bad request
+
+  /devices/{id}:
+    get:
+      operationId: getDevice
+      tags: [devices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDevice
+      tags: [devices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDevice
+      tags: [devices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /devices/{id}/playlist:
+    get:
+      operationId: getDevicePlaylist
+      tags: [devices]
+      summary: Get assigned playlist for a device
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlaylistItem"
+        "404":
+          description: Not found
+
+  /devices/{id}/playlist/add:
+    post:
+      operationId: addToDevicePlaylist
+      tags: [devices]
+      summary: Assign an announcement to a device
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistItemInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistItem"
+        "400":
+          description: Bad request
+
+  /devices/{id}/playlist/reorder:
+    post:
+      operationId: reorderDevicePlaylist
+      tags: [devices]
+      summary: Reorder device playlist
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistReorder"
+      responses:
+        "200":
+          description: OK
+
+  /devices/{deviceId}/playlist/{announcementId}:
+    delete:
+      operationId: removeFromDevicePlaylist
+      tags: [devices]
+      summary: Remove an announcement from a device playlist
+      parameters:
+        - { name: deviceId, in: path, required: true, schema: { type: integer } }
+        - { name: announcementId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Removed
+        "404":
+          description: Not found
+
+  /devices/{id}/playlist/{announcementId}/toggle:
+    patch:
+      operationId: togglePlaylistItem
+      tags: [devices]
+      summary: Toggle active status of a playlist item
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: announcementId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaylistItem"
+        "404":
+          description: Not found
+
+  # ── Display (TV endpoint) ────────────────────────────────────────────────────
+  /display/{deviceKey}/slides:
+    get:
+      operationId: getDeviceSlides
+      tags: [devices]
+      summary: Get active slides for a TV display by device key
+      parameters:
+        - { name: deviceKey, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DisplaySlide"
+        "404":
+          description: Device not found
+
+  # ── Telemetry ────────────────────────────────────────────────────────────────
+  /telemetry/impression:
+    post:
+      operationId: recordImpression
+      tags: [telemetry]
+      summary: Record a slide impression from a TV display
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpressionInput"
+      responses:
+        "201":
+          description: Recorded
+        "400":
+          description: Bad request
+
+  # ── Analytics ────────────────────────────────────────────────────────────────
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Overall platform analytics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/clients/{clientId}:
+    get:
+      operationId: getClientAnalytics
+      tags: [analytics]
+      parameters:
+        - { name: clientId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientAnalytics"
+        "404":
+          description: Not found
+
+  /analytics/devices/{deviceId}:
+    get:
+      operationId: getDeviceAnalytics
+      tags: [analytics]
+      parameters:
+        - { name: deviceId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceAnalytics"
+        "404":
+          description: Not found
+
+  /analytics/announcements/{announcementId}:
+    get:
+      operationId: getAnnouncementAnalytics
+      tags: [analytics]
+      parameters:
+        - { name: announcementId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementAnalytics"
+        "404":
+          description: Not found
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+
+    # ── Announcements ────────────────────────────────────────────────────────
+    Announcement:
+      type: object
+      required: [id, title, imageUrl, isActive, displayOrder, duration, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        imageUrl: { type: string }
+        isActive: { type: boolean }
+        displayOrder: { type: integer }
+        duration: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    AnnouncementInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1 }
+        duration: { type: integer, minimum: 1 }
+
+    AnnouncementUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        isActive: { type: boolean }
+        displayOrder: { type: integer }
+        duration: { type: integer, minimum: 1 }
+
+    AnnouncementStats:
+      type: object
+      required: [total, active, inactive]
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        inactive: { type: integer }
+
+    ReorderInput:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: integer }
+
+    # ── Clients ──────────────────────────────────────────────────────────────
+    Client:
+      type: object
+      required: [id, name, createdAt, deviceCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        deviceCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    ClientInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string }
+        phone: { type: string }
+
+    ClientUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+
+    ClientStats:
+      type: object
+      required: [clientId, clientName, totalDevices, totalImpressions, totalDuration]
+      properties:
+        clientId: { type: integer }
+        clientName: { type: string }
+        totalDevices: { type: integer }
+        totalImpressions: { type: integer }
+        totalDuration: { type: integer }
+        topAnnouncements:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementImpressionStat"
+
+    # ── Devices ──────────────────────────────────────────────────────────────
+    Device:
+      type: object
+      required: [id, clientId, clientName, name, deviceKey, createdAt]
+      properties:
+        id: { type: integer }
+        clientId: { type: integer }
+        clientName: { type: string }
+        name: { type: string }
+        location: { type: ["string", "null"] }
+        deviceKey: { type: string }
+        lastSeenAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    DeviceInput:
+      type: object
+      required: [clientId, name]
+      properties:
+        clientId: { type: integer }
+        name: { type: string, minLength: 1 }
+        location: { type: string }
+
+    DeviceUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        location: { type: ["string", "null"] }
+
+    # ── Playlist ─────────────────────────────────────────────────────────────
+    PlaylistItem:
+      type: object
+      required: [id, deviceId, announcementId, displayOrder, isActive, title, imageUrl, duration]
+      properties:
+        id: { type: integer }
+        deviceId: { type: integer }
+        announcementId: { type: integer }
+        displayOrder: { type: integer }
+        isActive: { type: boolean }
+        title: { type: string }
+        imageUrl: { type: string }
+        duration: { type: integer }
+
+    PlaylistItemInput:
+      type: object
+      required: [announcementId]
+      properties:
+        announcementId: { type: integer }
+        displayOrder: { type: integer }
+
+    PlaylistReorder:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: integer }
+
+    # ── Display ──────────────────────────────────────────────────────────────
+    DisplaySlide:
+      type: object
+      required: [announcementId, title, imageUrl, duration]
+      properties:
+        announcementId: { type: integer }
+        title: { type: string }
+        imageUrl: { type: string }
+        duration: { type: integer }
+
+    # ── Telemetry ────────────────────────────────────────────────────────────
+    ImpressionInput:
+      type: object
+      required: [deviceKey, announcementId, durationSeconds]
+      properties:
+        deviceKey: { type: string }
+        announcementId: { type: integer }
+        durationSeconds: { type: number }
+
+    # ── Analytics ────────────────────────────────────────────────────────────
+    AnnouncementImpressionStat:
+      type: object
+      required: [announcementId, title, impressions, totalDuration]
+      properties:
+        announcementId: { type: integer }
+        title: { type: string }
+        impressions: { type: integer }
+        totalDuration: { type: integer }
+
+    AnalyticsSummary:
+      type: object
+      required: [totalClients, totalDevices, totalImpressions, totalDuration]
+      properties:
+        totalClients: { type: integer }
+        totalDevices: { type: integer }
+        totalImpressions: { type: integer }
+        totalDuration: { type: integer }
+        topAnnouncements:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementImpressionStat"
+
+    ClientAnalytics:
+      type: object
+      required: [clientId, clientName, totalDevices, totalImpressions, totalDuration]
+      properties:
+        clientId: { type: integer }
+        clientName: { type: string }
+        totalDevices: { type: integer }
+        totalImpressions: { type: integer }
+        totalDuration: { type: integer }
+        topAnnouncements:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementImpressionStat"
+
+    DeviceAnalytics:
+      type: object
+      required: [deviceId, deviceName, clientId, clientName, totalImpressions, totalDuration]
+      properties:
+        deviceId: { type: integer }
+        deviceName: { type: string }
+        clientId: { type: integer }
+        clientName: { type: string }
+        totalImpressions: { type: integer }
+        totalDuration: { type: integer }
+        byAnnouncement:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementImpressionStat"
+
+    AnnouncementAnalytics:
+      type: object
+      required: [announcementId, title, totalImpressions, totalDuration]
+      properties:
+        announcementId: { type: integer }
+        title: { type: string }
+        totalImpressions: { type: integer }
+        totalDuration: { type: integer }
+        byDevice:
+          type: array
+          items:
+            type: object
+            required: [deviceId, deviceName, clientName, impressions, totalDuration]
+            properties:
+              deviceId: { type: integer }
+              deviceName: { type: string }
+              clientName: { type: string }
+              impressions: { type: integer }
+              totalDuration: { type: integer }
