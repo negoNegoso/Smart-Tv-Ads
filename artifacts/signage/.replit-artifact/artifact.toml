@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Painel de Anúncios"
+version = "1.0.0"
+id = "artifacts/signage"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21153
+
+[services.development]
+run = "pnpm --filter @workspace/signage run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/signage", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/signage/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21153"
+BASE_PATH = "/"
