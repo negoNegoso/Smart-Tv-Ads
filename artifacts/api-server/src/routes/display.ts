@@ -1,0 +1,83 @@
+import { Router, type IRouter } from "express";
+import { eq, asc, and, or, gte, lte } from "drizzle-orm";
+import {
+  db,
+  devicesTable,
+  devicePlaylistTable,
+  announcementsTable,
+  campaignsTable,
+  campaignDevicesTable,
+} from "@workspace/db";
+import { GetDeviceSlidesResponse } from "@workspace/api-zod";
+
+const router: IRouter = Router();
+
+router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
+  const { deviceKey } = req.params;
+  const raw = Array.isArray(deviceKey) ? deviceKey[0] : deviceKey;
+
+  const [device] = await db
+    .select()
+    .from(devicesTable)
+    .where(eq(devicesTable.deviceKey, raw));
+
+  if (!device) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+
+  // Update lastSeenAt
+  await db
+    .update(devicesTable)
+    .set({ lastSeenAt: new Date() })
+    .where(eq(devicesTable.id, device.id));
+
+  const playlistSlides = await db
+    .select({
+      announcementId: devicePlaylistTable.announcementId,
+      title: announcementsTable.title,
+      imageUrl: announcementsTable.imageUrl,
+      duration: announcementsTable.duration,
+    })
+    .from(devicePlaylistTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
+    .where(
+      and(
+        eq(devicePlaylistTable.deviceId, device.id),
+        eq(devicePlaylistTable.isActive, true)
+      )
+    )
+    .orderBy(asc(devicePlaylistTable.displayOrder));
+
+  const now = new Date();
+  const campaignSlides = await db
+    .select({
+      announcementId: campaignsTable.announcementId,
+      title: announcementsTable.title,
+      imageUrl: announcementsTable.imageUrl,
+      duration: announcementsTable.duration,
+    })
+    .from(campaignsTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignsTable.announcementId))
+    .leftJoin(campaignDevicesTable, eq(campaignDevicesTable.campaignId, campaignsTable.id))
+    .where(
+      and(
+        eq(campaignsTable.isActive, true),
+        lte(campaignsTable.startsAt, now),
+        gte(campaignsTable.endsAt, now),
+        or(eq(campaignsTable.allDevices, true), eq(campaignDevicesTable.deviceId, device.id)),
+      ),
+    )
+    .orderBy(asc(campaignsTable.id));
+
+  const seen = new Set<number>();
+  const slides = [...campaignSlides, ...playlistSlides].filter((slide) => {
+    if (seen.has(slide.announcementId)) return false;
+    seen.add(slide.announcementId);
+    return true;
+  });
+
+  res.json(GetDeviceSlidesResponse.parse(slides));
+});
+
+export default router;
