@@ -1,0 +1,2 @@
+- [DB package build](db-build-requirement.md) — @workspace/db must be compiled with `cd lib/db && npx tsc --build` before api-server typecheck; exports point to dist/.d.ts via project references.
+- [FormData Zod coercion](formdata-zod-coercion.md) — multipart/form-data sends all fields as strings; manually coerce numeric fields before Zod safeParse in Express routes.
