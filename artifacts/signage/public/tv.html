@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Display</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    #slot-a, #slot-b {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+    }
+    #slot-a { opacity: 1; z-index: 1; }
+    #slot-b { opacity: 0; z-index: 1; }
+
+    .slot-enter { -webkit-transition: opacity 1.2s ease-in-out; transition: opacity 1.2s ease-in-out; }
+
+    #overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 3;
+      padding: 120px 64px 56px;
+      background: -webkit-linear-gradient(top, transparent, rgba(0,0,0,0.45), rgba(0,0,0,0.82));
+      background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.45), rgba(0,0,0,0.82));
+    }
+
+    #title {
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 52px;
+      font-weight: 500;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      word-break: break-word;
+    }
+
+    #progress-track {
+      position: absolute;
+      bottom: 0; left: 0; right: 0; height: 4px; z-index: 4;
+      background: rgba(255,255,255,0.12);
+    }
+    #progress-fill {
+      height: 100%; width: 0;
+      background: #4f46e5;
+    }
+
+    #empty-screen {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 10;
+      -webkit-box-align: center; -ms-flex-align: center; align-items: center;
+      -webkit-box-pack: center; -ms-flex-pack: center; justify-content: center;
+      -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column;
+      background: #000;
+      color: rgba(255,255,255,0.4);
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      text-align: center;
+      padding: 32px;
+    }
+    #empty-screen.visible { display: -webkit-box; display: -ms-flexbox; display: flex; }
+    #empty-icon {
+      width: 80px; height: 80px;
+      margin-bottom: 24px;
+      opacity: 0.2;
+    }
+    #empty-title { font-size: 28px; font-weight: 400; margin-bottom: 8px; }
+    #empty-sub { font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div id="slot-a"></div>
+  <div id="slot-b"></div>
+
+  <div id="overlay">
+    <div id="title"></div>
+  </div>
+
+  <div id="progress-track">
+    <div id="progress-fill"></div>
+  </div>
+
+  <div id="empty-screen">
+    <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+    <div id="empty-title">Nenhum slide configurado</div>
+    <div id="empty-sub">Acesse o painel admin e adicione anúncios à playlist deste dispositivo.</div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ─── State ───────────────────────────────────────────────────────────────
+      var slides        = [];
+      var currentIndex  = 0;
+      var elapsed       = 0;
+      var tickMs        = 80;
+      var timer         = null;
+      var impressionSent = false;
+      var activeSlot    = 'a';   // 'a' or 'b'
+
+      // ─── DOM refs ─────────────────────────────────────────────────────────────
+      var slotA        = document.getElementById('slot-a');
+      var slotB        = document.getElementById('slot-b');
+      var titleEl      = document.getElementById('title');
+      var fillEl       = document.getElementById('progress-fill');
+      var emptyEl      = document.getElementById('empty-screen');
+
+      // ─── Helpers ─────────────────────────────────────────────────────────────
+      function getKey() {
+        var search = window.location.search;
+        var match = search.match(/[?&]key=([^&]*)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+
+      function apiBase() {
+        // Origin only — API is always at /api/
+        return window.location.protocol + '//' + window.location.host;
+      }
+
+      function imgUrl(imageUrl) {
+        if (imageUrl.indexOf('/api/') === 0) {
+          return apiBase() + imageUrl;
+        }
+        var filename = imageUrl.split('/').pop();
+        return apiBase() + '/api/uploads/' + filename;
+      }
+
+      function xhrGet(url, cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) { return; }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { cb(null, JSON.parse(xhr.responseText)); }
+            catch (e) { cb(e); }
+          } else {
+            cb(new Error('HTTP ' + xhr.status));
+          }
+        };
+        xhr.send();
+      }
+
+      function xhrPost(url, payload) {
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', url, true);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.send(JSON.stringify(payload));
+        } catch (e) { /* fire and forget */ }
+      }
+
+      // ─── Pre-load image silently ───────────────────────────────────────────
+      function preload(url) {
+        var img = new Image();
+        img.src = url;
+      }
+
+      // ─── Crossfade to a new slide ─────────────────────────────────────────
+      function showSlide(slide) {
+        var url  = imgUrl(slide.imageUrl);
+        var prev = activeSlot === 'a' ? slotA : slotB;
+        var next = activeSlot === 'a' ? slotB : slotA;
+
+        next.style.backgroundImage = 'url(' + url + ')';
+        next.style.zIndex = '2';
+        next.style.opacity = '1';
+        next.className = 'slot-enter';
+
+        prev.style.zIndex = '1';
+        prev.style.opacity = '0';
+
+        titleEl.textContent = slide.title;
+        activeSlot = activeSlot === 'a' ? 'b' : 'a';
+
+        // Preload next image
+        var nextIdx = (currentIndex + 1) % slides.length;
+        if (slides[nextIdx]) { preload(imgUrl(slides[nextIdx].imageUrl)); }
+      }
+
+      // ─── Impression recording ─────────────────────────────────────────────
+      function recordImpression(slide) {
+        if (impressionSent) { return; }
+        impressionSent = true;
+        var key = getKey();
+        if (!key) { return; }
+        xhrPost(apiBase() + '/api/telemetry/impression', {
+          deviceKey: key,
+          announcementId: slide.announcementId,
+          durationSeconds: slide.duration
+        });
+      }
+
+      // ─── Timer loop ───────────────────────────────────────────────────────
+      function startTimer() {
+        if (timer) { clearInterval(timer); }
+        elapsed = 0;
+        impressionSent = false;
+        fillEl.style.width = '0';
+
+        var slide = slides[currentIndex];
+        var durationMs = slide.duration * 1000;
+
+        timer = setInterval(function () {
+          elapsed += tickMs;
+          var pct = Math.min((elapsed / durationMs) * 100, 100);
+          fillEl.style.width = pct + '%';
+
+          if (elapsed >= durationMs) {
+            clearInterval(timer);
+            timer = null;
+            recordImpression(slide);
+            currentIndex = (currentIndex + 1) % slides.length;
+            showSlide(slides[currentIndex]);
+            startTimer();
+          }
+        }, tickMs);
+      }
+
+      // ─── Load slides from API ─────────────────────────────────────────────
+      var refreshTimer = null;
+
+      function fetchAndStart(key, isRefresh) {
+        var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/slides';
+        xhrGet(url, function (err, data) {
+          if (err || !data || data.length === 0) {
+            if (!isRefresh) {
+              emptyEl.className = 'visible';
+            }
+            return;
+          }
+
+          emptyEl.className = '';
+
+          // On refresh, only reset if the slide list actually changed
+          var changed = data.length !== slides.length;
+          if (!changed) {
+            for (var i = 0; i < data.length; i++) {
+              if (data[i].announcementId !== slides[i].announcementId) { changed = true; break; }
+            }
+          }
+
+          slides = data;
+
+          if (!isRefresh || changed) {
+            if (timer) { clearInterval(timer); timer = null; }
+            currentIndex = 0;
+            showSlide(slides[0]);
+            startTimer();
+          }
+        });
+      }
+
+      // ─── Init ─────────────────────────────────────────────────────────────
+      function init() {
+        var key = getKey();
+        if (!key) {
+          emptyEl.className = 'visible';
+          document.getElementById('empty-title').textContent = 'Dispositivo não configurado';
+          document.getElementById('empty-sub').textContent = 'Abra o painel admin para obter a URL de exibição deste dispositivo.';
+          return;
+        }
+
+        fetchAndStart(key, false);
+
+        // Refresh slide list every 60 s without interrupting current slide
+        refreshTimer = setInterval(function () {
+          fetchAndStart(key, true);
+        }, 60000);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
