@@ -1,15 +1,18 @@
-# [Project name]
+# SignageOS — Painel de Anúncios
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Sistema de sinalização digital para administrar mídias, Smart TVs, dispositivos, anunciantes, campanhas e métricas.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — API Express na porta 8080
+- `pnpm --filter @workspace/signage run dev` — frontend Vite na porta 21153
+- `pnpm run typecheck` — typecheck completo
+- `pnpm run build` — typecheck e build dos pacotes
+- `cd lib/db && npx tsc --build` — compilar a biblioteca do banco antes do typecheck da API
+- `cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts` — aplicar schema no banco de desenvolvimento
+- `pnpm --filter @workspace/api-spec run codegen` — regenerar cliente a partir do OpenAPI quando o contrato for alterado
+- Health check da API: `GET /api/healthz`
+- Variáveis principais: `DATABASE_URL` e as variáveis do App Storage configuradas pelo Replit
 
 ## Stack
 
@@ -22,24 +25,42 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/routes/` — rotas da API
+- `artifacts/api-server/src/lib/objectStorage.ts` — integração com App Storage
+- `artifacts/signage/src/pages/` — telas React
+- `artifacts/signage/public/tv.html` — display ES5 para Smart TVs
+- `lib/db/src/schema/` — schema Drizzle/PostgreSQL
+- `lib/api-spec/openapi.yaml` — contrato OpenAPI
+- `artifacts/*/.replit-artifact/artifact.toml` — configuração de build, portas e deploy
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- O frontend e a API são artifacts separados e se comunicam pela mesma base de caminhos do Replit.
+- Uploads usam App Storage em produção e disco local apenas como fallback de desenvolvimento.
+- A página `tv.html` evita módulos React, `fetch` e APIs modernas para compatibilidade com Smart TVs.
+- Clientes que operam TVs são separados de anunciantes pagantes.
+- Uma campanha pode estar vinculada a vários anunciantes por uma tabela de relacionamento.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Slideshow fullscreen e página standalone para Smart TVs.
+- Biblioteca de mídia com upload, ordem, ativação e exclusão.
+- Cadastro de clientes, dispositivos, playlists e campanhas.
+- Campanhas com período, valor, anunciantes e TVs específicas.
+- Impressões, uptime e analytics.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+As respostas e documentação do projeto devem ser mantidas em português quando voltadas ao usuário.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Não usar `npm` ou `yarn`; o workspace exige pnpm.
+- Após alterar `lib/db`, executar `cd lib/db && npx tsc --build` antes do typecheck da API.
+- FormData envia valores como strings; rotas multipart devem converter números antes da validação Zod.
+- Não depender de `artifacts/api-server/uploads/` para produção.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `README.md` for installation, development, validation and deployment instructions.
