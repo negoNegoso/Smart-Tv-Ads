@@ -46,9 +46,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { mediaUrl } from '@/lib/media-url';
 
 const uploadSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  duration: z.coerce.number().min(1, 'Must be at least 1 second').default(10),
-  image: z.any().refine((val) => val instanceof FileList && val.length > 0, 'Image is required'),
+  title: z.string().min(1, 'O título é obrigatório'),
+  duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
+  image: z.any().refine((val) => val instanceof FileList && val.length > 0, 'A imagem é obrigatória'),
 });
 
 type UploadFormValues = z.infer<typeof uploadSchema>;
@@ -106,13 +106,13 @@ function SortableAnnouncementRow({
 
       <div className="flex-1 min-w-0">
         <h4 className="truncate font-semibold text-foreground text-lg">{item.title}</h4>
-        <p className="text-sm text-muted-foreground font-mono mt-0.5">{item.duration}s duration</p>
+        <p className="text-sm text-muted-foreground font-mono mt-0.5">{item.duration}s de duração</p>
       </div>
 
       <div className="flex items-center gap-6 ml-4">
         <div className="flex items-center gap-2">
           <Label htmlFor={`active-${item.id}`} className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
-            {item.isActive ? 'Active' : 'Hidden'}
+            {item.isActive ? 'Ativo' : 'Oculto'}
           </Label>
           <Switch
             id={`active-${item.id}`}
@@ -128,7 +128,7 @@ function SortableAnnouncementRow({
           onClick={() => onDelete(item.id)}
         >
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Delete</span>
+          <span className="sr-only">Excluir</span>
         </Button>
       </div>
     </div>
@@ -166,7 +166,7 @@ export default function Admin() {
         queryClient.invalidateQueries({ queryKey: getListActiveAnnouncementsQueryKey() });
       },
       onError: () => {
-        toast({ title: 'Failed to reorder', variant: 'destructive' });
+        toast({ title: 'Não foi possível reordenar', variant: 'destructive' });
         if (announcements) setItems([...announcements].sort((a, b) => a.displayOrder - b.displayOrder));
       }
     }
@@ -180,7 +180,7 @@ export default function Admin() {
         queryClient.invalidateQueries({ queryKey: getListActiveAnnouncementsQueryKey() });
       },
       onError: () => {
-        toast({ title: 'Failed to toggle status', variant: 'destructive' });
+        toast({ title: 'Não foi possível alterar o status', variant: 'destructive' });
       }
     }
   });
@@ -188,13 +188,13 @@ export default function Admin() {
   const deleteMutation = useDeleteAnnouncement({
     mutation: {
       onSuccess: () => {
-        toast({ title: 'Announcement deleted' });
+        toast({ title: 'Anúncio excluído' });
         queryClient.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAnnouncementStatsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListActiveAnnouncementsQueryKey() });
       },
       onError: () => {
-        toast({ title: 'Failed to delete', variant: 'destructive' });
+        toast({ title: 'Não foi possível excluir', variant: 'destructive' });
       }
     }
   });
@@ -223,7 +223,7 @@ export default function Admin() {
 
       if (!res.ok) throw new Error('Upload failed');
       
-      toast({ title: 'Announcement created successfully' });
+      toast({ title: 'Anúncio criado com sucesso' });
       setIsUploadOpen(false);
       form.reset();
       
@@ -231,7 +231,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: getGetAnnouncementStatsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getListActiveAnnouncementsQueryKey() });
     } catch (error) {
-      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: 'Falha no envio', description: 'Tente novamente.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }
@@ -259,15 +259,15 @@ export default function Admin() {
       {/* Header & Stats */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Announcements</h1>
-          <p className="text-muted-foreground mt-1">Manage what plays on your digital displays.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Anúncios</h1>
+          <p className="text-muted-foreground mt-1">Gerencie o que aparece nas suas TVs.</p>
         </div>
         
         <div className="flex gap-4">
           <Card className="bg-primary/5 border-primary/20 shadow-none">
             <CardContent className="p-4 flex gap-8">
               <div className="flex flex-col">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Active</span>
+                <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Ativos</span>
                 <span className="text-2xl font-bold text-primary">{stats?.active ?? '-'}</span>
               </div>
               <div className="flex flex-col">
@@ -281,14 +281,14 @@ export default function Admin() {
             <DialogTrigger asChild>
               <Button size="lg" className="h-auto">
                 <Plus className="mr-2 h-5 w-5" />
-                New Slide
+                Novo slide
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Add Announcement</DialogTitle>
+                <DialogTitle>Adicionar anúncio</DialogTitle>
                 <DialogDescription>
-                  Upload an image and set its duration to appear in the rotation.
+                  Envie uma imagem e defina a duração para entrar na rotação.
                 </DialogDescription>
               </DialogHeader>
               
@@ -299,9 +299,9 @@ export default function Admin() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Title</FormLabel>
+                        <FormLabel>Título</FormLabel>
                         <FormControl>
-                          <Input placeholder="E.g., Winter Promo" {...field} />
+                          <Input placeholder="Ex.: Promoção de inverno" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -313,7 +313,7 @@ export default function Admin() {
                     name="duration"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Duration (seconds)</FormLabel>
+                        <FormLabel>Duração (segundos)</FormLabel>
                         <FormControl>
                           <Input type="number" min="1" {...field} />
                         </FormControl>
@@ -327,7 +327,7 @@ export default function Admin() {
                     name="image"
                     render={({ field: { value, onChange, ...fieldProps } }) => (
                       <FormItem>
-                        <FormLabel>Image File</FormLabel>
+                        <FormLabel>Arquivo de imagem</FormLabel>
                         <FormControl>
                           <Input
                             type="file"
@@ -345,7 +345,7 @@ export default function Admin() {
                   <DialogFooter className="pt-4">
                     <Button type="submit" disabled={isUploading} className="w-full sm:w-auto">
                       {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {isUploading ? 'Uploading...' : 'Save & Publish'}
+                      {isUploading ? 'Enviando...' : 'Salvar e publicar'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -368,12 +368,12 @@ export default function Admin() {
             <div className="rounded-full bg-muted p-4 mb-4">
               <ImageIcon className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold">No announcements</h3>
+            <h3 className="text-xl font-semibold">Nenhum anúncio</h3>
             <p className="text-muted-foreground mt-2 max-w-sm">
-              You haven't added any announcements yet. Upload your first slide to start the broadcast.
+              Você ainda não adicionou nenhum anúncio. Envie seu primeiro slide para começar a exibição.
             </p>
             <Button variant="outline" className="mt-6" onClick={() => setIsUploadOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add your first slide
+              <Plus className="mr-2 h-4 w-4" /> Adicionar seu primeiro slide
             </Button>
           </div>
         ) : (
