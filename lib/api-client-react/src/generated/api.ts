@@ -608,13 +608,26 @@ export const getUpdateAnnouncementUrl = (id: number,) => {
 
 export const updateAnnouncement = async (id: number,
     announcementUpdate: AnnouncementUpdate, options?: RequestInit): Promise<Announcement> => {
+    const formData = new FormData();
+if(announcementUpdate.title !== undefined) {
+ formData.append(`title`, announcementUpdate.title);
+ }
+if(announcementUpdate.isActive !== undefined) {
+ formData.append(`isActive`, announcementUpdate.isActive.toString())
+ }
+if(announcementUpdate.displayOrder !== undefined) {
+ formData.append(`displayOrder`, announcementUpdate.displayOrder.toString())
+ }
+if(announcementUpdate.duration !== undefined) {
+ formData.append(`duration`, announcementUpdate.duration.toString())
+ }
 
   return customFetch<Announcement>(getUpdateAnnouncementUrl(id),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(announcementUpdate)
+    method: 'PATCH'
+    ,
+    body: formData
   }
 );}
 
