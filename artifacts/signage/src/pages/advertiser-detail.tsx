@@ -43,7 +43,7 @@ export default function AdvertiserDetail() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
-      <Link href="/advertisers"><Button variant="ghost" size="sm" className="-ml-2 mb-6"><ArrowLeft className="mr-1 h-4 w-4" />Advertisers</Button></Link>
+      <Link href="/advertisers"><Button variant="ghost" size="sm" className="-ml-2 mb-6"><ArrowLeft className="mr-1 h-4 w-4" />Anunciantes</Button></Link>
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">{data.company || data.name}</h1>
         <p className="mt-1 text-muted-foreground">{[data.company && data.name, data.email, data.phone].filter(Boolean).join(" · ")}</p>

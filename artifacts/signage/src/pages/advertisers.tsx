@@ -143,7 +143,7 @@ export default function Advertisers() {
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Advertisers</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Anunciantes</h1>
           <p className="mt-1 text-muted-foreground">Clientes que pagam para publicar anúncios na sua rede de TVs.</p>
         </div>
         <div className="flex gap-2">
