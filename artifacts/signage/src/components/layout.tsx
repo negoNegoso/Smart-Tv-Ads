@@ -6,10 +6,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
 
   const navItems = [
-    { href: '/clients', label: 'Clients', icon: Users },
-    { href: '/admin', label: 'Media Library', icon: LayoutDashboard },
-    { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/advertisers', label: 'Advertisers', icon: Building2 },
+    { href: '/clients', label: 'Clientes', icon: Users },
+    { href: '/admin', label: 'Biblioteca de Mídia', icon: LayoutDashboard },
+    { href: '/analytics', label: 'Análises', icon: BarChart3 },
+    { href: '/advertisers', label: 'Anunciantes', icon: Building2 },
   ];
 
   return (
@@ -18,7 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="container mx-auto flex h-16 items-center px-4">
           <div className="flex items-center gap-2 font-bold tracking-tight text-primary">
             <MonitorPlay className="h-6 w-6" />
-            <span>SignageOS</span>
+            <span>Painel de Anúncios</span>
           </div>
 
           <nav className="ml-8 flex gap-1">
