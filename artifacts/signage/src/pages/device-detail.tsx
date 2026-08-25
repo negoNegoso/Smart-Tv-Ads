@@ -135,14 +135,14 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
         queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
         setAddOpen(false);
       },
-      onError: () => toast({ title: 'Already in playlist or failed', variant: 'destructive' }),
+      onError: () => toast({ title: 'Já está na playlist ou falhou', variant: 'destructive' }),
     },
   });
 
   const removeMutation = useRemoveFromDevicePlaylist({
     mutation: {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
-      onError: () => toast({ title: 'Failed to remove', variant: 'destructive' }),
+      onError: () => toast({ title: 'Não foi possível remover', variant: 'destructive' }),
     },
   });
 
@@ -150,7 +150,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
     mutation: {
       onError: () => {
         queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
-        toast({ title: 'Failed to reorder', variant: 'destructive' });
+        toast({ title: 'Não foi possível reordenar', variant: 'destructive' });
       },
     },
   });
@@ -158,7 +158,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
   const toggleMutation = useTogglePlaylistItem({
     mutation: {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
-      onError: () => toast({ title: 'Failed to toggle', variant: 'destructive' }),
+      onError: () => toast({ title: 'Não foi possível alterar o status', variant: 'destructive' }),
     },
   });
 
@@ -187,20 +187,20 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{playlist.length} items in playlist</p>
+        <p className="text-sm text-muted-foreground">{playlist.length} itens na playlist</p>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline">
               <Plus className="h-4 w-4 mr-2" />
-              Add Announcement
+              Adicionar anúncio
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add to Playlist</DialogTitle>
+              <DialogTitle>Adicionar à playlist</DialogTitle>
             </DialogHeader>
             {available.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-4 text-center">All announcements are already in the playlist.</p>
+              <p className="text-muted-foreground text-sm py-4 text-center">Todos os anúncios já estão na playlist.</p>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {available.map((a) => {
@@ -234,7 +234,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
         </div>
       ) : localPlaylist.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground text-sm border rounded-xl bg-muted/20">
-          No announcements in playlist. Add one above.
+          Nenhum anúncio na playlist. Adicione um acima.
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -266,7 +266,7 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Total Impressions</p>
+            <p className="text-sm text-muted-foreground">Total de impressões</p>
             {isLoading ? <Skeleton className="h-8 w-20 mt-1" /> : (
               <p className="text-2xl font-bold mt-1">{data?.totalImpressions ?? 0}</p>
             )}
@@ -274,7 +274,7 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Total Display Time</p>
+            <p className="text-sm text-muted-foreground">Tempo total de exibição</p>
             {isLoading ? <Skeleton className="h-8 w-20 mt-1" /> : (
               <p className="text-2xl font-bold mt-1">{formatDuration(data?.totalDuration ?? 0)}</p>
             )}
@@ -287,19 +287,19 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
         </div>
       ) : !data?.byAnnouncement?.length ? (
-        <p className="text-sm text-muted-foreground text-center py-6 border rounded-xl bg-muted/20">No impressions recorded yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-6 border rounded-xl bg-muted/20">Nenhuma impressão registrada ainda.</p>
       ) : (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">By Announcement</CardTitle>
+            <CardTitle className="text-base">Por anúncio</CardTitle>
           </CardHeader>
           <CardContent>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Announcement</th>
-                  <th className="text-right py-2 font-medium">Impressions</th>
-                  <th className="text-right py-2 font-medium">Time</th>
+                  <th className="text-left py-2 font-medium">Anúncio</th>
+                  <th className="text-right py-2 font-medium">Impressões</th>
+                  <th className="text-right py-2 font-medium">Tempo</th>
                 </tr>
               </thead>
               <tbody>
@@ -336,7 +336,7 @@ export default function DeviceDetail() {
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => toast({ title: 'Failed to copy', variant: 'destructive' }));
+    }).catch(() => toast({ title: 'Não foi possível copiar', variant: 'destructive' }));
   }
 
   if (isLoading) {
@@ -352,8 +352,8 @@ export default function DeviceDetail() {
   if (!device) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-3xl text-center">
-        <p className="text-muted-foreground">Device not found.</p>
-        <Link href="/clients"><Button variant="link" className="mt-2">Back to clients</Button></Link>
+        <p className="text-muted-foreground">Dispositivo não encontrado.</p>
+        <Link href="/clients"><Button variant="link" className="mt-2">Voltar para clientes</Button></Link>
       </div>
     );
   }
@@ -385,7 +385,7 @@ export default function DeviceDetail() {
       </div>
 
       <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 mb-6">
-        <span className="text-xs text-muted-foreground font-medium shrink-0">TV URL:</span>
+        <span className="text-xs text-muted-foreground font-medium shrink-0">URL da TV:</span>
         <code className="text-xs flex-1 truncate font-mono">{displayUrl}</code>
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyUrl}>
           {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -398,11 +398,11 @@ export default function DeviceDetail() {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium capitalize border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t}
+            {t === 'playlist' ? 'Playlist' : 'Análises'}
           </button>
         ))}
       </div>
