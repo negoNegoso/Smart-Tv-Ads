@@ -178,6 +178,8 @@ router.get("/campaigns", async (_req, res): Promise<void> => {
       id: campaignsTable.id,
       advertiserId: campaignsTable.advertiserId,
       advertiserName: advertisersTable.name,
+      advertiserIds: sql<number[]>`coalesce((select array_agg(ca.advertiser_id order by ca.advertiser_id) from campaign_advertisers ca where ca.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       announcementId: campaignsTable.announcementId,
       announcementTitle: announcementsTable.title,
       name: campaignsTable.name,
@@ -245,6 +247,50 @@ router.patch("/campaigns/:id/toggle", async (req, res): Promise<void> => {
     return;
   }
   await db.update(campaignsTable).set({ isActive: !existing.isActive }).where(eq(campaignsTable.id, id));
+  res.json(await campaignWithStats(id));
+});
+
+router.patch("/campaigns/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const [existing] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  const parsed = campaignInput.refine((v) => v.endsAt > v.startsAt, { message: "End date must be after start date" }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const input = parsed.data;
+  const advertiserIds = advertiserIdsFor(input);
+  if (advertiserIds.length === 0) {
+    res.status(400).json({ error: "Selecione pelo menos um anunciante" });
+    return;
+  }
+  if (!input.allDevices && input.deviceIds.length === 0) {
+    res.status(400).json({ error: "Select at least one TV or enable all devices" });
+    return;
+  }
+  if ((await db.select({ id: advertisersTable.id }).from(advertisersTable).where(inArray(advertisersTable.id, advertiserIds))).length !== advertiserIds.length) {
+    res.status(400).json({ error: "Um ou mais anunciantes não foram encontrados" });
+    return;
+  }
+  await db.update(campaignsTable).set({
+    advertiserId: advertiserIds[0],
+    announcementId: input.announcementId,
+    name: input.name,
+    contractValue: input.contractValue,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    allDevices: input.allDevices,
+  }).where(eq(campaignsTable.id, id));
+  await db.delete(campaignAdvertisersTable).where(eq(campaignAdvertisersTable.campaignId, id));
+  await db.insert(campaignAdvertisersTable).values(advertiserIds.map((advertiserId) => ({ campaignId: id, advertiserId }))).onConflictDoNothing();
+  await db.delete(campaignDevicesTable).where(eq(campaignDevicesTable.campaignId, id));
+  if (!input.allDevices && input.deviceIds.length) {
+    await db.insert(campaignDevicesTable).values(input.deviceIds.map((deviceId) => ({ campaignId: id, deviceId }))).onConflictDoNothing();
+  }
   res.json(await campaignWithStats(id));
 });
 
