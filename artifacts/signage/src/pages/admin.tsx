@@ -20,7 +20,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2, Image as ImageIcon, Loader2, Pencil } from 'lucide-react';
 
 import {
   useListAnnouncements,
@@ -53,14 +53,30 @@ const uploadSchema = z.object({
 
 type UploadFormValues = z.infer<typeof uploadSchema>;
 
+const editSchema = z.object({
+  title: z.string().min(1, 'O título é obrigatório'),
+  duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
+  image: z
+    .any()
+    .optional()
+    .refine(
+      (val) => val == null || !(val instanceof FileList) || val.length === 0 || val[0] instanceof File,
+      'Arquivo de imagem inválido'
+    ),
+});
+
+type EditFormValues = z.infer<typeof editSchema>;
+
 function SortableAnnouncementRow({
   item,
   onToggle,
   onDelete,
+  onEdit,
 }: {
   item: Announcement;
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
+  onEdit: (item: Announcement) => void;
 }) {
   const {
     attributes,
@@ -124,6 +140,16 @@ function SortableAnnouncementRow({
         <Button
           variant="ghost"
           size="icon"
+          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-9 w-9"
+          onClick={() => onEdit(item)}
+        >
+          <Pencil className="h-4 w-4" />
+          <span className="sr-only">Editar</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9"
           onClick={() => onDelete(item.id)}
         >
@@ -145,6 +171,8 @@ export default function Admin() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (announcements) {
@@ -207,6 +235,11 @@ export default function Admin() {
     },
   });
 
+  const editForm = useForm<EditFormValues>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { title: '', duration: 10 },
+  });
+
   async function onUpload(values: UploadFormValues) {
     try {
       setIsUploading(true);
@@ -234,6 +267,43 @@ export default function Admin() {
       toast({ title: 'Falha no envio', description: 'Tente novamente.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  function openEdit(item: Announcement) {
+    setEditing(item);
+    editForm.reset({ title: item.title, duration: item.duration });
+  }
+
+  async function onEditSubmit(values: EditFormValues) {
+    if (!editing) return;
+    try {
+      setIsSaving(true);
+      const formData = new FormData();
+      formData.append('title', values.title);
+      formData.append('duration', String(values.duration));
+      if (values.image instanceof FileList && values.image.length > 0) {
+        formData.append('image', values.image[0]);
+      }
+
+      const res = await fetch(`${import.meta.env.BASE_URL}api/announcements/${editing.id}`, {
+        method: 'PATCH',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Update failed');
+
+      toast({ title: 'Anúncio atualizado' });
+      setEditing(null);
+      editForm.reset();
+
+      queryClient.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetAnnouncementStatsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListActiveAnnouncementsQueryKey() });
+    } catch (error) {
+      toast({ title: 'Falha ao atualizar', description: 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -393,6 +463,7 @@ export default function Admin() {
                     item={item}
                     onToggle={(id) => toggleMutation.mutate({ id })}
                     onDelete={(id) => deleteMutation.mutate({ id })}
+                    onEdit={openEdit}
                   />
                 ))}
               </div>
@@ -400,6 +471,89 @@ export default function Admin() {
           </DndContext>
         )}
       </div>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) { setEditing(null); editForm.reset(); } }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar anúncio</DialogTitle>
+            <DialogDescription>
+              Atualize o título, a duração ou substitua a imagem.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editing && (
+            <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+              <div className="h-14 w-20 shrink-0 overflow-hidden rounded bg-muted flex items-center justify-center border">
+                {editing.imageUrl ? (
+                  <img src={mediaUrl(editing.imageUrl)} alt={editing.title} className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                )}
+              </div>
+              <span className="text-sm text-muted-foreground">Imagem atual</span>
+            </div>
+          )}
+
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6 mt-4">
+              <FormField
+                control={editForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex.: Promoção de inverno" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração (segundos)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="1" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="image"
+                render={({ field: { value, onChange, ...fieldProps } }) => (
+                  <FormItem>
+                    <FormLabel>Substituir imagem (opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        className="cursor-pointer file:cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-3 file:py-1 file:mr-4 file:font-medium hover:file:bg-primary/20 transition-colors"
+                        onChange={(event) => onChange(event.target.files)}
+                        {...fieldProps}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter className="pt-4">
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSaving ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
