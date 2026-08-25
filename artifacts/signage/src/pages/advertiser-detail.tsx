@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, CalendarDays, Megaphone, Radio } from "lucide-react";
+import { ArrowLeft, CalendarDays, Megaphone, Radio, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 type Campaign = {
   id: number;
@@ -18,6 +22,7 @@ type Campaign = {
 };
 
 type Advertiser = {
+  id: number;
   name: string;
   company: string | null;
   email: string | null;
@@ -29,6 +34,38 @@ export default function AdvertiserDetail() {
   const [, params] = useRoute("/advertisers/:id");
   const [data, setData] = useState<Advertiser | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const [editOpen, setEditOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
+
+  function openEdit() {
+    if (!data) return;
+    setForm({
+      name: data.name ?? "",
+      company: data.company ?? "",
+      email: data.email ?? "",
+      phone: data.phone ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!params?.id) return;
+    const response = await fetch(`${import.meta.env.BASE_URL}api/advertisers/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (!response.ok) {
+      toast({ title: "Não foi possível atualizar o anunciante", variant: "destructive" });
+      return;
+    }
+    const updated = await response.json();
+    setData((prev) => (prev ? { ...prev, ...updated } : prev));
+    setEditOpen(false);
+    toast({ title: "Anunciante atualizado" });
+  }
 
   useEffect(() => {
     if (!params?.id) return;
@@ -44,9 +81,12 @@ export default function AdvertiserDetail() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <Link href="/advertisers"><Button variant="ghost" size="sm" className="-ml-2 mb-6"><ArrowLeft className="mr-1 h-4 w-4" />Anunciantes</Button></Link>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">{data.company || data.name}</h1>
-        <p className="mt-1 text-muted-foreground">{[data.company && data.name, data.email, data.phone].filter(Boolean).join(" · ")}</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{data.company || data.name}</h1>
+          <p className="mt-1 text-muted-foreground">{[data.company && data.name, data.email, data.phone].filter(Boolean).join(" · ")}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={openEdit}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
       </div>
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Radio className="h-5 w-5 text-primary" />Campanhas deste anunciante</CardTitle></CardHeader>
@@ -71,6 +111,19 @@ export default function AdvertiserDetail() {
           ))}
         </CardContent>
       </Card>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar anunciante</DialogTitle></DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div className="space-y-2"><Label>Nome do responsável</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+            <div className="space-y-2"><Label>Empresa / marca</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></div>
+            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Telefone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <DialogFooter><Button type="submit">Salvar alterações</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
