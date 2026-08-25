@@ -75,8 +75,8 @@ export default function Display() {
   if (!deviceKey) {
     return (
       <EmptyState
-        title="No device configured"
-        subtitle="Open the admin panel to get a TV display URL for this device."
+        title="Dispositivo não configurado"
+        subtitle="Abra o painel admin para obter a URL de exibição desta TV."
       />
     );
   }
@@ -88,8 +88,8 @@ export default function Display() {
   if (isError || slides.length === 0) {
     return (
       <EmptyState
-        title="No slides configured for this display"
-        subtitle="Go to the device settings and add announcements to its playlist."
+        title="Nenhum slide configurado para esta tela"
+        subtitle="Acesse as configurações da TV e adicione anúncios à playlist."
       />
     );
   }
