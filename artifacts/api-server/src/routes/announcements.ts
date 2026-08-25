@@ -68,6 +68,13 @@ async function persistImage(file: Express.Multer.File): Promise<string> {
   return persistBuffer(file.buffer, file.mimetype, file.originalname);
 }
 
+function deleteLocalImage(imageUrl: string | null | undefined): void {
+  if (!imageUrl || !imageUrl.startsWith("/api/uploads/")) return;
+  const filename = imageUrl.split("/").pop();
+  if (!filename) return;
+  fs.unlink(path.join(uploadsDir, filename), () => {});
+}
+
 async function migrateLegacyImages() {
   if (!process.env.PRIVATE_OBJECT_DIR) return;
   const rows = await db.select().from(announcementsTable);
@@ -192,28 +199,67 @@ router.get("/announcements/:id", async (req, res): Promise<void> => {
   res.json(GetAnnouncementResponse.parse(row));
 });
 
-router.patch("/announcements/:id", async (req, res): Promise<void> => {
-  const params = UpdateAnnouncementParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
+router.patch(
+  "/announcements/:id",
+  upload.single("image"),
+  async (req, res): Promise<void> => {
+    const params = UpdateAnnouncementParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    // FormData envia todos os campos como string — coage duration antes do Zod
+    const body: Record<string, unknown> = {};
+    if (req.body.title !== undefined) body.title = req.body.title;
+    if (req.body.duration !== undefined && req.body.duration !== "") {
+      body.duration = Number(req.body.duration);
+    }
+    const parsed = UpdateAnnouncementBody.safeParse(body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const [existing] = await db
+      .select()
+      .from(announcementsTable)
+      .where(eq(announcementsTable.id, params.data.id));
+    if (!existing) {
+      res.status(404).json({ error: "Announcement not found" });
+      return;
+    }
+
+    const updates: Record<string, unknown> = { ...parsed.data };
+
+    if (req.file) {
+      let imageUrl: string;
+      try {
+        imageUrl = await persistImage(req.file);
+      } catch (error) {
+        res.status(502).json({ error: "Could not persist image in object storage" });
+        return;
+      }
+      updates.imageUrl = imageUrl;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.json(UpdateAnnouncementResponse.parse(existing));
+      return;
+    }
+
+    const [row] = await db
+      .update(announcementsTable)
+      .set(updates)
+      .where(eq(announcementsTable.id, params.data.id))
+      .returning();
+
+    if (req.file) {
+      deleteLocalImage(existing.imageUrl);
+    }
+
+    res.json(UpdateAnnouncementResponse.parse(row));
   }
-  const parsed = UpdateAnnouncementBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [row] = await db
-    .update(announcementsTable)
-    .set(parsed.data)
-    .where(eq(announcementsTable.id, params.data.id))
-    .returning();
-  if (!row) {
-    res.status(404).json({ error: "Announcement not found" });
-    return;
-  }
-  res.json(UpdateAnnouncementResponse.parse(row));
-});
+);
 
 router.delete("/announcements/:id", async (req, res): Promise<void> => {
   const params = DeleteAnnouncementParams.safeParse(req.params);
@@ -230,13 +276,7 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     return;
   }
   // Delete image file from disk
-  if (row.imageUrl) {
-    const filename = row.imageUrl.split("/").pop();
-    if (filename) {
-      const filePath = path.join(uploadsDir, filename);
-      fs.unlink(filePath, () => {});
-    }
-  }
+  deleteLocalImage(row.imageUrl);
   res.sendStatus(204);
 });
 
