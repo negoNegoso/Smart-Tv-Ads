@@ -19,8 +19,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 const newClientSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  name: z.string().min(1, 'O nome é obrigatório'),
+  email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
 });
 type NewClientForm = z.infer<typeof newClientSchema>;
@@ -36,11 +36,11 @@ export default function Clients() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
-        toast({ title: 'Client created' });
+        toast({ title: 'Cliente cadastrado' });
         setOpen(false);
         form.reset();
       },
-      onError: () => toast({ title: 'Failed to create client', variant: 'destructive' }),
+      onError: () => toast({ title: 'Não foi possível cadastrar o cliente', variant: 'destructive' }),
     },
   });
 
@@ -51,9 +51,9 @@ export default function Clients() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
-      toast({ title: 'Client deleted' });
+      toast({ title: 'Cliente excluído' });
     },
-    onError: () => toast({ title: 'Failed to delete client', variant: 'destructive' }),
+    onError: () => toast({ title: 'Não foi possível excluir o cliente', variant: 'destructive' }),
   });
 
   const form = useForm<NewClientForm>({
@@ -75,19 +75,19 @@ export default function Clients() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground mt-1">Manage your signage clients and their devices.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <p className="text-muted-foreground mt-1">Gerencie seus clientes e as TVs de cada um.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              New Client
+              Novo cliente
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>New Client</DialogTitle>
+              <DialogTitle>Novo cliente</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
@@ -96,7 +96,7 @@ export default function Clients() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>Nome</FormLabel>
                       <FormControl><Input placeholder="Acme Corp" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -107,7 +107,7 @@ export default function Clients() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email (optional)</FormLabel>
+                      <FormLabel>E-mail (opcional)</FormLabel>
                       <FormControl><Input type="email" placeholder="contact@acme.com" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -118,7 +118,7 @@ export default function Clients() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone (optional)</FormLabel>
+                      <FormLabel>Telefone (opcional)</FormLabel>
                       <FormControl><Input placeholder="+55 11 99999-9999" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -127,7 +127,7 @@ export default function Clients() {
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Client
+                    Cadastrar cliente
                   </Button>
                 </DialogFooter>
               </form>
@@ -144,8 +144,8 @@ export default function Clients() {
         <Card className="text-center py-16">
           <CardContent>
             <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-            <p className="text-muted-foreground font-medium">No clients yet.</p>
-            <p className="text-sm text-muted-foreground/60 mt-1">Create your first client to get started.</p>
+            <p className="text-muted-foreground font-medium">Nenhum cliente ainda.</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Cadastre seu primeiro cliente para começar.</p>
           </CardContent>
         </Card>
       ) : (
@@ -170,7 +170,7 @@ export default function Clients() {
 
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Monitor className="h-4 w-4" />
-                <span>{client.deviceCount} {client.deviceCount === 1 ? 'device' : 'devices'}</span>
+                <span>{client.deviceCount} {client.deviceCount === 1 ? 'TV' : 'TVs'}</span>
               </div>
 
               <div className="flex items-center gap-1">
@@ -198,16 +198,16 @@ export default function Clients() {
         <div className="mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Summary</CardTitle>
+              <CardTitle className="text-base">Resumo</CardTitle>
             </CardHeader>
             <CardContent className="flex gap-8">
               <div>
                 <p className="text-2xl font-bold">{clients.length}</p>
-                <p className="text-sm text-muted-foreground">Total clients</p>
+                <p className="text-sm text-muted-foreground">Total de clientes</p>
               </div>
               <div>
                 <p className="text-2xl font-bold">{clients.reduce((s, c) => s + c.deviceCount, 0)}</p>
-                <p className="text-sm text-muted-foreground">Total devices</p>
+                <p className="text-sm text-muted-foreground">Total de TVs</p>
               </div>
             </CardContent>
           </Card>
