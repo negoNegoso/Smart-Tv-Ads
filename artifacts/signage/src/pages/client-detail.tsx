@@ -4,13 +4,15 @@ import { useRoute, Link } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Plus, Monitor, Trash2, ChevronRight, Loader2, MapPin, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Monitor, Trash2, ChevronRight, Loader2, MapPin, Clock, Pencil } from 'lucide-react';
 import {
   useGetClient,
   useListDevices,
   useCreateDevice,
+  useUpdateClient,
   getGetClientQueryKey,
   getListDevicesQueryKey,
+  getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +28,13 @@ const newDeviceSchema = z.object({
 });
 type NewDeviceForm = z.infer<typeof newDeviceSchema>;
 
+const editClientSchema = z.object({
+  name: z.string().min(1, 'O nome é obrigatório'),
+  email: z.string().email('E-mail inválido').optional().or(z.literal('')),
+  phone: z.string().optional(),
+});
+type EditClientForm = z.infer<typeof editClientSchema>;
+
 export default function ClientDetail() {
   const [, params] = useRoute('/clients/:id');
   const clientId = params ? parseInt(params.id, 10) : 0;
@@ -33,6 +42,7 @@ export default function ClientDetail() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: client, isLoading: clientLoading } = useGetClient(clientId, {
     query: { enabled: !!clientId, queryKey: getGetClientQueryKey(clientId) },
@@ -74,6 +84,43 @@ export default function ClientDetail() {
     defaultValues: { name: '', location: '' },
   });
 
+  const updateClient = useUpdateClient({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
+        queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
+        toast({ title: 'Cliente atualizado' });
+        setEditOpen(false);
+      },
+      onError: () => toast({ title: 'Não foi possível atualizar o cliente', variant: 'destructive' }),
+    },
+  });
+
+  const editForm = useForm<EditClientForm>({
+    resolver: zodResolver(editClientSchema),
+    defaultValues: { name: '', email: '', phone: '' },
+  });
+
+  function openEdit() {
+    editForm.reset({
+      name: client?.name ?? '',
+      email: client?.email ?? '',
+      phone: client?.phone ?? '',
+    });
+    setEditOpen(true);
+  }
+
+  function onEditSubmit(values: EditClientForm) {
+    updateClient.mutate({
+      id: clientId,
+      data: {
+        name: values.name,
+        email: values.email || undefined,
+        phone: values.phone || undefined,
+      },
+    });
+  }
+
   function onSubmit(values: NewDeviceForm) {
     createDevice.mutate({
       data: { clientId, name: values.name, location: values.location || undefined },
@@ -111,7 +158,12 @@ export default function ClientDetail() {
 
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={openEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
           {(client.email || client.phone) && (
             <p className="text-muted-foreground mt-1">
               {[client.email, client.phone].filter(Boolean).join(' · ')}
@@ -123,6 +175,57 @@ export default function ClientDetail() {
           <span>{client.deviceCount} {client.deviceCount === 1 ? 'TV' : 'TVs'}</span>
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cliente</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 pt-2">
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl><Input placeholder="Acme Corp" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail (opcional)</FormLabel>
+                    <FormControl><Input type="email" placeholder="contato@acme.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone (opcional)</FormLabel>
+                    <FormControl><Input placeholder="+55 11 99999-9999" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={updateClient.isPending}>
+                  {updateClient.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar alterações
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">TVs</h2>
