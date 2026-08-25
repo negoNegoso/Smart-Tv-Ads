@@ -115,8 +115,8 @@ export default function ClientDetail() {
       id: clientId,
       data: {
         name: values.name,
-        email: values.email || undefined,
-        phone: values.phone || undefined,
+        email: values.email || null,
+        phone: values.phone || null,
       },
     });
   }
