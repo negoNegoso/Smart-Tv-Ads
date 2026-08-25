@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 const newDeviceSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, 'O nome é obrigatório'),
   location: z.string().optional(),
 });
 type NewDeviceForm = z.infer<typeof newDeviceSchema>;
@@ -48,11 +48,11 @@ export default function ClientDetail() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey({ clientId }) });
         queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
-        toast({ title: 'Device created' });
+        toast({ title: 'TV cadastrada' });
         setOpen(false);
         form.reset();
       },
-      onError: () => toast({ title: 'Failed to create device', variant: 'destructive' }),
+      onError: () => toast({ title: 'Não foi possível cadastrar a TV', variant: 'destructive' }),
     },
   });
 
@@ -64,9 +64,9 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getListDevicesQueryKey({ clientId }) });
       queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
-      toast({ title: 'Device deleted' });
+      toast({ title: 'TV excluída' });
     },
-    onError: () => toast({ title: 'Failed to delete device', variant: 'destructive' }),
+    onError: () => toast({ title: 'Não foi possível excluir a TV', variant: 'destructive' }),
   });
 
   const form = useForm<NewDeviceForm>({
@@ -94,8 +94,8 @@ export default function ClientDetail() {
   if (!client) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl text-center">
-        <p className="text-muted-foreground">Client not found.</p>
-        <Link href="/clients"><Button variant="link" className="mt-2">Back to clients</Button></Link>
+        <p className="text-muted-foreground">Cliente não encontrado.</p>
+        <Link href="/clients"><Button variant="link" className="mt-2">Voltar para clientes</Button></Link>
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function ClientDetail() {
       <Link href="/clients">
         <Button variant="ghost" size="sm" className="mb-6 text-muted-foreground -ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Clients
+          Clientes
         </Button>
       </Link>
 
@@ -120,22 +120,22 @@ export default function ClientDetail() {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-lg px-3 py-2">
           <Monitor className="h-4 w-4" />
-          <span>{client.deviceCount} {client.deviceCount === 1 ? 'device' : 'devices'}</span>
+          <span>{client.deviceCount} {client.deviceCount === 1 ? 'TV' : 'TVs'}</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Devices</h2>
+        <h2 className="text-xl font-semibold">TVs</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add Device
+              Adicionar TV
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Device</DialogTitle>
+              <DialogTitle>Adicionar TV</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
@@ -144,8 +144,8 @@ export default function ClientDetail() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl><Input placeholder="Reception TV" {...field} /></FormControl>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl><Input placeholder="TV da recepção" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -155,8 +155,8 @@ export default function ClientDetail() {
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location (optional)</FormLabel>
-                      <FormControl><Input placeholder="Main entrance" {...field} /></FormControl>
+                      <FormLabel>Local (opcional)</FormLabel>
+                      <FormControl><Input placeholder="Entrada principal" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -164,7 +164,7 @@ export default function ClientDetail() {
                 <DialogFooter>
                   <Button type="submit" disabled={createDevice.isPending}>
                     {createDevice.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Add Device
+                    Adicionar TV
                   </Button>
                 </DialogFooter>
               </form>
@@ -181,8 +181,8 @@ export default function ClientDetail() {
         <Card className="text-center py-12">
           <CardContent>
             <Monitor className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-muted-foreground font-medium">No devices yet.</p>
-            <p className="text-sm text-muted-foreground/60 mt-1">Add a device to start configuring playlists.</p>
+            <p className="text-muted-foreground font-medium">Nenhuma TV ainda.</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Adicione uma TV para começar a configurar as playlists.</p>
           </CardContent>
         </Card>
       ) : (
@@ -208,7 +208,7 @@ export default function ClientDetail() {
                   {device.lastSeenAt && (
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Last seen {new Date(device.lastSeenAt).toLocaleDateString()}
+                      Visto por último em {new Date(device.lastSeenAt).toLocaleDateString('pt-BR')}
                     </span>
                   )}
                 </div>
