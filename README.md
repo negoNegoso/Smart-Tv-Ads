@@ -33,6 +33,39 @@ As variáveis do App Storage são criadas ao provisionar o Object Storage pelo R
 
 ## Rodar em desenvolvimento
 
+### Localmente com `dev.sh` (recomendado)
+
+O script `dev.sh` na raiz automatiza todo o ambiente local: sobe um PostgreSQL
+via Docker (credenciais derivadas do `DATABASE_URL`), aplica o schema com
+`drizzle-kit push` e inicia a API e o frontend.
+
+Pré-requisitos: **Docker** e **pnpm** instalados, e um `.env` com `DATABASE_URL`
+(as variáveis do `.env` são carregadas automaticamente pelo script).
+
+```bash
+./dev.sh          # sobe banco + API + frontend
+./dev.sh --db     # sobe apenas o banco e aplica o schema
+./dev.sh --stop   # para o container do banco
+```
+
+Ao rodar `./dev.sh`, deixe o terminal aberto (os serviços ficam em primeiro
+plano) e use `Ctrl+C` para encerrar a API e o frontend. O container do banco
+continua rodando; use `./dev.sh --stop` para pará-lo.
+
+O modo `--db` termina logo após aplicar o schema — isso é o comportamento
+esperado, não um erro. As mensagens `PostgreSQL pronto`,
+`[i] No changes detected` (schema já aplicado) e
+`Banco pronto e schema aplicado. (--db) Encerrando.` indicam sucesso.
+
+Portas e URLs:
+
+- Painel: `http://localhost:21153/admin`
+- Display TV: `http://localhost:21153/tv.html?key=DEVICE_KEY`
+- Health da API: `http://localhost:8080/api/healthz`
+
+Variáveis opcionais reconhecidas pelo script: `SIGNAGE_PORT` (porta do
+frontend, padrão `21153`) e `BASE_PATH` (base do Vite, padrão `/`).
+
 ### Pelo Replit
 
 Use o botão **Run**. Os workflows configurados são:
