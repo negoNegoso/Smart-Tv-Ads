@@ -27,8 +27,8 @@ type Campaign = {
   advertiserNames?: string[];
   advertiserIds?: number[];
   deviceIds?: number[];
-  announcementId: number;
-  announcementTitle: string;
+  announcementIds: number[];
+  announcementTitles: string[];
   name: string;
   contractValue: number;
   startsAt: string;
@@ -37,6 +37,7 @@ type Campaign = {
   isActive: boolean;
   impressions: number;
   totalDuration: number;
+  impressionsByAnnouncement?: Array<{ announcementId: number; title: string; impressions: number }>;
 };
 
 type Announcement = { id: number; title: string };
@@ -64,10 +65,11 @@ export default function Advertisers() {
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
   const [selectedAdvertisers, setSelectedAdvertisers] = useState<number[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
+  const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
   const [allDevices, setAllDevices] = useState(true);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
   const [campaignForm, setCampaignForm] = useState({
-    name: "", announcementId: "", contractValue: "", startsAt: "", endsAt: "",
+    name: "", contractValue: "", startsAt: "", endsAt: "",
   });
 
   async function load() {
@@ -104,9 +106,10 @@ export default function Advertisers() {
 
   function openNewCampaign() {
     setEditingCampaignId(null);
-    setCampaignForm({ name: "", announcementId: "", contractValue: "", startsAt: "", endsAt: "" });
+    setCampaignForm({ name: "", contractValue: "", startsAt: "", endsAt: "" });
     setSelectedAdvertisers([]);
     setSelectedDevices([]);
+    setSelectedAnnouncements([]);
     setAllDevices(true);
     setCampaignDialog(true);
   }
@@ -115,13 +118,13 @@ export default function Advertisers() {
     setEditingCampaignId(campaign.id);
     setCampaignForm({
       name: campaign.name,
-      announcementId: String(campaign.announcementId),
       contractValue: String(campaign.contractValue ?? ""),
       startsAt: campaign.startsAt.slice(0, 10),
       endsAt: campaign.endsAt.slice(0, 10),
     });
     setSelectedAdvertisers(campaign.advertiserIds ?? []);
     setSelectedDevices(campaign.deviceIds ?? []);
+    setSelectedAnnouncements(campaign.announcementIds ?? []);
     setAllDevices(campaign.allDevices);
     setCampaignDialog(true);
   }
@@ -135,7 +138,7 @@ export default function Advertisers() {
       body: JSON.stringify({
         ...campaignForm,
         advertiserIds: selectedAdvertisers,
-        announcementId: Number(campaignForm.announcementId),
+        announcementIds: selectedAnnouncements,
         contractValue: Number(campaignForm.contractValue || 0),
         allDevices,
         deviceIds: selectedDevices,
@@ -148,9 +151,10 @@ export default function Advertisers() {
     }
     setCampaignDialog(false);
     setEditingCampaignId(null);
-    setCampaignForm({ name: "", announcementId: "", contractValue: "", startsAt: "", endsAt: "" });
+    setCampaignForm({ name: "", contractValue: "", startsAt: "", endsAt: "" });
     setSelectedDevices([]);
     setSelectedAdvertisers([]);
+    setSelectedAnnouncements([]);
     toast({ title: isEditing ? "Campanha atualizada" : "Campanha publicada" });
     load();
   }
@@ -222,7 +226,7 @@ export default function Advertisers() {
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Megaphone className="h-4 w-4" /></div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{campaign.name}</p>
-                    <p className="text-xs text-muted-foreground">{(campaign.advertiserNames?.length ? campaign.advertiserNames.join(", ") : campaign.advertiserName)} · {campaign.announcementTitle}</p>
+                    <p className="text-xs text-muted-foreground">{(campaign.advertiserNames?.length ? campaign.advertiserNames.join(", ") : campaign.advertiserName)} · {campaign.announcementTitles.join(", ")}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{date(campaign.startsAt)} — {date(campaign.endsAt)}</span>
                       <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
@@ -261,12 +265,12 @@ export default function Advertisers() {
           <form onSubmit={submitCampaign} className="space-y-4">
             <div className="space-y-2"><Label>Anunciantes</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{advertisers.map((a) => <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selectedAdvertisers.includes(a.id)} onChange={(e) => setSelectedAdvertisers(e.target.checked ? [...selectedAdvertisers, a.id] : selectedAdvertisers.filter((id) => id !== a.id))} />{a.company || a.name}</label>)}</div><p className="text-xs text-muted-foreground">Você pode vincular a mesma campanha a vários anunciantes.</p></div>
             <Field label="Nome da campanha" value={campaignForm.name} onChange={(v) => setCampaignForm({ ...campaignForm, name: v })} placeholder="Ex.: Campanha de inverno" required />
-            <div className="space-y-2"><Label>Anúncio / peça</Label><Select value={campaignForm.announcementId} onValueChange={(v) => setCampaignForm({ ...campaignForm, announcementId: v })}><SelectTrigger><SelectValue placeholder="Selecione a peça publicada" /></SelectTrigger><SelectContent>{announcements.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.title}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Anúncios / peças</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{announcements.map((a) => <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selectedAnnouncements.includes(a.id)} onChange={(e) => setSelectedAnnouncements(e.target.checked ? [...selectedAnnouncements, a.id] : selectedAnnouncements.filter((id) => id !== a.id))} />{a.title}</label>)}</div><p className="text-xs text-muted-foreground">Você pode vincular vários anúncios à mesma campanha.</p></div>
             <Field label="Valor contratado (R$)" type="number" value={campaignForm.contractValue} onChange={(v) => setCampaignForm({ ...campaignForm, contractValue: v })} placeholder="0,00" />
             <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={campaignForm.startsAt} onChange={(v) => setCampaignForm({ ...campaignForm, startsAt: v })} required /><Field label="Fim" type="date" value={campaignForm.endsAt} onChange={(v) => setCampaignForm({ ...campaignForm, endsAt: v })} required /></div>
             <div className="flex items-center justify-between rounded-lg border p-3"><div><p className="text-sm font-medium">Publicar em todas as TVs</p><p className="text-xs text-muted-foreground">A campanha entra automaticamente na programação de toda a rede.</p></div><Switch checked={allDevices} onCheckedChange={setAllDevices} /></div>
             {!allDevices && <div className="space-y-2"><Label>Escolha as TVs</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{devices.map((device) => <label key={device.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selectedDevices.includes(device.id)} onChange={(e) => setSelectedDevices(e.target.checked ? [...selectedDevices, device.id] : selectedDevices.filter((id) => id !== device.id))} />{device.name}<span className="text-xs text-muted-foreground">· {device.clientName}</span></label>)}</div></div>}
-            <DialogFooter><Button type="submit" disabled={!selectedAdvertisers.length || !campaignForm.announcementId}>{editingCampaignId !== null ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
+            <DialogFooter><Button type="submit" disabled={!selectedAdvertisers.length || !selectedAnnouncements.length}>{editingCampaignId !== null ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
