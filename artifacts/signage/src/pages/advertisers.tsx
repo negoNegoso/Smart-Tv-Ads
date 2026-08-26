@@ -169,6 +169,13 @@ export default function Advertisers() {
     load();
   }
 
+  async function deleteAdvertiser(id: number, label: string) {
+    if (!window.confirm(`Excluir o anunciante "${label}"? As campanhas em que ele é o anunciante principal também serão removidas.`)) return;
+    await fetch(api(`/advertisers/${id}`), { method: "DELETE" });
+    toast({ title: "Anunciante removido" });
+    load();
+  }
+
   const totalValue = useMemo(() => campaigns.reduce((sum, campaign) => sum + Number(campaign.contractValue || 0), 0), [campaigns]);
 
   return (
@@ -207,6 +214,7 @@ export default function Advertisers() {
                     <p className="truncate font-medium">{advertiser.company || advertiser.name}</p>
                     <p className="text-xs text-muted-foreground">{advertiser.campaignCount} campanhas · {advertiser.totalImpressions} impressões</p>
                   </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Excluir anunciante" onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteAdvertiser(advertiser.id, advertiser.company || advertiser.name); }}><Trash2 className="h-4 w-4" /></Button>
                   <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </div>
               </Link>
