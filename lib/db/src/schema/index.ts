@@ -7,3 +7,4 @@ export * from "./advertisers";
 export * from "./campaigns";
 export * from "./campaign_devices";
 export * from "./campaign_advertisers";
+export * from "./campaign_announcements";
