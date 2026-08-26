@@ -91,7 +91,14 @@ router.get("/advertisers", async (_req, res): Promise<void> => {
     .leftJoin(campaignAdvertisersTable, eq(campaignAdvertisersTable.advertiserId, advertisersTable.id))
     .leftJoin(campaignsTable, eq(campaignsTable.id, campaignAdvertisersTable.campaignId))
     .leftJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
-    .leftJoin(impressionsTable, eq(impressionsTable.announcementId, campaignAnnouncementsTable.announcementId))
+    .leftJoin(
+      impressionsTable,
+      and(
+        eq(impressionsTable.announcementId, campaignAnnouncementsTable.announcementId),
+        sql`${impressionsTable.createdAt} >= greatest(${campaignsTable.startsAt}, ${campaignsTable.createdAt})`,
+        sql`${impressionsTable.createdAt} <= ${campaignsTable.endsAt}`,
+      ),
+    )
     .groupBy(advertisersTable.id)
     .orderBy(asc(advertisersTable.name));
   res.json(rows);
