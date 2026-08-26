@@ -10,6 +10,7 @@ import {
   devicesTable,
   impressionsTable,
   campaignAdvertisersTable,
+  campaignAnnouncementsTable,
 } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -24,7 +25,8 @@ const advertiserInput = z.object({
 const campaignInput = z.object({
   advertiserId: z.coerce.number().int().positive().optional(),
   advertiserIds: z.array(z.coerce.number().int().positive()).default([]),
-  announcementId: z.coerce.number().int().positive(),
+  announcementId: z.coerce.number().int().positive().optional(),
+  announcementIds: z.array(z.coerce.number().int().positive()).default([]),
   name: z.string().min(1),
   contractValue: z.coerce.number().min(0).default(0),
   startsAt: z.coerce.date(),
@@ -37,6 +39,10 @@ function advertiserIdsFor(input: z.infer<typeof campaignInput>) {
   return [...new Set([...(input.advertiserIds || []), ...(input.advertiserId ? [input.advertiserId] : [])])];
 }
 
+function announcementIdsFor(input: z.infer<typeof campaignInput>) {
+  return [...new Set([...(input.announcementIds || []), ...(input.announcementId ? [input.announcementId] : [])])];
+}
+
 async function campaignWithStats(campaignId: number) {
   const [row] = await db
     .select({
@@ -45,30 +51,21 @@ async function campaignWithStats(campaignId: number) {
       advertiserName: advertisersTable.name,
       advertiserNames: sql<string[]>`coalesce((select array_agg(a.name order by a.name) from campaign_advertisers ca join advertisers a on a.id = ca.advertiser_id where ca.campaign_id = ${campaignsTable.id}), array[]::text[])`,
       company: advertisersTable.company,
-      announcementId: campaignsTable.announcementId,
-      announcementTitle: announcementsTable.title,
+      announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), array[]::text[])`,
       name: campaignsTable.name,
       contractValue: campaignsTable.contractValue,
       startsAt: campaignsTable.startsAt,
       endsAt: campaignsTable.endsAt,
       allDevices: campaignsTable.allDevices,
       isActive: campaignsTable.isActive,
-      impressions: sql<number>`count(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`coalesce(sum(${impressionsTable.durationSeconds}), 0)::int`,
+      impressions: sql<number>`(select count(*)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      totalDuration: sql<number>`(select coalesce(sum(i.duration_seconds), 0)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      impressionsByAnnouncement: sql<Array<{ announcementId: number; title: string; impressions: number }>>`coalesce((select json_agg(json_build_object('announcementId', an.id, 'title', an.title, 'impressions', (select count(*)::int from impressions i where i.announcement_id = an.id and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignsTable.announcementId))
-    .leftJoin(
-      impressionsTable,
-      and(
-        eq(impressionsTable.announcementId, campaignsTable.announcementId),
-        sql`${impressionsTable.createdAt} >= ${campaignsTable.startsAt}`,
-        sql`${impressionsTable.createdAt} <= ${campaignsTable.endsAt}`,
-      ),
-    )
-    .where(eq(campaignsTable.id, campaignId))
-    .groupBy(campaignsTable.id, advertisersTable.name, advertisersTable.company, announcementsTable.title);
+    .where(eq(campaignsTable.id, campaignId));
   if (!row) return null;
   const devices = await db
     .select({ id: devicesTable.id, name: devicesTable.name, location: devicesTable.location })
@@ -93,7 +90,8 @@ router.get("/advertisers", async (_req, res): Promise<void> => {
     .from(advertisersTable)
     .leftJoin(campaignAdvertisersTable, eq(campaignAdvertisersTable.advertiserId, advertisersTable.id))
     .leftJoin(campaignsTable, eq(campaignsTable.id, campaignAdvertisersTable.campaignId))
-    .leftJoin(impressionsTable, eq(impressionsTable.announcementId, campaignsTable.announcementId))
+    .leftJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
+    .leftJoin(impressionsTable, eq(impressionsTable.announcementId, campaignAnnouncementsTable.announcementId))
     .groupBy(advertisersTable.id)
     .orderBy(asc(advertisersTable.name));
   res.json(rows);
@@ -125,23 +123,21 @@ router.get("/advertisers/:id", async (req, res): Promise<void> => {
       advertiserId: campaignsTable.advertiserId,
       advertiserName: advertisersTable.name,
       advertiserNames: sql<string[]>`coalesce((select array_agg(a.name order by a.name) from campaign_advertisers ca join advertisers a on a.id = ca.advertiser_id where ca.campaign_id = ${campaignsTable.id}), array[]::text[])`,
-      announcementId: campaignsTable.announcementId,
-      announcementTitle: announcementsTable.title,
+      announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), array[]::text[])`,
       name: campaignsTable.name,
       contractValue: campaignsTable.contractValue,
       startsAt: campaignsTable.startsAt,
       endsAt: campaignsTable.endsAt,
       allDevices: campaignsTable.allDevices,
       isActive: campaignsTable.isActive,
-      impressions: sql<number>`count(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`coalesce(sum(${impressionsTable.durationSeconds}), 0)::int`,
+      impressions: sql<number>`(select count(*)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      totalDuration: sql<number>`(select coalesce(sum(i.duration_seconds), 0)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      impressionsByAnnouncement: sql<Array<{ announcementId: number; title: string; impressions: number }>>`coalesce((select json_agg(json_build_object('announcementId', an.id, 'title', an.title, 'impressions', (select count(*)::int from impressions i where i.announcement_id = an.id and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignsTable.announcementId))
-    .leftJoin(impressionsTable, eq(impressionsTable.announcementId, campaignsTable.announcementId))
     .where(sql`exists (select 1 from campaign_advertisers ca where ca.campaign_id = ${campaignsTable.id} and ca.advertiser_id = ${id})`)
-    .groupBy(campaignsTable.id, advertisersTable.name, announcementsTable.title)
     .orderBy(desc(campaignsTable.startsAt));
   res.json({ ...advertiser, campaigns });
 });
@@ -180,22 +176,20 @@ router.get("/campaigns", async (_req, res): Promise<void> => {
       advertiserName: advertisersTable.name,
       advertiserIds: sql<number[]>`coalesce((select array_agg(ca.advertiser_id order by ca.advertiser_id) from campaign_advertisers ca where ca.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      announcementId: campaignsTable.announcementId,
-      announcementTitle: announcementsTable.title,
+      announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), array[]::text[])`,
       name: campaignsTable.name,
       contractValue: campaignsTable.contractValue,
       startsAt: campaignsTable.startsAt,
       endsAt: campaignsTable.endsAt,
       allDevices: campaignsTable.allDevices,
       isActive: campaignsTable.isActive,
-      impressions: sql<number>`count(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`coalesce(sum(${impressionsTable.durationSeconds}), 0)::int`,
+      impressions: sql<number>`(select count(*)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      totalDuration: sql<number>`(select coalesce(sum(i.duration_seconds), 0)::int from impressions i join campaign_announcements cn on cn.announcement_id = i.announcement_id where cn.campaign_id = ${campaignsTable.id} and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})`,
+      impressionsByAnnouncement: sql<Array<{ announcementId: number; title: string; impressions: number }>>`coalesce((select json_agg(json_build_object('announcementId', an.id, 'title', an.title, 'impressions', (select count(*)::int from impressions i where i.announcement_id = an.id and i.created_at >= ${campaignsTable.startsAt} and i.created_at <= ${campaignsTable.endsAt})) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignsTable.announcementId))
-    .leftJoin(impressionsTable, eq(impressionsTable.announcementId, campaignsTable.announcementId))
-    .groupBy(campaignsTable.id, advertisersTable.name, announcementsTable.title)
     .orderBy(desc(campaignsTable.startsAt));
   res.json(rows);
 });
@@ -212,6 +206,11 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Selecione pelo menos um anunciante" });
     return;
   }
+  const announcementIds = announcementIdsFor(input);
+  if (announcementIds.length === 0) {
+    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
+    return;
+  }
   if (!input.allDevices && input.deviceIds.length === 0) {
     res.status(400).json({ error: "Select at least one TV or enable all devices" });
     return;
@@ -223,7 +222,6 @@ router.post("/campaigns", async (req, res): Promise<void> => {
   }
   const [campaign] = await db.insert(campaignsTable).values({
     advertiserId: advertiserIds[0],
-    announcementId: input.announcementId,
     name: input.name,
     contractValue: input.contractValue,
     startsAt: input.startsAt,
@@ -231,6 +229,7 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     allDevices: input.allDevices,
   }).returning();
   await db.insert(campaignAdvertisersTable).values(advertiserIds.map((advertiserId) => ({ campaignId: campaign.id, advertiserId }))).onConflictDoNothing();
+  await db.insert(campaignAnnouncementsTable).values(announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId }))).onConflictDoNothing();
   if (!input.allDevices && input.deviceIds.length) {
     await db.insert(campaignDevicesTable).values(
       input.deviceIds.map((deviceId) => ({ campaignId: campaign.id, deviceId })),
@@ -268,6 +267,11 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Selecione pelo menos um anunciante" });
     return;
   }
+  const announcementIds = announcementIdsFor(input);
+  if (announcementIds.length === 0) {
+    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
+    return;
+  }
   if (!input.allDevices && input.deviceIds.length === 0) {
     res.status(400).json({ error: "Select at least one TV or enable all devices" });
     return;
@@ -278,7 +282,6 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
   }
   await db.update(campaignsTable).set({
     advertiserId: advertiserIds[0],
-    announcementId: input.announcementId,
     name: input.name,
     contractValue: input.contractValue,
     startsAt: input.startsAt,
@@ -287,6 +290,8 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
   }).where(eq(campaignsTable.id, id));
   await db.delete(campaignAdvertisersTable).where(eq(campaignAdvertisersTable.campaignId, id));
   await db.insert(campaignAdvertisersTable).values(advertiserIds.map((advertiserId) => ({ campaignId: id, advertiserId }))).onConflictDoNothing();
+  await db.delete(campaignAnnouncementsTable).where(eq(campaignAnnouncementsTable.campaignId, id));
+  await db.insert(campaignAnnouncementsTable).values(announcementIds.map((announcementId) => ({ campaignId: id, announcementId }))).onConflictDoNothing();
   await db.delete(campaignDevicesTable).where(eq(campaignDevicesTable.campaignId, id));
   if (!input.allDevices && input.deviceIds.length) {
     await db.insert(campaignDevicesTable).values(input.deviceIds.map((deviceId) => ({ campaignId: id, deviceId }))).onConflictDoNothing();

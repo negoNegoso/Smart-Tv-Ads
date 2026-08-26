@@ -7,6 +7,7 @@ import {
   announcementsTable,
   campaignsTable,
   campaignDevicesTable,
+  campaignAnnouncementsTable,
 } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
 
@@ -52,13 +53,14 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
   const now = new Date();
   const campaignSlides = await db
     .select({
-      announcementId: campaignsTable.announcementId,
+      announcementId: campaignAnnouncementsTable.announcementId,
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
     })
     .from(campaignsTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignsTable.announcementId))
+    .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
+    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
     .leftJoin(campaignDevicesTable, eq(campaignDevicesTable.campaignId, campaignsTable.id))
     .where(
       and(

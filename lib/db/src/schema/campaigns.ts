@@ -2,12 +2,10 @@ import { pgTable, text, serial, integer, boolean, real, timestamp } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { advertisersTable } from "./advertisers";
-import { announcementsTable } from "./announcements";
 
 export const campaignsTable = pgTable("campaigns", {
   id: serial("id").primaryKey(),
   advertiserId: integer("advertiser_id").notNull().references(() => advertisersTable.id, { onDelete: "cascade" }),
-  announcementId: integer("announcement_id").notNull().references(() => announcementsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   contractValue: real("contract_value").notNull().default(0),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
