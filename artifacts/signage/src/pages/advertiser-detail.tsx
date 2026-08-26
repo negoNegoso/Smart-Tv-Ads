@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 type Campaign = {
   id: number;
   name: string;
-  announcementTitle: string;
+  announcementTitles: string[];
   contractValue: number;
   startsAt: string;
   endsAt: string;
@@ -97,7 +97,7 @@ export default function AdvertiserDetail() {
                 <Megaphone className="mt-1 h-5 w-5 text-primary" />
                 <div className="flex-1">
                   <p className="font-medium">{campaign.name}</p>
-                  <p className="text-sm text-muted-foreground">{campaign.announcementTitle}</p>
+                  <p className="text-sm text-muted-foreground">{campaign.announcementTitles.join(", ")}</p>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(campaign.startsAt).toLocaleDateString("pt-BR")} — {new Date(campaign.endsAt).toLocaleDateString("pt-BR")}</span>
                     <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
