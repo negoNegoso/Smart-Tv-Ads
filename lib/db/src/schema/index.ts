@@ -2,7 +2,7 @@ export * from "./announcements";
 export * from "./clients";
 export * from "./devices";
 export * from "./device_playlist";
-export * from "./impressions";
+export * from "./plays";
 export * from "./advertisers";
 export * from "./campaigns";
 export * from "./campaign_devices";
