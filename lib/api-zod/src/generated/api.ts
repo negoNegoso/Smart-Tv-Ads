@@ -240,12 +240,12 @@ export const GetClientStatsResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "totalDevices": zod.number(),
-  "totalImpressions": zod.number(),
+  "totalPlays": zod.number(),
   "totalDuration": zod.number(),
   "topAnnouncements": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
-  "impressions": zod.number(),
+  "plays": zod.number(),
   "totalDuration": zod.number()
 })).optional()
 })
@@ -440,6 +440,7 @@ export const GetDeviceSlidesParams = zod.object({
 
 export const GetDeviceSlidesResponseItem = zod.object({
   "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
   "title": zod.string(),
   "imageUrl": zod.string(),
   "duration": zod.number()
@@ -448,15 +449,16 @@ export const GetDeviceSlidesResponse = zod.array(GetDeviceSlidesResponseItem)
 
 
 /**
- * @summary Record a slide impression from a TV display
+ * @summary Record a slide play (proof-of-play) from a TV display
  */
-export const RecordImpressionBody = zod.object({
+export const RecordPlayBody = zod.object({
   "deviceKey": zod.string(),
   "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
   "durationSeconds": zod.number()
 })
 
-export const RecordImpressionResponse = zod.void()
+export const RecordPlayResponse = zod.void()
 
 
 /**
@@ -465,12 +467,12 @@ export const RecordImpressionResponse = zod.void()
 export const GetAnalyticsSummaryResponse = zod.object({
   "totalClients": zod.number(),
   "totalDevices": zod.number(),
-  "totalImpressions": zod.number(),
+  "totalPlays": zod.number(),
   "totalDuration": zod.number(),
   "topAnnouncements": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
-  "impressions": zod.number(),
+  "plays": zod.number(),
   "totalDuration": zod.number()
 })).optional()
 })
@@ -484,12 +486,12 @@ export const GetClientAnalyticsResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "totalDevices": zod.number(),
-  "totalImpressions": zod.number(),
+  "totalPlays": zod.number(),
   "totalDuration": zod.number(),
   "topAnnouncements": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
-  "impressions": zod.number(),
+  "plays": zod.number(),
   "totalDuration": zod.number()
 })).optional()
 })
@@ -504,12 +506,12 @@ export const GetDeviceAnalyticsResponse = zod.object({
   "deviceName": zod.string(),
   "clientId": zod.number(),
   "clientName": zod.string(),
-  "totalImpressions": zod.number(),
+  "totalPlays": zod.number(),
   "totalDuration": zod.number(),
   "byAnnouncement": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
-  "impressions": zod.number(),
+  "plays": zod.number(),
   "totalDuration": zod.number()
 })).optional()
 })
@@ -522,13 +524,13 @@ export const GetAnnouncementAnalyticsParams = zod.object({
 export const GetAnnouncementAnalyticsResponse = zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
-  "totalImpressions": zod.number(),
+  "totalPlays": zod.number(),
   "totalDuration": zod.number(),
   "byDevice": zod.array(zod.object({
   "deviceId": zod.number(),
   "deviceName": zod.string(),
   "clientName": zod.string(),
-  "impressions": zod.number(),
+  "plays": zod.number(),
   "totalDuration": zod.number()
 })).optional()
 })

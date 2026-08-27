@@ -10,7 +10,7 @@ import type { AnnouncementAnalyticsByDeviceItem } from './announcementAnalyticsB
 export interface AnnouncementAnalytics {
   announcementId: number;
   title: string;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
   byDevice?: AnnouncementAnalyticsByDeviceItem[];
 }

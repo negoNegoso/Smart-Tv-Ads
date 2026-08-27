@@ -10,6 +10,6 @@ export type AnnouncementAnalyticsByDeviceItem = {
   deviceId: number;
   deviceName: string;
   clientName: string;
-  impressions: number;
+  plays: number;
   totalDuration: number;
 };

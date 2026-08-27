@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface AnnouncementImpressionStat {
+export interface PlayInput {
+  deviceKey: string;
   announcementId: number;
-  title: string;
-  impressions: number;
-  totalDuration: number;
+  campaignId?: number | null;
+  durationSeconds: number;
 }

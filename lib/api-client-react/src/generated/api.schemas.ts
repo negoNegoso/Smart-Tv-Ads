@@ -72,10 +72,10 @@ export interface ClientUpdate {
   phone?: string | null;
 }
 
-export interface AnnouncementImpressionStat {
+export interface AnnouncementPlayStat {
   announcementId: number;
   title: string;
-  impressions: number;
+  plays: number;
   totalDuration: number;
 }
 
@@ -83,9 +83,9 @@ export interface ClientStats {
   clientId: number;
   clientName: string;
   totalDevices: number;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
-  topAnnouncements?: AnnouncementImpressionStat[];
+  topAnnouncements?: AnnouncementPlayStat[];
 }
 
 export interface Device {
@@ -137,32 +137,34 @@ export interface PlaylistReorder {
 
 export interface DisplaySlide {
   announcementId: number;
+  campaignId?: number | null;
   title: string;
   imageUrl: string;
   duration: number;
 }
 
-export interface ImpressionInput {
+export interface PlayInput {
   deviceKey: string;
   announcementId: number;
+  campaignId?: number | null;
   durationSeconds: number;
 }
 
 export interface AnalyticsSummary {
   totalClients: number;
   totalDevices: number;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
-  topAnnouncements?: AnnouncementImpressionStat[];
+  topAnnouncements?: AnnouncementPlayStat[];
 }
 
 export interface ClientAnalytics {
   clientId: number;
   clientName: string;
   totalDevices: number;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
-  topAnnouncements?: AnnouncementImpressionStat[];
+  topAnnouncements?: AnnouncementPlayStat[];
 }
 
 export interface DeviceAnalytics {
@@ -170,23 +172,23 @@ export interface DeviceAnalytics {
   deviceName: string;
   clientId: number;
   clientName: string;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
-  byAnnouncement?: AnnouncementImpressionStat[];
+  byAnnouncement?: AnnouncementPlayStat[];
 }
 
 export type AnnouncementAnalyticsByDeviceItem = {
   deviceId: number;
   deviceName: string;
   clientName: string;
-  impressions: number;
+  plays: number;
   totalDuration: number;
 };
 
 export interface AnnouncementAnalytics {
   announcementId: number;
   title: string;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
   byDevice?: AnnouncementAnalyticsByDeviceItem[];
 }

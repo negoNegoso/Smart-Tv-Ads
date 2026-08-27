@@ -5,13 +5,13 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
-import type { AnnouncementImpressionStat } from './announcementImpressionStat';
+import type { AnnouncementPlayStat } from './announcementPlayStat';
 
 export interface ClientStats {
   clientId: number;
   clientName: string;
   totalDevices: number;
-  totalImpressions: number;
+  totalPlays: number;
   totalDuration: number;
-  topAnnouncements?: AnnouncementImpressionStat[];
+  topAnnouncements?: AnnouncementPlayStat[];
 }

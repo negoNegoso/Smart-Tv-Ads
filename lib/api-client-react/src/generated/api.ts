@@ -37,8 +37,8 @@ import type {
   DeviceUpdate,
   DisplaySlide,
   HealthStatus,
-  ImpressionInput,
   ListDevicesParams,
+  PlayInput,
   PlaylistItem,
   PlaylistItemInput,
   PlaylistReorder,
@@ -2029,25 +2029,25 @@ export function useGetDeviceSlides<TData = Awaited<ReturnType<typeof getDeviceSl
 
 
 
-export const getRecordImpressionUrl = () => {
+export const getRecordPlayUrl = () => {
 
 
 
 
-  return `/api/telemetry/impression`
+  return `/api/telemetry/play`
 }
 
 /**
- * @summary Record a slide impression from a TV display
+ * @summary Record a slide play (proof-of-play) from a TV display
  */
-export const recordImpression = async (impressionInput: ImpressionInput, options?: RequestInit): Promise<void> => {
+export const recordPlay = async (playInput: PlayInput, options?: RequestInit): Promise<void> => {
 
-  return customFetch<void>(getRecordImpressionUrl(),
+  return customFetch<void>(getRecordPlayUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(impressionInput)
+    body: JSON.stringify(playInput)
   }
 );}
 
@@ -2055,11 +2055,11 @@ export const recordImpression = async (impressionInput: ImpressionInput, options
 
 
 
-export const getRecordImpressionMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordImpression>>, TError,{data: BodyType<ImpressionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordImpression>>, TError,{data: BodyType<ImpressionInput>}, TContext> => {
+export const getRecordPlayMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPlay>>, TError,{data: BodyType<PlayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPlay>>, TError,{data: BodyType<PlayInput>}, TContext> => {
 
-const mutationKey = ['recordImpression'];
+const mutationKey = ['recordPlay'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -2069,10 +2069,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordImpression>>, {data: BodyType<ImpressionInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPlay>>, {data: BodyType<PlayInput>}> = (props) => {
           const {data} = props ?? {};
 
-          return  recordImpression(data,requestOptions)
+          return  recordPlay(data,requestOptions)
         }
 
 
@@ -2082,22 +2082,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type RecordImpressionMutationResult = NonNullable<Awaited<ReturnType<typeof recordImpression>>>
-    export type RecordImpressionMutationBody = BodyType<ImpressionInput>
-    export type RecordImpressionMutationError = ErrorType<void>
+    export type RecordPlayMutationResult = NonNullable<Awaited<ReturnType<typeof recordPlay>>>
+    export type RecordPlayMutationBody = BodyType<PlayInput>
+    export type RecordPlayMutationError = ErrorType<void>
 
     /**
- * @summary Record a slide impression from a TV display
+ * @summary Record a slide play (proof-of-play) from a TV display
  */
-export const useRecordImpression = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordImpression>>, TError,{data: BodyType<ImpressionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useRecordPlay = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPlay>>, TError,{data: BodyType<PlayInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof recordImpression>>,
+        Awaited<ReturnType<typeof recordPlay>>,
         TError,
-        {data: BodyType<ImpressionInput>},
+        {data: BodyType<PlayInput>},
         TContext
       > => {
-      return useMutation(getRecordImpressionMutationOptions(options));
+      return useMutation(getRecordPlayMutationOptions(options));
     }
 
 export const getGetAnalyticsSummaryUrl = () => {

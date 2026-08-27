@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ImpressionInput {
-  deviceKey: string;
+export interface AnnouncementPlayStat {
   announcementId: number;
-  durationSeconds: number;
+  title: string;
+  plays: number;
+  totalDuration: number;
 }

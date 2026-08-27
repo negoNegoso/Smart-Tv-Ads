@@ -8,6 +8,7 @@
 
 export interface DisplaySlide {
   announcementId: number;
+  campaignId?: number | null;
   title: string;
   imageUrl: string;
   duration: number;

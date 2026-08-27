@@ -465,17 +465,17 @@ paths:
           description: Device not found
 
   # ── Telemetry ────────────────────────────────────────────────────────────────
-  /telemetry/impression:
+  /telemetry/play:
     post:
-      operationId: recordImpression
+      operationId: recordPlay
       tags: [telemetry]
-      summary: Record a slide impression from a TV display
+      summary: Record a slide play (proof-of-play) from a TV display
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ImpressionInput"
+              $ref: "#/components/schemas/PlayInput"
       responses:
         "201":
           description: Recorded
@@ -625,17 +625,17 @@ components:
 
     ClientStats:
       type: object
-      required: [clientId, clientName, totalDevices, totalImpressions, totalDuration]
+      required: [clientId, clientName, totalDevices, totalPlays, totalDuration]
       properties:
         clientId: { type: integer }
         clientName: { type: string }
         totalDevices: { type: integer }
-        totalImpressions: { type: integer }
+        totalPlays: { type: integer }
         totalDuration: { type: integer }
         topAnnouncements:
           type: array
           items:
-            $ref: "#/components/schemas/AnnouncementImpressionStat"
+            $ref: "#/components/schemas/AnnouncementPlayStat"
 
     # ── Devices ──────────────────────────────────────────────────────────────
     Device:
@@ -700,87 +700,89 @@ components:
       required: [announcementId, title, imageUrl, duration]
       properties:
         announcementId: { type: integer }
+        campaignId: { type: integer, nullable: true }
         title: { type: string }
         imageUrl: { type: string }
         duration: { type: integer }
 
     # ── Telemetry ────────────────────────────────────────────────────────────
-    ImpressionInput:
+    PlayInput:
       type: object
       required: [deviceKey, announcementId, durationSeconds]
       properties:
         deviceKey: { type: string }
         announcementId: { type: integer }
+        campaignId: { type: integer, nullable: true }
         durationSeconds: { type: number }
 
     # ── Analytics ────────────────────────────────────────────────────────────
-    AnnouncementImpressionStat:
+    AnnouncementPlayStat:
       type: object
-      required: [announcementId, title, impressions, totalDuration]
+      required: [announcementId, title, plays, totalDuration]
       properties:
         announcementId: { type: integer }
         title: { type: string }
-        impressions: { type: integer }
+        plays: { type: integer }
         totalDuration: { type: integer }
 
     AnalyticsSummary:
       type: object
-      required: [totalClients, totalDevices, totalImpressions, totalDuration]
+      required: [totalClients, totalDevices, totalPlays, totalDuration]
       properties:
         totalClients: { type: integer }
         totalDevices: { type: integer }
-        totalImpressions: { type: integer }
+        totalPlays: { type: integer }
         totalDuration: { type: integer }
         topAnnouncements:
           type: array
           items:
-            $ref: "#/components/schemas/AnnouncementImpressionStat"
+            $ref: "#/components/schemas/AnnouncementPlayStat"
 
     ClientAnalytics:
       type: object
-      required: [clientId, clientName, totalDevices, totalImpressions, totalDuration]
+      required: [clientId, clientName, totalDevices, totalPlays, totalDuration]
       properties:
         clientId: { type: integer }
         clientName: { type: string }
         totalDevices: { type: integer }
-        totalImpressions: { type: integer }
+        totalPlays: { type: integer }
         totalDuration: { type: integer }
         topAnnouncements:
           type: array
           items:
-            $ref: "#/components/schemas/AnnouncementImpressionStat"
+            $ref: "#/components/schemas/AnnouncementPlayStat"
 
     DeviceAnalytics:
       type: object
-      required: [deviceId, deviceName, clientId, clientName, totalImpressions, totalDuration]
+      required: [deviceId, deviceName, clientId, clientName, totalPlays, totalDuration]
       properties:
         deviceId: { type: integer }
         deviceName: { type: string }
         clientId: { type: integer }
         clientName: { type: string }
-        totalImpressions: { type: integer }
+        totalPlays: { type: integer }
         totalDuration: { type: integer }
         byAnnouncement:
           type: array
           items:
-            $ref: "#/components/schemas/AnnouncementImpressionStat"
+            $ref: "#/components/schemas/AnnouncementPlayStat"
 
     AnnouncementAnalytics:
       type: object
-      required: [announcementId, title, totalImpressions, totalDuration]
+      required: [announcementId, title, totalPlays, totalDuration]
       properties:
         announcementId: { type: integer }
         title: { type: string }
-        totalImpressions: { type: integer }
+        totalPlays: { type: integer }
         totalDuration: { type: integer }
         byDevice:
           type: array
           items:
             type: object
-            required: [deviceId, deviceName, clientName, impressions, totalDuration]
+            required: [deviceId, deviceName, clientName, plays, totalDuration]
             properties:
               deviceId: { type: integer }
               deviceName: { type: string }
               clientName: { type: string }
-              impressions: { type: integer }
+              plays: { type: integer }
               totalDuration: { type: integer }
