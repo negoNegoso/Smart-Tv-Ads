@@ -19,9 +19,9 @@ export default function Display() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const impressionSent = useRef(false);
+  const playSent = useRef(false);
 
-  // Auto-advance + impression tracking
+  // Auto-advance + play tracking
   useEffect(() => {
     if (slides.length === 0) return;
 
@@ -34,22 +34,23 @@ export default function Display() {
     const durationMs = slide.duration * 1000;
     const intervalMs = 50;
     let elapsed = 0;
-    impressionSent.current = false;
+    playSent.current = false;
 
     const timer = setInterval(() => {
       elapsed += intervalMs;
       setProgress((elapsed / durationMs) * 100);
 
       if (elapsed >= durationMs) {
-        // Record impression fire-and-forget
-        if (!impressionSent.current && deviceKey) {
-          impressionSent.current = true;
-          fetch(`${import.meta.env.BASE_URL}api/telemetry/impression`, {
+        // Record play fire-and-forget
+        if (!playSent.current && deviceKey) {
+          playSent.current = true;
+          fetch(`${import.meta.env.BASE_URL}api/telemetry/play`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               deviceKey,
               announcementId: slide.announcementId,
+              campaignId: slide.campaignId ?? null,
               durationSeconds: slide.duration,
             }),
           }).catch(() => {});
