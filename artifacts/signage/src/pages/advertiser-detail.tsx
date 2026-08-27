@@ -17,7 +17,7 @@ type Campaign = {
   endsAt: string;
   allDevices: boolean;
   isActive: boolean;
-  impressions: number;
+  plays: number;
   totalDuration: number;
 };
 
@@ -101,7 +101,7 @@ export default function AdvertiserDetail() {
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(campaign.startsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })} — {new Date(campaign.endsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
                     <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
-                    <span>{campaign.impressions} impressões</span>
+                    <span>{campaign.plays} exibições</span>
                     <span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(campaign.contractValue || 0)}</span>
                   </div>
                 </div>

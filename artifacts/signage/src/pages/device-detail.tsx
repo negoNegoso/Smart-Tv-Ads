@@ -291,9 +291,9 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Total de impressões</p>
+            <p className="text-sm text-muted-foreground">Total de exibições</p>
             {isLoading ? <Skeleton className="h-8 w-20 mt-1" /> : (
-              <p className="text-2xl font-bold mt-1">{data?.totalImpressions ?? 0}</p>
+              <p className="text-2xl font-bold mt-1">{data?.totalPlays ?? 0}</p>
             )}
           </CardContent>
         </Card>
@@ -312,7 +312,7 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
         </div>
       ) : !data?.byAnnouncement?.length ? (
-        <p className="text-sm text-muted-foreground text-center py-6 border rounded-xl bg-muted/20">Nenhuma impressão registrada ainda.</p>
+        <p className="text-sm text-muted-foreground text-center py-6 border rounded-xl bg-muted/20">Nenhuma exibição registrada ainda.</p>
       ) : (
         <Card>
           <CardHeader className="pb-2">
@@ -323,7 +323,7 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="text-left py-2 font-medium">Anúncio</th>
-                  <th className="text-right py-2 font-medium">Impressões</th>
+                  <th className="text-right py-2 font-medium">Exibições</th>
                   <th className="text-right py-2 font-medium">Tempo</th>
                 </tr>
               </thead>
@@ -331,7 +331,7 @@ function AnalyticsTab({ deviceId }: { deviceId: number }) {
                 {data.byAnnouncement.map((row) => (
                   <tr key={row.announcementId} className="border-b last:border-0">
                     <td className="py-2 font-medium">{row.title}</td>
-                    <td className="py-2 text-right tabular-nums">{row.impressions}</td>
+                    <td className="py-2 text-right tabular-nums">{row.plays}</td>
                     <td className="py-2 text-right tabular-nums text-muted-foreground">{formatDuration(row.totalDuration)}</td>
                   </tr>
                 ))}

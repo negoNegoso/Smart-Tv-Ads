@@ -36,7 +36,7 @@ export default function Analytics() {
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Análises</h1>
-        <p className="text-muted-foreground mt-1">Estatísticas de impressões e disponibilidade de toda a rede.</p>
+        <p className="text-muted-foreground mt-1">Estatísticas de exibições e disponibilidade de toda a rede.</p>
       </div>
 
       {isLoading ? (
@@ -47,7 +47,7 @@ export default function Analytics() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Total de clientes" value={data?.totalClients ?? 0} icon={Users} />
           <StatCard label="Total de TVs" value={data?.totalDevices ?? 0} icon={Monitor} />
-          <StatCard label="Total de impressões" value={data?.totalImpressions ?? 0} icon={Play} />
+          <StatCard label="Total de exibições" value={data?.totalPlays ?? 0} icon={Play} />
           <StatCard label="Tempo total de exibição" value={formatDuration(data?.totalDuration ?? 0)} icon={Clock} />
         </div>
       )}
@@ -62,13 +62,13 @@ export default function Analytics() {
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : !data?.topAnnouncements?.length ? (
-            <p className="text-muted-foreground text-sm py-4 text-center">Nenhuma impressão registrada ainda.</p>
+            <p className="text-muted-foreground text-sm py-4 text-center">Nenhuma exibição registrada ainda.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="text-left py-2 font-medium">Anúncio</th>
-                  <th className="text-right py-2 font-medium">Impressões</th>
+                  <th className="text-right py-2 font-medium">Exibições</th>
                   <th className="text-right py-2 font-medium">Tempo de exibição</th>
                 </tr>
               </thead>
@@ -81,7 +81,7 @@ export default function Analytics() {
                         <span className="font-medium">{item.title}</span>
                       </div>
                     </td>
-                    <td className="py-3 text-right tabular-nums">{item.impressions}</td>
+                    <td className="py-3 text-right tabular-nums">{item.plays}</td>
                     <td className="py-3 text-right tabular-nums text-muted-foreground">{formatDuration(item.totalDuration)}</td>
                   </tr>
                 ))}
