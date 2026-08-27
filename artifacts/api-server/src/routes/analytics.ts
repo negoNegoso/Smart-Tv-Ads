@@ -4,7 +4,7 @@ import {
   db,
   clientsTable,
   devicesTable,
-  impressionsTable,
+  playsTable,
   announcementsTable,
   devicePlaylistTable,
 } from "@workspace/db";
@@ -26,29 +26,29 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
     .select({
       totalClients: sql<number>`(SELECT COUNT(*)::int FROM ${clientsTable})`,
       totalDevices: sql<number>`(SELECT COUNT(*)::int FROM ${devicesTable})`,
-      totalImpressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable);
+    .from(playsTable);
 
   const topAnnouncements = await db
     .select({
-      announcementId: impressionsTable.announcementId,
+      announcementId: playsTable.announcementId,
       title: announcementsTable.title,
-      impressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, impressionsTable.announcementId))
-    .groupBy(impressionsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${impressionsTable.id})`))
+    .from(playsTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
+    .groupBy(playsTable.announcementId, announcementsTable.title)
+    .orderBy(desc(sql`COUNT(${playsTable.id})`))
     .limit(10);
 
   res.json(
     GetAnalyticsSummaryResponse.parse({
       totalClients: counts?.totalClients ?? 0,
       totalDevices: counts?.totalDevices ?? 0,
-      totalImpressions: counts?.totalImpressions ?? 0,
+      totalPlays: counts?.totalPlays ?? 0,
       totalDuration: counts?.totalDuration ?? 0,
       topAnnouncements,
     })
@@ -76,26 +76,26 @@ router.get("/analytics/clients/:clientId", async (req, res): Promise<void> => {
 
   const [agg] = await db
     .select({
-      totalImpressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(devicesTable, eq(devicesTable.id, impressionsTable.deviceId))
+    .from(playsTable)
+    .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
     .where(eq(devicesTable.clientId, clientId));
 
   const topAnnouncements = await db
     .select({
-      announcementId: impressionsTable.announcementId,
+      announcementId: playsTable.announcementId,
       title: announcementsTable.title,
-      impressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(devicesTable, eq(devicesTable.id, impressionsTable.deviceId))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, impressionsTable.announcementId))
+    .from(playsTable)
+    .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
+    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
     .where(eq(devicesTable.clientId, clientId))
-    .groupBy(impressionsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${impressionsTable.id})`))
+    .groupBy(playsTable.announcementId, announcementsTable.title)
+    .orderBy(desc(sql`COUNT(${playsTable.id})`))
     .limit(10);
 
   res.json(
@@ -103,7 +103,7 @@ router.get("/analytics/clients/:clientId", async (req, res): Promise<void> => {
       clientId,
       clientName: client.name,
       totalDevices: deviceCount?.count ?? 0,
-      totalImpressions: agg?.totalImpressions ?? 0,
+      totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
       topAnnouncements,
     })
@@ -131,24 +131,24 @@ router.get("/analytics/devices/:deviceId", async (req, res): Promise<void> => {
 
   const [agg] = await db
     .select({
-      totalImpressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .where(eq(impressionsTable.deviceId, deviceId));
+    .from(playsTable)
+    .where(eq(playsTable.deviceId, deviceId));
 
   const byAnnouncement = await db
     .select({
-      announcementId: impressionsTable.announcementId,
+      announcementId: playsTable.announcementId,
       title: announcementsTable.title,
-      impressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, impressionsTable.announcementId))
-    .where(eq(impressionsTable.deviceId, deviceId))
-    .groupBy(impressionsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${impressionsTable.id})`));
+    .from(playsTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
+    .where(eq(playsTable.deviceId, deviceId))
+    .groupBy(playsTable.announcementId, announcementsTable.title)
+    .orderBy(desc(sql`COUNT(${playsTable.id})`));
 
   res.json(
     GetDeviceAnalyticsResponse.parse({
@@ -156,7 +156,7 @@ router.get("/analytics/devices/:deviceId", async (req, res): Promise<void> => {
       deviceName: deviceRow.device.name,
       clientId: deviceRow.device.clientId,
       clientName: deviceRow.clientName,
-      totalImpressions: agg?.totalImpressions ?? 0,
+      totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
       byAnnouncement,
     })
@@ -182,32 +182,32 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
 
   const [agg] = await db
     .select({
-      totalImpressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .where(eq(impressionsTable.announcementId, announcementId));
+    .from(playsTable)
+    .where(eq(playsTable.announcementId, announcementId));
 
   const byDevice = await db
     .select({
       deviceId: devicesTable.id,
       deviceName: devicesTable.name,
       clientName: clientsTable.name,
-      impressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(devicesTable, eq(devicesTable.id, impressionsTable.deviceId))
+    .from(playsTable)
+    .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
-    .where(eq(impressionsTable.announcementId, announcementId))
+    .where(eq(playsTable.announcementId, announcementId))
     .groupBy(devicesTable.id, devicesTable.name, clientsTable.name)
-    .orderBy(desc(sql`COUNT(${impressionsTable.id})`));
+    .orderBy(desc(sql`COUNT(${playsTable.id})`));
 
   res.json(
     GetAnnouncementAnalyticsResponse.parse({
       announcementId,
       title: announcement.title,
-      totalImpressions: agg?.totalImpressions ?? 0,
+      totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
       byDevice,
     })
