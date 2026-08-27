@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, and, or, gte, lte } from "drizzle-orm";
+import { eq, asc, and, or, gte, lte, sql } from "drizzle-orm";
 import {
   db,
   devicesTable,
@@ -36,6 +36,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
   const playlistSlides = await db
     .select({
       announcementId: devicePlaylistTable.announcementId,
+      campaignId: sql<number | null>`NULL`,
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
@@ -54,6 +55,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
   const campaignSlides = await db
     .select({
       announcementId: campaignAnnouncementsTable.announcementId,
+      campaignId: campaignsTable.id,
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
