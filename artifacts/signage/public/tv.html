@@ -112,7 +112,7 @@
       var elapsed       = 0;
       var tickMs        = 80;
       var timer         = null;
-      var impressionSent = false;
+      var playSent = false;
       var activeSlot    = 'a';   // 'a' or 'b'
 
       // ─── DOM refs ─────────────────────────────────────────────────────────────
@@ -196,13 +196,14 @@
 
       // ─── Impression recording ─────────────────────────────────────────────
       function recordImpression(slide) {
-        if (impressionSent) { return; }
-        impressionSent = true;
+        if (playSent) { return; }
+        playSent = true;
         var key = getKey();
         if (!key) { return; }
-        xhrPost(apiBase() + '/api/telemetry/impression', {
+        xhrPost(apiBase() + '/api/telemetry/play', {
           deviceKey: key,
           announcementId: slide.announcementId,
+          campaignId: slide.campaignId != null ? slide.campaignId : null,
           durationSeconds: slide.duration
         });
       }
@@ -211,7 +212,7 @@
       function startTimer() {
         if (timer) { clearInterval(timer); }
         elapsed = 0;
-        impressionSent = false;
+        playSent = false;
         fillEl.style.width = '0';
 
         var slide = slides[currentIndex];
