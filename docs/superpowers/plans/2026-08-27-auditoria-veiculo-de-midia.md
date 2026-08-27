@@ -162,10 +162,11 @@ No bloco `"scripts"`, adicionar a entrada `migrate:plays`:
     "migrate:plays": "tsx ./src/migrate-plays.ts",
 ```
 
-- [ ] **Step 3: Subir o banco de dev**
+- [ ] **Step 3: Garantir que o banco está no ar SEM aplicar push**
 
-Run: `./dev.sh --db`
-Expected: Termina com "Banco pronto e schema aplicado. (--db) Encerrando."
+**Importante:** NÃO rode `./dev.sh --db` aqui — ele executa `drizzle-kit push`, que compararia o schema novo (`plays`, sem `campaign_advertisers`) com o banco antigo (`impressions`, `campaign_advertisers`) e faria drop+create, **perdendo os dados de `impressions`**. A migração explícita (Step 4) tem que rodar ANTES de qualquer `push`.
+
+Confirme que o Postgres está acessível (o container de dev normalmente já está no ar). Se não estiver, suba apenas o container do banco sem aplicar schema (ex.: `docker start signage-db`), sem rodar `drizzle-kit push`.
 
 - [ ] **Step 4: Rodar a migração**
 
