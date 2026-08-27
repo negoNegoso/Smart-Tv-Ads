@@ -7,7 +7,6 @@ import {
   clientsTable,
   devicePlaylistTable,
   announcementsTable,
-  impressionsTable,
 } from "@workspace/db";
 import {
   ListDevicesQueryParams,

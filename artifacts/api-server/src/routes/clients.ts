@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, asc, sql, desc } from "drizzle-orm";
-import { db, clientsTable, devicesTable, impressionsTable, announcementsTable } from "@workspace/db";
+import { db, clientsTable, devicesTable, playsTable, announcementsTable } from "@workspace/db";
 import {
   ListClientsResponse,
   CreateClientBody,
@@ -132,26 +132,26 @@ router.get("/clients/:id/stats", async (req, res): Promise<void> => {
 
   const [agg] = await db
     .select({
-      totalImpressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(devicesTable, eq(devicesTable.id, impressionsTable.deviceId))
+    .from(playsTable)
+    .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
     .where(eq(devicesTable.clientId, clientId));
 
   const topAnnouncements = await db
     .select({
-      announcementId: impressionsTable.announcementId,
+      announcementId: playsTable.announcementId,
       title: announcementsTable.title,
-      impressions: sql<number>`COUNT(${impressionsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${impressionsTable.durationSeconds}), 0)::int`,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
-    .from(impressionsTable)
-    .innerJoin(devicesTable, eq(devicesTable.id, impressionsTable.deviceId))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, impressionsTable.announcementId))
+    .from(playsTable)
+    .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
+    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
     .where(eq(devicesTable.clientId, clientId))
-    .groupBy(impressionsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${impressionsTable.id})`))
+    .groupBy(playsTable.announcementId, announcementsTable.title)
+    .orderBy(desc(sql`COUNT(${playsTable.id})`))
     .limit(10);
 
   res.json(
@@ -159,7 +159,7 @@ router.get("/clients/:id/stats", async (req, res): Promise<void> => {
       clientId,
       clientName: client.name,
       totalDevices: client.deviceCount,
-      totalImpressions: agg?.totalImpressions ?? 0,
+      totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
       topAnnouncements,
     })
