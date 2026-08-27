@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "backfill:campaign-announcements": "tsx ./src/backfill-campaign-announcements.ts",
     "migrate:plays": "tsx ./src/migrate-plays.ts",
+    "backfill:play-campaign": "tsx ./src/backfill-play-campaign.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
