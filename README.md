@@ -1,6 +1,6 @@
 # SignageOS — Painel de Anúncios
 
-Sistema de sinalização digital para Smart TVs. O painel administra peças de mídia, clientes que operam TVs, dispositivos, playlists, anunciantes, campanhas e métricas de exibição.
+Sistema de sinalização digital para Smart TVs. O painel administra peças de mídia, clientes que operam TVs, dispositivos, playlists, anunciantes, campanhas e métricas de exibição (plays).
 
 ## Requisitos
 
@@ -197,9 +197,9 @@ scripts/            scripts auxiliares do workspace
 - **Clientes** são os proprietários/operadores das TVs.
 - **Dispositivos** representam TVs individuais e têm uma chave própria.
 - **Anunciantes** são os clientes pagantes.
-- **Campanhas** ligam uma peça de mídia a um ou mais anunciantes, período, valor contratado e TVs de destino.
+- **Campanhas** ligam uma ou mais peças de mídia a um único anunciante, período, valor contratado e TVs de destino.
 - Campanhas ativas dentro do período configurado entram automaticamente no display dos dispositivos elegíveis.
-- Impressões são registradas pela API de telemetria.
+- Exibições (plays) são registradas pela API de telemetria no endpoint `/telemetry/play`, já atribuídas à campanha de origem via `campaignId`.
 - Uploads são persistidos no App Storage; o banco guarda somente o caminho do objeto e os metadados.
 
 ## Integração com GitHub
