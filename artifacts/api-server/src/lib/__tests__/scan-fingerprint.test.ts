@@ -30,4 +30,14 @@ describe("fingerprintFor", () => {
     expect(fingerprintFor("203.0.113.9", UA)).not.toContain("203.0.113.9");
     expect(fingerprintFor("203.0.113.9", UA)).toMatch(/^[a-f0-9]{64}$/);
   });
+
+  it("lança erro quando SCAN_SALT não está definida", () => {
+    delete process.env.SCAN_SALT;
+    expect(() => fingerprintFor("203.0.113.9", UA)).toThrow("SCAN_SALT must be set to record scans");
+  });
+
+  it("lança erro quando SCAN_SALT está vazia", () => {
+    process.env.SCAN_SALT = "";
+    expect(() => fingerprintFor("203.0.113.9", UA)).toThrow("SCAN_SALT must be set to record scans");
+  });
 });
