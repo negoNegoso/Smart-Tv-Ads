@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Gerenciador de pacotes:** `pnpm` exclusivamente. O `preinstall` da raiz aborta com `npm` ou `yarn`. Nunca gerar `package-lock.json` ou `yarn.lock`.
-- **`.npmrc`:** existe `minimumReleaseAge` de 1 dia como defesa contra ataque de cadeia de suprimentos. **Não desabilitar, não reduzir, não adicionar exclusões.** Se uma instalação falhar por causa disso, pare e relate.
+- **`pnpm-workspace.yaml`:** contém `minimumReleaseAge: 1440` (um dia) como defesa contra ataque de cadeia de suprimentos, além do `catalog:` de versões. **Não desabilitar, não reduzir, não adicionar entradas em `minimumReleaseAgeExclude`.** Se uma instalação falhar por causa disso, pare e relate.
 - **Idioma:** mensagens de erro visíveis ao usuário final em **português**. Nomes de teste em português (padrão do repositório, ver `src/lib/__tests__/bot-detect.test.ts`). Código, identificadores e comentários em inglês.
 - **Runtime da função:** `nodejs22.x`.
 - **Limite de upload em produção:** `MAX_UPLOAD_BYTES=4000000` na Vercel. Padrão do código permanece 20 MB (`20 * 1024 * 1024`).
@@ -235,15 +235,13 @@ Criar `artifacts/api-server/src/lib/storage/__tests__/vercel-blob.test.ts`:
 ```ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const put = vi.fn();
-const del = vi.fn();
+// vi.hoisted é obrigatório: vi.mock é içada para o topo do arquivo, então uma
+// fábrica que referencia `const` comum estoura ReferenceError.
+const { put, del } = vi.hoisted(() => ({ put: vi.fn(), del: vi.fn() }));
 
-vi.mock("@vercel/blob", () => ({
-  put: (...args: unknown[]) => put(...args),
-  del: (...args: unknown[]) => del(...args),
-}));
+vi.mock("@vercel/blob", () => ({ put, del }));
 
-const { VercelBlobStore } = await import("../vercel-blob");
+import { VercelBlobStore } from "../vercel-blob";
 
 describe("VercelBlobStore", () => {
   beforeEach(() => {
@@ -361,8 +359,12 @@ Criar `artifacts/api-server/src/lib/storage/__tests__/replit.test.ts`:
 ```ts
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getObjectEntityUploadURL = vi.fn();
-const normalizeObjectEntityPath = vi.fn();
+// vi.hoisted é obrigatório: vi.mock é içada para o topo do arquivo, então uma
+// fábrica que referencia `const` comum estoura ReferenceError.
+const { getObjectEntityUploadURL, normalizeObjectEntityPath } = vi.hoisted(() => ({
+  getObjectEntityUploadURL: vi.fn(),
+  normalizeObjectEntityPath: vi.fn(),
+}));
 
 vi.mock("../../objectStorage", () => ({
   ObjectStorageService: class {
@@ -371,7 +373,7 @@ vi.mock("../../objectStorage", () => ({
   },
 }));
 
-const { ReplitObjectStore } = await import("../replit");
+import { ReplitObjectStore } from "../replit";
 
 describe("ReplitObjectStore", () => {
   beforeEach(() => {
@@ -1530,15 +1532,20 @@ Criar `vercel.json` na raiz:
 }
 ```
 
-- [ ] **Step 3: Fixar a versão do Node**
+- [ ] **Step 3: Declarar o piso de versão do Node**
 
 Em `package.json` na raiz, adicionar depois de `"license": "MIT",`:
 
 ```json
   "engines": {
-    "node": "22.x"
+    "node": ">=22"
   },
 ```
+
+Um range, não `22.x`: o Replit roda Node 24 (`.replit` declara `nodejs-24`) e uma
+faixa fechada em 22 faria o pnpm avisar de incompatibilidade lá. A Vercel escolhe
+a maior versão suportada que satisfaz o range, e o runtime da função permanece
+fixado em `nodejs22.x` pelo `.vc-config.json`.
 
 - [ ] **Step 4: Rodar o script e conferir a estrutura**
 
@@ -1640,10 +1647,10 @@ Expected: `drizzle-kit push` cria as tabelas. Um banco novo é esperado estar va
 Conferir que a string usa o pooler:
 
 ```bash
-grep -o 'ep-[^.]*[^@]*@[^/]*' .env.production.local | head -1
+grep -c -- '-pooler' .env.production.local
 ```
 
-Expected: o host contém `-pooler`. Se **não** contiver, avise o usuário: sem o pooler o limite de conexões do Neon é atingido rápido, e a string pooled deve ser copiada do painel do Neon para `DATABASE_URL`.
+Expected: `1` ou mais — a `DATABASE_URL` usa o host com sufixo `-pooler`. Se der `0`, avise o usuário: sem o pooler o limite de conexões do Neon é atingido rápido, e a string pooled deve ser copiada do painel do Neon para `DATABASE_URL`.
 
 Confirmar que o arquivo não vaza:
 
