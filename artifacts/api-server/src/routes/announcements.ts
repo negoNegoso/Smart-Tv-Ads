@@ -1,10 +1,11 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { eq, asc, sql } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
-import { ObjectStorageService } from "../lib/objectStorage";
+import { mediaStore } from "../lib/storage";
+import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 import { parseFormBoolean } from "../lib/form-values";
 import { normalizeDisplayText } from "../lib/slide-caption";
 import {
@@ -29,56 +30,49 @@ import {
 const router: IRouter = Router();
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
-const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: maxUploadBytes() },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
     else cb(new Error("Only image files are allowed"));
   },
 });
-const objectStorage = new ObjectStorageService();
 
-async function persistBuffer(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
-  if (process.env.PRIVATE_OBJECT_DIR) {
-    const uploadUrl = await objectStorage.getObjectEntityUploadURL();
-    const uploaded = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": mimetype },
-      body: buffer,
-    });
-    if (!uploaded.ok) {
-      throw new Error(`Object storage upload failed: ${uploaded.status}`);
+/**
+ * Wraps multer so that its errors become explicit HTTP responses. On Vercel the
+ * request body cap is lower than the default limit, so an oversized upload is an
+ * expected outcome and must return a message the operator can act on.
+ */
+function uploadImage(req: Request, res: Response, next: NextFunction): void {
+  upload.single("image")(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
     }
-    const objectPath = objectStorage.normalizeObjectEntityPath(uploadUrl);
-    return `/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`;
-  }
-
-  // Local fallback keeps development environments working when App Storage is not configured.
-  const ext = path.extname(originalname);
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-  fs.writeFileSync(path.join(uploadsDir, filename), buffer);
-  return `/api/uploads/${filename}`;
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({ error: uploadTooLargeMessage(maxUploadBytes()) });
+      return;
+    }
+    if (err instanceof Error && err.message === "Only image files are allowed") {
+      res.status(400).json({ error: "Apenas arquivos de imagem são aceitos." });
+      return;
+    }
+    next(err);
+  });
 }
 
 async function persistImage(file: Express.Multer.File): Promise<string> {
-  return persistBuffer(file.buffer, file.mimetype, file.originalname);
+  return mediaStore().put(file.buffer, file.mimetype, file.originalname);
 }
 
-function deleteLocalImage(imageUrl: string | null | undefined): void {
-  if (!imageUrl || !imageUrl.startsWith("/api/uploads/")) return;
-  const filename = imageUrl.split("/").pop();
-  if (!filename) return;
-  fs.unlink(path.join(uploadsDir, filename), () => {});
-}
-
+/**
+ * One-time migration of images written to local disk before App Storage existed.
+ * Gated on PRIVATE_OBJECT_DIR: outside Replit there is no legacy disk to read,
+ * and running it would issue a full table scan on every cold start.
+ */
 async function migrateLegacyImages() {
-  if (!process.env.PRIVATE_OBJECT_DIR) return;
   const rows = await db.select().from(announcementsTable);
   for (const row of rows) {
     if (!row.imageUrl.startsWith("/api/uploads/")) continue;
@@ -87,7 +81,11 @@ async function migrateLegacyImages() {
     const filePath = path.join(uploadsDir, filename);
     if (!fs.existsSync(filePath)) continue;
     try {
-      const storedPath = await persistBuffer(fs.readFileSync(filePath), "image/" + path.extname(filename).slice(1), filename);
+      const storedPath = await mediaStore().put(
+        fs.readFileSync(filePath),
+        "image/" + path.extname(filename).slice(1),
+        filename,
+      );
       await db.update(announcementsTable).set({ imageUrl: storedPath }).where(eq(announcementsTable.id, row.id));
     } catch (error) {
       console.error(`Could not migrate announcement image ${row.id}`, error);
@@ -95,7 +93,9 @@ async function migrateLegacyImages() {
   }
 }
 
-void migrateLegacyImages();
+if (process.env.PRIVATE_OBJECT_DIR) {
+  void migrateLegacyImages();
+}
 
 router.get("/announcements", async (req, res): Promise<void> => {
   const rows = await db
@@ -107,7 +107,7 @@ router.get("/announcements", async (req, res): Promise<void> => {
 
 router.post(
   "/announcements",
-  upload.single("image"),
+  uploadImage,
   async (req, res): Promise<void> => {
     // FormData sends all fields as strings — coerce duration to number before Zod validation
     const body = {
@@ -207,7 +207,7 @@ router.get("/announcements/:id", async (req, res): Promise<void> => {
 
 router.patch(
   "/announcements/:id",
-  upload.single("image"),
+  uploadImage,
   async (req, res): Promise<void> => {
     const params = UpdateAnnouncementParams.safeParse(req.params);
     if (!params.success) {
@@ -265,7 +265,7 @@ router.patch(
       .returning();
 
     if (req.file) {
-      deleteLocalImage(existing.imageUrl);
+      await mediaStore().remove(existing.imageUrl);
     }
 
     res.json(UpdateAnnouncementResponse.parse(row));
@@ -286,8 +286,7 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Announcement not found" });
     return;
   }
-  // Delete image file from disk
-  deleteLocalImage(row.imageUrl);
+  await mediaStore().remove(row.imageUrl);
   res.sendStatus(204);
 });
 
