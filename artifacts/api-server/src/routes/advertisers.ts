@@ -32,7 +32,26 @@ const campaignInput = z.object({
   endsAt: z.coerce.date(),
   allDevices: z.boolean().default(true),
   deviceIds: z.array(z.coerce.number().int().positive()).default([]),
-  announcementDestinations: z.record(z.string(), z.string().trim()).default({}),
+  announcementDestinations: z
+    .record(
+      z.string(),
+      z
+        .string()
+        .trim()
+        .refine(
+          (value) => {
+            if (value === "") return true;
+            try {
+              const url = new URL(value);
+              return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+              return false;
+            }
+          },
+          { message: "URL de destino inválida: use um endereço http:// ou https://" },
+        ),
+    )
+    .default({}),
 });
 
 function announcementIdsFor(input: z.infer<typeof campaignInput>) {
