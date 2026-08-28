@@ -13,29 +13,34 @@ router.get("/qr/:file", async (req, res): Promise<void> => {
   }
   const code = file.slice(0, -4);
 
-  const [link] = await db
-    .select({ id: campaignAnnouncementsTable.id })
-    .from(campaignAnnouncementsTable)
-    .where(eq(campaignAnnouncementsTable.scanCode, code));
+  try {
+    const [link] = await db
+      .select({ id: campaignAnnouncementsTable.id })
+      .from(campaignAnnouncementsTable)
+      .where(eq(campaignAnnouncementsTable.scanCode, code));
 
-  if (!link) {
-    res.status(404).json({ error: "Not found" });
-    return;
+    if (!link) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const target = `${base.replace(/\/$/, "")}/r/${code}`;
+
+    const png = await QRCode.toBuffer(target, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 512,
+      color: { dark: "#000000", light: "#FFFFFF" },
+    });
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.send(png);
+  } catch (error) {
+    req.log.error({ err: error }, "Error generating QR code image");
+    res.status(500).json({ error: "Failed to generate QR code image" });
   }
-
-  const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
-  const target = `${base.replace(/\/$/, "")}/r/${code}`;
-
-  const png = await QRCode.toBuffer(target, {
-    errorCorrectionLevel: "M",
-    margin: 2,
-    width: 512,
-    color: { dark: "#000000", light: "#FFFFFF" },
-  });
-
-  res.setHeader("Content-Type", "image/png");
-  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-  res.send(png);
 });
 
 export default router;
