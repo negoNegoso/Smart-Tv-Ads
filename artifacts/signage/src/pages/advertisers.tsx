@@ -261,8 +261,9 @@ export default function Advertisers() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              navigator.clipboard.writeText(`${window.location.origin}/r/${link.scanCode}`);
-                              toast({ title: "Link copiado" });
+                              navigator.clipboard.writeText(`${window.location.origin}/r/${link.scanCode}`)
+                                .then(() => toast({ title: "Link copiado" }))
+                                .catch(() => toast({ title: "Não foi possível copiar o link", variant: "destructive" }));
                             }}
                           >
                             Copiar link
