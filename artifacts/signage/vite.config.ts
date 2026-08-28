@@ -28,9 +28,21 @@ function resolveServerPort(): number {
   return port;
 }
 
+function resolveBasePath(): string {
+  const basePath = process.env.BASE_PATH;
+
+  if (!basePath) {
+    throw new Error(
+      'BASE_PATH environment variable is required but was not provided.',
+    );
+  }
+
+  return basePath;
+}
+
 export default defineConfig(async ({ command }) => {
   const port = command === 'serve' ? resolveServerPort() : 0;
-  const basePath = process.env.BASE_PATH ?? '/';
+  const basePath = command === 'serve' ? resolveBasePath() : (process.env.BASE_PATH ?? '/');
 
   return {
     base: basePath,
