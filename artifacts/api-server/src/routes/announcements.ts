@@ -31,12 +31,19 @@ const router: IRouter = Router();
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 
+/**
+ * Raised by the multer fileFilter for non-image uploads. A dedicated class lets
+ * uploadImage recognize the rejection by identity instead of matching the error
+ * message string, so the two ends cannot drift apart silently.
+ */
+class UnsupportedImageTypeError extends Error {}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: maxUploadBytes() },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
+    else cb(new UnsupportedImageTypeError("Only image files are allowed"));
   },
 });
 
@@ -55,7 +62,7 @@ function uploadImage(req: Request, res: Response, next: NextFunction): void {
       res.status(413).json({ error: uploadTooLargeMessage(maxUploadBytes()) });
       return;
     }
-    if (err instanceof Error && err.message === "Only image files are allowed") {
+    if (err instanceof UnsupportedImageTypeError) {
       res.status(400).json({ error: "Apenas arquivos de imagem são aceitos." });
       return;
     }
