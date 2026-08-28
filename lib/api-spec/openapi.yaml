@@ -544,6 +544,22 @@ paths:
         "404":
           description: Not found
 
+  /analytics/campaigns/{campaignId}:
+    get:
+      operationId: getCampaignAnalytics
+      tags: [analytics]
+      parameters:
+        - { name: campaignId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignAnalytics"
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -725,6 +741,8 @@ components:
         title: { type: string }
         plays: { type: integer }
         totalDuration: { type: integer }
+        scans: { type: integer }
+        scanRate: { type: number }
 
     AnalyticsSummary:
       type: object
@@ -734,6 +752,8 @@ components:
         totalDevices: { type: integer }
         totalPlays: { type: integer }
         totalDuration: { type: integer }
+        totalScans: { type: integer }
+        totalUniqueScans: { type: integer }
         topAnnouncements:
           type: array
           items:
@@ -776,6 +796,20 @@ components:
         title: { type: string }
         totalPlays: { type: integer }
         totalDuration: { type: integer }
+        totalScans: { type: integer }
+        totalUniqueScans: { type: integer }
+        scanRate: { type: number }
+        byCampaign:
+          type: array
+          items:
+            type: object
+            required: [campaignId, campaignName, plays, scans, scanRate]
+            properties:
+              campaignId: { type: integer }
+              campaignName: { type: string }
+              plays: { type: integer }
+              scans: { type: integer }
+              scanRate: { type: number }
         byDevice:
           type: array
           items:
@@ -787,3 +821,22 @@ components:
               clientName: { type: string }
               plays: { type: integer }
               totalDuration: { type: integer }
+
+    CampaignAnalytics:
+      type: object
+      required: [campaignId, campaignName, advertiserId, advertiserName, startsAt, endsAt, totalPlays, totalScans, totalUniqueScans, scanRate]
+      properties:
+        campaignId: { type: integer }
+        campaignName: { type: string }
+        advertiserId: { type: integer }
+        advertiserName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        totalPlays: { type: integer }
+        totalScans: { type: integer }
+        totalUniqueScans: { type: integer }
+        scanRate: { type: number }
+        byAnnouncement:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementPlayStat"

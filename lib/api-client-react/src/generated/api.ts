@@ -26,6 +26,7 @@ import type {
   AnnouncementInput,
   AnnouncementStats,
   AnnouncementUpdate,
+  CampaignAnalytics,
   Client,
   ClientAnalytics,
   ClientInput,
@@ -2378,6 +2379,77 @@ export function useGetAnnouncementAnalytics<TData = Awaited<ReturnType<typeof ge
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAnnouncementAnalyticsQueryOptions(announcementId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCampaignAnalyticsUrl = (campaignId: number,) => {
+
+
+
+
+  return `/api/analytics/campaigns/${campaignId}`
+}
+
+export const getCampaignAnalytics = async (campaignId: number, options?: RequestInit): Promise<CampaignAnalytics> => {
+
+  return customFetch<CampaignAnalytics>(getGetCampaignAnalyticsUrl(campaignId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCampaignAnalyticsQueryKey = (campaignId: number,) => {
+    return [
+    `/api/analytics/campaigns/${campaignId}`
+    ] as const;
+    }
+
+
+export const getGetCampaignAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getCampaignAnalytics>>, TError = ErrorType<void>>(campaignId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCampaignAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCampaignAnalyticsQueryKey(campaignId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCampaignAnalytics>>> = ({ signal }) => getCampaignAnalytics(campaignId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: campaignId !== null && campaignId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCampaignAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCampaignAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getCampaignAnalytics>>>
+export type GetCampaignAnalyticsQueryError = ErrorType<void>
+
+
+
+export function useGetCampaignAnalytics<TData = Awaited<ReturnType<typeof getCampaignAnalytics>>, TError = ErrorType<void>>(
+ campaignId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCampaignAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCampaignAnalyticsQueryOptions(campaignId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

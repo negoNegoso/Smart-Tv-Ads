@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -7,6 +7,9 @@ import {
   playsTable,
   announcementsTable,
   devicePlaylistTable,
+  scansTable,
+  campaignsTable,
+  advertisersTable,
 } from "@workspace/db";
 import {
   GetAnalyticsSummaryResponse,
@@ -16,7 +19,10 @@ import {
   GetDeviceAnalyticsResponse,
   GetAnnouncementAnalyticsParams,
   GetAnnouncementAnalyticsResponse,
+  GetCampaignAnalyticsParams,
+  GetCampaignAnalyticsResponse,
 } from "@workspace/api-zod";
+import { scanRate } from "../lib/scan-rate";
 
 const router: IRouter = Router();
 
@@ -44,13 +50,36 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
     .orderBy(desc(sql`COUNT(${playsTable.id})`))
     .limit(10);
 
+  const [scanCounts] = await db
+    .select({
+      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+    })
+    .from(scansTable);
+
+  const scansByAnnouncement = await db
+    .select({
+      announcementId: scansTable.announcementId,
+      scans: sql<number>`COUNT(*)::int`,
+    })
+    .from(scansTable)
+    .where(eq(scansTable.isBot, false))
+    .groupBy(scansTable.announcementId);
+
+  const scansMap = new Map(scansByAnnouncement.map((row) => [row.announcementId, row.scans]));
+
   res.json(
     GetAnalyticsSummaryResponse.parse({
       totalClients: counts?.totalClients ?? 0,
       totalDevices: counts?.totalDevices ?? 0,
       totalPlays: counts?.totalPlays ?? 0,
       totalDuration: counts?.totalDuration ?? 0,
-      topAnnouncements,
+      totalScans: scanCounts?.totalScans ?? 0,
+      totalUniqueScans: scanCounts?.totalUniqueScans ?? 0,
+      topAnnouncements: topAnnouncements.map((item) => {
+        const scans = scansMap.get(item.announcementId) ?? 0;
+        return { ...item, scans, scanRate: scanRate(scans, item.plays) };
+      }),
     })
   );
 });
@@ -203,13 +232,139 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
     .groupBy(devicesTable.id, devicesTable.name, clientsTable.name)
     .orderBy(desc(sql`COUNT(${playsTable.id})`));
 
+  const [scanAgg] = await db
+    .select({
+      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+    })
+    .from(scansTable)
+    .where(eq(scansTable.announcementId, announcementId));
+
+  const playsByCampaign = await db
+    .select({
+      campaignId: campaignsTable.id,
+      campaignName: campaignsTable.name,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+    })
+    .from(playsTable)
+    .innerJoin(campaignsTable, eq(campaignsTable.id, playsTable.campaignId))
+    .where(eq(playsTable.announcementId, announcementId))
+    .groupBy(campaignsTable.id, campaignsTable.name);
+
+  const scansByCampaign = await db
+    .select({
+      campaignId: scansTable.campaignId,
+      scans: sql<number>`COUNT(*)::int`,
+    })
+    .from(scansTable)
+    .where(and(eq(scansTable.announcementId, announcementId), eq(scansTable.isBot, false)))
+    .groupBy(scansTable.campaignId);
+
+  const scansByCampaignMap = new Map(scansByCampaign.map((row) => [row.campaignId, row.scans]));
+
+  const byCampaign = playsByCampaign.map((row) => {
+    const scans = scansByCampaignMap.get(row.campaignId) ?? 0;
+    return { ...row, scans, scanRate: scanRate(scans, row.plays) };
+  });
+
   res.json(
     GetAnnouncementAnalyticsResponse.parse({
       announcementId,
       title: announcement.title,
       totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
+      totalScans: scanAgg?.totalScans ?? 0,
+      totalUniqueScans: scanAgg?.totalUniqueScans ?? 0,
+      scanRate: scanRate(scanAgg?.totalScans ?? 0, agg?.totalPlays ?? 0),
+      byCampaign,
       byDevice,
+    })
+  );
+});
+
+// Campaign analytics
+router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> => {
+  const params = GetCampaignAnalyticsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const campaignId = params.data.campaignId;
+
+  const [campaign] = await db
+    .select({
+      id: campaignsTable.id,
+      name: campaignsTable.name,
+      advertiserId: campaignsTable.advertiserId,
+      advertiserName: advertisersTable.name,
+      startsAt: campaignsTable.startsAt,
+      endsAt: campaignsTable.endsAt,
+    })
+    .from(campaignsTable)
+    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .where(eq(campaignsTable.id, campaignId));
+
+  if (!campaign) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+
+  const [playAgg] = await db
+    .select({
+      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
+    })
+    .from(playsTable)
+    .where(eq(playsTable.campaignId, campaignId));
+
+  const [scanAgg] = await db
+    .select({
+      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+    })
+    .from(scansTable)
+    .where(eq(scansTable.campaignId, campaignId));
+
+  const playsByAnnouncement = await db
+    .select({
+      announcementId: playsTable.announcementId,
+      title: announcementsTable.title,
+      plays: sql<number>`COUNT(${playsTable.id})::int`,
+      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
+    })
+    .from(playsTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
+    .where(eq(playsTable.campaignId, campaignId))
+    .groupBy(playsTable.announcementId, announcementsTable.title)
+    .orderBy(desc(sql`COUNT(${playsTable.id})`));
+
+  const scansByAnnouncement = await db
+    .select({
+      announcementId: scansTable.announcementId,
+      scans: sql<number>`COUNT(*)::int`,
+    })
+    .from(scansTable)
+    .where(and(eq(scansTable.campaignId, campaignId), eq(scansTable.isBot, false)))
+    .groupBy(scansTable.announcementId);
+
+  const scansMap = new Map(scansByAnnouncement.map((row) => [row.announcementId, row.scans]));
+
+  res.json(
+    GetCampaignAnalyticsResponse.parse({
+      campaignId,
+      campaignName: campaign.name,
+      advertiserId: campaign.advertiserId,
+      advertiserName: campaign.advertiserName,
+      startsAt: campaign.startsAt,
+      endsAt: campaign.endsAt,
+      totalPlays: playAgg?.totalPlays ?? 0,
+      totalScans: scanAgg?.totalScans ?? 0,
+      totalUniqueScans: scanAgg?.totalUniqueScans ?? 0,
+      scanRate: scanRate(scanAgg?.totalScans ?? 0, playAgg?.totalPlays ?? 0),
+      byAnnouncement: playsByAnnouncement.map((item) => {
+        const scans = scansMap.get(item.announcementId) ?? 0;
+        return { ...item, scans, scanRate: scanRate(scans, item.plays) };
+      }),
     })
   );
 });

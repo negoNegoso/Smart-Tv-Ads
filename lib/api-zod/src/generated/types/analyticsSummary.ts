@@ -12,5 +12,7 @@ export interface AnalyticsSummary {
   totalDevices: number;
   totalPlays: number;
   totalDuration: number;
+  totalScans?: number;
+  totalUniqueScans?: number;
   topAnnouncements?: AnnouncementPlayStat[];
 }

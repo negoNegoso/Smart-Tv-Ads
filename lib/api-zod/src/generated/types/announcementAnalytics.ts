@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { AnnouncementAnalyticsByCampaignItem } from './announcementAnalyticsByCampaignItem';
 import type { AnnouncementAnalyticsByDeviceItem } from './announcementAnalyticsByDeviceItem';
 
 export interface AnnouncementAnalytics {
@@ -12,5 +13,9 @@ export interface AnnouncementAnalytics {
   title: string;
   totalPlays: number;
   totalDuration: number;
+  totalScans?: number;
+  totalUniqueScans?: number;
+  scanRate?: number;
+  byCampaign?: AnnouncementAnalyticsByCampaignItem[];
   byDevice?: AnnouncementAnalyticsByDeviceItem[];
 }

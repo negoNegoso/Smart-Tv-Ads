@@ -246,7 +246,9 @@ export const GetClientStatsResponse = zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
   "plays": zod.number(),
-  "totalDuration": zod.number()
+  "totalDuration": zod.number(),
+  "scans": zod.number().optional(),
+  "scanRate": zod.number().optional()
 })).optional()
 })
 
@@ -470,11 +472,15 @@ export const GetAnalyticsSummaryResponse = zod.object({
   "totalDevices": zod.number(),
   "totalPlays": zod.number(),
   "totalDuration": zod.number(),
+  "totalScans": zod.number().optional(),
+  "totalUniqueScans": zod.number().optional(),
   "topAnnouncements": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
   "plays": zod.number(),
-  "totalDuration": zod.number()
+  "totalDuration": zod.number(),
+  "scans": zod.number().optional(),
+  "scanRate": zod.number().optional()
 })).optional()
 })
 
@@ -493,7 +499,9 @@ export const GetClientAnalyticsResponse = zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
   "plays": zod.number(),
-  "totalDuration": zod.number()
+  "totalDuration": zod.number(),
+  "scans": zod.number().optional(),
+  "scanRate": zod.number().optional()
 })).optional()
 })
 
@@ -513,7 +521,9 @@ export const GetDeviceAnalyticsResponse = zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
   "plays": zod.number(),
-  "totalDuration": zod.number()
+  "totalDuration": zod.number(),
+  "scans": zod.number().optional(),
+  "scanRate": zod.number().optional()
 })).optional()
 })
 
@@ -527,12 +537,48 @@ export const GetAnnouncementAnalyticsResponse = zod.object({
   "title": zod.string(),
   "totalPlays": zod.number(),
   "totalDuration": zod.number(),
+  "totalScans": zod.number().optional(),
+  "totalUniqueScans": zod.number().optional(),
+  "scanRate": zod.number().optional(),
+  "byCampaign": zod.array(zod.object({
+  "campaignId": zod.number(),
+  "campaignName": zod.string(),
+  "plays": zod.number(),
+  "scans": zod.number(),
+  "scanRate": zod.number()
+})).optional(),
   "byDevice": zod.array(zod.object({
   "deviceId": zod.number(),
   "deviceName": zod.string(),
   "clientName": zod.string(),
   "plays": zod.number(),
   "totalDuration": zod.number()
+})).optional()
+})
+
+
+export const GetCampaignAnalyticsParams = zod.object({
+  "campaignId": zod.coerce.number()
+})
+
+export const GetCampaignAnalyticsResponse = zod.object({
+  "campaignId": zod.number(),
+  "campaignName": zod.string(),
+  "advertiserId": zod.number(),
+  "advertiserName": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "totalPlays": zod.number(),
+  "totalScans": zod.number(),
+  "totalUniqueScans": zod.number(),
+  "scanRate": zod.number(),
+  "byAnnouncement": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "title": zod.string(),
+  "plays": zod.number(),
+  "totalDuration": zod.number(),
+  "scans": zod.number().optional(),
+  "scanRate": zod.number().optional()
 })).optional()
 })
 

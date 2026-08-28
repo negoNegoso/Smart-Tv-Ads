@@ -77,6 +77,8 @@ export interface AnnouncementPlayStat {
   title: string;
   plays: number;
   totalDuration: number;
+  scans?: number;
+  scanRate?: number;
 }
 
 export interface ClientStats {
@@ -156,6 +158,8 @@ export interface AnalyticsSummary {
   totalDevices: number;
   totalPlays: number;
   totalDuration: number;
+  totalScans?: number;
+  totalUniqueScans?: number;
   topAnnouncements?: AnnouncementPlayStat[];
 }
 
@@ -178,6 +182,14 @@ export interface DeviceAnalytics {
   byAnnouncement?: AnnouncementPlayStat[];
 }
 
+export type AnnouncementAnalyticsByCampaignItem = {
+  campaignId: number;
+  campaignName: string;
+  plays: number;
+  scans: number;
+  scanRate: number;
+};
+
 export type AnnouncementAnalyticsByDeviceItem = {
   deviceId: number;
   deviceName: string;
@@ -191,7 +203,25 @@ export interface AnnouncementAnalytics {
   title: string;
   totalPlays: number;
   totalDuration: number;
+  totalScans?: number;
+  totalUniqueScans?: number;
+  scanRate?: number;
+  byCampaign?: AnnouncementAnalyticsByCampaignItem[];
   byDevice?: AnnouncementAnalyticsByDeviceItem[];
+}
+
+export interface CampaignAnalytics {
+  campaignId: number;
+  campaignName: string;
+  advertiserId: number;
+  advertiserName: string;
+  startsAt: string;
+  endsAt: string;
+  totalPlays: number;
+  totalScans: number;
+  totalUniqueScans: number;
+  scanRate: number;
+  byAnnouncement?: AnnouncementPlayStat[];
 }
 
 export type ListDevicesParams = {
