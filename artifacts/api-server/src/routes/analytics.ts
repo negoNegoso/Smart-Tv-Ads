@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql, desc, type SQL } from "drizzle-orm";
+import { eq, and, sql, desc, inArray, type SQL } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -264,10 +264,39 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
 
   const scansByCampaignMap = new Map(scansByCampaign.map((row) => [row.campaignId, row.scans]));
 
-  const byCampaign = playsByCampaign.map((row) => {
-    const scans = scansByCampaignMap.get(row.campaignId) ?? 0;
-    return { ...row, scans, scanRate: scanRate(scans, row.plays) };
-  });
+  // Union of campaign keys from both sides: a campaign/announcement pair with
+  // scans but zero plays would otherwise vanish from byCampaign entirely while
+  // still counting toward totalScans — a silent, unexplained mismatch on screen.
+  const playsCampaignIds = new Set(playsByCampaign.map((row) => row.campaignId));
+  const scanOnlyCampaignIds = [...scansByCampaignMap.keys()].filter(
+    (campaignId): campaignId is number => campaignId !== null && !playsCampaignIds.has(campaignId),
+  );
+  const scanOnlyCampaignNames = scanOnlyCampaignIds.length
+    ? await db
+        .select({ id: campaignsTable.id, name: campaignsTable.name })
+        .from(campaignsTable)
+        .where(inArray(campaignsTable.id, scanOnlyCampaignIds))
+    : [];
+  const scanOnlyCampaignNameMap = new Map(scanOnlyCampaignNames.map((row) => [row.id, row.name]));
+
+  const byCampaign = [
+    ...playsByCampaign.map((row) => {
+      const scans = scansByCampaignMap.get(row.campaignId) ?? 0;
+      return { ...row, scans, scanRate: scanRate(scans, row.plays) };
+    }),
+    ...scanOnlyCampaignIds
+      .filter((campaignId) => scanOnlyCampaignNameMap.has(campaignId))
+      .map((campaignId) => {
+        const scans = scansByCampaignMap.get(campaignId) ?? 0;
+        return {
+          campaignId,
+          campaignName: scanOnlyCampaignNameMap.get(campaignId)!,
+          plays: 0,
+          scans,
+          scanRate: scanRate(scans, 0),
+        };
+      }),
+  ];
 
   res.json(
     GetAnnouncementAnalyticsResponse.parse({
@@ -345,6 +374,40 @@ router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> =
 
   const scansMap = new Map(scansByAnnouncement.map((row) => [row.announcementId, row.scans]));
 
+  // Same union logic as byCampaign above: an announcement scanned but never
+  // played within this campaign must still show up as a row.
+  const playsAnnouncementIds = new Set(playsByAnnouncement.map((row) => row.announcementId));
+  const scanOnlyAnnouncementIds = [...scansMap.keys()].filter(
+    (id): id is number => id !== null && !playsAnnouncementIds.has(id),
+  );
+  const scanOnlyAnnouncements = scanOnlyAnnouncementIds.length
+    ? await db
+        .select({ id: announcementsTable.id, title: announcementsTable.title })
+        .from(announcementsTable)
+        .where(inArray(announcementsTable.id, scanOnlyAnnouncementIds))
+    : [];
+  const scanOnlyAnnouncementTitleMap = new Map(scanOnlyAnnouncements.map((row) => [row.id, row.title]));
+
+  const byAnnouncement = [
+    ...playsByAnnouncement.map((item) => {
+      const scans = scansMap.get(item.announcementId) ?? 0;
+      return { ...item, scans, scanRate: scanRate(scans, item.plays) };
+    }),
+    ...scanOnlyAnnouncementIds
+      .filter((id) => scanOnlyAnnouncementTitleMap.has(id))
+      .map((announcementId) => {
+        const scans = scansMap.get(announcementId) ?? 0;
+        return {
+          announcementId,
+          title: scanOnlyAnnouncementTitleMap.get(announcementId)!,
+          plays: 0,
+          totalDuration: 0,
+          scans,
+          scanRate: scanRate(scans, 0),
+        };
+      }),
+  ];
+
   res.json(
     GetCampaignAnalyticsResponse.parse({
       campaignId,
@@ -357,10 +420,7 @@ router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> =
       totalScans: scanAgg.totalScans,
       totalUniqueScans: scanAgg.totalUniqueScans,
       scanRate: scanRate(scanAgg.totalScans, playAgg?.totalPlays ?? 0),
-      byAnnouncement: playsByAnnouncement.map((item) => {
-        const scans = scansMap.get(item.announcementId) ?? 0;
-        return { ...item, scans, scanRate: scanRate(scans, item.plays) };
-      }),
+      byAnnouncement,
     })
   );
 });
