@@ -6,7 +6,8 @@
  * .vercel/output/ explicitly removes every piece of guesswork.
  */
 import { execFileSync } from "node:child_process";
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,6 +24,26 @@ await rm(outputDir, { recursive: true, force: true });
 run(["--filter", "@workspace/signage", "run", "build"]);
 run(["--filter", "@workspace/api-server", "run", "build:vercel"]);
 
+/**
+ * The Build Output API performs no dependency tracing: the .func directory is
+ * the whole lambda filesystem and contains no node_modules. Any top-level
+ * import of a bare specifier that is not a Node builtin therefore throws
+ * ERR_MODULE_NOT_FOUND on every cold start, before a single route runs. Fail
+ * the build here instead of discovering it in production.
+ */
+const bundlePath = path.join(root, "artifacts/api-server/dist-vercel/index.mjs");
+const bundle = await readFile(bundlePath, "utf8");
+const unresolvable = [
+  ...bundle.matchAll(/^import[^;]*?from\s+"([^".][^"]*)"/gm),
+]
+  .map((match) => match[1])
+  .filter((specifier) => !specifier.startsWith("node:") && !isBuiltin(specifier));
+if (unresolvable.length > 0) {
+  throw new Error(
+    `Vercel bundle has unresolvable top-level imports: ${[...new Set(unresolvable)].join(", ")}`,
+  );
+}
+
 await mkdir(outputDir, { recursive: true });
 await cp(path.join(root, "artifacts/signage/dist/public"), path.join(outputDir, "static"), {
   recursive: true,
@@ -38,6 +59,10 @@ await writeFile(
       handler: "index.mjs",
       launcherType: "Nodejs",
       shouldAddHelpers: true,
+      // The bundle ships index.mjs.map anyway; without this the runtime never
+      // loads it and the bytes are dead weight. A readable stack trace is worth
+      // the size on a first production deployment.
+      shouldAddSourcemapSupport: true,
     },
     null,
     2,
