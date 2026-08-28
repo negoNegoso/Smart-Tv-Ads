@@ -38,6 +38,7 @@ router.get("/:code", async (req, res): Promise<void> => {
       maxAge: ONE_YEAR_MS,
       httpOnly: true,
       sameSite: "lax",
+      secure: req.secure,
     });
   }
 
