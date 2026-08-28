@@ -24,11 +24,13 @@ Configure no ambiente do Replit ou em um `.env` local:
 | Variável | Uso |
 | --- | --- |
 | `DATABASE_URL` | Conexão com o PostgreSQL |
-| `SESSION_SECRET` | Segredo para sessões, quando aplicável |
+| `SESSION_SECRET` | Assina o cookie de sessão do login (HMAC). Obrigatória: sem ela a API não sobe |
 | `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | Bucket padrão do App Storage |
 | `PRIVATE_OBJECT_DIR` | Diretório privado usado pelo App Storage |
 | `PUBLIC_OBJECT_SEARCH_PATHS` | Caminhos públicos de busca de objetos |
 | `SCAN_SALT` | Sal do hash de identificação de scans do QR code. Sem ela configurada, scans não são registrados. O IP bruto nunca é gravado |
+| `ADMIN_USERNAME` | Usuário do único admin do painel |
+| `ADMIN_PASSWORD` | Senha do único admin do painel |
 | `PUBLIC_BASE_URL` | Origem pública onde `/r/CODE` responde, usada para montar o link dentro do QR code (ex.: `https://meu-painel.replit.app`). Sem ela, a API usa o host da própria requisição |
 
 As variáveis do App Storage são criadas ao provisionar o Object Storage pelo Replit. Nunca versionar valores secretos no GitHub.
@@ -204,7 +206,9 @@ para `index.html` (necessário para as rotas do wouter).
 | `DATABASE_URL` | Neon, provisionado pelo Marketplace. Use a string **pooled** (`-pooler`) |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob, provisionado pelo Marketplace |
 | `SCAN_SALT` | manual — sem ela a API não sobe (obrigatória em produção **e** preview) |
-| `SESSION_SECRET` | manual |
+| `SESSION_SECRET` | manual — assina o cookie de login (obrigatória) |
+| `ADMIN_USERNAME` | manual — usuário do admin |
+| `ADMIN_PASSWORD` | manual — senha do admin |
 | `PUBLIC_BASE_URL` | manual, domínio de produção; usado no QR |
 | `MAX_UPLOAD_BYTES` | `4000000` — o corpo de requisição da função é limitado a 4,5 MB |
 
@@ -237,6 +241,14 @@ pnpm --filter @workspace/db run push
 por ambiente: `BLOB_READ_WRITE_TOKEN` → Vercel Blob; `PRIVATE_OBJECT_DIR` →
 Object Storage do Replit; nenhum dos dois → disco local (`dev.sh`). O deploy
 Replit continua funcionando sem mudanças.
+
+### Login do painel
+
+O painel exige login de um único admin (usuário + senha em `ADMIN_USERNAME` /
+`ADMIN_PASSWORD`). A sessão é um cookie HttpOnly assinado com `SESSION_SECRET`,
+válido por 7 dias. As telas de TV (`/display/:key`, `tv.html`) e os QR codes
+(`/r/CODE`) continuam públicos. Defina as três variáveis em produção **e**
+preview antes de publicar — sem elas a API não sobe.
 
 ## Organização do projeto
 
