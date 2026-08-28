@@ -571,10 +571,13 @@ components:
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:
       type: object
-      required: [id, title, imageUrl, isActive, displayOrder, duration, createdAt]
+      required: [id, title, imageUrl, isActive, displayOrder, duration, showText, createdAt]
       properties:
         id: { type: integer }
         title: { type: string }
+        # Texto exibido na TV; `title` é apenas o rótulo interno do painel.
+        displayText: { type: string, nullable: true }
+        showText: { type: boolean }
         imageUrl: { type: string }
         isActive: { type: boolean }
         displayOrder: { type: integer }
@@ -586,12 +589,16 @@ components:
       required: [title]
       properties:
         title: { type: string, minLength: 1 }
+        displayText: { type: string, nullable: true }
+        showText: { type: boolean }
         duration: { type: integer, minimum: 1 }
 
     AnnouncementUpdate:
       type: object
       properties:
         title: { type: string, minLength: 1 }
+        displayText: { type: string, nullable: true }
+        showText: { type: boolean }
         isActive: { type: boolean }
         displayOrder: { type: integer }
         duration: { type: integer, minimum: 1 }
@@ -717,7 +724,11 @@ components:
       properties:
         announcementId: { type: integer }
         campaignId: { type: integer, nullable: true }
+        # `title` segue no payload só para não quebrar TVs com tv.html em cache
+        # antigo. Quem vai ao ar é `displayText`, já resolvido pelo servidor:
+        # null significa slide sem texto.
         title: { type: string }
+        displayText: { type: string, nullable: true }
         imageUrl: { type: string }
         duration: { type: integer }
         qrImageUrl: { type: string, nullable: true }

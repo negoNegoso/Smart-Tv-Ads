@@ -9,6 +9,8 @@
 export interface Announcement {
   id: number;
   title: string;
+  displayText?: string | null;
+  showText: boolean;
   imageUrl: string;
   isActive: boolean;
   displayOrder: number;

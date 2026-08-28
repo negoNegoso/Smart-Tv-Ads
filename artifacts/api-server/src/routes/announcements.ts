@@ -5,6 +5,8 @@ import fs from "fs";
 import { eq, asc, sql } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { parseFormBoolean } from "../lib/form-values";
+import { normalizeDisplayText } from "../lib/slide-caption";
 import {
   ListAnnouncementsResponse,
   ListAnnouncementsResponseItem,
@@ -110,6 +112,8 @@ router.post(
     // FormData sends all fields as strings — coerce duration to number before Zod validation
     const body = {
       title: req.body.title,
+      displayText: req.body.displayText != null ? String(req.body.displayText) : undefined,
+      showText: parseFormBoolean(req.body.showText),
       duration: req.body.duration != null ? Number(req.body.duration) : undefined,
     };
     const parsed = CreateAnnouncementBody.safeParse(body);
@@ -136,6 +140,8 @@ router.post(
       .insert(announcementsTable)
       .values({
         title: parsed.data.title,
+        displayText: normalizeDisplayText(parsed.data.displayText),
+        showText: parsed.data.showText ?? false,
         imageUrl,
         duration: parsed.data.duration ?? 10,
         displayOrder: nextOrder,
@@ -208,9 +214,14 @@ router.patch(
       res.status(400).json({ error: params.error.message });
       return;
     }
-    // FormData envia todos os campos como string — coage duration antes do Zod
+    // FormData envia todos os campos como string — coage duration e showText antes do Zod
     const body: Record<string, unknown> = {};
     if (req.body.title !== undefined) body.title = req.body.title;
+    if (req.body.displayText !== undefined) {
+      body.displayText = normalizeDisplayText(String(req.body.displayText));
+    }
+    const showText = parseFormBoolean(req.body.showText);
+    if (showText !== undefined) body.showText = showText;
     if (req.body.duration !== undefined && req.body.duration !== "") {
       body.duration = Number(req.body.duration);
     }

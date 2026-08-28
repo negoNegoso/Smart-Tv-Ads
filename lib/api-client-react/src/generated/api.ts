@@ -241,6 +241,12 @@ export const getCreateAnnouncementUrl = () => {
 export const createAnnouncement = async (announcementInput: AnnouncementInput, options?: RequestInit): Promise<Announcement> => {
     const formData = new FormData();
 formData.append(`title`, announcementInput.title);
+if(announcementInput.displayText !== undefined && announcementInput.displayText !== null) {
+ formData.append(`displayText`, announcementInput.displayText);
+ }
+if(announcementInput.showText !== undefined) {
+ formData.append(`showText`, announcementInput.showText.toString())
+ }
 if(announcementInput.duration !== undefined) {
  formData.append(`duration`, announcementInput.duration.toString())
  }
@@ -612,6 +618,12 @@ export const updateAnnouncement = async (id: number,
     const formData = new FormData();
 if(announcementUpdate.title !== undefined) {
  formData.append(`title`, announcementUpdate.title);
+ }
+if(announcementUpdate.displayText !== undefined && announcementUpdate.displayText !== null) {
+ formData.append(`displayText`, announcementUpdate.displayText);
+ }
+if(announcementUpdate.showText !== undefined) {
+ formData.append(`showText`, announcementUpdate.showText.toString())
  }
 if(announcementUpdate.isActive !== undefined) {
  formData.append(`isActive`, announcementUpdate.isActive.toString())

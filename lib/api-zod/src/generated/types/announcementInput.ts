@@ -9,6 +9,8 @@
 export interface AnnouncementInput {
   /** @minLength 1 */
   title: string;
+  displayText?: string | null;
+  showText?: boolean;
   /** @minimum 1 */
   duration?: number;
 }

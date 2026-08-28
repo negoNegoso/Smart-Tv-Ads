@@ -40,13 +40,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { mediaUrl } from '@/lib/media-url';
 
 const uploadSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório'),
+  displayText: z.string().default(''),
+  showText: z.boolean().default(false),
   duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
   image: z.any().refine((val) => val instanceof FileList && val.length > 0, 'A imagem é obrigatória'),
 });
@@ -55,6 +57,8 @@ type UploadFormValues = z.infer<typeof uploadSchema>;
 
 const editSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório'),
+  displayText: z.string().default(''),
+  showText: z.boolean().default(false),
   duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
   image: z
     .any()
@@ -231,13 +235,15 @@ export default function Admin() {
     resolver: zodResolver(uploadSchema),
     defaultValues: {
       title: '',
+      displayText: '',
+      showText: false,
       duration: 10,
     },
   });
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { title: '', duration: 10 },
+    defaultValues: { title: '', displayText: '', showText: false, duration: 10 },
   });
 
   async function onUpload(values: UploadFormValues) {
@@ -246,6 +252,8 @@ export default function Admin() {
       const file = values.image[0];
       const formData = new FormData();
       formData.append('title', values.title);
+      formData.append('displayText', values.displayText);
+      formData.append('showText', String(values.showText));
       formData.append('duration', String(values.duration));
       formData.append('image', file);
 
@@ -272,7 +280,12 @@ export default function Admin() {
 
   function openEdit(item: Announcement) {
     setEditing(item);
-    editForm.reset({ title: item.title, duration: item.duration });
+    editForm.reset({
+      title: item.title,
+      displayText: item.displayText ?? '',
+      showText: item.showText,
+      duration: item.duration,
+    });
   }
 
   async function onEditSubmit(values: EditFormValues) {
@@ -281,6 +294,8 @@ export default function Admin() {
       setIsSaving(true);
       const formData = new FormData();
       formData.append('title', values.title);
+      formData.append('displayText', values.displayText);
+      formData.append('showText', String(values.showText));
       formData.append('duration', String(values.duration));
       if (values.image instanceof FileList && values.image.length > 0) {
         formData.append('image', values.image[0]);
@@ -369,11 +384,43 @@ export default function Admin() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Título</FormLabel>
+                        <FormLabel>Título interno</FormLabel>
                         <FormControl>
                           <Input placeholder="Ex.: Promoção de inverno" {...field} />
                         </FormControl>
+                        <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="displayText"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Texto exibido na TV</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
+                        </FormControl>
+                        <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="showText"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5 pr-4">
+                          <FormLabel>Mostrar texto no slide</FormLabel>
+                          <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
                       </FormItem>
                     )}
                   />
@@ -501,11 +548,43 @@ export default function Admin() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Título</FormLabel>
+                    <FormLabel>Título interno</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex.: Promoção de inverno" {...field} />
                     </FormControl>
+                    <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="displayText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Texto exibido na TV</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
+                    </FormControl>
+                    <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="showText"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5 pr-4">
+                      <FormLabel>Mostrar texto no slide</FormLabel>
+                      <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
                   </FormItem>
                 )}
               />

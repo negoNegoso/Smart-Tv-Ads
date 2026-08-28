@@ -5,6 +5,9 @@ import { z } from "zod/v4";
 export const announcementsTable = pgTable("announcements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
+  // Texto que vai ao ar na TV. Separado do `title`, que é só rótulo interno do painel.
+  displayText: text("display_text"),
+  showText: boolean("show_text").notNull().default(false),
   imageUrl: text("image_url").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
