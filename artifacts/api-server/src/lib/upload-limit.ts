@@ -6,7 +6,7 @@ export function maxUploadBytes(env: NodeJS.ProcessEnv = process.env): number {
   const raw = env.MAX_UPLOAD_BYTES;
   if (!raw) return DEFAULT_MAX_UPLOAD_BYTES;
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_UPLOAD_BYTES;
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_MAX_UPLOAD_BYTES;
   return Math.floor(parsed);
 }
 

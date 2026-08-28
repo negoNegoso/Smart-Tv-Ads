@@ -16,6 +16,7 @@ describe("maxUploadBytes", () => {
     expect(maxUploadBytes({ MAX_UPLOAD_BYTES: "0" })).toBe(DEFAULT_MAX_UPLOAD_BYTES);
     expect(maxUploadBytes({ MAX_UPLOAD_BYTES: "-1" })).toBe(DEFAULT_MAX_UPLOAD_BYTES);
     expect(maxUploadBytes({ MAX_UPLOAD_BYTES: "" })).toBe(DEFAULT_MAX_UPLOAD_BYTES);
+    expect(maxUploadBytes({ MAX_UPLOAD_BYTES: "0.5" })).toBe(DEFAULT_MAX_UPLOAD_BYTES);
   });
 
   it("trunca valor fracionário", () => {
