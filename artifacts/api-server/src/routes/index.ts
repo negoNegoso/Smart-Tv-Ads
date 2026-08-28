@@ -8,6 +8,7 @@ import telemetryRouter from "./telemetry";
 import analyticsRouter from "./analytics";
 import advertisersRouter from "./advertisers";
 import storageRouter from "./storage";
+import qrRouter from "./qr";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use(telemetryRouter);
 router.use(analyticsRouter);
 router.use(advertisersRouter);
 router.use(storageRouter);
+router.use(qrRouter);
 
 export default router;
