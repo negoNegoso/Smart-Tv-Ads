@@ -10,6 +10,7 @@ export interface DisplaySlide {
   announcementId: number;
   campaignId?: number | null;
   title: string;
+  displayText?: string | null;
   imageUrl: string;
   duration: number;
   qrImageUrl?: string | null;

@@ -9,6 +9,8 @@
 export interface AnnouncementUpdate {
   /** @minLength 1 */
   title?: string;
+  displayText?: string | null;
+  showText?: boolean;
   isActive?: boolean;
   displayOrder?: number;
   /** @minimum 1 */

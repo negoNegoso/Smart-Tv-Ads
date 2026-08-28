@@ -27,23 +27,41 @@
 
     .slot-enter { -webkit-transition: opacity 1.2s ease-in-out; transition: opacity 1.2s ease-in-out; }
 
+    /* Alinhado ao #qr-box: mesma base (3vh) e mesma altura (14vh = 12vh da
+       imagem + 1vh de padding em cada lado). O limite à direita reserva os
+       14vh do QR mais 3vh de respiro. */
     #overlay {
       position: absolute;
-      bottom: 0; left: 0; right: 0;
+      bottom: 3vh; left: 3vh; right: 20vh;
       z-index: 3;
-      padding: 120px 64px 56px;
-      background: -webkit-linear-gradient(top, transparent, rgba(0,0,0,0.45), rgba(0,0,0,0.82));
-      background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.45), rgba(0,0,0,0.82));
     }
 
-    #title {
+    /* Espelho ES5 do componente React em src/components/slide-caption.tsx —
+       mudou lá, mude aqui.
+
+       Nada de backdrop-filter, box-shadow ou text-shadow: o container sólido já
+       garante o contraste, e esses efeitos custam caro nas TVs mais fracas. */
+    #caption {
+      display: inline-block;
+      max-width: 100%;
+      height: 14vh;
+      /* line-height igual à altura centraliza o texto sem flexbox, que é
+         instável nos navegadores das TVs mais antigas. */
+      line-height: 14vh;
+      padding: 0 3vh;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 52px;
+      font-size: 5vh;
       font-weight: 500;
       letter-spacing: -0.5px;
-      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
-      word-break: break-word;
+      /* Altura fixa exige uma linha só: texto longo termina em reticências. */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: #000;                 /* fallback para WebKit sem rgba */
+      background: rgba(0,0,0,0.55);
+      -webkit-border-radius: 1vh;
+      border-radius: 1vh;
     }
 
     #progress-track {
@@ -95,7 +113,7 @@
   <div id="slot-b"></div>
 
   <div id="overlay">
-    <div id="title"></div>
+    <div id="caption"></div>
   </div>
 
   <div id="progress-track">
@@ -130,7 +148,8 @@
       // ─── DOM refs ─────────────────────────────────────────────────────────────
       var slotA        = document.getElementById('slot-a');
       var slotB        = document.getElementById('slot-b');
-      var titleEl      = document.getElementById('title');
+      var overlayEl    = document.getElementById('overlay');
+      var captionEl    = document.getElementById('caption');
       var fillEl       = document.getElementById('progress-fill');
       var emptyEl      = document.getElementById('empty-screen');
       var qrBox        = document.getElementById('qr-box');
@@ -200,7 +219,15 @@
         prev.style.zIndex = '1';
         prev.style.opacity = '0';
 
-        titleEl.textContent = slide.title;
+        // O servidor já resolveu se há texto a exibir: null = slide sem legenda.
+        var caption = slide.displayText;
+        if (caption) {
+          captionEl.textContent = caption;
+          overlayEl.style.display = 'block';
+        } else {
+          captionEl.textContent = '';
+          overlayEl.style.display = 'none';
+        }
 
         if (slide.qrImageUrl) {
           qrImg.src = apiBase() + slide.qrImageUrl;

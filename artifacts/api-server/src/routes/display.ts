@@ -10,6 +10,7 @@ import {
   campaignAnnouncementsTable,
 } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
+import { resolveSlideCaption } from "../lib/slide-caption";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,8 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       announcementId: devicePlaylistTable.announcementId,
       campaignId: sql<number | null>`NULL`,
       title: announcementsTable.title,
+      displayText: announcementsTable.displayText,
+      showText: announcementsTable.showText,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
       scanCode: sql<string | null>`NULL`,
@@ -58,6 +61,8 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       announcementId: campaignAnnouncementsTable.announcementId,
       campaignId: campaignsTable.id,
       title: announcementsTable.title,
+      displayText: announcementsTable.displayText,
+      showText: announcementsTable.showText,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
       scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
@@ -83,8 +88,11 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       seen.add(slide.announcementId);
       return true;
     })
-    .map(({ scanCode, ...slide }) => ({
+    .map(({ scanCode, showText, displayText, ...slide }) => ({
       ...slide,
+      // O servidor decide o texto: null significa slide sem legenda, para os
+      // dois renderizadores (display.tsx e tv.html) não divergirem na regra.
+      displayText: resolveSlideCaption({ showText, displayText }),
       qrImageUrl: scanCode ? `/api/qr/${scanCode}.png` : null,
     }));
 

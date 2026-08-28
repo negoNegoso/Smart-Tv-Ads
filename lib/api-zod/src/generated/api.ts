@@ -22,6 +22,8 @@ export const HealthCheckResponse = zod.object({
 export const ListAnnouncementsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -40,12 +42,16 @@ export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem
 
 export const CreateAnnouncementBody = zod.object({
   "title": zod.string().min(1),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean().optional(),
   "duration": zod.number().min(1).optional()
 })
 
 export const CreateAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -60,6 +66,8 @@ export const CreateAnnouncementResponse = zod.object({
 export const ListActiveAnnouncementsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -96,6 +104,8 @@ export const GetAnnouncementParams = zod.object({
 export const GetAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -114,6 +124,8 @@ export const UpdateAnnouncementParams = zod.object({
 
 export const UpdateAnnouncementBody = zod.object({
   "title": zod.string().min(1).optional(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean().optional(),
   "isActive": zod.boolean().optional(),
   "displayOrder": zod.number().optional(),
   "duration": zod.number().min(1).optional()
@@ -122,6 +134,8 @@ export const UpdateAnnouncementBody = zod.object({
 export const UpdateAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -144,6 +158,8 @@ export const ToggleAnnouncementParams = zod.object({
 export const ToggleAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "showText": zod.boolean(),
   "imageUrl": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
@@ -444,6 +460,7 @@ export const GetDeviceSlidesResponseItem = zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
   "title": zod.string(),
+  "displayText": zod.string().nullish(),
   "imageUrl": zod.string(),
   "duration": zod.number(),
   "qrImageUrl": zod.string().nullish()

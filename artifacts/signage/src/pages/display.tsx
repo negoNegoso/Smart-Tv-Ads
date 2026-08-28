@@ -3,6 +3,7 @@ import { useRoute } from 'wouter';
 import { useGetDeviceSlides, getGetDeviceSlidesQueryKey } from '@workspace/api-client-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { mediaUrl } from '@/lib/media-url';
+import { SlideCaption } from '@/components/slide-caption';
 
 export default function Display() {
   const [, params] = useRoute('/display/:deviceKey');
@@ -114,20 +115,7 @@ export default function Display() {
         />
       </AnimatePresence>
 
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-32 pb-12 px-16">
-        <AnimatePresence mode="wait">
-          <motion.h2
-            key={slide.announcementId}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.8 }}
-            className="text-5xl font-medium tracking-tight text-white drop-shadow-lg"
-          >
-            {slide.title}
-          </motion.h2>
-        </AnimatePresence>
-      </div>
+      <SlideCaption text={slide.displayText ?? null} slideKey={slide.announcementId} />
 
       {slide.qrImageUrl && (
         <div className="absolute bottom-[3vh] right-[3vh] z-30 rounded-[1vh] bg-white p-[1vh]">

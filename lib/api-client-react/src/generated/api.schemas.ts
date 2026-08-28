@@ -12,6 +12,8 @@ export interface HealthStatus {
 export interface Announcement {
   id: number;
   title: string;
+  displayText?: string | null;
+  showText: boolean;
   imageUrl: string;
   isActive: boolean;
   displayOrder: number;
@@ -22,6 +24,8 @@ export interface Announcement {
 export interface AnnouncementInput {
   /** @minLength 1 */
   title: string;
+  displayText?: string | null;
+  showText?: boolean;
   /** @minimum 1 */
   duration?: number;
 }
@@ -29,6 +33,8 @@ export interface AnnouncementInput {
 export interface AnnouncementUpdate {
   /** @minLength 1 */
   title?: string;
+  displayText?: string | null;
+  showText?: boolean;
   isActive?: boolean;
   displayOrder?: number;
   /** @minimum 1 */
@@ -141,6 +147,7 @@ export interface DisplaySlide {
   announcementId: number;
   campaignId?: number | null;
   title: string;
+  displayText?: string | null;
   imageUrl: string;
   duration: number;
   qrImageUrl?: string | null;
