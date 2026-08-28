@@ -28,11 +28,14 @@ const router: IRouter = Router();
 
 // Total scans + unique visitors (non-bot only), optionally scoped by a where clause.
 // Kept as a single helper so the bot-exclusion rule can't drift between call sites.
+// Uniqueness is measured by fingerprint alone: it is the only identifier present on
+// every scan, including the first one. Mixing it with a cookie counted the same
+// person twice — by fingerprint on the first read, by cookie on the later ones.
 async function scanTotals(where?: SQL) {
   const [row] = await db
     .select({
       totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+      totalUniqueScans: sql<number>`COUNT(DISTINCT ${scansTable.fingerprint}) FILTER (WHERE ${scansTable.isBot} = false)::int`,
     })
     .from(scansTable)
     .where(where);

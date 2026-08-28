@@ -95,7 +95,8 @@ Em `redirect.ts`, o insert do scan está protegido, mas a consulta que resolve o
 - "Copiar link" monta a URL com `window.location.origin`; o PNG codifica `PUBLIC_BASE_URL`. Se as origens divergirem, o link copiado e o QR apontam para lugares diferentes.
 - `qr.ts` usa `req.log.error`, `redirect.ts` usa o `logger` importado. Mesma feature, dois estilos.
 - A lista de campanhas mostra exibições sem scans nem taxa; o detalhe do anunciante mostra os três.
-- `fingerprintFor` junta `ip|ua` sem escape (colisão teórica se o user-agent contiver `|`).
+- `fingerprintFor` junta `ip|ua` sem escape (colisão teórica se o user-agent contiver `|`). Passou a importar mais depois que o fingerprint virou o único identificador de visitante.
+- A coluna `visitor_id` de `scans` não é mais preenchida; permanece no schema pelas linhas antigas. Remover exige `drizzle-kit push` destrutivo.
 - User-agent composto só de espaços em branco não é classificado como bot.
 - O `<a download><Button>` do "Baixar PNG" aninha elemento interativo dentro de âncora.
 - `announcementDestinations` carrega chaves de peças desmarcadas no payload; o backend as ignora.

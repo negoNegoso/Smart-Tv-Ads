@@ -1,18 +1,11 @@
 import { Router, type IRouter } from "express";
-import cookieParser from "cookie-parser";
-import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, campaignAnnouncementsTable, scansTable } from "@workspace/db";
 import { isBotUserAgent } from "../lib/bot-detect";
 import { fingerprintFor } from "../lib/scan-fingerprint";
 import { logger } from "../lib/logger";
 
-const VISITOR_COOKIE = "sc_v";
-const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-
 const router: IRouter = Router();
-
-router.use(cookieParser());
 
 router.get("/:code", async (req, res): Promise<void> => {
   const code = req.params.code;
@@ -27,30 +20,19 @@ router.get("/:code", async (req, res): Promise<void> => {
     return;
   }
 
-  // visitorId reflects only what the request already had: it's what gets stored,
-  // so COALESCE(visitor_id, fingerprint) in aggregates can fall back to the
-  // fingerprint when no cookie came in. cookieValue is what we hand back to the
-  // client so future requests do carry the cookie — the two must stay distinct.
-  const visitorId = req.cookies?.[VISITOR_COOKIE] as string | undefined;
-  const cookieValue = visitorId ?? randomUUID();
-  if (!visitorId) {
-    res.cookie(VISITOR_COOKIE, cookieValue, {
-      maxAge: ONE_YEAR_MS,
-      httpOnly: true,
-      sameSite: "lax",
-      secure: req.secure,
-    });
-  }
-
   const userAgent = req.get("user-agent") ?? null;
   const ip = req.ip ?? "";
 
   try {
+    // A identidade do leitor é o fingerprint, e só ele: é o único valor presente
+    // em todas as leituras, inclusive na primeira. Um cookie só existe a partir
+    // da segunda visita, então misturar os dois faria a mesma pessoa contar duas
+    // vezes — uma pelo fingerprint na primeira leitura, outra pelo cookie nas
+    // seguintes. A coluna visitor_id permanece no schema pelas linhas antigas.
     await db.insert(scansTable).values({
       campaignAnnouncementId: link.id,
       campaignId: link.campaignId,
       announcementId: link.announcementId,
-      visitorId: visitorId ?? null,
       fingerprint: fingerprintFor(ip, userAgent),
       userAgent,
       isBot: isBotUserAgent(userAgent),

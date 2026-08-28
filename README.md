@@ -211,6 +211,7 @@ scripts/            scripts auxiliares do workspace
 - Exibições (plays) são registradas pela API de telemetria no endpoint `/telemetry/play`, já atribuídas à campanha de origem via `campaignId`.
 - Cada vínculo entre campanha e peça tem um código curto imutável (`scanCode`) e uma URL de destino opcional. Com destino configurado, o player sobrepõe um QR code na peça; o scan passa por `/r/CODE`, é registrado na tabela `scans` e redireciona para o destino.
 - Scans são apresentados junto das exibições em números brutos e visitantes únicos, mais a taxa `scans / exibições`. A métrica mede resposta, não alcance: um scan não é atribuível a uma exibição ou TV específica.
+- Visitantes únicos são contados por `fingerprint` (hash de IP + user-agent com `SCAN_SALT`); não há cookie de rastreamento. Reabrir o mesmo link soma no bruto e não soma no único. Duas pessoas atrás do mesmo IP com o mesmo navegador contam como uma.
 - Uploads são persistidos no App Storage; o banco guarda somente o caminho do objeto e os metadados.
 
 ## Integração com GitHub
