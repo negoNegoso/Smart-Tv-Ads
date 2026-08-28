@@ -61,3 +61,4 @@ artifacts/api-server/uploads/
 
 # Workspace temporário do fluxo de execução de planos
 .superpowers/
+.env*
