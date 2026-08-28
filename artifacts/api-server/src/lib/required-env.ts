@@ -1,12 +1,21 @@
 /**
  * Validated by app.ts so that both the long-running server and the serverless
- * entrypoint fail loudly. A missing SCAN_SALT would otherwise silently stop QR
- * scans from being recorded.
+ * entrypoint fail loudly. SCAN_SALT protege o registro de scans; as variáveis
+ * de admin e o SESSION_SECRET são exigidos para o login funcionar.
  */
+const REQUIRED_KEYS = [
+  "SCAN_SALT",
+  "ADMIN_USERNAME",
+  "ADMIN_PASSWORD",
+  "SESSION_SECRET",
+] as const;
+
 export function assertRequiredEnv(env: NodeJS.ProcessEnv = process.env): void {
-  if (!env.SCAN_SALT) {
-    throw new Error(
-      "SCAN_SALT must be set. Did you forget to configure the QR scan tracking salt?",
-    );
+  for (const key of REQUIRED_KEYS) {
+    if (!env[key]) {
+      throw new Error(
+        `${key} must be set. Confira as variáveis de ambiente obrigatórias da API.`,
+      );
+    }
   }
 }
