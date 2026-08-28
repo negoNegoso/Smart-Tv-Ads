@@ -11,4 +11,6 @@ export interface AnnouncementPlayStat {
   title: string;
   plays: number;
   totalDuration: number;
+  scans?: number;
+  scanRate?: number;
 }

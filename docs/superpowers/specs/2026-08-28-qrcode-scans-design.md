@@ -67,14 +67,18 @@ created_at                timestamptz not null default now()
 
 - O IP bruto **nunca** é gravado. Persiste-se apenas `fingerprint = sha256(SCAN_SALT + ip + userAgent)`.
 - `SCAN_SALT` é variável de ambiente nova, documentada no README junto das demais.
-- `visitor_id` é um UUID em cookie `sc_v` (validade 1 ano, `httpOnly`, `sameSite=lax`).
+- **Não há cookie.** A identificação do leitor é feita apenas pelo `fingerprint`. A coluna `visitor_id` permanece no schema pelas linhas gravadas antes desta decisão e não é mais preenchida.
 
 ---
 
 ## 4. Contagem
 
 - **Scans (bruto)** = linhas com `is_bot = false`.
-- **Visitantes únicos** = `COUNT(DISTINCT COALESCE(visitor_id, fingerprint))` sobre as linhas com `is_bot = false` na janela consultada.
+- **Visitantes únicos** = `COUNT(DISTINCT fingerprint)` sobre as linhas com `is_bot = false` na janela consultada.
+
+  O fingerprint é o único identificador presente em **todas** as leituras, inclusive na primeira. Uma tentativa anterior combinava cookie e fingerprint (`COALESCE(visitor_id, fingerprint)`) e contava a mesma pessoa duas vezes: pelo fingerprint na primeira leitura, quando o cookie ainda não existia, e pelo cookie nas seguintes.
+
+  Limite conhecido e aceito: duas pessoas atrás do mesmo IP com o mesmo user-agent contam como uma (subestima), e a mesma pessoa alternando entre redes conta como duas (superestima). O erro mais provável é para menos, o que é defensável diante do anunciante.
 - **`is_bot`** = verdadeiro quando o user-agent casa com a lista de previews e crawlers conhecidos (`facebookexternalhit`, `WhatsApp`, `Twitterbot`, `Slackbot`, `bot`, `crawler`, `spider`, `curl`, `wget`, `preview`). Linhas de bot **são gravadas**, apenas não entram nas contagens — isso permite auditoria posterior.
 - **`scanRate`** = `scans / plays` na mesma janela e mesma chave de agregação. Quando `plays = 0`, o valor é `0` (nunca divisão por zero, nunca `null`).
 
@@ -88,7 +92,7 @@ Fica **fora do prefixo `/api`**, para manter a URL curta e o QR com menos módul
 
 Hoje `artifacts/api-server/src/app.ts` monta todas as rotas em `app.use("/api", router)`. Este endpoint exige uma montagem própria: `app.use("/r", redirectRouter)`, antes do router `/api`.
 
-Leitura e escrita do cookie usam `cookie-parser`, que **já é dependência** do `api-server` (hoje sem uso). Aplicá-lo **apenas** ao router de redirect — as demais rotas não precisam de cookie.
+O router não usa cookie nem `cookie-parser`: a identificação do leitor é feita pelo `fingerprint`, calculado a cada requisição.
 
 O proxy de desenvolvimento do Vite (`artifacts/signage/vite.config.ts`) hoje encaminha só `/api`. Precisa de uma entrada para `/r`, senão o QR aberto a partir do painel local cai no frontend em vez do redirect.
 
@@ -96,7 +100,7 @@ Fluxo:
 
 1. Resolve `scan_code` → vínculo + `destination_url`.
 2. Código inexistente **ou** `destination_url` nulo → `404`.
-3. Define o cookie `sc_v` se ausente; insere a linha em `scans`.
+3. Insere a linha em `scans`, com o `fingerprint` calculado a partir do IP e do user-agent.
 4. Responde `302` para o destino.
 
 O insert é envolvido em `try/catch` e não bloqueia a resposta: falha de banco não pode quebrar o redirect do usuário final. Erro é logado.
@@ -185,8 +189,8 @@ Essas três são exatamente onde um erro passa silencioso e contamina o número 
 
 **Checklist manual** para redirect, imagem e render:
 
-- `curl -i /r/CODE` devolve `302` com `Location` correto e `Set-Cookie: sc_v`;
-- segundo acesso com o mesmo cookie incrementa o bruto e não incrementa o único;
+- `curl -i /r/CODE` devolve `302` com `Location` correto e **sem** `Set-Cookie`;
+- segundo acesso do mesmo cliente incrementa o bruto e não incrementa o único;
 - código inexistente devolve `404`;
 - vínculo sem `destination_url` devolve `404`;
 - `GET /api/qr/CODE.png` devolve PNG com o `Cache-Control` esperado;

@@ -19,6 +19,8 @@ type Campaign = {
   isActive: boolean;
   plays: number;
   totalDuration: number;
+  scans: number;
+  announcementLinks?: Array<{ announcementId: number; title: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number }>;
 };
 
 type Advertiser = {
@@ -102,6 +104,10 @@ export default function AdvertiserDetail() {
                     <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(campaign.startsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })} — {new Date(campaign.endsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
                     <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
                     <span>{campaign.plays} exibições</span>
+                    <span>{campaign.scans ?? 0} scans</span>
+                    <span>
+                      Taxa {((campaign.plays > 0 ? (campaign.scans ?? 0) / campaign.plays : 0) * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </span>
                     <span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(campaign.contractValue || 0)}</span>
                   </div>
                 </div>

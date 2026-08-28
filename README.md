@@ -28,6 +28,8 @@ Configure no ambiente do Replit ou em um `.env` local:
 | `DEFAULT_OBJECT_STORAGE_BUCKET_ID` | Bucket padrão do App Storage |
 | `PRIVATE_OBJECT_DIR` | Diretório privado usado pelo App Storage |
 | `PUBLIC_OBJECT_SEARCH_PATHS` | Caminhos públicos de busca de objetos |
+| `SCAN_SALT` | Sal do hash de identificação de scans do QR code. Sem ela configurada, scans não são registrados. O IP bruto nunca é gravado |
+| `PUBLIC_BASE_URL` | Origem pública onde `/r/CODE` responde, usada para montar o link dentro do QR code (ex.: `https://meu-painel.replit.app`). Sem ela, a API usa o host da própria requisição |
 
 As variáveis do App Storage são criadas ao provisionar o Object Storage pelo Replit. Nunca versionar valores secretos no GitHub.
 
@@ -97,6 +99,7 @@ O frontend possui as principais rotas:
 - `/devices` — dispositivos e playlists
 - `/advertisers` — anunciantes e campanhas
 - `/analytics` — métricas
+- `/r/CODE` — redirect público do QR code (servido pela API, registra o scan)
 - `/tv.html?key=DEVICE_KEY` — página compatível com Smart TVs
 
 ## Banco de dados
@@ -128,6 +131,12 @@ Para validar separadamente:
 ```bash
 pnpm --filter @workspace/api-server run typecheck
 pnpm --filter @workspace/signage run typecheck
+```
+
+Testes unitários da API (geração de código, detecção de bot, fingerprint e taxa):
+
+```bash
+pnpm --filter @workspace/api-server run test
 ```
 
 O build do workspace inclui o `mockup-sandbox`, cuja configuração exige `PORT` e
@@ -200,6 +209,9 @@ scripts/            scripts auxiliares do workspace
 - **Campanhas** ligam uma ou mais peças de mídia a um único anunciante, período, valor contratado e TVs de destino.
 - Campanhas ativas dentro do período configurado entram automaticamente no display dos dispositivos elegíveis.
 - Exibições (plays) são registradas pela API de telemetria no endpoint `/telemetry/play`, já atribuídas à campanha de origem via `campaignId`.
+- Cada vínculo entre campanha e peça tem um código curto imutável (`scanCode`) e uma URL de destino opcional. Com destino configurado, o player sobrepõe um QR code na peça; o scan passa por `/r/CODE`, é registrado na tabela `scans` e redireciona para o destino.
+- Scans são apresentados junto das exibições em números brutos e visitantes únicos, mais a taxa `scans / exibições`. A métrica mede resposta, não alcance: um scan não é atribuível a uma exibição ou TV específica.
+- Visitantes únicos são contados por `fingerprint` (hash de IP + user-agent com `SCAN_SALT`); não há cookie de rastreamento. Reabrir o mesmo link soma no bruto e não soma no único. Duas pessoas atrás do mesmo IP com o mesmo navegador contam como uma.
 - Uploads são persistidos no App Storage; o banco guarda somente o caminho do objeto e os metadados.
 
 ## Integração com GitHub

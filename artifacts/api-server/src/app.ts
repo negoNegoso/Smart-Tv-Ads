@@ -3,9 +3,15 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "path";
 import router from "./routes";
+import redirectRouter from "./routes/redirect";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+// Behind the Replit router, req.ip is otherwise the load balancer's address
+// for every request, which collapses the scan fingerprint to ~one value per
+// user-agent family and defeats unique-visitor counting.
+app.set("trust proxy", true);
 
 app.use(
   pinoHttp({
@@ -33,6 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 app.use("/api/uploads", express.static(uploadsDir));
 
+app.use("/r", redirectRouter);
 app.use("/api", router);
 
 export default app;

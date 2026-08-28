@@ -8,6 +8,7 @@
     "backfill:campaign-announcements": "tsx ./src/backfill-campaign-announcements.ts",
     "migrate:plays": "tsx ./src/migrate-plays.ts",
     "backfill:play-campaign": "tsx ./src/backfill-play-campaign.ts",
+    "backfill:scan-codes": "tsx ./src/backfill-scan-codes.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
