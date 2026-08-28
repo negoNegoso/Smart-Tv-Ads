@@ -1576,14 +1576,20 @@ cat .vercel/output/config.json
 
 Expected: `index.mjs`, `index.mjs.map` e `.vc-config.json` com `runtime: "nodejs22.x"`; `config.json` com as quatro rotas na ordem `/api`, `/r`, `filesystem`, catch-all.
 
-- [ ] **Step 6: Rodar a suíte inteira e o typecheck do workspace**
+- [ ] **Step 6: Rodar a suíte e o typecheck**
 
 ```bash
-pnpm run typecheck
+pnpm --filter @workspace/api-server run typecheck
 pnpm --filter @workspace/api-server test
 ```
 
 Expected: ambos verdes.
+
+**Não** rodar `pnpm run typecheck` na raiz como portão: ele inclui `@workspace/signage`,
+que falha com 5 erros `TS2345` pré-existentes em `src/pages/*.tsx` — incompatibilidade
+entre a versão do Zod e `@hookform/resolvers`, presente antes deste trabalho e fora
+do escopo dele. Corrigir isso é um trabalho próprio, em cinco páginas de formulário.
+O deploy não é afetado: a Vercel roda `node scripts/build-vercel.mjs`, não `pnpm build`.
 
 - [ ] **Step 7: Commit**
 
