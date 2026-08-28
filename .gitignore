@@ -47,3 +47,15 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Segredos de ambiente — nunca versionar
+.env
+.env.*
+!.env.example
+
+# Uploads locais (fallback de desenvolvimento; produção usa App Storage)
+uploads/
+artifacts/api-server/uploads/
+
+# Workspace temporário do fluxo de execução de planos
+.superpowers/
