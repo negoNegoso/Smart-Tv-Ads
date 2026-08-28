@@ -704,6 +704,7 @@ components:
         title: { type: string }
         imageUrl: { type: string }
         duration: { type: integer }
+        qrImageUrl: { type: string, nullable: true }
 
     # ── Telemetry ────────────────────────────────────────────────────────────
     PlayInput:

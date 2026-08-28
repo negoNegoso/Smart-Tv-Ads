@@ -443,7 +443,8 @@ export const GetDeviceSlidesResponseItem = zod.object({
   "campaignId": zod.number().nullish(),
   "title": zod.string(),
   "imageUrl": zod.string(),
-  "duration": zod.number()
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish()
 })
 export const GetDeviceSlidesResponse = zod.array(GetDeviceSlidesResponseItem)
 

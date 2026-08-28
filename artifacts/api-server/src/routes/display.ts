@@ -40,6 +40,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      scanCode: sql<string | null>`NULL`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -59,6 +60,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
     })
     .from(campaignsTable)
     .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
@@ -75,11 +77,16 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     .orderBy(asc(campaignsTable.id));
 
   const seen = new Set<number>();
-  const slides = [...campaignSlides, ...playlistSlides].filter((slide) => {
-    if (seen.has(slide.announcementId)) return false;
-    seen.add(slide.announcementId);
-    return true;
-  });
+  const slides = [...campaignSlides, ...playlistSlides]
+    .filter((slide) => {
+      if (seen.has(slide.announcementId)) return false;
+      seen.add(slide.announcementId);
+      return true;
+    })
+    .map(({ scanCode, ...slide }) => ({
+      ...slide,
+      qrImageUrl: scanCode ? `/api/qr/${scanCode}.png` : null,
+    }));
 
   res.json(GetDeviceSlidesResponse.parse(slides));
 });

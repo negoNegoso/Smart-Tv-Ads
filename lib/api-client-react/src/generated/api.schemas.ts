@@ -141,6 +141,7 @@ export interface DisplaySlide {
   title: string;
   imageUrl: string;
   duration: number;
+  qrImageUrl?: string | null;
 }
 
 export interface PlayInput {
