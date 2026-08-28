@@ -42,7 +42,10 @@ function resolveBasePath(): string {
 
 export default defineConfig(async ({ command }) => {
   const port = command === 'serve' ? resolveServerPort() : 0;
-  const basePath = command === 'serve' ? resolveBasePath() : (process.env.BASE_PATH ?? '/');
+  // `||`, not `??`: an exported-but-empty BASE_PATH would otherwise yield
+  // base: '', which Vite treats as a relative base and breaks assets on any
+  // deep route. Empty means "not provided", exactly as the resolvers above.
+  const basePath = command === 'serve' ? resolveBasePath() : (process.env.BASE_PATH || '/');
 
   return {
     base: basePath,
