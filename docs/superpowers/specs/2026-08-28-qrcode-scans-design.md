@@ -88,7 +88,9 @@ Fica **fora do prefixo `/api`**, para manter a URL curta e o QR com menos módul
 
 Hoje `artifacts/api-server/src/app.ts` monta todas as rotas em `app.use("/api", router)`. Este endpoint exige uma montagem própria: `app.use("/r", redirectRouter)`, antes do router `/api`.
 
-Leitura e escrita do cookie exigem `cookie-parser` (dependência nova no `api-server`) ou parsing manual do header `Cookie`. Preferir `cookie-parser`, aplicado **apenas** ao router de redirect — as demais rotas não precisam de cookie.
+Leitura e escrita do cookie usam `cookie-parser`, que **já é dependência** do `api-server` (hoje sem uso). Aplicá-lo **apenas** ao router de redirect — as demais rotas não precisam de cookie.
+
+O proxy de desenvolvimento do Vite (`artifacts/signage/vite.config.ts`) hoje encaminha só `/api`. Precisa de uma entrada para `/r`, senão o QR aberto a partir do painel local cai no frontend em vez do redirect.
 
 Fluxo:
 
