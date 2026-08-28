@@ -78,6 +78,16 @@
     }
     #empty-title { font-size: 28px; font-weight: 400; margin-bottom: 8px; }
     #empty-sub { font-size: 16px; }
+    #qr-box {
+      position: absolute;
+      right: 3vh; bottom: 3vh;
+      background: #fff;
+      padding: 1vh;
+      border-radius: 1vh;
+      display: none;
+      z-index: 3;
+    }
+    #qr-img { display: block; width: 12vh; height: 12vh; }
   </style>
 </head>
 <body>
@@ -91,6 +101,8 @@
   <div id="progress-track">
     <div id="progress-fill"></div>
   </div>
+
+  <div id="qr-box"><img id="qr-img" alt="" /></div>
 
   <div id="empty-screen">
     <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -121,6 +133,8 @@
       var titleEl      = document.getElementById('title');
       var fillEl       = document.getElementById('progress-fill');
       var emptyEl      = document.getElementById('empty-screen');
+      var qrBox        = document.getElementById('qr-box');
+      var qrImg        = document.getElementById('qr-img');
 
       // ─── Helpers ─────────────────────────────────────────────────────────────
       function getKey() {
@@ -187,6 +201,15 @@
         prev.style.opacity = '0';
 
         titleEl.textContent = slide.title;
+
+        if (slide.qrImageUrl) {
+          qrImg.src = apiBase() + slide.qrImageUrl;
+          qrBox.style.display = 'block';
+        } else {
+          qrBox.style.display = 'none';
+          qrImg.removeAttribute('src');
+        }
+
         activeSlot = activeSlot === 'a' ? 'b' : 'a';
 
         // Preload next image
