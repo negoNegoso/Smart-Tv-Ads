@@ -265,7 +265,11 @@ router.patch(
       .returning();
 
     if (req.file) {
-      await mediaStore().remove(existing.imageUrl);
+      try {
+        await mediaStore().remove(existing.imageUrl);
+      } catch (error) {
+        req.log.error({ err: error }, "Could not remove replaced announcement image");
+      }
     }
 
     res.json(UpdateAnnouncementResponse.parse(row));
@@ -286,7 +290,11 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Announcement not found" });
     return;
   }
-  await mediaStore().remove(row.imageUrl);
+  try {
+    await mediaStore().remove(row.imageUrl);
+  } catch (error) {
+    req.log.error({ err: error }, "Could not remove deleted announcement image");
+  }
   res.sendStatus(204);
 });
 
