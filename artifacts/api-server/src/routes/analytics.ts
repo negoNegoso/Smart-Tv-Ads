@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, type SQL } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -26,6 +26,19 @@ import { scanRate } from "../lib/scan-rate";
 
 const router: IRouter = Router();
 
+// Total scans + unique visitors (non-bot only), optionally scoped by a where clause.
+// Kept as a single helper so the bot-exclusion rule can't drift between call sites.
+async function scanTotals(where?: SQL) {
+  const [row] = await db
+    .select({
+      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
+    })
+    .from(scansTable)
+    .where(where);
+  return { totalScans: row?.totalScans ?? 0, totalUniqueScans: row?.totalUniqueScans ?? 0 };
+}
+
 // Overall summary
 router.get("/analytics/summary", async (_req, res): Promise<void> => {
   const [counts] = await db
@@ -50,12 +63,7 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
     .orderBy(desc(sql`COUNT(${playsTable.id})`))
     .limit(10);
 
-  const [scanCounts] = await db
-    .select({
-      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-    })
-    .from(scansTable);
+  const scanCounts = await scanTotals();
 
   const scansByAnnouncement = await db
     .select({
@@ -74,8 +82,8 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
       totalDevices: counts?.totalDevices ?? 0,
       totalPlays: counts?.totalPlays ?? 0,
       totalDuration: counts?.totalDuration ?? 0,
-      totalScans: scanCounts?.totalScans ?? 0,
-      totalUniqueScans: scanCounts?.totalUniqueScans ?? 0,
+      totalScans: scanCounts.totalScans,
+      totalUniqueScans: scanCounts.totalUniqueScans,
       topAnnouncements: topAnnouncements.map((item) => {
         const scans = scansMap.get(item.announcementId) ?? 0;
         return { ...item, scans, scanRate: scanRate(scans, item.plays) };
@@ -232,13 +240,7 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
     .groupBy(devicesTable.id, devicesTable.name, clientsTable.name)
     .orderBy(desc(sql`COUNT(${playsTable.id})`));
 
-  const [scanAgg] = await db
-    .select({
-      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-    })
-    .from(scansTable)
-    .where(eq(scansTable.announcementId, announcementId));
+  const scanAgg = await scanTotals(eq(scansTable.announcementId, announcementId));
 
   const playsByCampaign = await db
     .select({
@@ -273,9 +275,9 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
       title: announcement.title,
       totalPlays: agg?.totalPlays ?? 0,
       totalDuration: agg?.totalDuration ?? 0,
-      totalScans: scanAgg?.totalScans ?? 0,
-      totalUniqueScans: scanAgg?.totalUniqueScans ?? 0,
-      scanRate: scanRate(scanAgg?.totalScans ?? 0, agg?.totalPlays ?? 0),
+      totalScans: scanAgg.totalScans,
+      totalUniqueScans: scanAgg.totalUniqueScans,
+      scanRate: scanRate(scanAgg.totalScans, agg?.totalPlays ?? 0),
       byCampaign,
       byDevice,
     })
@@ -317,13 +319,7 @@ router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> =
     .from(playsTable)
     .where(eq(playsTable.campaignId, campaignId));
 
-  const [scanAgg] = await db
-    .select({
-      totalScans: sql<number>`COUNT(*) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-      totalUniqueScans: sql<number>`COUNT(DISTINCT COALESCE(${scansTable.visitorId}, ${scansTable.fingerprint})) FILTER (WHERE ${scansTable.isBot} = false)::int`,
-    })
-    .from(scansTable)
-    .where(eq(scansTable.campaignId, campaignId));
+  const scanAgg = await scanTotals(eq(scansTable.campaignId, campaignId));
 
   const playsByAnnouncement = await db
     .select({
@@ -358,9 +354,9 @@ router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> =
       startsAt: campaign.startsAt,
       endsAt: campaign.endsAt,
       totalPlays: playAgg?.totalPlays ?? 0,
-      totalScans: scanAgg?.totalScans ?? 0,
-      totalUniqueScans: scanAgg?.totalUniqueScans ?? 0,
-      scanRate: scanRate(scanAgg?.totalScans ?? 0, playAgg?.totalPlays ?? 0),
+      totalScans: scanAgg.totalScans,
+      totalUniqueScans: scanAgg.totalUniqueScans,
+      scanRate: scanRate(scanAgg.totalScans, playAgg?.totalPlays ?? 0),
       byAnnouncement: playsByAnnouncement.map((item) => {
         const scans = scansMap.get(item.announcementId) ?? 0;
         return { ...item, scans, scanRate: scanRate(scans, item.plays) };
