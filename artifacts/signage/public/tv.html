@@ -168,6 +168,9 @@
       }
 
       function imgUrl(imageUrl) {
+        if (/^https?:\/\//i.test(imageUrl)) {
+          return imageUrl;
+        }
         if (imageUrl.indexOf('/api/') === 0) {
           return apiBase() + imageUrl;
         }
