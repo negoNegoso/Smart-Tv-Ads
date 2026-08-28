@@ -187,6 +187,57 @@ precisar iniciar o preview sandbox.
 
 O diretório local `artifacts/api-server/uploads/` existe apenas como fallback de desenvolvimento. Em produção, as imagens devem ser armazenadas no App Storage.
 
+## Deploy na Vercel
+
+O projeto roda como um único projeto Vercel: a SPA vira estático e a API Express
+vira uma função serverless. O build é montado por `scripts/build-vercel.mjs`
+usando a Build Output API v3 — a descoberta automática de funções da Vercel não
+enxergaria um bundle gerado durante o build.
+
+Rotas: `/api/*` e `/r/*` vão para a função; o resto é estático, com catch-all
+para `index.html` (necessário para as rotas do wouter).
+
+### Variáveis de ambiente em produção
+
+| Variável | Origem |
+| --- | --- |
+| `DATABASE_URL` | Neon, provisionado pelo Marketplace. Use a string **pooled** (`-pooler`) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob, provisionado pelo Marketplace |
+| `SCAN_SALT` | manual — sem ela a API não sobe (obrigatória em produção **e** preview) |
+| `SESSION_SECRET` | manual |
+| `PUBLIC_BASE_URL` | manual, domínio de produção; usado no QR |
+| `MAX_UPLOAD_BYTES` | `4000000` — o corpo de requisição da função é limitado a 4,5 MB |
+
+`PORT` e `BASE_PATH` **não** são configurados na Vercel: valem apenas para
+`vite dev`/`vite preview` e para o `dev.sh`.
+
+### Comandos
+
+```bash
+pnpm dlx vercel@latest deploy         # deploy de preview (build remoto na Vercel)
+pnpm dlx vercel@latest --prod         # produção
+```
+
+O build remoto na Vercel é o caminho recomendado. O build local
+(`pnpm dlx vercel@latest build` + `deploy --prebuilt`) também funciona, mas
+depende do binário nativo do esbuild instalado corretamente na máquina.
+
+### Schema do banco
+
+Aplicado manualmente, nunca no build:
+
+```bash
+# DATABASE_URL pooled já definida no ambiente (ex.: em .env.production.local)
+pnpm --filter @workspace/db run push
+```
+
+### Armazenamento de imagens
+
+`MediaStore` (`artifacts/api-server/src/lib/storage/`) escolhe a implementação
+por ambiente: `BLOB_READ_WRITE_TOKEN` → Vercel Blob; `PRIVATE_OBJECT_DIR` →
+Object Storage do Replit; nenhum dos dois → disco local (`dev.sh`). O deploy
+Replit continua funcionando sem mudanças.
+
 ## Organização do projeto
 
 ```text
