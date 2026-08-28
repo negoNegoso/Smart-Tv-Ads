@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import QRCode from "qrcode";
 import { eq } from "drizzle-orm";
 import { db, campaignAnnouncementsTable } from "@workspace/db";
+import { publicBaseUrl } from "../lib/public-base-url";
 
 const router: IRouter = Router();
 
@@ -24,8 +25,8 @@ router.get("/qr/:file", async (req, res): Promise<void> => {
       return;
     }
 
-    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
-    const target = `${base.replace(/\/$/, "")}/r/${code}`;
+    const base = publicBaseUrl(process.env, `${req.protocol}://${req.get("host")}`);
+    const target = `${base}/r/${code}`;
 
     const png = await QRCode.toBuffer(target, {
       errorCorrectionLevel: "M",
