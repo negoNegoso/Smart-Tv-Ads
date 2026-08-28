@@ -11,11 +11,24 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function buildAll() {
-  const distDir = path.resolve(artifactDir, "dist");
+  // The Vercel target bundles a port-less entrypoint into its own directory and
+  // drops the pino transport plugin: NODE_ENV=production disables pino-pretty,
+  // so no worker file needs to be emitted and the output stays a single file.
+  const isVercel = process.argv.includes("--vercel");
+  const distDir = path.resolve(artifactDir, isVercel ? "dist-vercel" : "dist");
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    // { in, out } (instead of a plain path) fixes the output basename at "index"
+    // regardless of the entry file's own name, so the Vercel target — whose entry
+    // is serverless.ts — still emits index.mjs, matching the handler name that
+    // .vc-config.json hardcodes.
+    entryPoints: [
+      {
+        in: path.resolve(artifactDir, isVercel ? "src/serverless.ts" : "src/index.ts"),
+        out: "index",
+      },
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -102,10 +115,12 @@ async function buildAll() {
       "electron",
     ],
     sourcemap: "linked",
-    plugins: [
-      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
-    ],
+    plugins: isVercel
+      ? []
+      : [
+          // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
+          esbuildPluginPino({ transports: ["pino-pretty"] }),
+        ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {
       js: `import { createRequire as __bannerCrReq } from 'node:module';

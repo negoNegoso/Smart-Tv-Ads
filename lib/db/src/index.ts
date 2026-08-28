@@ -10,7 +10,10 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// One connection per instance: a serverless invocation serves a single request
+// at a time, and instance count scales with traffic, so a larger pool only
+// multiplies idle connections against the database.
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
