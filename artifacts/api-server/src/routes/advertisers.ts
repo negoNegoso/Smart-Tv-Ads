@@ -11,6 +11,7 @@ import {
   playsTable,
   campaignAnnouncementsTable,
 } from "@workspace/db";
+import { generateScanCode } from "@workspace/db/scan-code";
 
 const router: IRouter = Router();
 
@@ -31,10 +32,22 @@ const campaignInput = z.object({
   endsAt: z.coerce.date(),
   allDevices: z.boolean().default(true),
   deviceIds: z.array(z.coerce.number().int().positive()).default([]),
+  announcementDestinations: z.record(z.string(), z.string().trim()).default({}),
 });
 
 function announcementIdsFor(input: z.infer<typeof campaignInput>) {
   return [...new Set([...(input.announcementIds || []), ...(input.announcementId ? [input.announcementId] : [])])];
+}
+
+async function syncAnnouncementDestinations(campaignId: number, destinations: Record<string, string>) {
+  for (const [announcementId, url] of Object.entries(destinations)) {
+    const id = Number(announcementId);
+    if (!Number.isInteger(id) || id <= 0) continue;
+    await db
+      .update(campaignAnnouncementsTable)
+      .set({ destinationUrl: url.trim() ? url.trim() : null })
+      .where(and(eq(campaignAnnouncementsTable.campaignId, campaignId), eq(campaignAnnouncementsTable.announcementId, id)));
+  }
 }
 
 const campaignSelection = {
@@ -54,6 +67,15 @@ const campaignSelection = {
   plays: sql<number>`(select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id})`,
   totalDuration: sql<number>`(select coalesce(sum(p.duration_seconds), 0)::int from plays p where p.campaign_id = ${campaignsTable.id})`,
   playsByAnnouncement: sql<Array<{ announcementId: number; title: string; plays: number }>>`coalesce((select json_agg(json_build_object('announcementId', an.id, 'title', an.title, 'plays', (select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id} and p.announcement_id = an.id)) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
+  announcementLinks: sql<Array<{ announcementId: number; title: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number }>>`coalesce((select json_agg(json_build_object(
+    'announcementId', an.id,
+    'title', an.title,
+    'scanCode', cn.scan_code,
+    'destinationUrl', cn.destination_url,
+    'plays', (select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id} and p.announcement_id = an.id),
+    'scans', (select count(*)::int from scans s where s.campaign_id = ${campaignsTable.id} and s.announcement_id = an.id and s.is_bot = false)
+  ) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
+  scans: sql<number>`(select count(*)::int from scans s where s.campaign_id = ${campaignsTable.id} and s.is_bot = false)`,
 };
 
 async function campaignWithStats(campaignId: number) {
@@ -184,7 +206,10 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     endsAt: input.endsAt,
     allDevices: input.allDevices,
   }).returning();
-  await db.insert(campaignAnnouncementsTable).values(announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId }))).onConflictDoNothing();
+  await db.insert(campaignAnnouncementsTable).values(
+    announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
+  ).onConflictDoNothing();
+  await syncAnnouncementDestinations(campaign.id, input.announcementDestinations);
   if (!input.allDevices && input.deviceIds.length) {
     await db.insert(campaignDevicesTable).values(
       input.deviceIds.map((deviceId) => ({ campaignId: campaign.id, deviceId })),
@@ -239,8 +264,11 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     endsAt: input.endsAt,
     allDevices: input.allDevices,
   }).where(eq(campaignsTable.id, id));
-  await db.insert(campaignAnnouncementsTable).values(announcementIds.map((announcementId) => ({ campaignId: id, announcementId }))).onConflictDoNothing();
+  await db.insert(campaignAnnouncementsTable).values(
+    announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
+  ).onConflictDoNothing();
   await db.delete(campaignAnnouncementsTable).where(and(eq(campaignAnnouncementsTable.campaignId, id), notInArray(campaignAnnouncementsTable.announcementId, announcementIds)));
+  await syncAnnouncementDestinations(id, input.announcementDestinations);
   if (input.allDevices || input.deviceIds.length === 0) {
     await db.delete(campaignDevicesTable).where(eq(campaignDevicesTable.campaignId, id));
   } else {
