@@ -129,6 +129,16 @@ export default function Display() {
         </AnimatePresence>
       </div>
 
+      {slide.qrImageUrl && (
+        <div className="absolute bottom-[3vh] right-[3vh] z-30 rounded-[1vh] bg-white p-[1vh]">
+          <img
+            src={`${import.meta.env.BASE_URL}${slide.qrImageUrl.replace(/^\//, "")}`}
+            alt=""
+            className="block h-[12vh] w-[12vh]"
+          />
+        </div>
+      )}
+
       <div className="absolute bottom-0 left-0 h-1 w-full bg-white/10 z-20">
         <div
           className="h-full bg-primary transition-all duration-75 ease-linear"
