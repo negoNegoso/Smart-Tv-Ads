@@ -5,6 +5,9 @@ import path from "path";
 import router from "./routes";
 import redirectRouter from "./routes/redirect";
 import { logger } from "./lib/logger";
+import { assertRequiredEnv } from "./lib/required-env";
+
+assertRequiredEnv();
 
 const app: Express = express();
 

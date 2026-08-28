@@ -1,12 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 
-if (!process.env["SCAN_SALT"]) {
-  throw new Error(
-    "SCAN_SALT must be set. Did you forget to configure the QR scan tracking salt?",
-  );
-}
-
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
