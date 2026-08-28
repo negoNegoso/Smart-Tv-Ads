@@ -66,6 +66,7 @@ export default function Advertisers() {
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
   const [announcementDestinations, setAnnouncementDestinations] = useState<Record<string, string>>({});
+  const [publishedScanCodes, setPublishedScanCodes] = useState<Record<string, boolean>>({});
   const [allDevices, setAllDevices] = useState(true);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
   const [campaignForm, setCampaignForm] = useState({
@@ -111,6 +112,7 @@ export default function Advertisers() {
     setSelectedDevices([]);
     setSelectedAnnouncements([]);
     setAnnouncementDestinations({});
+    setPublishedScanCodes({});
     setAllDevices(true);
     setCampaignDialog(true);
   }
@@ -128,6 +130,15 @@ export default function Advertisers() {
     setSelectedAnnouncements(campaign.announcementIds ?? []);
     setAnnouncementDestinations(
       Object.fromEntries((campaign.announcementLinks ?? []).map((link) => [String(link.announcementId), link.destinationUrl ?? ""])),
+    );
+    // Peças com scanCode e destinationUrl já têm um QR publicado: desmarcá-las
+    // apaga o vínculo e invalida esse QR para sempre (scanCode é imutável).
+    setPublishedScanCodes(
+      Object.fromEntries(
+        (campaign.announcementLinks ?? [])
+          .filter((link) => link.scanCode && link.destinationUrl)
+          .map((link) => [String(link.announcementId), true]),
+      ),
     );
     setAllDevices(campaign.allDevices);
     setCampaignDialog(true);
@@ -161,6 +172,7 @@ export default function Advertisers() {
     setSelectedAdvertiser(null);
     setSelectedAnnouncements([]);
     setAnnouncementDestinations({});
+    setPublishedScanCodes({});
     toast({ title: isEditing ? "Campanha atualizada" : "Campanha publicada" });
     load();
   }
@@ -311,6 +323,7 @@ export default function Advertisers() {
               <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border p-2">
                 {announcements.map((a) => {
                   const checked = selectedAnnouncements.includes(a.id);
+                  const hasPublishedQr = publishedScanCodes[String(a.id)] === true;
                   return (
                     <div key={a.id} className="rounded p-2 hover:bg-muted">
                       <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -329,6 +342,11 @@ export default function Advertisers() {
                           value={announcementDestinations[String(a.id)] ?? ""}
                           onChange={(e) => setAnnouncementDestinations({ ...announcementDestinations, [String(a.id)]: e.target.value })}
                         />
+                      )}
+                      {checked && hasPublishedQr && (
+                        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                          Esta peça já tem um QR code publicado. Desmarcá-la apaga o vínculo e invalida esse QR code para sempre.
+                        </p>
                       )}
                     </div>
                   );
