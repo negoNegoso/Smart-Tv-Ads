@@ -35,6 +35,8 @@ type Campaign = {
   plays: number;
   totalDuration: number;
   playsByAnnouncement?: Array<{ announcementId: number; title: string; plays: number }>;
+  scans: number;
+  announcementLinks?: Array<{ announcementId: number; title: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number }>;
 };
 
 type Announcement = { id: number; title: string };
@@ -63,6 +65,7 @@ export default function Advertisers() {
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<number | null>(null);
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
+  const [announcementDestinations, setAnnouncementDestinations] = useState<Record<string, string>>({});
   const [allDevices, setAllDevices] = useState(true);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
   const [campaignForm, setCampaignForm] = useState({
@@ -107,6 +110,7 @@ export default function Advertisers() {
     setSelectedAdvertiser(null);
     setSelectedDevices([]);
     setSelectedAnnouncements([]);
+    setAnnouncementDestinations({});
     setAllDevices(true);
     setCampaignDialog(true);
   }
@@ -122,6 +126,9 @@ export default function Advertisers() {
     setSelectedAdvertiser(campaign.advertiserId);
     setSelectedDevices(campaign.deviceIds ?? []);
     setSelectedAnnouncements(campaign.announcementIds ?? []);
+    setAnnouncementDestinations(
+      Object.fromEntries((campaign.announcementLinks ?? []).map((link) => [String(link.announcementId), link.destinationUrl ?? ""])),
+    );
     setAllDevices(campaign.allDevices);
     setCampaignDialog(true);
   }
@@ -136,6 +143,7 @@ export default function Advertisers() {
         ...campaignForm,
         advertiserId: selectedAdvertiser,
         announcementIds: selectedAnnouncements,
+        announcementDestinations,
         contractValue: Number(campaignForm.contractValue || 0),
         allDevices,
         deviceIds: selectedDevices,
@@ -152,6 +160,7 @@ export default function Advertisers() {
     setSelectedDevices([]);
     setSelectedAdvertiser(null);
     setSelectedAnnouncements([]);
+    setAnnouncementDestinations({});
     toast({ title: isEditing ? "Campanha atualizada" : "Campanha publicada" });
     load();
   }
@@ -238,6 +247,32 @@ export default function Advertisers() {
                       <span>{campaign.plays} exibições</span>
                       <span className="font-medium text-foreground">{money(campaign.contractValue)}</span>
                     </div>
+                    {(campaign.announcementLinks ?? []).filter((link) => link.destinationUrl && link.scanCode).map((link) => (
+                      <div key={link.announcementId} className="mt-2 flex items-center gap-3 rounded-lg border p-2">
+                        <img src={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} alt="" className="h-14 w-14 rounded bg-white p-1" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{link.title}</p>
+                          <p className="truncate text-xs text-muted-foreground">{link.destinationUrl}</p>
+                          <p className="text-xs text-muted-foreground">{link.plays} exibições · {link.scans} scans</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/r/${link.scanCode}`);
+                              toast({ title: "Link copiado" });
+                            }}
+                          >
+                            Copiar link
+                          </Button>
+                          <a href={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} download={`qr-${link.scanCode}.png`}>
+                            <Button type="button" variant="outline" size="sm">Baixar PNG</Button>
+                          </a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Switch checked={campaign.isActive} onCheckedChange={() => toggleCampaign(campaign.id)} aria-label="Ativar campanha" />
@@ -270,7 +305,36 @@ export default function Advertisers() {
           <form onSubmit={submitCampaign} className="space-y-4">
             <div className="space-y-2"><Label>Anunciante</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{advertisers.map((a) => <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="radio" name="advertiser" checked={selectedAdvertiser === a.id} onChange={() => setSelectedAdvertiser(a.id)} />{a.company || a.name}</label>)}</div><p className="text-xs text-muted-foreground">Cada campanha pertence a um único anunciante.</p></div>
             <Field label="Nome da campanha" value={campaignForm.name} onChange={(v) => setCampaignForm({ ...campaignForm, name: v })} placeholder="Ex.: Campanha de inverno" required />
-            <div className="space-y-2"><Label>Anúncios / peças</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{announcements.map((a) => <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selectedAnnouncements.includes(a.id)} onChange={(e) => setSelectedAnnouncements(e.target.checked ? [...selectedAnnouncements, a.id] : selectedAnnouncements.filter((id) => id !== a.id))} />{a.title}</label>)}</div><p className="text-xs text-muted-foreground">Você pode vincular vários anúncios à mesma campanha.</p></div>
+            <div className="space-y-2">
+              <Label>Anúncios / peças</Label>
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border p-2">
+                {announcements.map((a) => {
+                  const checked = selectedAnnouncements.includes(a.id);
+                  return (
+                    <div key={a.id} className="rounded p-2 hover:bg-muted">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setSelectedAnnouncements(e.target.checked ? [...selectedAnnouncements, a.id] : selectedAnnouncements.filter((id) => id !== a.id))}
+                        />
+                        {a.title}
+                      </label>
+                      {checked && (
+                        <Input
+                          className="mt-2"
+                          type="url"
+                          placeholder="URL de destino do QR code (opcional)"
+                          value={announcementDestinations[String(a.id)] ?? ""}
+                          onChange={(e) => setAnnouncementDestinations({ ...announcementDestinations, [String(a.id)]: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">Peças com URL de destino exibem um QR code rastreável na TV.</p>
+            </div>
             <Field label="Valor contratado (R$)" type="number" value={campaignForm.contractValue} onChange={(v) => setCampaignForm({ ...campaignForm, contractValue: v })} placeholder="0,00" />
             <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={campaignForm.startsAt} onChange={(v) => setCampaignForm({ ...campaignForm, startsAt: v })} required /><Field label="Fim" type="date" value={campaignForm.endsAt} onChange={(v) => setCampaignForm({ ...campaignForm, endsAt: v })} required /></div>
             <div className="flex items-center justify-between rounded-lg border p-3"><div><p className="text-sm font-medium">Publicar em todas as TVs</p><p className="text-xs text-muted-foreground">A campanha entra automaticamente na programação de toda a rede.</p></div><Switch checked={allDevices} onCheckedChange={setAllDevices} /></div>
