@@ -20,6 +20,9 @@ router.use(authRouter);
 router.use(displayRouter);
 router.use(telemetryRouter);
 router.use(qrRouter);
+// storageRouter expõe apenas GET /storage/objects/* (leitura pública das
+// imagens que as TVs carregam no backend de object storage do Replit).
+router.use(storageRouter);
 
 // Porteiro: tudo abaixo exige sessão de admin.
 router.use(requireAdmin);
@@ -29,6 +32,5 @@ router.use(clientsRouter);
 router.use(devicesRouter);
 router.use(analyticsRouter);
 router.use(advertisersRouter);
-router.use(storageRouter);
 
 export default router;

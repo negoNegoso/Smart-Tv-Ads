@@ -44,4 +44,10 @@ describe("porteiro de rotas", () => {
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ error: "Não autenticado." });
   });
+
+  it("mantém /api/storage/objects público (leitura de imagens da TV, não bloqueio do porteiro)", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/api/storage/objects/qualquer.png");
+    expect(res.status).not.toBe(401);
+  });
 });
