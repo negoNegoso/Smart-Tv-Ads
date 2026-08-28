@@ -208,8 +208,8 @@ Em ordem, sem pular etapa:
    - excluir a peça; conferir que o arquivo sai do Blob;
    - upload acima de 4 MB retorna 413 com a mensagem esperada;
    - `/display/:deviceKey` roda a playlist;
-   - `/api/qr/CODE.png` gera o PNG e o QR aponta para o domínio correto;
-   - `/r/CODE` redireciona e registra o scan;
+   - `/api/qr/CODE.png` gera o PNG. Em **preview**, com `PUBLIC_BASE_URL` ainda não definida, o QR codifica intencionalmente o **domínio de produção** (via `VERCEL_PROJECT_PRODUCTION_URL`), não o host efêmero do preview — isso é o comportamento correto para QR impresso, não um defeito. No primeiro deploy, quando ainda não há produção publicada, esse domínio pode não responder; por isso não valide o alvo do QR aqui. Em produção, confira que o QR aponta para o domínio final;
+   - `/r/CODE` redireciona e registra o scan. Em preview, exercite **diretamente contra o host do preview** (`https://<preview-host>/r/CODE`), já que o link embutido no QR aponta para o domínio de produção;
    - acesso direto e refresh em `/clients/:id` retorna a SPA, não 404.
 4. Só então `vercel --prod`.
 

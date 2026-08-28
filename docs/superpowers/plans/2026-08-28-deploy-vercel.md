@@ -1706,8 +1706,8 @@ Peça ao usuário que confirme, na URL de preview, nesta ordem:
 4. Excluir a peça; ela some da listagem.
 5. Tentar subir uma imagem **acima de 4 MB**; erro esperado: `Imagem acima do limite de 4 MB.`
 6. `/display/<deviceKey>` roda a playlist.
-7. `/api/qr/<CODE>.png` devolve o PNG e o QR aponta para o domínio correto.
-8. `/r/<CODE>` redireciona e o scan aparece em `/analytics`.
+7. `/api/qr/<CODE>.png` devolve o PNG. Em preview, com `PUBLIC_BASE_URL` ainda não definida, o QR codifica **intencionalmente o domínio de produção** (`VERCEL_PROJECT_PRODUCTION_URL`), não o host efêmero do preview — é o comportamento correto para QR impresso, não um defeito. No primeiro deploy pode ainda não haver produção publicada, então **não valide o alvo do QR neste passo**; a fixação do domínio final acontece no Step 9.
+8. `/r/<CODE>` redireciona e o scan aparece em `/analytics`. Como o QR do preview aponta para produção, exercite `/r/<CODE>` **diretamente contra o host do preview** (`https://<preview-host>/r/<CODE>`).
 
 Só prossiga com o aval explícito do usuário.
 
