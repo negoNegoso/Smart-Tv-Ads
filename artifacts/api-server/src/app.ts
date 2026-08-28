@@ -8,6 +8,11 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Behind the Replit router, req.ip is otherwise the load balancer's address
+// for every request, which collapses the scan fingerprint to ~one value per
+// user-agent family and defeats unique-visitor counting.
+app.set("trust proxy", true);
+
 app.use(
   pinoHttp({
     logger,

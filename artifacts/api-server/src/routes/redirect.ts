@@ -27,10 +27,14 @@ router.get("/:code", async (req, res): Promise<void> => {
     return;
   }
 
-  let visitorId = req.cookies?.[VISITOR_COOKIE] as string | undefined;
+  // visitorId reflects only what the request already had: it's what gets stored,
+  // so COALESCE(visitor_id, fingerprint) in aggregates can fall back to the
+  // fingerprint when no cookie came in. cookieValue is what we hand back to the
+  // client so future requests do carry the cookie — the two must stay distinct.
+  const visitorId = req.cookies?.[VISITOR_COOKIE] as string | undefined;
+  const cookieValue = visitorId ?? randomUUID();
   if (!visitorId) {
-    visitorId = randomUUID();
-    res.cookie(VISITOR_COOKIE, visitorId, {
+    res.cookie(VISITOR_COOKIE, cookieValue, {
       maxAge: ONE_YEAR_MS,
       httpOnly: true,
       sameSite: "lax",
@@ -45,7 +49,7 @@ router.get("/:code", async (req, res): Promise<void> => {
       campaignAnnouncementId: link.id,
       campaignId: link.campaignId,
       announcementId: link.announcementId,
-      visitorId,
+      visitorId: visitorId ?? null,
       fingerprint: fingerprintFor(ip, userAgent),
       userAgent,
       isBot: isBotUserAgent(userAgent),
