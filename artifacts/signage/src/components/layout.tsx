@@ -1,9 +1,18 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { MonitorPlay, Users, LayoutDashboard, BarChart3, Building2 } from 'lucide-react';
+import { MonitorPlay, Users, LayoutDashboard, BarChart3, Building2, LogOut } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+
+  const queryClient = useQueryClient();
+
+  async function handleLogout() {
+    await fetch(`${import.meta.env.BASE_URL}api/auth/logout`, { method: 'POST' });
+    queryClient.setQueryData(['auth'], { authenticated: false });
+  }
 
   const navItems = [
     { href: '/clients', label: 'Clientes', icon: Users },
@@ -38,6 +47,16 @@ export function Layout({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto flex items-center gap-2 text-muted-foreground"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
         </div>
       </header>
 
