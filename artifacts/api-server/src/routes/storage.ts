@@ -1,15 +1,23 @@
 import { Readable } from "stream";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
-const objectStorage = new ObjectStorageService();
 
-// Public read-only serving for announcement images stored in App Storage.
+// Public read-only serving for announcement images stored in Replit App Storage.
+// The @google-cloud/storage client is loaded lazily so that this module can be
+// bundled for environments where that package is not installed.
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
+  if (!process.env.PRIVATE_OBJECT_DIR) {
+    res.status(404).json({ error: "Object not found" });
+    return;
+  }
+
+  const { ObjectNotFoundError, ObjectStorageService } = await import("../lib/objectStorage");
+
   try {
     const raw = req.params.path;
     const path = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectStorage = new ObjectStorageService();
     const file = await objectStorage.getObjectEntityFile(`/objects/${path}`);
     const response = await objectStorage.downloadObject(file, 86400);
     res.status(response.status);
