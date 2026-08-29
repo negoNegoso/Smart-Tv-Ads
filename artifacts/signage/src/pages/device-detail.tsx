@@ -237,8 +237,12 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
                       className="w-full flex items-center gap-3 rounded-lg border p-3 hover:bg-accent transition-colors text-left"
                       onClick={() => addMutation.mutate({ id: deviceId, data: { announcementId: a.id } })}
                     >
-                      <div className="h-10 w-16 shrink-0 rounded-md bg-muted overflow-hidden border">
-                        <img src={imgUrl} alt={a.title} className="h-full w-full object-cover" />
+                      <div className="h-10 w-16 shrink-0 rounded-md bg-muted overflow-hidden border flex items-center justify-center">
+                        {a.imageUrl ? (
+                          <img src={imgUrl} alt={a.title} className="h-full w-full object-cover" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
+                        )}
                       </div>
                       <div>
                         <p className="font-medium text-sm">{a.title}</p>

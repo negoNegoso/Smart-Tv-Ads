@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
-import { ArrowLeft, CalendarDays, Check, DollarSign, Monitor, Pencil, Plus, Radio, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, DollarSign, Image as ImageIcon, Monitor, Pencil, Plus, Radio, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -297,7 +297,11 @@ export default function CampaignDetail() {
               const hasQr = Boolean(link.scanCode && link.destinationUrl);
               return (
                 <div key={link.announcementId} className="flex items-start gap-3 rounded-lg border p-3">
-                  <img src={mediaUrl(link.imageUrl)} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
+                  {link.imageUrl ? (
+                    <img src={mediaUrl(link.imageUrl)} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-muted"><ImageIcon className="h-5 w-5 text-muted-foreground/50" /></div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{link.title}</p>
                     {hasQr && <p className="truncate text-xs text-muted-foreground">{link.destinationUrl}</p>}
@@ -355,7 +359,11 @@ function AddPieceCombobox({ announcements, selectedIds, onAdd }: { announcements
             <CommandGroup>
               {available.map((a) => (
                 <CommandItem key={a.id} value={a.title} onSelect={() => { onAdd(a.id); setOpen(false); }}>
-                  <img src={mediaUrl(a.imageUrl)} alt="" className="mr-2 h-6 w-6 shrink-0 rounded object-cover" />
+                  {a.imageUrl ? (
+                    <img src={mediaUrl(a.imageUrl)} alt="" className="mr-2 h-6 w-6 shrink-0 rounded object-cover" />
+                  ) : (
+                    <div className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted"><ImageIcon className="h-3 w-3 text-muted-foreground/50" /></div>
+                  )}
                   {a.title}
                 </CommandItem>
               ))}
