@@ -23,6 +23,7 @@ export default function Display() {
   const [progress, setProgress] = useState(0);
   const playSent = useRef(false);
   const playlistCursor = useRef<Record<number, number>>({});
+  const videoPositions = useRef<Record<string, number>>({});
   const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
 
   // Resolve o vídeo atual de um slide (mesma regra usada na renderização e no
@@ -80,26 +81,39 @@ export default function Display() {
       setProgress((elapsed / durationMs) * 100);
 
       if (elapsed >= durationMs) {
-        // Record play fire-and-forget
-        if (!playSent.current && deviceKey) {
-          playSent.current = true;
-          fetch(`${import.meta.env.BASE_URL}api/telemetry/play`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              deviceKey,
-              announcementId: slide.announcementId,
-              campaignId: slide.campaignId ?? null,
-              durationSeconds: slide.duration,
-            }),
-          }).catch(() => {});
+        const isCappedVideo = isYouTube && slide.playbackMode !== 'natural';
+        if (isCappedVideo) {
+          // Corte: a posição já foi salva via onProgress. Cede a tela sem
+          // contar play nem avançar o cursor da playlist (retoma depois).
+          setCurrentIndex((prev) => (prev + 1) % slides.length);
+          setProgress(0);
+        } else {
+          // Imagem ou fallback: comportamento atual (1 play por exibição).
+          if (!playSent.current && deviceKey) {
+            playSent.current = true;
+            fetch(`${import.meta.env.BASE_URL}api/telemetry/play`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                deviceKey,
+                announcementId: slide.announcementId,
+                campaignId: slide.campaignId ?? null,
+                durationSeconds: slide.duration,
+              }),
+            }).catch(() => {});
+          }
+          if (
+            slide.mediaKind === 'youtube_playlist' &&
+            slide.videoIds &&
+            slide.videoIds.length > 0
+          ) {
+            const cur = playlistCursor.current[slide.announcementId] ?? 0;
+            playlistCursor.current[slide.announcementId] =
+              (cur + 1) % slide.videoIds.length;
+          }
+          setCurrentIndex((prev) => (prev + 1) % slides.length);
+          setProgress(0);
         }
-        if (slide.mediaKind === 'youtube_playlist' && slide.videoIds && slide.videoIds.length > 0) {
-          const cur = playlistCursor.current[slide.announcementId] ?? 0;
-          playlistCursor.current[slide.announcementId] = (cur + 1) % slide.videoIds.length;
-        }
-        setCurrentIndex((prev) => (prev + 1) % slides.length);
-        setProgress(0);
       }
     }, intervalMs);
 
@@ -156,6 +170,7 @@ export default function Display() {
         : '';
 
   const advance = () => {
+    delete videoPositions.current[`${slide.announcementId}-${videoId}`];
     if (slide.mediaKind === 'youtube_playlist' && slide.videoIds && slide.videoIds.length > 0) {
       const cur = playlistCursor.current[slide.announcementId] ?? 0;
       playlistCursor.current[slide.announcementId] = (cur + 1) % slide.videoIds.length;
@@ -185,6 +200,10 @@ export default function Display() {
           videoId={videoId}
           audioMode={slide.audioMode === 'sound' ? 'sound' : 'muted'}
           playbackMode={slide.playbackMode === 'natural' ? 'natural' : 'capped'}
+          initialPosition={videoPositions.current[`${slide.announcementId}-${videoId}`] ?? 0}
+          onProgress={(sec) => {
+            videoPositions.current[`${slide.announcementId}-${videoId}`] = sec;
+          }}
           onEnded={advance}
           onUnplayable={() =>
             setFallbackIds((prev) => new Set(prev).add(fbKey))
