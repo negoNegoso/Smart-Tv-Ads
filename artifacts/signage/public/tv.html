@@ -426,6 +426,17 @@
           return;
         }
 
+        // YouTube sem vídeo resolvido (ex.: playlist sem API key) → mostra a
+        // thumbnail/imagem de fallback em vez de congelar o slide anterior.
+        if (slide.mediaKind && slide.mediaKind !== 'image') {
+          if (!slide.imageUrl && slide.youtubeId) {
+            slide.imageUrl = 'https://img.youtube.com/vi/' + slide.youtubeId + '/hqdefault.jpg';
+          }
+          showImageSlide(slide);
+          runTimer(slide);
+          return;
+        }
+
         // Imagem: showSlide já desenhou o slide; só roda o cronômetro.
         runTimer(slide);
       }
