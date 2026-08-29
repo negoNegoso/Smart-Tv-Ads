@@ -196,6 +196,20 @@ router.get("/campaigns", async (_req, res): Promise<void> => {
   res.json(rows);
 });
 
+router.get("/campaigns/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid campaign id" });
+    return;
+  }
+  const campaign = await campaignWithStats(id);
+  if (!campaign) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  res.json(campaign);
+});
+
 router.post("/campaigns", async (req, res): Promise<void> => {
   const parsed = campaignInput.refine((v) => v.endsAt > v.startsAt, { message: "End date must be after start date" }).safeParse(req.body);
   if (!parsed.success) {
