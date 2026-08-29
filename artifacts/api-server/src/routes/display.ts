@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
 import { resolveSlideCaption } from "../lib/slide-caption";
+import { resolvePlaylistVideoIds } from "../lib/youtube/playlist-resolver";
 
 const router: IRouter = Router();
 
@@ -44,6 +45,10 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
       scanCode: sql<string | null>`NULL`,
+      mediaKind: announcementsTable.mediaKind,
+      youtubeId: announcementsTable.youtubeId,
+      playbackMode: announcementsTable.playbackMode,
+      audioMode: announcementsTable.audioMode,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -66,6 +71,10 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
       scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
+      mediaKind: announcementsTable.mediaKind,
+      youtubeId: announcementsTable.youtubeId,
+      playbackMode: announcementsTable.playbackMode,
+      audioMode: announcementsTable.audioMode,
     })
     .from(campaignsTable)
     .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
@@ -82,19 +91,28 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     .orderBy(asc(campaignsTable.id));
 
   const seen = new Set<number>();
-  const slides = [...campaignSlides, ...playlistSlides]
-    .filter((slide) => {
-      if (seen.has(slide.announcementId)) return false;
-      seen.add(slide.announcementId);
-      return true;
-    })
-    .map(({ scanCode, showText, displayText, ...slide }) => ({
-      ...slide,
-      // O servidor decide o texto: null significa slide sem legenda, para os
-      // dois renderizadores (display.tsx e tv.html) não divergirem na regra.
-      displayText: resolveSlideCaption({ showText, displayText }),
-      qrImageUrl: scanCode ? `/api/qr/${scanCode}.png` : null,
-    }));
+  const deduped = [...campaignSlides, ...playlistSlides].filter((slide) => {
+    if (seen.has(slide.announcementId)) return false;
+    seen.add(slide.announcementId);
+    return true;
+  });
+
+  const slides = await Promise.all(
+    deduped.map(async ({ scanCode, showText, displayText, ...slide }) => {
+      const videoIds =
+        slide.mediaKind === "youtube_playlist" && slide.youtubeId
+          ? await resolvePlaylistVideoIds(slide.youtubeId)
+          : null;
+      return {
+        ...slide,
+        // O servidor decide o texto: null significa slide sem legenda, para os
+        // dois renderizadores (display.tsx e tv.html) não divergirem na regra.
+        displayText: resolveSlideCaption({ showText, displayText }),
+        qrImageUrl: scanCode ? `/api/qr/${scanCode}.png` : null,
+        videoIds,
+      };
+    }),
+  );
 
   res.json(GetDeviceSlidesResponse.parse(slides));
 });

@@ -44,30 +44,55 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { mediaUrl } from '@/lib/media-url';
+import { parseYouTubeUrl } from '@workspace/db/youtube';
 
-const uploadSchema = z.object({
-  title: z.string().min(1, 'O título é obrigatório'),
-  displayText: z.string().default(''),
-  showText: z.boolean().default(false),
-  duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
-  image: z.any().refine((val) => val instanceof FileList && val.length > 0, 'A imagem é obrigatória'),
-});
+const uploadSchema = z
+  .object({
+    title: z.string().min(1, 'O título é obrigatório'),
+    displayText: z.string().default(''),
+    showText: z.boolean().default(false),
+    duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
+    mediaKind: z.enum(['image', 'youtube_video', 'youtube_playlist']).default('image'),
+    youtubeUrl: z.string().default(''),
+    playbackMode: z.enum(['natural', 'capped']).default('capped'),
+    audioMode: z.enum(['muted', 'sound']).default('muted'),
+    image: z.any().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.mediaKind === 'image') {
+      if (!(v.image instanceof FileList) || v.image.length === 0) {
+        ctx.addIssue({ code: 'custom', path: ['image'], message: 'Selecione uma imagem' });
+      }
+    } else {
+      const ref = parseYouTubeUrl(v.youtubeUrl);
+      if (!ref || ref.kind !== v.mediaKind) {
+        ctx.addIssue({ code: 'custom', path: ['youtubeUrl'], message: 'Link do YouTube inválido para o tipo' });
+      }
+    }
+  });
 
 type UploadFormValues = z.infer<typeof uploadSchema>;
 
-const editSchema = z.object({
-  title: z.string().min(1, 'O título é obrigatório'),
-  displayText: z.string().default(''),
-  showText: z.boolean().default(false),
-  duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
-  image: z
-    .any()
-    .optional()
-    .refine(
-      (val) => val == null || !(val instanceof FileList) || val.length === 0 || val[0] instanceof File,
-      'Arquivo de imagem inválido'
-    ),
-});
+const editSchema = z
+  .object({
+    title: z.string().min(1, 'O título é obrigatório'),
+    displayText: z.string().default(''),
+    showText: z.boolean().default(false),
+    duration: z.coerce.number().min(1, 'Deve ser no mínimo 1 segundo').default(10),
+    mediaKind: z.enum(['image', 'youtube_video', 'youtube_playlist']).default('image'),
+    youtubeUrl: z.string().default(''),
+    playbackMode: z.enum(['natural', 'capped']).default('capped'),
+    audioMode: z.enum(['muted', 'sound']).default('muted'),
+    image: z.any().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.mediaKind !== 'image') {
+      const ref = parseYouTubeUrl(v.youtubeUrl);
+      if (!ref || ref.kind !== v.mediaKind) {
+        ctx.addIssue({ code: 'custom', path: ['youtubeUrl'], message: 'Link do YouTube inválido para o tipo' });
+      }
+    }
+  });
 
 type EditFormValues = z.infer<typeof editSchema>;
 
@@ -97,7 +122,11 @@ function SortableAnnouncementRow({
     zIndex: isDragging ? 1 : 0,
   };
 
-  const imageUrl = mediaUrl(item.imageUrl);
+  const posterSrc = item.imageUrl
+    ? mediaUrl(item.imageUrl)
+    : item.youtubeId
+      ? `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`
+      : '';
 
   return (
     <div
@@ -117,15 +146,22 @@ function SortableAnnouncementRow({
       </button>
 
       <div className="h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center border">
-        {item.imageUrl ? (
-          <img src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
+        {posterSrc ? (
+          <img src={posterSrc} alt={item.title} className="h-full w-full object-cover" />
         ) : (
           <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
         )}
       </div>
 
       <div className="flex-1 min-w-0">
-        <h4 className="truncate font-semibold text-foreground text-lg">{item.title}</h4>
+        <h4 className="truncate font-semibold text-foreground text-lg">
+          {item.title}
+          {item.mediaKind && item.mediaKind !== 'image' && (
+            <span className="ml-2 rounded bg-red-600/10 px-1.5 py-0.5 text-xs font-medium text-red-600">
+              ▶ YouTube
+            </span>
+          )}
+        </h4>
         <p className="text-sm text-muted-foreground font-mono mt-0.5">{item.duration}s de duração</p>
       </div>
 
@@ -238,24 +274,46 @@ export default function Admin() {
       displayText: '',
       showText: false,
       duration: 10,
+      mediaKind: 'image',
+      youtubeUrl: '',
+      playbackMode: 'capped',
+      audioMode: 'muted',
     },
   });
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { title: '', displayText: '', showText: false, duration: 10 },
+    defaultValues: {
+      title: '',
+      displayText: '',
+      showText: false,
+      duration: 10,
+      mediaKind: 'image',
+      youtubeUrl: '',
+      playbackMode: 'capped',
+      audioMode: 'muted',
+    },
   });
 
   async function onUpload(values: UploadFormValues) {
     try {
       setIsUploading(true);
-      const file = values.image[0];
       const formData = new FormData();
       formData.append('title', values.title);
       formData.append('displayText', values.displayText);
       formData.append('showText', String(values.showText));
       formData.append('duration', String(values.duration));
-      formData.append('image', file);
+      formData.append('mediaKind', values.mediaKind);
+      formData.append('playbackMode', values.playbackMode);
+      formData.append('audioMode', values.audioMode);
+      if (values.mediaKind === 'image') {
+        formData.append('image', values.image[0]);
+      } else {
+        formData.append('youtubeUrl', values.youtubeUrl);
+        if (values.image instanceof FileList && values.image.length > 0) {
+          formData.append('image', values.image[0]); // fallback custom opcional
+        }
+      }
 
       const res = await fetch(`${import.meta.env.BASE_URL}api/announcements`, {
         method: 'POST',
@@ -285,6 +343,14 @@ export default function Admin() {
       displayText: item.displayText ?? '',
       showText: item.showText,
       duration: item.duration,
+      mediaKind: (item.mediaKind as 'image' | 'youtube_video' | 'youtube_playlist') ?? 'image',
+      youtubeUrl: item.youtubeId
+        ? item.mediaKind === 'youtube_playlist'
+          ? `https://www.youtube.com/playlist?list=${item.youtubeId}`
+          : `https://www.youtube.com/watch?v=${item.youtubeId}`
+        : '',
+      playbackMode: (item.playbackMode as 'natural' | 'capped') ?? 'capped',
+      audioMode: (item.audioMode as 'muted' | 'sound') ?? 'muted',
     });
   }
 
@@ -297,6 +363,12 @@ export default function Admin() {
       formData.append('displayText', values.displayText);
       formData.append('showText', String(values.showText));
       formData.append('duration', String(values.duration));
+      formData.append('mediaKind', values.mediaKind);
+      formData.append('playbackMode', values.playbackMode);
+      formData.append('audioMode', values.audioMode);
+      if (values.mediaKind !== 'image') {
+        formData.append('youtubeUrl', values.youtubeUrl);
+      }
       if (values.image instanceof FileList && values.image.length > 0) {
         formData.append('image', values.image[0]);
       }
@@ -441,10 +513,93 @@ export default function Admin() {
 
                   <FormField
                     control={form.control}
+                    name="mediaKind"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de mídia</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={field.value}
+                            onChange={field.onChange}
+                          >
+                            <option value="image">Imagem</option>
+                            <option value="youtube_video">Vídeo do YouTube</option>
+                            <option value="youtube_playlist">Playlist do YouTube</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch('mediaKind') !== 'image' && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="youtubeUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Link do YouTube</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://www.youtube.com/..." {...field} />
+                            </FormControl>
+                            <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="playbackMode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Duração do vídeo</FormLabel>
+                            <FormControl>
+                              <select
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={field.value}
+                                onChange={field.onChange}
+                              >
+                                <option value="capped">Limitar aos segundos abaixo</option>
+                                <option value="natural">Tocar até o fim</option>
+                              </select>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="audioMode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Áudio</FormLabel>
+                            <FormControl>
+                              <select
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={field.value}
+                                onChange={field.onChange}
+                              >
+                                <option value="muted">Mudo</option>
+                                <option value="sound">Com som (se permitido)</option>
+                              </select>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+
+                  <FormField
+                    control={form.control}
                     name="image"
                     render={({ field: { value, onChange, ...fieldProps } }) => (
                       <FormItem>
-                        <FormLabel>Arquivo de imagem</FormLabel>
+                        <FormLabel>
+                          {form.watch('mediaKind') === 'image'
+                            ? 'Arquivo de imagem'
+                            : 'Imagem de fallback (opcional)'}
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="file"
@@ -605,10 +760,93 @@ export default function Admin() {
 
               <FormField
                 control={editForm.control}
+                name="mediaKind"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de mídia</FormLabel>
+                    <FormControl>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={field.value}
+                        onChange={field.onChange}
+                      >
+                        <option value="image">Imagem</option>
+                        <option value="youtube_video">Vídeo do YouTube</option>
+                        <option value="youtube_playlist">Playlist do YouTube</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {editForm.watch('mediaKind') !== 'image' && (
+                <>
+                  <FormField
+                    control={editForm.control}
+                    name="youtubeUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link do YouTube</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://www.youtube.com/..." {...field} />
+                        </FormControl>
+                        <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="playbackMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duração do vídeo</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={field.value}
+                            onChange={field.onChange}
+                          >
+                            <option value="capped">Limitar aos segundos abaixo</option>
+                            <option value="natural">Tocar até o fim</option>
+                          </select>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="audioMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Áudio</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={field.value}
+                            onChange={field.onChange}
+                          >
+                            <option value="muted">Mudo</option>
+                            <option value="sound">Com som (se permitido)</option>
+                          </select>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              <FormField
+                control={editForm.control}
                 name="image"
                 render={({ field: { value, onChange, ...fieldProps } }) => (
                   <FormItem>
-                    <FormLabel>Substituir imagem (opcional)</FormLabel>
+                    <FormLabel>
+                      {editForm.watch('mediaKind') === 'image'
+                        ? 'Substituir imagem (opcional)'
+                        : 'Imagem de fallback (opcional)'}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="file"

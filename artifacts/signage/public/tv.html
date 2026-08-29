@@ -111,6 +111,7 @@
 <body>
   <div id="slot-a"></div>
   <div id="slot-b"></div>
+  <div id="yt-slot" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;display:none;background:#000;"></div>
 
   <div id="overlay">
     <div id="caption"></div>
@@ -145,6 +146,14 @@
       var playSent = false;
       var activeSlot    = 'a';   // 'a' or 'b'
 
+      var ytPlayer      = null;
+      var ytApiReady    = false;
+      var ytApiLoading  = false;
+      var ytInitTimer   = null;
+      var ytActive      = false;
+      var playlistCursor = {};   // announcementId -> índice atual
+      var ytSlot        = document.getElementById('yt-slot');
+
       // ─── DOM refs ─────────────────────────────────────────────────────────────
       var slotA        = document.getElementById('slot-a');
       var slotB        = document.getElementById('slot-b');
@@ -168,6 +177,7 @@
       }
 
       function imgUrl(imageUrl) {
+        if (!imageUrl) { return ''; }
         if (/^https?:\/\//i.test(imageUrl)) {
           return imageUrl;
         }
@@ -208,20 +218,117 @@
         img.src = url;
       }
 
+      // ─── YouTube IFrame API (ES5) ───────────────────────────────────────────
+      function loadYtApi(cb) {
+        if (window.YT && window.YT.Player) { cb(); return; }
+        if (ytApiLoading) {
+          var t = setInterval(function () {
+            if (window.YT && window.YT.Player) { clearInterval(t); cb(); }
+          }, 100);
+          return;
+        }
+        ytApiLoading = true;
+        window.onYouTubeIframeAPIReady = function () { ytApiReady = true; cb(); };
+        var tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+
+      function teardownYt() {
+        ytActive = false;
+        if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
+        if (ytPlayer) {
+          try { ytPlayer.destroy(); } catch (e) {}
+          ytPlayer = null;
+        }
+        ytSlot.style.display = 'none';
+        ytSlot.innerHTML = '';
+      }
+
+      function videoIdForSlide(slide) {
+        if (slide.mediaKind === 'youtube_playlist') {
+          var ids = slide.videoIds || [];
+          if (!ids.length) { return null; }
+          var cur = playlistCursor[slide.announcementId] || 0;
+          return ids[cur % ids.length];
+        }
+        if (slide.mediaKind === 'youtube_video') {
+          return slide.youtubeId || null;
+        }
+        return null;
+      }
+
+      function advancePlaylistCursor(slide) {
+        if (slide.mediaKind === 'youtube_playlist') {
+          var ids = slide.videoIds || [];
+          if (ids.length) {
+            var cur = playlistCursor[slide.announcementId] || 0;
+            playlistCursor[slide.announcementId] = (cur + 1) % ids.length;
+          }
+        }
+      }
+
+      // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
+      // onFail() para o chamador cair no fallback de imagem.
+      function playYouTube(slide, videoId, onEnded, onFail) {
+        loadYtApi(function () {
+          var holder = document.createElement('div');
+          ytSlot.innerHTML = '';
+          ytSlot.appendChild(holder);
+          ytSlot.style.display = 'block';
+          ytActive = true;
+
+          var started = false;
+          ytInitTimer = setTimeout(function () {
+            if (!started) { teardownYt(); onFail(); }
+          }, 5000);
+
+          ytPlayer = new window.YT.Player(holder, {
+            width: '100%',
+            height: '100%',
+            videoId: videoId,
+            playerVars: {
+              autoplay: 1, mute: 1, controls: 0, rel: 0,
+              modestbranding: 1, playsinline: 1, disablekb: 1, fs: 0
+            },
+            events: {
+              onReady: function (e) {
+                started = true;
+                if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
+                if (slide.audioMode === 'sound') {
+                  try { e.target.unMute(); e.target.setVolume(100); } catch (err) {}
+                }
+                e.target.playVideo();
+              },
+              onStateChange: function (e) {
+                if (e.data === window.YT.PlayerState.ENDED && slide.playbackMode === 'natural') {
+                  onEnded();
+                }
+              },
+              onError: function () {
+                if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
+                teardownYt();
+                onFail();
+              }
+            }
+          });
+        });
+      }
+
       // ─── Crossfade to a new slide ─────────────────────────────────────────
       function showSlide(slide) {
-        var url  = imgUrl(slide.imageUrl);
-        var prev = activeSlot === 'a' ? slotA : slotB;
-        var next = activeSlot === 'a' ? slotB : slotA;
+        teardownYt();
+        // Slides de YouTube só desenham imagem quando caírem em fallback (feito
+        // pelo onFail em startTimer). Aqui, para imagem, desenha normalmente.
+        if (!slide.mediaKind || slide.mediaKind === 'image') {
+          showImageSlide(slide);
+        } else {
+          // Mantém legenda/QR visíveis por cima do vídeo.
+          applyCaptionAndQr(slide);
+        }
+      }
 
-        next.style.backgroundImage = 'url(' + url + ')';
-        next.style.zIndex = '2';
-        next.style.opacity = '1';
-        next.className = 'slot-enter';
-
-        prev.style.zIndex = '1';
-        prev.style.opacity = '0';
-
+      function applyCaptionAndQr(slide) {
         // O servidor já resolveu se há texto a exibir: null = slide sem legenda.
         var caption = slide.displayText;
         if (caption) {
@@ -239,12 +346,30 @@
           qrBox.style.display = 'none';
           qrImg.removeAttribute('src');
         }
+      }
+
+      function showImageSlide(slide) {
+        var url  = imgUrl(slide.imageUrl);
+        var prev = activeSlot === 'a' ? slotA : slotB;
+        var next = activeSlot === 'a' ? slotB : slotA;
+
+        next.style.backgroundImage = 'url(' + url + ')';
+        next.style.zIndex = '2';
+        next.style.opacity = '1';
+        next.className = 'slot-enter';
+
+        prev.style.zIndex = '1';
+        prev.style.opacity = '0';
+
+        applyCaptionAndQr(slide);
 
         activeSlot = activeSlot === 'a' ? 'b' : 'a';
 
-        // Preload next image
+        // Preload next image (apenas se o próximo slide for imagem)
         var nextIdx = (currentIndex + 1) % slides.length;
-        if (slides[nextIdx]) { preload(imgUrl(slides[nextIdx].imageUrl)); }
+        if (slides[nextIdx] && (!slides[nextIdx].mediaKind || slides[nextIdx].mediaKind === 'image') && slides[nextIdx].imageUrl) {
+          preload(imgUrl(slides[nextIdx].imageUrl));
+        }
       }
 
       // ─── Impression recording ─────────────────────────────────────────────
@@ -262,27 +387,69 @@
       }
 
       // ─── Timer loop ───────────────────────────────────────────────────────
+      function goNext() {
+        if (timer) { clearInterval(timer); timer = null; }
+        recordImpression(slides[currentIndex]);
+        advancePlaylistCursor(slides[currentIndex]);
+        currentIndex = (currentIndex + 1) % slides.length;
+        showSlide(slides[currentIndex]);
+        startTimer();
+      }
+
       function startTimer() {
-        if (timer) { clearInterval(timer); }
+        if (timer) { clearInterval(timer); timer = null; }
         elapsed = 0;
         playSent = false;
         fillEl.style.width = '0';
 
         var slide = slides[currentIndex];
-        var durationMs = slide.duration * 1000;
+        var vid = (slide.mediaKind && slide.mediaKind !== 'image') ? videoIdForSlide(slide) : null;
 
+        if (vid) {
+          var naturalDone = false;
+          playYouTube(
+            slide, vid,
+            function onEnded() { if (!naturalDone) { naturalDone = true; goNext(); } },
+            function onFail() {
+              // Fallback: mostra a thumbnail nos slots de imagem e usa o timer.
+              slide.imageUrl = slide.imageUrl ||
+                ('https://img.youtube.com/vi/' + (slide.youtubeId || vid) + '/hqdefault.jpg');
+              showImageSlide(slide);
+              runTimer(slide);
+            }
+          );
+          if (slide.playbackMode === 'natural') {
+            return; // avança no onEnded; sem cronômetro
+          }
+          // capped: roda o cronômetro em paralelo ao vídeo
+          runTimer(slide);
+          return;
+        }
+
+        // YouTube sem vídeo resolvido (ex.: playlist sem API key) → mostra a
+        // thumbnail/imagem de fallback em vez de congelar o slide anterior.
+        if (slide.mediaKind && slide.mediaKind !== 'image') {
+          if (!slide.imageUrl && slide.youtubeId) {
+            slide.imageUrl = 'https://img.youtube.com/vi/' + slide.youtubeId + '/hqdefault.jpg';
+          }
+          showImageSlide(slide);
+          runTimer(slide);
+          return;
+        }
+
+        // Imagem: showSlide já desenhou o slide; só roda o cronômetro.
+        runTimer(slide);
+      }
+
+      function runTimer(slide) {
+        var durationMs = slide.duration * 1000;
+        if (timer) { clearInterval(timer); }
         timer = setInterval(function () {
           elapsed += tickMs;
           var pct = Math.min((elapsed / durationMs) * 100, 100);
           fillEl.style.width = pct + '%';
-
           if (elapsed >= durationMs) {
-            clearInterval(timer);
-            timer = null;
-            recordImpression(slide);
-            currentIndex = (currentIndex + 1) % slides.length;
-            showSlide(slides[currentIndex]);
-            startTimer();
+            goNext();
           }
         }, tickMs);
       }

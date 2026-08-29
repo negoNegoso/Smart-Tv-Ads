@@ -7,6 +7,7 @@ import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 import { parseFormBoolean } from "../lib/form-values";
+import { parseYouTubeUrl } from "@workspace/db/youtube";
 import { normalizeDisplayText } from "../lib/slide-caption";
 import {
   ListAnnouncementsResponse,
@@ -82,7 +83,7 @@ async function persistImage(file: Express.Multer.File): Promise<string> {
 async function migrateLegacyImages() {
   const rows = await db.select().from(announcementsTable);
   for (const row of rows) {
-    if (!row.imageUrl.startsWith("/api/uploads/")) continue;
+    if (!row.imageUrl || !row.imageUrl.startsWith("/api/uploads/")) continue;
     const filename = row.imageUrl.split("/").pop();
     if (!filename) continue;
     const filePath = path.join(uploadsDir, filename);
@@ -104,6 +105,38 @@ if (process.env.PRIVATE_OBJECT_DIR) {
   void migrateLegacyImages();
 }
 
+type YouTubeFields = {
+  mediaKind: "image" | "youtube_video" | "youtube_playlist";
+  youtubeId: string | null;
+  playbackMode: "natural" | "capped";
+  audioMode: "muted" | "sound";
+};
+
+/**
+ * Deriva os campos de YouTube a partir do corpo (multipart => strings).
+ * Retorna { error } quando o link é obrigatório mas inválido/ausente.
+ */
+function readYouTubeFields(body: Record<string, unknown>): YouTubeFields | { error: string } {
+  const rawKind = body.mediaKind != null ? String(body.mediaKind) : "image";
+  const mediaKind =
+    rawKind === "youtube_video" || rawKind === "youtube_playlist" ? rawKind : "image";
+
+  const playbackMode = String(body.playbackMode) === "natural" ? "natural" : "capped";
+  const audioMode = String(body.audioMode) === "sound" ? "sound" : "muted";
+
+  if (mediaKind === "image") {
+    return { mediaKind: "image", youtubeId: null, playbackMode, audioMode };
+  }
+
+  const url = body.youtubeUrl != null ? String(body.youtubeUrl) : "";
+  const ref = parseYouTubeUrl(url);
+  if (!ref) return { error: "Link do YouTube inválido" };
+  if (ref.kind !== mediaKind) {
+    return { error: `O link não corresponde ao tipo selecionado (${mediaKind})` };
+  }
+  return { mediaKind: ref.kind, youtubeId: ref.id, playbackMode, audioMode };
+}
+
 router.get("/announcements", async (req, res): Promise<void> => {
   const rows = await db
     .select()
@@ -116,7 +149,6 @@ router.post(
   "/announcements",
   uploadImage,
   async (req, res): Promise<void> => {
-    // FormData sends all fields as strings — coerce duration to number before Zod validation
     const body = {
       title: req.body.title,
       displayText: req.body.displayText != null ? String(req.body.displayText) : undefined,
@@ -128,17 +160,26 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    if (!req.file) {
+
+    const yt = readYouTubeFields(req.body);
+    if ("error" in yt) {
+      res.status(400).json({ error: yt.error });
+      return;
+    }
+
+    let imageUrl: string | null = null;
+    if (req.file) {
+      try {
+        imageUrl = await persistImage(req.file);
+      } catch (error) {
+        res.status(502).json({ error: "Could not persist image in object storage" });
+        return;
+      }
+    } else if (yt.mediaKind === "image") {
       res.status(400).json({ error: "Image file is required" });
       return;
     }
-    let imageUrl: string;
-    try {
-      imageUrl = await persistImage(req.file);
-    } catch (error) {
-      res.status(502).json({ error: "Could not persist image in object storage" });
-      return;
-    }
+
     const maxOrderRow = await db
       .select({ maxOrder: sql<number>`COALESCE(MAX(${announcementsTable.displayOrder}), -1)` })
       .from(announcementsTable);
@@ -150,6 +191,10 @@ router.post(
         displayText: normalizeDisplayText(parsed.data.displayText),
         showText: parsed.data.showText ?? false,
         imageUrl,
+        mediaKind: yt.mediaKind,
+        youtubeId: yt.youtubeId,
+        playbackMode: yt.playbackMode,
+        audioMode: yt.audioMode,
         duration: parsed.data.duration ?? 10,
         displayOrder: nextOrder,
       })
@@ -249,6 +294,23 @@ router.patch(
 
     const updates: Record<string, unknown> = { ...parsed.data };
 
+    // Campos de YouTube só são reprocessados se o cliente enviou mediaKind.
+    if (req.body.mediaKind !== undefined) {
+      const yt = readYouTubeFields(req.body);
+      if ("error" in yt) {
+        res.status(400).json({ error: yt.error });
+        return;
+      }
+      updates.mediaKind = yt.mediaKind;
+      updates.youtubeId = yt.youtubeId;
+      updates.playbackMode = yt.playbackMode;
+      updates.audioMode = yt.audioMode;
+      if (yt.mediaKind !== "image" && !req.file) {
+        // Trocou para YouTube sem enviar nova imagem: limpa o poster antigo.
+        updates.imageUrl = null;
+      }
+    }
+
     if (req.file) {
       let imageUrl: string;
       try {
@@ -271,7 +333,7 @@ router.patch(
       .where(eq(announcementsTable.id, params.data.id))
       .returning();
 
-    if (req.file) {
+    if (req.file && existing.imageUrl) {
       try {
         await mediaStore().remove(existing.imageUrl);
       } catch (error) {
@@ -297,10 +359,12 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Announcement not found" });
     return;
   }
-  try {
-    await mediaStore().remove(row.imageUrl);
-  } catch (error) {
-    req.log.error({ err: error }, "Could not remove deleted announcement image");
+  if (row.imageUrl) {
+    try {
+      await mediaStore().remove(row.imageUrl);
+    } catch (error) {
+      req.log.error({ err: error }, "Could not remove deleted announcement image");
+    }
   }
   res.sendStatus(204);
 });

@@ -11,7 +11,12 @@ export interface DisplaySlide {
   campaignId?: number | null;
   title: string;
   displayText?: string | null;
-  imageUrl: string;
+  imageUrl?: string | null;
   duration: number;
   qrImageUrl?: string | null;
+  mediaKind: string;
+  youtubeId?: string | null;
+  playbackMode?: string | null;
+  audioMode?: string | null;
+  videoIds?: string[] | null;
 }

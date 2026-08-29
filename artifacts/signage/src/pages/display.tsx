@@ -4,6 +4,7 @@ import { useGetDeviceSlides, getGetDeviceSlidesQueryKey } from '@workspace/api-c
 import { AnimatePresence, motion } from 'framer-motion';
 import { mediaUrl } from '@/lib/media-url';
 import { SlideCaption } from '@/components/slide-caption';
+import { YouTubeSlide } from '@/components/youtube-slide';
 
 export default function Display() {
   const [, params] = useRoute('/display/:deviceKey');
@@ -21,6 +22,33 @@ export default function Display() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const playSent = useRef(false);
+  const playlistCursor = useRef<Record<number, number>>({});
+  const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
+
+  // Resolve o vídeo atual de um slide (mesma regra usada na renderização e no
+  // efeito de auto-advance) para não divergirem.
+  const videoIdFor = (slide: (typeof slides)[number]): string | null => {
+    if (slide.mediaKind === 'youtube_playlist' && slide.videoIds && slide.videoIds.length > 0) {
+      const cursor = playlistCursor.current[slide.announcementId] ?? 0;
+      return slide.videoIds[cursor % slide.videoIds.length];
+    }
+    if (slide.mediaKind === 'youtube_video') {
+      return slide.youtubeId ?? null;
+    }
+    return null;
+  };
+
+  // Chave de fallback por vídeo específico: um vídeo ruim numa playlist só
+  // pula a si mesmo, sem matar a playlist inteira (igual ao tv.html).
+  const fbKeyFor = (announcementId: number, videoId: string | null): string =>
+    `${announcementId}-${videoId ?? 'novideo'}`;
+
+  // Ao trocar o conjunto de slides, zera os fallbacks para reavaliar a
+  // reprodução (evita marcar um anúncio como não-tocável para sempre).
+  const slidesSig = slides.map((s) => s.announcementId).join(',');
+  useEffect(() => {
+    setFallbackIds(new Set());
+  }, [slidesSig]);
 
   // Auto-advance + play tracking
   useEffect(() => {
@@ -29,6 +57,16 @@ export default function Display() {
     const slide = slides[currentIndex];
     if (!slide) {
       setCurrentIndex(0);
+      return;
+    }
+
+    const vid = videoIdFor(slide);
+    const isYouTube =
+      slide.mediaKind !== 'image' && !!vid && !fallbackIds.has(fbKeyFor(slide.announcementId, vid));
+    const naturalVideo = isYouTube && slide.playbackMode === 'natural';
+    // Vídeo "natural" que toca: o componente avança via onEnded, não o timer.
+    if (naturalVideo) {
+      playSent.current = false;
       return;
     }
 
@@ -56,13 +94,17 @@ export default function Display() {
             }),
           }).catch(() => {});
         }
+        if (slide.mediaKind === 'youtube_playlist' && slide.videoIds && slide.videoIds.length > 0) {
+          const cur = playlistCursor.current[slide.announcementId] ?? 0;
+          playlistCursor.current[slide.announcementId] = (cur + 1) % slide.videoIds.length;
+        }
         setCurrentIndex((prev) => (prev + 1) % slides.length);
         setProgress(0);
       }
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [currentIndex, slides, deviceKey]);
+  }, [currentIndex, slides, deviceKey, fallbackIds]);
 
   // Fullscreen TV presentation
   useEffect(() => {
@@ -99,21 +141,68 @@ export default function Display() {
   const slide = slides[currentIndex];
   if (!slide) return null;
 
-  const imgUrl = mediaUrl(slide.imageUrl);
+  const videoId = videoIdFor(slide);
+  const fbKey = fbKeyFor(slide.announcementId, videoId);
+  const useFallback = fallbackIds.has(fbKey);
+  // Só é YouTube tocável quando há um vídeo resolvido e ele não falhou antes.
+  // Playlist sem videoIds (sem API key etc.) cai direto no poster.
+  const isYouTube = slide.mediaKind !== 'image' && !!videoId && !useFallback;
+
+  const posterUrl =
+    slide.imageUrl != null
+      ? mediaUrl(slide.imageUrl)
+      : slide.youtubeId
+        ? `https://img.youtube.com/vi/${slide.youtubeId}/hqdefault.jpg`
+        : '';
+
+  const advance = () => {
+    if (slide.mediaKind === 'youtube_playlist' && slide.videoIds && slide.videoIds.length > 0) {
+      const cur = playlistCursor.current[slide.announcementId] ?? 0;
+      playlistCursor.current[slide.announcementId] = (cur + 1) % slide.videoIds.length;
+    }
+    if (!playSent.current && deviceKey) {
+      playSent.current = true;
+      fetch(`${import.meta.env.BASE_URL}api/telemetry/play`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceKey,
+          announcementId: slide.announcementId,
+          campaignId: slide.campaignId ?? null,
+          durationSeconds: slide.duration,
+        }),
+      }).catch(() => {});
+    }
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+    setProgress(0);
+  };
 
   return (
     <div className="relative flex h-[100dvh] w-screen items-center justify-center bg-black overflow-hidden select-none">
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={slide.announcementId}
-          initial={{ opacity: 0, scale: 1.02 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${imgUrl})` }}
+      {isYouTube && videoId ? (
+        <YouTubeSlide
+          slideKey={`${slide.announcementId}-${videoId}`}
+          videoId={videoId}
+          audioMode={slide.audioMode === 'sound' ? 'sound' : 'muted'}
+          playbackMode={slide.playbackMode === 'natural' ? 'natural' : 'capped'}
+          onEnded={advance}
+          onUnplayable={() =>
+            setFallbackIds((prev) => new Set(prev).add(fbKey))
+          }
         />
-      </AnimatePresence>
+      ) : (
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={slide.announcementId}
+            initial={{ opacity: 0, scale: 1.02 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${posterUrl})` }}
+          />
+        </AnimatePresence>
+      )}
 
       <SlideCaption text={slide.displayText ?? null} slideKey={slide.announcementId} />
 

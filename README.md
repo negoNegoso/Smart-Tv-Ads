@@ -32,6 +32,7 @@ Configure no ambiente do Replit ou em um `.env` local:
 | `ADMIN_USERNAME` | Usuário do único admin do painel |
 | `ADMIN_PASSWORD` | Senha do único admin do painel |
 | `PUBLIC_BASE_URL` | Origem pública onde `/r/CODE` responde, usada para montar o link dentro do QR code (ex.: `https://meu-painel.replit.app`). Sem ela, a API usa o host da própria requisição |
+| `YOUTUBE_API_KEY` | Opcional. Necessária apenas para resolver **playlists** do YouTube (YouTube Data API v3). Sem ela, vídeos únicos funcionam e playlists degradam para a thumbnail/fallback |
 
 As variáveis do App Storage são criadas ao provisionar o Object Storage pelo Replit. Nunca versionar valores secretos no GitHub.
 
@@ -210,6 +211,7 @@ para `index.html` (necessário para as rotas do wouter).
 | `ADMIN_USERNAME` | manual — usuário do admin |
 | `ADMIN_PASSWORD` | manual — senha do admin |
 | `PUBLIC_BASE_URL` | manual, domínio de produção; usado no QR |
+| `YOUTUBE_API_KEY` | manual, opcional — só para playlists do YouTube |
 | `MAX_UPLOAD_BYTES` | `4000000` — o corpo de requisição da função é limitado a 4,5 MB |
 
 `PORT` e `BASE_PATH` **não** são configurados na Vercel: valem apenas para

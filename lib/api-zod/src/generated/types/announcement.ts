@@ -11,7 +11,11 @@ export interface Announcement {
   title: string;
   displayText?: string | null;
   showText: boolean;
-  imageUrl: string;
+  imageUrl?: string | null;
+  mediaKind: string;
+  youtubeId?: string | null;
+  playbackMode: string;
+  audioMode: string;
   isActive: boolean;
   displayOrder: number;
   duration: number;

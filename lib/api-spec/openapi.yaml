@@ -571,14 +571,18 @@ components:
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:
       type: object
-      required: [id, title, imageUrl, isActive, displayOrder, duration, showText, createdAt]
+      required: [id, title, isActive, displayOrder, duration, showText, mediaKind, playbackMode, audioMode, createdAt]
       properties:
         id: { type: integer }
         title: { type: string }
         # Texto exibido na TV; `title` é apenas o rótulo interno do painel.
         displayText: { type: string, nullable: true }
         showText: { type: boolean }
-        imageUrl: { type: string }
+        imageUrl: { type: string, nullable: true }
+        mediaKind: { type: string }
+        youtubeId: { type: string, nullable: true }
+        playbackMode: { type: string }
+        audioMode: { type: string }
         isActive: { type: boolean }
         displayOrder: { type: integer }
         duration: { type: integer }
@@ -592,6 +596,10 @@ components:
         displayText: { type: string, nullable: true }
         showText: { type: boolean }
         duration: { type: integer, minimum: 1 }
+        mediaKind: { type: string }
+        youtubeUrl: { type: string }
+        playbackMode: { type: string }
+        audioMode: { type: string }
 
     AnnouncementUpdate:
       type: object
@@ -602,6 +610,10 @@ components:
         isActive: { type: boolean }
         displayOrder: { type: integer }
         duration: { type: integer, minimum: 1 }
+        mediaKind: { type: string }
+        youtubeUrl: { type: string }
+        playbackMode: { type: string }
+        audioMode: { type: string }
 
     AnnouncementStats:
       type: object
@@ -720,7 +732,7 @@ components:
     # ── Display ──────────────────────────────────────────────────────────────
     DisplaySlide:
       type: object
-      required: [announcementId, title, imageUrl, duration]
+      required: [announcementId, title, duration, mediaKind]
       properties:
         announcementId: { type: integer }
         campaignId: { type: integer, nullable: true }
@@ -729,9 +741,17 @@ components:
         # null significa slide sem texto.
         title: { type: string }
         displayText: { type: string, nullable: true }
-        imageUrl: { type: string }
+        imageUrl: { type: string, nullable: true }
         duration: { type: integer }
         qrImageUrl: { type: string, nullable: true }
+        mediaKind: { type: string }
+        youtubeId: { type: string, nullable: true }
+        playbackMode: { type: string, nullable: true }
+        audioMode: { type: string, nullable: true }
+        videoIds:
+          type: array
+          nullable: true
+          items: { type: string }
 
     # ── Telemetry ────────────────────────────────────────────────────────────
     PlayInput:
