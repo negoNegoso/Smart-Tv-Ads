@@ -15,4 +15,8 @@ export interface AnnouncementUpdate {
   displayOrder?: number;
   /** @minimum 1 */
   duration?: number;
+  mediaKind?: string;
+  youtubeUrl?: string;
+  playbackMode?: string;
+  audioMode?: string;
 }

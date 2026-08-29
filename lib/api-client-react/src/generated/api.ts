@@ -250,6 +250,18 @@ if(announcementInput.showText !== undefined) {
 if(announcementInput.duration !== undefined) {
  formData.append(`duration`, announcementInput.duration.toString())
  }
+if(announcementInput.mediaKind !== undefined) {
+ formData.append(`mediaKind`, announcementInput.mediaKind);
+ }
+if(announcementInput.youtubeUrl !== undefined) {
+ formData.append(`youtubeUrl`, announcementInput.youtubeUrl);
+ }
+if(announcementInput.playbackMode !== undefined) {
+ formData.append(`playbackMode`, announcementInput.playbackMode);
+ }
+if(announcementInput.audioMode !== undefined) {
+ formData.append(`audioMode`, announcementInput.audioMode);
+ }
 
   return customFetch<Announcement>(getCreateAnnouncementUrl(),
   {
@@ -633,6 +645,18 @@ if(announcementUpdate.displayOrder !== undefined) {
  }
 if(announcementUpdate.duration !== undefined) {
  formData.append(`duration`, announcementUpdate.duration.toString())
+ }
+if(announcementUpdate.mediaKind !== undefined) {
+ formData.append(`mediaKind`, announcementUpdate.mediaKind);
+ }
+if(announcementUpdate.youtubeUrl !== undefined) {
+ formData.append(`youtubeUrl`, announcementUpdate.youtubeUrl);
+ }
+if(announcementUpdate.playbackMode !== undefined) {
+ formData.append(`playbackMode`, announcementUpdate.playbackMode);
+ }
+if(announcementUpdate.audioMode !== undefined) {
+ formData.append(`audioMode`, announcementUpdate.audioMode);
  }
 
   return customFetch<Announcement>(getUpdateAnnouncementUrl(id),

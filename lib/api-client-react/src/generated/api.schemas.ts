@@ -14,7 +14,11 @@ export interface Announcement {
   title: string;
   displayText?: string | null;
   showText: boolean;
-  imageUrl: string;
+  imageUrl?: string | null;
+  mediaKind: string;
+  youtubeId?: string | null;
+  playbackMode: string;
+  audioMode: string;
   isActive: boolean;
   displayOrder: number;
   duration: number;
@@ -28,6 +32,10 @@ export interface AnnouncementInput {
   showText?: boolean;
   /** @minimum 1 */
   duration?: number;
+  mediaKind?: string;
+  youtubeUrl?: string;
+  playbackMode?: string;
+  audioMode?: string;
 }
 
 export interface AnnouncementUpdate {
@@ -39,6 +47,10 @@ export interface AnnouncementUpdate {
   displayOrder?: number;
   /** @minimum 1 */
   duration?: number;
+  mediaKind?: string;
+  youtubeUrl?: string;
+  playbackMode?: string;
+  audioMode?: string;
 }
 
 export interface AnnouncementStats {
@@ -148,9 +160,14 @@ export interface DisplaySlide {
   campaignId?: number | null;
   title: string;
   displayText?: string | null;
-  imageUrl: string;
+  imageUrl?: string | null;
   duration: number;
   qrImageUrl?: string | null;
+  mediaKind: string;
+  youtubeId?: string | null;
+  playbackMode?: string | null;
+  audioMode?: string | null;
+  videoIds?: string[] | null;
 }
 
 export interface PlayInput {

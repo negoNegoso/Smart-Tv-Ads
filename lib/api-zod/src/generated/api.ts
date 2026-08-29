@@ -24,7 +24,11 @@ export const ListAnnouncementsResponseItem = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -44,7 +48,11 @@ export const CreateAnnouncementBody = zod.object({
   "title": zod.string().min(1),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean().optional(),
-  "duration": zod.number().min(1).optional()
+  "duration": zod.number().min(1).optional(),
+  "mediaKind": zod.string().optional(),
+  "youtubeUrl": zod.string().optional(),
+  "playbackMode": zod.string().optional(),
+  "audioMode": zod.string().optional()
 })
 
 export const CreateAnnouncementResponse = zod.object({
@@ -52,7 +60,11 @@ export const CreateAnnouncementResponse = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -68,7 +80,11 @@ export const ListActiveAnnouncementsResponseItem = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -106,7 +122,11 @@ export const GetAnnouncementResponse = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -128,7 +148,11 @@ export const UpdateAnnouncementBody = zod.object({
   "showText": zod.boolean().optional(),
   "isActive": zod.boolean().optional(),
   "displayOrder": zod.number().optional(),
-  "duration": zod.number().min(1).optional()
+  "duration": zod.number().min(1).optional(),
+  "mediaKind": zod.string().optional(),
+  "youtubeUrl": zod.string().optional(),
+  "playbackMode": zod.string().optional(),
+  "audioMode": zod.string().optional()
 })
 
 export const UpdateAnnouncementResponse = zod.object({
@@ -136,7 +160,11 @@ export const UpdateAnnouncementResponse = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -160,7 +188,11 @@ export const ToggleAnnouncementResponse = zod.object({
   "title": zod.string(),
   "displayText": zod.string().nullish(),
   "showText": zod.boolean(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string(),
+  "audioMode": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -461,9 +493,14 @@ export const GetDeviceSlidesResponseItem = zod.object({
   "campaignId": zod.number().nullish(),
   "title": zod.string(),
   "displayText": zod.string().nullish(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "duration": zod.number(),
-  "qrImageUrl": zod.string().nullish()
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
 })
 export const GetDeviceSlidesResponse = zod.array(GetDeviceSlidesResponseItem)
 
