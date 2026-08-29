@@ -24,8 +24,12 @@ interface YouTubeSlideProps {
   videoId: string;
   audioMode: 'muted' | 'sound';
   playbackMode: 'natural' | 'capped';
-  /** Chamado quando o vídeo termina (natural) — o pai avança o slide. */
+  /** Posição (segundos) para retomar o vídeo ao iniciar. 0 = do começo. */
+  initialPosition?: number;
+  /** Chamado quando o vídeo termina (em qualquer modo) — o pai decide o que fazer. */
   onEnded: () => void;
+  /** Reporta a posição atual do vídeo (segundos) periodicamente. */
+  onProgress?: (seconds: number) => void;
   /** Chamado se o player não inicializa/erra — o pai mostra o fallback. */
   onUnplayable: () => void;
 }
@@ -37,19 +41,26 @@ export function YouTubeSlide({
   videoId,
   audioMode,
   playbackMode,
+  initialPosition,
   onEnded,
+  onProgress,
   onUnplayable,
 }: YouTubeSlideProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const endedRef = useRef(onEnded);
   const unplayableRef = useRef(onUnplayable);
+  const progressRef = useRef(onProgress);
+  const initialPositionRef = useRef(initialPosition);
   endedRef.current = onEnded;
   unplayableRef.current = onUnplayable;
+  progressRef.current = onProgress;
+  initialPositionRef.current = initialPosition;
 
   useEffect(() => {
     let player: any = null;
     let cancelled = false;
     let started = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
     const timeout = setTimeout(() => {
       if (!started) unplayableRef.current();
     }, INIT_TIMEOUT_MS);
@@ -77,10 +88,26 @@ export function YouTubeSlide({
               e.target.unMute();
               e.target.setVolume(100);
             }
+            const startAt = initialPositionRef.current;
+            if (startAt && startAt > 0) {
+              try {
+                e.target.seekTo(startAt, true);
+              } catch {
+                /* noop */
+              }
+            }
             e.target.playVideo();
+            pollTimer = setInterval(() => {
+              try {
+                const t = e.target.getCurrentTime?.();
+                if (typeof t === 'number') progressRef.current?.(t);
+              } catch {
+                /* noop */
+              }
+            }, 250);
           },
           onStateChange: (e: any) => {
-            if (e.data === YT.PlayerState.ENDED && playbackMode === 'natural') {
+            if (e.data === YT.PlayerState.ENDED) {
               endedRef.current();
             }
           },
@@ -95,6 +122,7 @@ export function YouTubeSlide({
     return () => {
       cancelled = true;
       clearTimeout(timeout);
+      if (pollTimer) clearInterval(pollTimer);
       try {
         player?.destroy();
       } catch {
