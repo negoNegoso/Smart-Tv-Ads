@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Building2, CalendarDays, ChevronRight, DollarSign, Megaphone, Monitor, Pencil, Plus, Radio, Trash2, Users } from "lucide-react";
+import { Building2, ChevronRight, DollarSign, Megaphone, Monitor, Plus, Radio, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { CampaignFormDialog } from "@/components/campaign-form-dialog";
+import { CampaignRow } from "@/components/campaign-row";
 
 type Advertiser = {
   id: number;
@@ -48,10 +49,6 @@ function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 }
 
-function date(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
-}
-
 export default function Advertisers() {
   const { toast } = useToast();
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
@@ -61,17 +58,7 @@ export default function Advertisers() {
   const [loading, setLoading] = useState(true);
   const [advertiserDialog, setAdvertiserDialog] = useState(false);
   const [campaignDialog, setCampaignDialog] = useState(false);
-  const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
-  const [selectedAdvertiser, setSelectedAdvertiser] = useState<number | null>(null);
-  const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
-  const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
-  const [announcementDestinations, setAnnouncementDestinations] = useState<Record<string, string>>({});
-  const [publishedScanCodes, setPublishedScanCodes] = useState<Record<string, boolean>>({});
-  const [allDevices, setAllDevices] = useState(true);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
-  const [campaignForm, setCampaignForm] = useState({
-    name: "", contractValue: "", startsAt: "", endsAt: "",
-  });
 
   async function load() {
     setLoading(true);
@@ -105,86 +92,8 @@ export default function Advertisers() {
     load();
   }
 
-  function openNewCampaign() {
-    setEditingCampaignId(null);
-    setCampaignForm({ name: "", contractValue: "", startsAt: "", endsAt: "" });
-    setSelectedAdvertiser(null);
-    setSelectedDevices([]);
-    setSelectedAnnouncements([]);
-    setAnnouncementDestinations({});
-    setPublishedScanCodes({});
-    setAllDevices(true);
-    setCampaignDialog(true);
-  }
-
-  function openEditCampaign(campaign: Campaign) {
-    setEditingCampaignId(campaign.id);
-    setCampaignForm({
-      name: campaign.name,
-      contractValue: String(campaign.contractValue ?? ""),
-      startsAt: campaign.startsAt.slice(0, 10),
-      endsAt: campaign.endsAt.slice(0, 10),
-    });
-    setSelectedAdvertiser(campaign.advertiserId);
-    setSelectedDevices(campaign.deviceIds ?? []);
-    setSelectedAnnouncements(campaign.announcementIds ?? []);
-    setAnnouncementDestinations(
-      Object.fromEntries((campaign.announcementLinks ?? []).map((link) => [String(link.announcementId), link.destinationUrl ?? ""])),
-    );
-    // Peças com scanCode e destinationUrl já têm um QR publicado: desmarcá-las
-    // apaga o vínculo e invalida esse QR para sempre (scanCode é imutável).
-    setPublishedScanCodes(
-      Object.fromEntries(
-        (campaign.announcementLinks ?? [])
-          .filter((link) => link.scanCode && link.destinationUrl)
-          .map((link) => [String(link.announcementId), true]),
-      ),
-    );
-    setAllDevices(campaign.allDevices);
-    setCampaignDialog(true);
-  }
-
-  async function submitCampaign(event: React.FormEvent) {
-    event.preventDefault();
-    const isEditing = editingCampaignId !== null;
-    const response = await fetch(api(isEditing ? `/campaigns/${editingCampaignId}` : "/campaigns"), {
-      method: isEditing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...campaignForm,
-        advertiserId: selectedAdvertiser,
-        announcementIds: selectedAnnouncements,
-        announcementDestinations,
-        contractValue: Number(campaignForm.contractValue || 0),
-        allDevices,
-        deviceIds: selectedDevices,
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      toast({ title: error?.error || (isEditing ? "Não foi possível atualizar a campanha" : "Não foi possível criar a campanha"), variant: "destructive" });
-      return;
-    }
-    setCampaignDialog(false);
-    setEditingCampaignId(null);
-    setCampaignForm({ name: "", contractValue: "", startsAt: "", endsAt: "" });
-    setSelectedDevices([]);
-    setSelectedAdvertiser(null);
-    setSelectedAnnouncements([]);
-    setAnnouncementDestinations({});
-    setPublishedScanCodes({});
-    toast({ title: isEditing ? "Campanha atualizada" : "Campanha publicada" });
-    load();
-  }
-
   async function toggleCampaign(id: number) {
     await fetch(api(`/campaigns/${id}/toggle`), { method: "PATCH" });
-    load();
-  }
-
-  async function deleteCampaign(id: number) {
-    await fetch(api(`/campaigns/${id}`), { method: "DELETE" });
-    toast({ title: "Campanha removida" });
     load();
   }
 
@@ -206,7 +115,7 @@ export default function Advertisers() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setAdvertiserDialog(true)}><Plus className="mr-2 h-4 w-4" />Novo anunciante</Button>
-          <Button onClick={openNewCampaign} disabled={!advertisers.length || !announcements.length}>
+          <Button onClick={() => setCampaignDialog(true)} disabled={!advertisers.length || !announcements.length}>
             <Radio className="mr-2 h-4 w-4" />Nova campanha
           </Button>
         </div>
@@ -247,53 +156,7 @@ export default function Advertisers() {
             {campaigns.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">Nenhuma campanha publicada.</div>
             ) : campaigns.map((campaign) => (
-              <div key={campaign.id} className={`group rounded-lg border p-3 transition-colors ${!campaign.isActive ? "opacity-55" : "hover:border-primary/40"}`}>
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Megaphone className="h-4 w-4" /></div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{campaign.name}</p>
-                    <p className="text-xs text-muted-foreground">{campaign.advertiserName} · {campaign.announcementTitles.join(", ")}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{date(campaign.startsAt)} — {date(campaign.endsAt)}</span>
-                      <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
-                      <span>{campaign.plays} exibições</span>
-                      <span className="font-medium text-foreground">{money(campaign.contractValue)}</span>
-                    </div>
-                    {(campaign.announcementLinks ?? []).filter((link) => link.destinationUrl && link.scanCode).map((link) => (
-                      <div key={link.announcementId} className="mt-2 flex items-center gap-3 rounded-lg border p-2">
-                        <img src={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} alt="" className="h-14 w-14 rounded bg-white p-1" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{link.title}</p>
-                          <p className="truncate text-xs text-muted-foreground">{link.destinationUrl}</p>
-                          <p className="text-xs text-muted-foreground">{link.plays} exibições · {link.scans} scans</p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(`${window.location.origin}/r/${link.scanCode}`)
-                                .then(() => toast({ title: "Link copiado" }))
-                                .catch(() => toast({ title: "Não foi possível copiar o link", variant: "destructive" }));
-                            }}
-                          >
-                            Copiar link
-                          </Button>
-                          <a href={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} download={`qr-${link.scanCode}.png`}>
-                            <Button type="button" variant="outline" size="sm">Baixar PNG</Button>
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Switch checked={campaign.isActive} onCheckedChange={() => toggleCampaign(campaign.id)} aria-label="Ativar campanha" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditCampaign(campaign)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteCampaign(campaign.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-              </div>
+              <CampaignRow key={campaign.id} campaign={campaign} onToggle={toggleCampaign} />
             ))}
           </CardContent>
         </Card>
@@ -312,56 +175,14 @@ export default function Advertisers() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={campaignDialog} onOpenChange={(open) => { setCampaignDialog(open); if (!open) setEditingCampaignId(null); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingCampaignId !== null ? "Editar campanha" : "Nova campanha publicitária"}</DialogTitle></DialogHeader>
-          <form onSubmit={submitCampaign} className="space-y-4">
-            <div className="space-y-2"><Label>Anunciante</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{advertisers.map((a) => <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="radio" name="advertiser" checked={selectedAdvertiser === a.id} onChange={() => setSelectedAdvertiser(a.id)} />{a.company || a.name}</label>)}</div><p className="text-xs text-muted-foreground">Cada campanha pertence a um único anunciante.</p></div>
-            <Field label="Nome da campanha" value={campaignForm.name} onChange={(v) => setCampaignForm({ ...campaignForm, name: v })} placeholder="Ex.: Campanha de inverno" required />
-            <div className="space-y-2">
-              <Label>Anúncios / peças</Label>
-              <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border p-2">
-                {announcements.map((a) => {
-                  const checked = selectedAnnouncements.includes(a.id);
-                  const hasPublishedQr = publishedScanCodes[String(a.id)] === true;
-                  return (
-                    <div key={a.id} className="rounded p-2 hover:bg-muted">
-                      <label className="flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => setSelectedAnnouncements(e.target.checked ? [...selectedAnnouncements, a.id] : selectedAnnouncements.filter((id) => id !== a.id))}
-                        />
-                        {a.title}
-                      </label>
-                      {checked && (
-                        <Input
-                          className="mt-2"
-                          type="url"
-                          placeholder="URL de destino do QR code (opcional)"
-                          value={announcementDestinations[String(a.id)] ?? ""}
-                          onChange={(e) => setAnnouncementDestinations({ ...announcementDestinations, [String(a.id)]: e.target.value })}
-                        />
-                      )}
-                      {checked && hasPublishedQr && (
-                        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
-                          Esta peça já tem um QR code publicado. Desmarcá-la apaga o vínculo e invalida esse QR code para sempre.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Peças com URL de destino exibem um QR code rastreável na TV.</p>
-            </div>
-            <Field label="Valor contratado (R$)" type="number" value={campaignForm.contractValue} onChange={(v) => setCampaignForm({ ...campaignForm, contractValue: v })} placeholder="0,00" />
-            <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={campaignForm.startsAt} onChange={(v) => setCampaignForm({ ...campaignForm, startsAt: v })} required /><Field label="Fim" type="date" value={campaignForm.endsAt} onChange={(v) => setCampaignForm({ ...campaignForm, endsAt: v })} required /></div>
-            <div className="flex items-center justify-between rounded-lg border p-3"><div><p className="text-sm font-medium">Publicar em todas as TVs</p><p className="text-xs text-muted-foreground">A campanha entra automaticamente na programação de toda a rede.</p></div><Switch checked={allDevices} onCheckedChange={setAllDevices} /></div>
-            {!allDevices && <div className="space-y-2"><Label>Escolha as TVs</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">{devices.map((device) => <label key={device.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted"><input type="checkbox" checked={selectedDevices.includes(device.id)} onChange={(e) => setSelectedDevices(e.target.checked ? [...selectedDevices, device.id] : selectedDevices.filter((id) => id !== device.id))} />{device.name}<span className="text-xs text-muted-foreground">· {device.clientName}</span></label>)}</div></div>}
-            <DialogFooter><Button type="submit" disabled={selectedAdvertiser === null || !selectedAnnouncements.length}>{editingCampaignId !== null ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CampaignFormDialog
+        open={campaignDialog}
+        onOpenChange={setCampaignDialog}
+        advertisers={advertisers}
+        announcements={announcements}
+        devices={devices}
+        onSaved={load}
+      />
     </div>
   );
 }
