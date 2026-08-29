@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
-import { ArrowLeft, CalendarDays, Check, DollarSign, Monitor, Pencil, Radio, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, DollarSign, Monitor, Pencil, Plus, Radio, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
 
@@ -236,38 +238,53 @@ export default function CampaignDetail() {
         <CardContent className="space-y-3">
           {editing ? (
             <>
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border p-2">
-                {announcements.map((a) => {
-                  const checked = form.selectedAnnouncements.includes(a.id);
-                  const hasPublishedQr = form.publishedScanCodes[String(a.id)] === true;
+              {form.selectedAnnouncements.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma peça vinculada. Adicione uma abaixo.</p>
+              ) : (
+                form.selectedAnnouncements.map((id) => {
+                  const link = data.announcementLinks.find((l) => l.announcementId === id);
+                  const title = link?.title ?? announcements.find((a) => a.id === id)?.title ?? `Peça #${id}`;
+                  const hasPublishedQr = form.publishedScanCodes[String(id)] === true;
                   return (
-                    <div key={a.id} className="rounded p-2 hover:bg-muted">
-                      <label className="flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => form.setSelectedAnnouncements(e.target.checked ? [...form.selectedAnnouncements, a.id] : form.selectedAnnouncements.filter((id) => id !== a.id))}
-                        />
-                        {a.title}
-                      </label>
-                      {checked && (
+                    <div key={id} className="flex items-start gap-3 rounded-lg border p-3">
+                      {link?.scanCode && link?.destinationUrl && (
+                        <img src={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} alt="" className="h-14 w-14 shrink-0 rounded bg-white p-1" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{title}</p>
+                        {link && <p className="text-xs text-muted-foreground">{link.plays} exibições · {link.scans} scans</p>}
                         <Input
                           className="mt-2"
                           type="url"
                           placeholder="URL de destino do QR code (opcional)"
-                          value={form.announcementDestinations[String(a.id)] ?? ""}
-                          onChange={(e) => form.setAnnouncementDestinations({ ...form.announcementDestinations, [String(a.id)]: e.target.value })}
+                          value={form.announcementDestinations[String(id)] ?? ""}
+                          onChange={(e) => form.setAnnouncementDestinations({ ...form.announcementDestinations, [String(id)]: e.target.value })}
                         />
-                      )}
-                      {checked && hasPublishedQr && (
-                        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
-                          Esta peça já tem um QR code publicado. Desmarcá-la apaga o vínculo e invalida esse QR code para sempre.
-                        </p>
-                      )}
+                        {hasPublishedQr && (
+                          <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                            Esta peça já tem um QR code publicado. Desvinculá-la apaga o vínculo e invalida esse QR code para sempre.
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-destructive"
+                        aria-label="Desvincular peça"
+                        onClick={() => form.setSelectedAnnouncements(form.selectedAnnouncements.filter((x) => x !== id))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   );
-                })}
-              </div>
+                })
+              )}
+              <AddPieceCombobox
+                announcements={announcements}
+                selectedIds={form.selectedAnnouncements}
+                onAdd={(id) => form.setSelectedAnnouncements([...form.selectedAnnouncements, id])}
+              />
               <p className="text-xs text-muted-foreground">Peças com URL de destino exibem um QR code rastreável na TV.</p>
             </>
           ) : data.announcementLinks.length === 0 ? (
@@ -316,4 +333,34 @@ export default function CampaignDetail() {
 
 function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | number }) {
   return <Card><CardContent className="flex items-center gap-3 pt-5"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-bold">{value}</p></div></CardContent></Card>;
+}
+
+function AddPieceCombobox({ announcements, selectedIds, onAdd }: { announcements: Announcement[]; selectedIds: number[]; onAdd: (id: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const available = announcements.filter((a) => !selectedIds.includes(a.id));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="w-full justify-start" disabled={available.length === 0}>
+          <Plus className="mr-2 h-4 w-4" />
+          {available.length === 0 ? "Todas as peças já vinculadas" : "Adicionar peça"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar peça..." />
+          <CommandList>
+            <CommandEmpty>Nenhuma peça encontrada.</CommandEmpty>
+            <CommandGroup>
+              {available.map((a) => (
+                <CommandItem key={a.id} value={a.title} onSelect={() => { onAdd(a.id); setOpen(false); }}>
+                  {a.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
