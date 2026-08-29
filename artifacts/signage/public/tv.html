@@ -153,6 +153,7 @@
       var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
       var ytInitTimer   = null;
       var ytActive      = false;
+      var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
       var videoPositions = {};   // (announcementId + '-' + videoId) -> segundos
       var ytSlot        = document.getElementById('yt-slot');
@@ -448,6 +449,7 @@
         if (timer) { clearInterval(timer); timer = null; }
         elapsed = 0;
         playSent = false;
+        ytFallback = false;
         fillEl.style.width = '0';
 
         var slide = slides[currentIndex];
@@ -460,6 +462,7 @@
             function onEnded() { if (!naturalDone) { naturalDone = true; goNext(); } },
             function onFail() {
               // Fallback: mostra a thumbnail nos slots de imagem e usa o timer.
+              ytFallback = true;
               slide.imageUrl = slide.imageUrl ||
                 ('https://img.youtube.com/vi/' + (slide.youtubeId || vid) + '/hqdefault.jpg');
               showImageSlide(slide);
@@ -498,10 +501,13 @@
           fillEl.style.width = pct + '%';
           if (elapsed >= durationMs) {
             var s = slides[currentIndex];
-            var isCappedVideo = ytActive && ytPlayer && s && s.playbackMode !== 'natural';
+            // Vídeo capped ainda tocando OU carregando (sem ter caído no
+            // fallback de imagem): cede a tela sem contar play nem avançar
+            // cursor — o vídeo retoma depois. Só imagem/fallback conta play.
+            var vid = (s && s.playbackMode !== 'natural') ? videoIdForSlide(s) : null;
+            var isCappedVideo = !!vid && !ytFallback;
             if (isCappedVideo) {
-              var vid = videoIdForSlide(s);
-              if (vid) {
+              if (ytActive && ytPlayer) {
                 try { videoPositions[s.announcementId + '-' + vid] = ytPlayer.getCurrentTime(); } catch (e) {}
               }
               goNextNoCount();
