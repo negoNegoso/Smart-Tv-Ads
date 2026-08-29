@@ -86,9 +86,10 @@ const campaignSelection = {
   plays: sql<number>`(select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id})`,
   totalDuration: sql<number>`(select coalesce(sum(p.duration_seconds), 0)::int from plays p where p.campaign_id = ${campaignsTable.id})`,
   playsByAnnouncement: sql<Array<{ announcementId: number; title: string; plays: number }>>`coalesce((select json_agg(json_build_object('announcementId', an.id, 'title', an.title, 'plays', (select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id} and p.announcement_id = an.id)) order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), '[]'::json)`,
-  announcementLinks: sql<Array<{ announcementId: number; title: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number }>>`coalesce((select json_agg(json_build_object(
+  announcementLinks: sql<Array<{ announcementId: number; title: string; imageUrl: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number }>>`coalesce((select json_agg(json_build_object(
     'announcementId', an.id,
     'title', an.title,
+    'imageUrl', an.image_url,
     'scanCode', cn.scan_code,
     'destinationUrl', cn.destination_url,
     'plays', (select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id} and p.announcement_id = an.id),

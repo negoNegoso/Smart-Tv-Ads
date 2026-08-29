@@ -10,10 +10,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
+import { mediaUrl } from "@/lib/media-url";
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
-type AnnouncementLink = { announcementId: number; title: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number };
+type AnnouncementLink = { announcementId: number; title: string; imageUrl: string; scanCode: string | null; destinationUrl: string | null; plays: number; scans: number };
 
 type Campaign = {
   id: number;
@@ -37,7 +38,7 @@ type Campaign = {
 };
 
 type Advertiser = { id: number; name: string; company: string | null };
-type Announcement = { id: number; title: string };
+type Announcement = { id: number; title: string; imageUrl: string };
 type Device = { id: number; name: string; location: string | null; clientName: string };
 
 function money(value: number) {
@@ -243,12 +244,14 @@ export default function CampaignDetail() {
               ) : (
                 form.selectedAnnouncements.map((id) => {
                   const link = data.announcementLinks.find((l) => l.announcementId === id);
-                  const title = link?.title ?? announcements.find((a) => a.id === id)?.title ?? `Peça #${id}`;
+                  const ann = announcements.find((a) => a.id === id);
+                  const title = link?.title ?? ann?.title ?? `Peça #${id}`;
+                  const image = link?.imageUrl ?? ann?.imageUrl;
                   const hasPublishedQr = form.publishedScanCodes[String(id)] === true;
                   return (
                     <div key={id} className="flex items-start gap-3 rounded-lg border p-3">
-                      {link?.scanCode && link?.destinationUrl && (
-                        <img src={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} alt="" className="h-14 w-14 shrink-0 rounded bg-white p-1" />
+                      {image && (
+                        <img src={mediaUrl(image)} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{title}</p>
@@ -294,9 +297,7 @@ export default function CampaignDetail() {
               const hasQr = Boolean(link.scanCode && link.destinationUrl);
               return (
                 <div key={link.announcementId} className="flex items-start gap-3 rounded-lg border p-3">
-                  {hasQr && (
-                    <img src={`${import.meta.env.BASE_URL}api/qr/${link.scanCode}.png`} alt="" className="h-14 w-14 shrink-0 rounded bg-white p-1" />
-                  )}
+                  <img src={mediaUrl(link.imageUrl)} alt="" className="h-14 w-14 shrink-0 rounded object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{link.title}</p>
                     {hasQr && <p className="truncate text-xs text-muted-foreground">{link.destinationUrl}</p>}
@@ -354,6 +355,7 @@ function AddPieceCombobox({ announcements, selectedIds, onAdd }: { announcements
             <CommandGroup>
               {available.map((a) => (
                 <CommandItem key={a.id} value={a.title} onSelect={() => { onAdd(a.id); setOpen(false); }}>
+                  <img src={mediaUrl(a.imageUrl)} alt="" className="mr-2 h-6 w-6 shrink-0 rounded object-cover" />
                   {a.title}
                 </CommandItem>
               ))}
