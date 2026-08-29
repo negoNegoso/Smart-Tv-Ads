@@ -154,6 +154,7 @@
       var ytInitTimer   = null;
       var ytActive      = false;
       var playlistCursor = {};   // announcementId -> índice atual
+      var videoPositions = {};   // (announcementId + '-' + videoId) -> segundos
       var ytSlot        = document.getElementById('yt-slot');
 
       // ─── DOM refs ─────────────────────────────────────────────────────────────
@@ -327,10 +328,15 @@
                 if (slide.audioMode === 'sound') {
                   try { e.target.unMute(); e.target.setVolume(100); } catch (err) {}
                 }
+                var posKey = slide.announcementId + '-' + videoId;
+                var saved = videoPositions[posKey];
+                if (saved && saved > 0) {
+                  try { e.target.seekTo(saved, true); } catch (err) {}
+                }
                 e.target.playVideo();
               },
               onStateChange: function (e) {
-                if (e.data === window.YT.PlayerState.ENDED && slide.playbackMode === 'natural') {
+                if (e.data === window.YT.PlayerState.ENDED) {
                   onEnded();
                 }
               },
@@ -418,8 +424,21 @@
       // ─── Timer loop ───────────────────────────────────────────────────────
       function goNext() {
         if (timer) { clearInterval(timer); timer = null; }
+        var leaving = slides[currentIndex];
+        if (leaving) {
+          var leavingVid = videoIdForSlide(leaving);
+          if (leavingVid) { delete videoPositions[leaving.announcementId + '-' + leavingVid]; }
+        }
         recordImpression(slides[currentIndex]);
         advancePlaylistCursor(slides[currentIndex]);
+        currentIndex = (currentIndex + 1) % slides.length;
+        showSlide(slides[currentIndex]);
+        startTimer();
+      }
+
+      // Corte de vídeo capped: cede a tela sem contar play nem avançar cursor.
+      function goNextNoCount() {
+        if (timer) { clearInterval(timer); timer = null; }
         currentIndex = (currentIndex + 1) % slides.length;
         showSlide(slides[currentIndex]);
         startTimer();
@@ -478,7 +497,17 @@
           var pct = Math.min((elapsed / durationMs) * 100, 100);
           fillEl.style.width = pct + '%';
           if (elapsed >= durationMs) {
-            goNext();
+            var s = slides[currentIndex];
+            var isCappedVideo = ytActive && ytPlayer && s && s.playbackMode !== 'natural';
+            if (isCappedVideo) {
+              var vid = videoIdForSlide(s);
+              if (vid) {
+                try { videoPositions[s.announcementId + '-' + vid] = ytPlayer.getCurrentTime(); } catch (e) {}
+              }
+              goNextNoCount();
+            } else {
+              goNext();
+            }
           }
         }, tickMs);
       }
