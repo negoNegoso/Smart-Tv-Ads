@@ -69,20 +69,31 @@ export default function CampaignDetail() {
     loadCampaign();
   }, [params?.id]);
 
-  async function loadFormData() {
-    const [a, media, d] = await Promise.all([
-      fetch(api("/advertisers")).then((r) => r.json()),
-      fetch(api("/announcements")).then((r) => r.json()),
-      fetch(api("/devices")).then((r) => r.json()),
-    ]);
-    setAdvertisers(Array.isArray(a) ? a : []);
-    setAnnouncements(Array.isArray(media) ? media : []);
-    setDevices(Array.isArray(d) ? d : []);
+  async function loadFormData(): Promise<boolean> {
+    try {
+      const [a, media, d] = await Promise.all([
+        fetch(api("/advertisers")),
+        fetch(api("/announcements")),
+        fetch(api("/devices")),
+      ]);
+      if (!a.ok || !media.ok || !d.ok) throw new Error("Falha ao carregar dados");
+      const [aj, mediaj, dj] = await Promise.all([a.json(), media.json(), d.json()]);
+      setAdvertisers(Array.isArray(aj) ? aj : []);
+      setAnnouncements(Array.isArray(mediaj) ? mediaj : []);
+      setDevices(Array.isArray(dj) ? dj : []);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  function startEdit() {
+  async function startEdit() {
     if (!data) return;
-    loadFormData();
+    const ok = await loadFormData();
+    if (!ok) {
+      toast({ title: "Não foi possível carregar os dados para edição. Tente novamente.", variant: "destructive" });
+      return;
+    }
     form.reset(data);
     setEditing(true);
   }
