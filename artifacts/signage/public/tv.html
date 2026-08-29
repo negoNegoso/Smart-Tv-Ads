@@ -149,6 +149,8 @@
       var ytPlayer      = null;
       var ytApiReady    = false;
       var ytApiLoading  = false;
+      var ytApiUnavailable = false;   // API do YouTube desistiu de carregar
+      var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
       var ytInitTimer   = null;
       var ytActive      = false;
       var playlistCursor = {};   // announcementId -> índice atual
@@ -219,18 +221,45 @@
       }
 
       // ─── YouTube IFrame API (ES5) ───────────────────────────────────────────
-      function loadYtApi(cb) {
+      function loadYtApi(cb, onFail) {
         if (window.YT && window.YT.Player) { cb(); return; }
+        if (ytApiUnavailable) { if (onFail) onFail(); return; }
+
+        var failed = false;
+        var giveUp = setTimeout(function () {
+          failed = true;
+          ytApiUnavailable = true;
+          if (onFail) onFail();
+        }, YT_API_TIMEOUT_MS);
+
         if (ytApiLoading) {
           var t = setInterval(function () {
-            if (window.YT && window.YT.Player) { clearInterval(t); cb(); }
+            if (failed) { clearInterval(t); return; }
+            if (window.YT && window.YT.Player) {
+              clearInterval(t); clearTimeout(giveUp); cb();
+            }
           }, 100);
           return;
         }
+
         ytApiLoading = true;
-        window.onYouTubeIframeAPIReady = function () { ytApiReady = true; cb(); };
+        var prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function () {
+          if (prev) { try { prev(); } catch (e) {} }
+          ytApiReady = true;
+          if (failed) { return; }
+          clearTimeout(giveUp);
+          cb();
+        };
         var tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
+        tag.onerror = function () {
+          if (failed) { return; }
+          failed = true;
+          ytApiUnavailable = true;
+          clearTimeout(giveUp);
+          if (onFail) onFail();
+        };
         document.head.appendChild(tag);
       }
 
@@ -312,7 +341,7 @@
               }
             }
           });
-        });
+        }, onFail);
       }
 
       // ─── Crossfade to a new slide ─────────────────────────────────────────
