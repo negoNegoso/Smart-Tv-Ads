@@ -21,6 +21,7 @@ import DeviceDetail from './pages/device-detail';
 import Analytics from './pages/analytics';
 import Advertisers from './pages/advertisers';
 import AdvertiserDetail from './pages/advertiser-detail';
+import CampaignDetail from './pages/campaign-detail';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 
 const queryClient = new QueryClient({
@@ -58,6 +59,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/advertisers/:id">
         <Layout><AdvertiserDetail /></Layout>
+      </Route>
+      <Route path="/campaigns/:id">
+        <Layout><CampaignDetail /></Layout>
       </Route>
       <Route>
         <Layout><NotFound /></Layout>
