@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, CalendarDays, Megaphone, Radio, Pencil } from "lucide-react";
+import { ArrowLeft, Radio, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CampaignRow } from "@/components/campaign-row";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +70,13 @@ export default function AdvertiserDetail() {
     toast({ title: "Anunciante atualizado" });
   }
 
+  async function toggleCampaign(id: number) {
+    await fetch(`${import.meta.env.BASE_URL}api/campaigns/${id}/toggle`, { method: "PATCH" });
+    if (!params?.id) return;
+    const r = await fetch(`${import.meta.env.BASE_URL}api/advertisers/${params.id}`);
+    if (r.ok) setData(await r.json());
+  }
+
   useEffect(() => {
     if (!params?.id) return;
     fetch(`${import.meta.env.BASE_URL}api/advertisers/${params.id}`)
@@ -94,26 +102,7 @@ export default function AdvertiserDetail() {
         <CardHeader><CardTitle className="flex items-center gap-2"><Radio className="h-5 w-5 text-primary" />Campanhas deste anunciante</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {!data.campaigns.length ? <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma campanha cadastrada.</p> : data.campaigns.map((campaign) => (
-            <div key={campaign.id} className={`rounded-lg border p-4 ${!campaign.isActive ? "opacity-55" : ""}`}>
-              <div className="flex items-start gap-3">
-                <Megaphone className="mt-1 h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <p className="font-medium">{campaign.name}</p>
-                  <p className="text-sm text-muted-foreground">{campaign.announcementTitles.join(", ")}</p>
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(campaign.startsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })} — {new Date(campaign.endsAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
-                    <span>{campaign.allDevices ? "Todas as TVs" : "TVs selecionadas"}</span>
-                    <span>{campaign.plays} exibições</span>
-                    <span>{campaign.scans ?? 0} scans</span>
-                    <span>
-                      Taxa {((campaign.plays > 0 ? (campaign.scans ?? 0) / campaign.plays : 0) * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                    </span>
-                    <span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(campaign.contractValue || 0)}</span>
-                  </div>
-                </div>
-                <span className={`rounded-full px-2 py-1 text-xs ${campaign.isActive ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>{campaign.isActive ? "Ativa" : "Pausada"}</span>
-              </div>
-            </div>
+            <CampaignRow key={campaign.id} campaign={campaign} onToggle={toggleCampaign} />
           ))}
         </CardContent>
       </Card>
