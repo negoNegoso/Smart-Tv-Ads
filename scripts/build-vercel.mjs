@@ -21,6 +21,11 @@ function run(args) {
 
 await rm(outputDir, { recursive: true, force: true });
 
+// Aplica migrações versionadas do banco antes de construir a aplicação.
+// migrate.mjs pula silenciosamente se não houver URL de banco no ambiente
+// (ex.: builds de preview sem banco) e falha o build se uma migração quebrar.
+run(["--filter", "db", "run", "migrate"]);
+
 run(["--filter", "@workspace/signage", "run", "build"]);
 run(["--filter", "@workspace/api-server", "run", "build:vercel"]);
 
