@@ -14,6 +14,8 @@ tags:
   - name: devices
   - name: telemetry
   - name: analytics
+  - name: users
+  - name: portal
 
 paths:
   /healthz:
@@ -560,6 +562,130 @@ paths:
         "404":
           description: Not found
 
+  # ── Users ────────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserAccount"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAccount"
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAccount"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /users/{id}/reset-password:
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset user password
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        "404":
+          description: Not found
+
+  # ── Portal ───────────────────────────────────────────────────────────────────
+  /portal/advertiser/campaigns:
+    get:
+      operationId: listPortalAdvertiserCampaigns
+      tags: [portal]
+      summary: List advertiser portal campaigns
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortalCampaign"
+
+  /portal/client/devices:
+    get:
+      operationId: listPortalClientDevices
+      tags: [portal]
+      summary: List client portal devices
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortalDevice"
+
 components:
   schemas:
     HealthStatus:
@@ -871,3 +997,58 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AnnouncementPlayStat"
+
+    # ── Users ────────────────────────────────────────────────────────────────
+    UserAccount:
+      type: object
+      required: [id, email, isActive, mustChangePassword, clientIds, advertiserIds]
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        isActive: { type: boolean }
+        mustChangePassword: { type: boolean }
+        clientIds: { type: array, items: { type: integer } }
+        advertiserIds: { type: array, items: { type: integer } }
+    UserInput:
+      type: object
+      required: [email, tempPassword]
+      properties:
+        email: { type: string }
+        tempPassword: { type: string, minLength: 8 }
+        clientIds: { type: array, items: { type: integer } }
+        advertiserIds: { type: array, items: { type: integer } }
+    UserUpdate:
+      type: object
+      properties:
+        isActive: { type: boolean }
+        clientIds: { type: array, items: { type: integer } }
+        advertiserIds: { type: array, items: { type: integer } }
+    ResetPasswordBody:
+      type: object
+      required: [tempPassword]
+      properties:
+        tempPassword: { type: string, minLength: 8 }
+
+    # ── Portal ───────────────────────────────────────────────────────────────
+    PortalCampaign:
+      type: object
+      required: [id, name, startsAt, endsAt, isActive, deviceCount, totalPlays, totalScans, uniqueVisitors]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        isActive: { type: boolean }
+        deviceCount: { type: integer }
+        totalPlays: { type: integer }
+        totalScans: { type: integer }
+        uniqueVisitors: { type: integer }
+    PortalDevice:
+      type: object
+      required: [id, name, totalPlays]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        location: { type: string, nullable: true }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        totalPlays: { type: integer }

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   QueryClient,
   QueryClientProvider,
@@ -12,6 +12,7 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
 
 import { Layout } from './components/layout';
+import { PortalShell } from './components/portal-shell';
 import Admin from './pages/admin';
 import Login from './pages/login';
 import Display from './pages/display';
@@ -22,7 +23,29 @@ import Analytics from './pages/analytics';
 import Advertisers from './pages/advertisers';
 import AdvertiserDetail from './pages/advertiser-detail';
 import CampaignDetail from './pages/campaign-detail';
+import Users from './pages/users';
+import ChangePassword from './pages/change-password';
+import PortalAdvertiser from './pages/portal-advertiser';
+import PortalClient from './pages/portal-client';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
+
+interface Me {
+  authenticated: boolean;
+  isAdmin: boolean;
+  roles: string[];
+  clientIds: number[];
+  advertiserIds: number[];
+  mustChangePassword: boolean;
+}
+
+const UNAUTHENTICATED: Me = {
+  authenticated: false,
+  isAdmin: false,
+  roles: [],
+  clientIds: [],
+  advertiserIds: [],
+  mustChangePassword: false,
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +86,9 @@ function AdminRoutes() {
       <Route path="/campaigns/:id">
         <Layout><CampaignDetail /></Layout>
       </Route>
+      <Route path="/users-admin">
+        <Layout><Users /></Layout>
+      </Route>
       <Route>
         <Layout><NotFound /></Layout>
       </Route>
@@ -70,20 +96,52 @@ function AdminRoutes() {
   );
 }
 
-function AuthGate({ children }: { children: ReactNode }) {
+function PortalSwitch({ me }: { me: Me }) {
+  const isAdv = me.roles.includes('advertiser');
+  const isClient = me.roles.includes('client');
+  const [view, setView] = useState<'advertiser' | 'client'>(isAdv ? 'advertiser' : 'client');
+
+  return (
+    <PortalShell>
+      {isAdv && isClient ? (
+        <div className="mb-4 flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => setView('advertiser')}
+            className={`px-3 py-2 text-sm ${view === 'advertiser' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
+          >
+            Anunciante
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('client')}
+            className={`px-3 py-2 text-sm ${view === 'client' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
+          >
+            Cliente
+          </button>
+        </div>
+      ) : null}
+      {view === 'advertiser' && isAdv ? <PortalAdvertiser /> : null}
+      {view === 'client' && isClient ? <PortalClient /> : null}
+    </PortalShell>
+  );
+}
+
+function RoleRouter() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data: me, isLoading } = useQuery({
     queryKey: ['auth'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Me> => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/auth/me`);
-      return { authenticated: res.ok };
+      if (!res.ok) return UNAUTHENTICATED;
+      return res.json();
     },
     retry: false,
   });
 
   useEffect(() => {
     const onUnauthorized = () => {
-      queryClient.setQueryData(['auth'], { authenticated: false });
+      queryClient.setQueryData(['auth'], UNAUTHENTICATED);
     };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
@@ -96,10 +154,21 @@ function AuthGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!data?.authenticated) {
+  if (!me?.authenticated) {
     return <Login />;
   }
-  return <>{children}</>;
+  if (me.mustChangePassword) {
+    return <ChangePassword onDone={() => queryClient.invalidateQueries({ queryKey: ['auth'] })} />;
+  }
+  if (me.isAdmin) {
+    return <AdminRoutes />;
+  }
+  const isAdv = me.roles.includes('advertiser');
+  const isClient = me.roles.includes('client');
+  if (isAdv || isClient) {
+    return <PortalSwitch me={me} />;
+  }
+  return <Login />;
 }
 
 function Router() {
@@ -107,9 +176,7 @@ function Router() {
     <Switch>
       <Route path="/display/:deviceKey" component={Display} />
       <Route>
-        <AuthGate>
-          <AdminRoutes />
-        </AuthGate>
+        <RoleRouter />
       </Route>
     </Switch>
   );

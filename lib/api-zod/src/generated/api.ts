@@ -637,3 +637,124 @@ export const GetCampaignAnalyticsResponse = zod.object({
 })
 
 
+/**
+ * @summary List all users
+ */
+export const ListUsersResponseItem = zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "isActive": zod.boolean(),
+  "mustChangePassword": zod.boolean(),
+  "clientIds": zod.array(zod.number()),
+  "advertiserIds": zod.array(zod.number())
+})
+export const ListUsersResponse = zod.array(ListUsersResponseItem)
+
+
+/**
+ * @summary Create a user
+ */
+export const createUserBodyTempPasswordMin = 8;
+
+
+
+export const CreateUserBody = zod.object({
+  "email": zod.string(),
+  "tempPassword": zod.string().min(createUserBodyTempPasswordMin),
+  "clientIds": zod.array(zod.number()).optional(),
+  "advertiserIds": zod.array(zod.number()).optional()
+})
+
+export const CreateUserResponse = zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "isActive": zod.boolean(),
+  "mustChangePassword": zod.boolean(),
+  "clientIds": zod.array(zod.number()),
+  "advertiserIds": zod.array(zod.number())
+})
+
+
+/**
+ * @summary Update a user
+ */
+export const UpdateUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateUserBody = zod.object({
+  "isActive": zod.boolean().optional(),
+  "clientIds": zod.array(zod.number()).optional(),
+  "advertiserIds": zod.array(zod.number()).optional()
+})
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "isActive": zod.boolean(),
+  "mustChangePassword": zod.boolean(),
+  "clientIds": zod.array(zod.number()),
+  "advertiserIds": zod.array(zod.number())
+})
+
+
+/**
+ * @summary Delete a user
+ */
+export const DeleteUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteUserResponse = zod.void()
+
+
+/**
+ * @summary Reset user password
+ */
+export const ResetUserPasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const resetUserPasswordBodyTempPasswordMin = 8;
+
+
+
+export const ResetUserPasswordBody = zod.object({
+  "tempPassword": zod.string().min(resetUserPasswordBodyTempPasswordMin)
+})
+
+export const ResetUserPasswordResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List advertiser portal campaigns
+ */
+export const ListPortalAdvertiserCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean(),
+  "deviceCount": zod.number(),
+  "totalPlays": zod.number(),
+  "totalScans": zod.number(),
+  "uniqueVisitors": zod.number()
+})
+export const ListPortalAdvertiserCampaignsResponse = zod.array(ListPortalAdvertiserCampaignsResponseItem)
+
+
+/**
+ * @summary List client portal devices
+ */
+export const ListPortalClientDevicesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "totalPlays": zod.number()
+})
+export const ListPortalClientDevicesResponse = zod.array(ListPortalClientDevicesResponseItem)
+
+
