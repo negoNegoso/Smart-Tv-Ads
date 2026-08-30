@@ -22,23 +22,10 @@ function sign(body: string, secret: string): string {
 /** Token stateless `<base64url(payload)>.<hmac>`. Não carrega dados sensíveis. */
 export function createSession(
   secret: string,
-  subject: Subject | number = "admin",
-  now?: number,
+  subject: Subject = "admin",
+  now: number = Date.now(),
 ): string {
-  // Backward compatibility: if subject is a number, treat it as the old 'now' parameter
-  let actualSubject: Subject = "admin";
-  let actualNow: number;
-
-  if (typeof subject === "number") {
-    // Old signature: createSession(secret, now)
-    actualNow = subject;
-  } else {
-    // New signature: createSession(secret, subject, now)
-    actualSubject = subject;
-    actualNow = now ?? Date.now();
-  }
-
-  const body = encode({ exp: actualNow + SESSION_MAX_AGE_MS, sub: actualSubject });
+  const body = encode({ exp: now + SESSION_MAX_AGE_MS, sub: subject });
   return `${body}.${sign(body, secret)}`;
 }
 

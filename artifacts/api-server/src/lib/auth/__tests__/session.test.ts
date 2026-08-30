@@ -17,24 +17,24 @@ describe("sessão assinada", () => {
   });
 
   it("verifica um token recém-criado", () => {
-    const token = createSession(SECRET, NOW);
+    const token = createSession(SECRET, "admin", NOW);
     expect(verifySession(token, SECRET, NOW)).toBe(true);
   });
 
   it("rejeita token com assinatura adulterada", () => {
-    const token = createSession(SECRET, NOW);
+    const token = createSession(SECRET, "admin", NOW);
     const adulterado = token.slice(0, -1) + (token.endsWith("A") ? "B" : "A");
     expect(verifySession(adulterado, SECRET, NOW)).toBe(false);
   });
 
   it("rejeita token expirado", () => {
-    const token = createSession(SECRET, NOW);
+    const token = createSession(SECRET, "admin", NOW);
     const depois = NOW + SESSION_MAX_AGE_MS + 1;
     expect(verifySession(token, SECRET, depois)).toBe(false);
   });
 
   it("rejeita token assinado com outro segredo", () => {
-    const token = createSession("outro-segredo", NOW);
+    const token = createSession("outro-segredo", "admin", NOW);
     expect(verifySession(token, SECRET, NOW)).toBe(false);
   });
 
