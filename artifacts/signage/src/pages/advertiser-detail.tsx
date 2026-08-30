@@ -30,8 +30,13 @@ type Advertiser = {
   company: string | null;
   email: string | null;
   phone: string | null;
+  segmentId: number | null;
+  clientId: number | null;
   campaigns: Campaign[];
 };
+
+type Segment = { id: number; slug: string; name: string };
+type ClientOption = { id: number; name: string };
 
 export default function AdvertiserDetail() {
   const [, params] = useRoute("/advertisers/:id");
@@ -39,7 +44,9 @@ export default function AdvertiserDetail() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", company: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", company: "", email: "", phone: "", segmentId: "", clientId: "" });
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
 
   function openEdit() {
     if (!data) return;
@@ -48,6 +55,8 @@ export default function AdvertiserDetail() {
       company: data.company ?? "",
       email: data.email ?? "",
       phone: data.phone ?? "",
+      segmentId: data.segmentId ? String(data.segmentId) : "",
+      clientId: data.clientId ? String(data.clientId) : "",
     });
     setEditOpen(true);
   }
@@ -58,7 +67,11 @@ export default function AdvertiserDetail() {
     const response = await fetch(`${import.meta.env.BASE_URL}api/advertisers/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        segmentId: form.segmentId ? Number(form.segmentId) : null,
+        clientId: form.clientId ? Number(form.clientId) : null,
+      }),
     });
     if (!response.ok) {
       toast({ title: "Não foi possível atualizar o anunciante", variant: "destructive" });
@@ -76,6 +89,16 @@ export default function AdvertiserDetail() {
     const r = await fetch(`${import.meta.env.BASE_URL}api/advertisers/${params.id}`);
     if (r.ok) setData(await r.json());
   }
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${import.meta.env.BASE_URL}api/segments`).then((r) => (r.ok ? r.json() : [])),
+      fetch(`${import.meta.env.BASE_URL}api/clients`).then((r) => (r.ok ? r.json() : [])),
+    ]).then(([seg, cli]) => {
+      setSegments(Array.isArray(seg) ? seg : []);
+      setClients(Array.isArray(cli) ? cli : []);
+    });
+  }, []);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -115,6 +138,34 @@ export default function AdvertiserDetail() {
             <div className="space-y-2"><Label>Empresa / marca</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></div>
             <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="space-y-2"><Label>Telefone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Segmento</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.segmentId}
+                onChange={(e) => setForm({ ...form, segmentId: e.target.value })}
+              >
+                <option value="">Sem segmento (toca em todas as TVs)</option>
+                {segments.map((segment) => (
+                  <option key={segment.id} value={String(segment.id)}>{segment.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">As peças não entram nas TVs de clientes do mesmo segmento.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Cliente dono (opcional)</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.clientId}
+                onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+              >
+                <option value="">Anunciante externo</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={String(client.id)}>{client.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">A loja continua anunciando nas TVs dela mesma.</p>
+            </div>
             <DialogFooter><Button type="submit">Salvar alterações</Button></DialogFooter>
           </form>
         </DialogContent>

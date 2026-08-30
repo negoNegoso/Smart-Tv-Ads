@@ -8,10 +8,13 @@ import {
   campaignsTable,
   campaignDevicesTable,
   campaignAnnouncementsTable,
+  advertisersTable,
+  clientsTable,
 } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
 import { resolveSlideCaption } from "../lib/slide-caption";
 import { resolvePlaylistVideoIds } from "../lib/youtube/playlist-resolver";
+import { filterEligibleSlides } from "../lib/ad-eligibility";
 
 const router: IRouter = Router();
 
@@ -20,8 +23,13 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
   const raw = Array.isArray(deviceKey) ? deviceKey[0] : deviceKey;
 
   const [device] = await db
-    .select()
+    .select({
+      id: devicesTable.id,
+      clientId: devicesTable.clientId,
+      segmentId: clientsTable.segmentId,
+    })
     .from(devicesTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
     .where(eq(devicesTable.deviceKey, raw));
 
   if (!device) {
@@ -49,6 +57,8 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
+      advertiserSegmentId: sql<number | null>`NULL`,
+      advertiserClientId: sql<number | null>`NULL`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -75,8 +85,11 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
+      advertiserSegmentId: advertisersTable.segmentId,
+      advertiserClientId: advertisersTable.clientId,
     })
     .from(campaignsTable)
+    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
     .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
     .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
     .leftJoin(campaignDevicesTable, eq(campaignDevicesTable.campaignId, campaignsTable.id))
@@ -90,15 +103,22 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     )
     .orderBy(asc(campaignsTable.id));
 
+  // Peça de anunciante concorrente do dono da TV não entra na grade. A playlist
+  // do próprio device fica de fora da regra: é o lojista pondo o conteúdo dele.
+  const eligibleCampaignSlides = filterEligibleSlides(campaignSlides, {
+    clientId: device.clientId,
+    segmentId: device.segmentId,
+  });
+
   const seen = new Set<number>();
-  const deduped = [...campaignSlides, ...playlistSlides].filter((slide) => {
+  const deduped = [...eligibleCampaignSlides, ...playlistSlides].filter((slide) => {
     if (seen.has(slide.announcementId)) return false;
     seen.add(slide.announcementId);
     return true;
   });
 
   const slides = await Promise.all(
-    deduped.map(async ({ scanCode, showText, displayText, ...slide }) => {
+    deduped.map(async ({ scanCode, showText, displayText, advertiserSegmentId, advertiserClientId, ...slide }) => {
       const videoIds =
         slide.mediaKind === "youtube_playlist" && slide.youtubeId
           ? await resolvePlaylistVideoIds(slide.youtubeId)

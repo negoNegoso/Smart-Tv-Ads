@@ -6,11 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ClientInput {
+export interface SegmentInput {
   /** @minLength 1 */
   name: string;
-  email?: string;
-  phone?: string;
-  /** @nullable */
-  segmentId?: number | null;
 }

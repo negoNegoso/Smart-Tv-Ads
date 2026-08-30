@@ -10,6 +10,8 @@ import {
   devicesTable,
   playsTable,
   campaignAnnouncementsTable,
+  segmentsTable,
+  clientsTable,
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
 
@@ -20,6 +22,10 @@ const advertiserInput = z.object({
   company: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
+  // Ramo do anunciante e, quando ele também é dono de TV, o cliente
+  // correspondente. Juntos decidem em quais TVs as peças podem entrar.
+  segmentId: z.coerce.number().int().positive().nullish(),
+  clientId: z.coerce.number().int().positive().nullish(),
 });
 
 const campaignInput = z.object({
@@ -121,14 +127,20 @@ router.get("/advertisers", async (_req, res): Promise<void> => {
       company: advertisersTable.company,
       email: advertisersTable.email,
       phone: advertisersTable.phone,
+      segmentId: advertisersTable.segmentId,
+      segmentName: segmentsTable.name,
+      clientId: advertisersTable.clientId,
+      clientName: clientsTable.name,
       createdAt: advertisersTable.createdAt,
       campaignCount: sql<number>`count(distinct ${campaignsTable.id})::int`,
       totalPlays: sql<number>`count(${playsTable.id})::int`,
     })
     .from(advertisersTable)
+    .leftJoin(segmentsTable, eq(segmentsTable.id, advertisersTable.segmentId))
+    .leftJoin(clientsTable, eq(clientsTable.id, advertisersTable.clientId))
     .leftJoin(campaignsTable, eq(campaignsTable.advertiserId, advertisersTable.id))
     .leftJoin(playsTable, eq(playsTable.campaignId, campaignsTable.id))
-    .groupBy(advertisersTable.id)
+    .groupBy(advertisersTable.id, segmentsTable.name, clientsTable.name)
     .orderBy(asc(advertisersTable.name));
   res.json(rows);
 });

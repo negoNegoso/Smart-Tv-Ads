@@ -16,6 +16,7 @@ tags:
   - name: analytics
   - name: users
   - name: portal
+  - name: segments
 
 paths:
   /healthz:
@@ -172,6 +173,43 @@ paths:
           description: Not found
 
   # ── Clients ──────────────────────────────────────────────────────────────────
+  # ── Segments (ramo de atuação; base da regra de concorrência) ───────────────
+  /segments:
+    get:
+      operationId: listSegments
+      tags: [segments]
+      summary: List all segments
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Segment"
+    post:
+      operationId: createSegment
+      tags: [segments]
+      summary: Create a segment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SegmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+        "400":
+          description: Bad request
+        "409":
+          description: Segment already exists
+
   /clients:
     get:
       operationId: listClients
@@ -757,6 +795,21 @@ components:
           type: array
           items: { type: integer }
 
+    # ── Segments ─────────────────────────────────────────────────────────────
+    Segment:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+
+    SegmentInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+
     # ── Clients ──────────────────────────────────────────────────────────────
     Client:
       type: object
@@ -766,6 +819,8 @@ components:
         name: { type: string }
         email: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
+        segmentId: { type: ["integer", "null"] }
+        segmentName: { type: ["string", "null"] }
         deviceCount: { type: integer }
         createdAt: { type: string, format: date-time }
 
@@ -776,6 +831,7 @@ components:
         name: { type: string, minLength: 1 }
         email: { type: string }
         phone: { type: string }
+        segmentId: { type: ["integer", "null"] }
 
     ClientUpdate:
       type: object
@@ -783,6 +839,7 @@ components:
         name: { type: string, minLength: 1 }
         email: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
+        segmentId: { type: ["integer", "null"] }
 
     ClientStats:
       type: object

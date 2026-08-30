@@ -48,6 +48,8 @@ import type {
   ReorderInput,
   ResetPasswordBody,
   ResetUserPassword200,
+  Segment,
+  SegmentInput,
   UserAccount,
   UserInput,
   UserUpdate
@@ -849,6 +851,154 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getToggleAnnouncementMutationOptions(options));
+    }
+
+export const getListSegmentsUrl = () => {
+
+
+
+
+  return `/api/segments`
+}
+
+/**
+ * @summary List all segments
+ */
+export const listSegments = async ( options?: RequestInit): Promise<Segment[]> => {
+
+  return customFetch<Segment[]>(getListSegmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSegmentsQueryKey = () => {
+    return [
+    `/api/segments`
+    ] as const;
+    }
+
+
+export const getListSegmentsQueryOptions = <TData = Awaited<ReturnType<typeof listSegments>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSegments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSegmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSegments>>> = ({ signal }) => listSegments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSegments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSegmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listSegments>>>
+export type ListSegmentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all segments
+ */
+
+export function useListSegments<TData = Awaited<ReturnType<typeof listSegments>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSegments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSegmentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSegmentUrl = () => {
+
+
+
+
+  return `/api/segments`
+}
+
+/**
+ * @summary Create a segment
+ */
+export const createSegment = async (segmentInput: SegmentInput, options?: RequestInit): Promise<Segment> => {
+
+  return customFetch<Segment>(getCreateSegmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(segmentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSegmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSegment>>, TError,{data: BodyType<SegmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSegment>>, TError,{data: BodyType<SegmentInput>}, TContext> => {
+
+const mutationKey = ['createSegment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSegment>>, {data: BodyType<SegmentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSegment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSegmentMutationResult = NonNullable<Awaited<ReturnType<typeof createSegment>>>
+    export type CreateSegmentMutationBody = BodyType<SegmentInput>
+    export type CreateSegmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a segment
+ */
+export const useCreateSegment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSegment>>, TError,{data: BodyType<SegmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSegment>>,
+        TError,
+        {data: BodyType<SegmentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSegmentMutationOptions(options));
     }
 
 export const getListClientsUrl = () => {

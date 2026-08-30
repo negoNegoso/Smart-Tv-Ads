@@ -13,6 +13,10 @@ export interface Client {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  segmentId?: number | null;
+  /** @nullable */
+  segmentName?: string | null;
   deviceCount: number;
   createdAt: Date;
 }
