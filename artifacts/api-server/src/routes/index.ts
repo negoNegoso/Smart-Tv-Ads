@@ -10,23 +10,31 @@ import analyticsRouter from "./analytics";
 import advertisersRouter from "./advertisers";
 import storageRouter from "./storage";
 import qrRouter from "./qr";
-import { requireAdmin } from "../lib/auth/middleware";
+import usersRouter from "./users";
+import portalRouter from "./portal";
+import { loadSession, requireAdmin, requireUser } from "../lib/auth/middleware";
 
 const router = Router();
 
-// Públicos: healthcheck, autenticação e o que as TVs/QR consomem.
+// Públicos
 router.use(healthRouter);
-router.use(authRouter);
 router.use(displayRouter);
 router.use(telemetryRouter);
 router.use(qrRouter);
-// storageRouter expõe apenas GET /storage/objects/* (leitura pública das
-// imagens que as TVs carregam no backend de object storage do Replit).
 router.use(storageRouter);
 
-// Porteiro: tudo abaixo exige sessão de admin.
-router.use(requireAdmin);
+// A partir daqui, resolve identidade (admin ou usuário) para as rotas abaixo.
+router.use(loadSession);
 
+// Auth: precisa de loadSession para /auth/me e /auth/change-password.
+router.use(authRouter);
+
+// Portais (usuário autenticado; guardas por papel ficam nas rotas do portal).
+router.use("/portal", requireUser, portalRouter);
+
+// Gestão: exige admin.
+router.use(requireAdmin);
+router.use(usersRouter);
 router.use(announcementsRouter);
 router.use(clientsRouter);
 router.use(devicesRouter);
