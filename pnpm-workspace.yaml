@@ -68,6 +68,17 @@ catalog:
 
 autoInstallPeers: false
 
+# @hookform/resolvers@3 nao declara `zod` como dependencia; sem isso o TypeScript
+# resolve o zod v4 hoistado por @vercel/blob -> @vercel/oidc -> @vercel/cli-config
+# em vez do zod 3 do workspace, quebrando o typecheck do signage.
+packageExtensions:
+  '@hookform/resolvers':
+    peerDependencies:
+      zod: '*'
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
 onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
