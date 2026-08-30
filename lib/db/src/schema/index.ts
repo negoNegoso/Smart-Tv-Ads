@@ -8,3 +8,6 @@ export * from "./campaigns";
 export * from "./campaign_devices";
 export * from "./campaign_announcements";
 export * from "./scans";
+export * from "./users";
+export * from "./user_clients";
+export * from "./user_advertisers";
