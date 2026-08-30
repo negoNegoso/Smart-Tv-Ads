@@ -248,7 +248,59 @@ export interface CampaignAnalytics {
   byAnnouncement?: AnnouncementPlayStat[];
 }
 
+export interface UserAccount {
+  id: number;
+  email: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  clientIds: number[];
+  advertiserIds: number[];
+}
+
+export interface UserInput {
+  email: string;
+  /** @minLength 8 */
+  tempPassword: string;
+  clientIds?: number[];
+  advertiserIds?: number[];
+}
+
+export interface UserUpdate {
+  isActive?: boolean;
+  clientIds?: number[];
+  advertiserIds?: number[];
+}
+
+export interface ResetPasswordBody {
+  /** @minLength 8 */
+  tempPassword: string;
+}
+
+export interface PortalCampaign {
+  id: number;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  deviceCount: number;
+  totalPlays: number;
+  totalScans: number;
+  uniqueVisitors: number;
+}
+
+export interface PortalDevice {
+  id: number;
+  name: string;
+  location?: string | null;
+  lastSeenAt?: string | null;
+  totalPlays: number;
+}
+
 export type ListDevicesParams = {
 clientId?: number;
+};
+
+export type ResetUserPassword200 = {
+  ok: boolean;
 };
 
