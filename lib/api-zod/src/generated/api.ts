@@ -17,6 +17,17 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Aggregate counters for the public landing page
+ */
+export const GetPublicStatsResponse = zod.object({
+  "plays30d": zod.number(),
+  "activeScreens": zod.number(),
+  "clients": zod.number(),
+  "segments": zod.number()
+})
+
+
+/**
  * @summary List all announcements
  */
 export const ListAnnouncementsResponseItem = zod.object({

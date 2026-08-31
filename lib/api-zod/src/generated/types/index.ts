@@ -34,6 +34,7 @@ export * from './playlistItemInput';
 export * from './playlistReorder';
 export * from './portalCampaign';
 export * from './portalDevice';
+export * from './publicStats';
 export * from './reorderInput';
 export * from './resetPasswordBody';
 export * from './resetUserPassword200';

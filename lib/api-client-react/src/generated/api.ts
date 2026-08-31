@@ -45,6 +45,7 @@ import type {
   PlaylistReorder,
   PortalCampaign,
   PortalDevice,
+  PublicStats,
   ReorderInput,
   ResetPasswordBody,
   ResetUserPassword200,
@@ -147,6 +148,83 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicStatsUrl = () => {
+
+
+
+
+  return `/api/public/stats`
+}
+
+/**
+ * @summary Aggregate counters for the public landing page
+ */
+export const getPublicStats = async ( options?: RequestInit): Promise<PublicStats> => {
+
+  return customFetch<PublicStats>(getGetPublicStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicStatsQueryKey = () => {
+    return [
+    `/api/public/stats`
+    ] as const;
+    }
+
+
+export const getGetPublicStatsQueryOptions = <TData = Awaited<ReturnType<typeof getPublicStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicStats>>> = ({ signal }) => getPublicStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicStats>>>
+export type GetPublicStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Aggregate counters for the public landing page
+ */
+
+export function useGetPublicStats<TData = Awaited<ReturnType<typeof getPublicStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicStatsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

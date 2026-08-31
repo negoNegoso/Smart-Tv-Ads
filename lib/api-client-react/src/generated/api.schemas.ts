@@ -9,6 +9,13 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface PublicStats {
+  plays30d: number;
+  activeScreens: number;
+  clients: number;
+  segments: number;
+}
+
 export interface Announcement {
   id: number;
   title: string;
