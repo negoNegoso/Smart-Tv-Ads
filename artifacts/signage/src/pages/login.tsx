@@ -1,13 +1,16 @@
 import { FormEvent, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { MonitorPlay } from 'lucide-react';
+import { markSessionStarted } from '@/lib/session-hint';
 
 export default function Login() {
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +30,9 @@ export default function Login() {
         setError('Usuário ou senha inválidos.');
         return;
       }
+      markSessionStarted();
       await queryClient.invalidateQueries({ queryKey: ['auth'] });
+      setLocation('/');
     } catch {
       setError('Não foi possível entrar. Tente novamente.');
     } finally {
