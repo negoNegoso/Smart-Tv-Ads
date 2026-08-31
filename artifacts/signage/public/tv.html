@@ -5,14 +5,21 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Exibição</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    /* Mesma Outfit do app React (src/index.css). O fallback sans-serif segura o
+       layout nas TVs que nao baixarem a fonte — o default delas costuma ser
+       serif, que destoa do resto do produto. */
     html, body {
       width: 100%; height: 100%;
       background: #000;
       overflow: hidden;
       cursor: none;
+      font-family: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
     }
 
     #slot-a, #slot-b {
@@ -109,9 +116,12 @@
     #qr-label {
       width: 12vh;
       margin-bottom: 0.5vh;
-      font-size: 2vh;
+      font-size: 1.8vh;
       line-height: 2.4vh;
       font-weight: 600;
+      letter-spacing: 0.12em;
+      /* Compensa o letter-spacing que sobra depois do ultimo caractere. */
+      text-indent: 0.12em;
       text-align: center;
       color: #000;
     }
@@ -131,7 +141,7 @@
     <div id="progress-fill"></div>
   </div>
 
-  <div id="qr-box"><div id="qr-label">Saiba +</div><img id="qr-img" alt="" /></div>
+  <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
 
   <div id="empty-screen">
     <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
