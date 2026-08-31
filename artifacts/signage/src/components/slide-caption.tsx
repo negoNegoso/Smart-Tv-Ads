@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
  * O container sólido dá o contraste: nada de backdrop-blur, sombra ou filtro,
  * que pesam nos navegadores das TVs mais antigas.
  *
- * As medidas acompanham o QR code do slide (base em 3vh, 14vh de altura), e o
+ * As medidas acompanham o QR code do slide (base em 3vh, 14vh de largura), e o
  * `leading` igual à altura centraliza o texto sem flexbox. Altura fixa implica
  * uma linha só: texto longo termina em reticências.
  */

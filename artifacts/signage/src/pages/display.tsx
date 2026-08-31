@@ -227,6 +227,10 @@ export default function Display() {
 
       {slide.qrImageUrl && (
         <div className="absolute bottom-[3vh] right-[3vh] z-30 rounded-[1vh] bg-white p-[1vh]">
+          {/* `artifacts/signage/public/tv.html` espelha este rotulo em ES5 (#qr-label) — mudou aqui, mude la. */}
+          <span className="mb-[0.5vh] block w-[12vh] text-center text-[2vh] font-semibold leading-[2.4vh] tracking-tight text-black">
+            Saiba +
+          </span>
           <img
             src={`${import.meta.env.BASE_URL}${slide.qrImageUrl.replace(/^\//, "")}`}
             alt=""
