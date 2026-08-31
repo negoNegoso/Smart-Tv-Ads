@@ -1,5 +1,6 @@
 import { SiteHeader } from '@/components/landing/site-header';
 import { SiteFooter } from '@/components/landing/site-footer';
+import { Hero } from '@/components/landing/hero';
 
 /**
  * Porta de entrada pública. Este arquivo só compõe: todo texto vive em
@@ -12,7 +13,9 @@ export default function Landing() {
   return (
     <div className="min-h-[100dvh] bg-white text-zinc-900">
       <SiteHeader />
-      <main>{/* seções entram nas tarefas 5 a 8 */}</main>
+      <main>
+        <Hero />
+      </main>
       <SiteFooter />
     </div>
   );
