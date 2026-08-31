@@ -10,6 +10,7 @@ import {
   useListDevices,
   useCreateDevice,
   useUpdateClient,
+  useListSegments,
   getGetClientQueryKey,
   getListDevicesQueryKey,
   getListClientsQueryKey,
@@ -32,6 +33,7 @@ const editClientSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório'),
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
+  segmentId: z.string().optional(),
 });
 type EditClientForm = z.infer<typeof editClientSchema>;
 
@@ -47,6 +49,8 @@ export default function ClientDetail() {
   const { data: client, isLoading: clientLoading } = useGetClient(clientId, {
     query: { enabled: !!clientId, queryKey: getGetClientQueryKey(clientId) },
   });
+
+  const { data: segments = [] } = useListSegments();
 
   const { data: devices = [], isLoading: devicesLoading } = useListDevices(
     { clientId },
@@ -98,7 +102,7 @@ export default function ClientDetail() {
 
   const editForm = useForm<EditClientForm>({
     resolver: zodResolver(editClientSchema),
-    defaultValues: { name: '', email: '', phone: '' },
+    defaultValues: { name: '', email: '', phone: '', segmentId: '' },
   });
 
   function openEdit() {
@@ -106,6 +110,7 @@ export default function ClientDetail() {
       name: client?.name ?? '',
       email: client?.email ?? '',
       phone: client?.phone ?? '',
+      segmentId: client?.segmentId ? String(client.segmentId) : '',
     });
     setEditOpen(true);
   }
@@ -117,6 +122,7 @@ export default function ClientDetail() {
         name: values.name,
         email: values.email || null,
         phone: values.phone || null,
+        segmentId: values.segmentId ? Number(values.segmentId) : null,
       },
     });
   }
@@ -164,9 +170,9 @@ export default function ClientDetail() {
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
-          {(client.email || client.phone) && (
+          {(client.email || client.phone || client.segmentName) && (
             <p className="text-muted-foreground mt-1">
-              {[client.email, client.phone].filter(Boolean).join(' · ')}
+              {[client.segmentName, client.email, client.phone].filter(Boolean).join(' · ')}
             </p>
           )}
         </div>
@@ -212,6 +218,28 @@ export default function ClientDetail() {
                   <FormItem>
                     <FormLabel>Telefone (opcional)</FormLabel>
                     <FormControl><Input placeholder="+55 11 99999-9999" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="segmentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Segmento</FormLabel>
+                    <FormControl>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={field.value}
+                        onChange={field.onChange}
+                      >
+                        <option value="">Sem segmento (aceita qualquer anúncio)</option>
+                        {segments.map((segment) => (
+                          <option key={segment.id} value={String(segment.id)}>{segment.name}</option>
+                        ))}
+                      </select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

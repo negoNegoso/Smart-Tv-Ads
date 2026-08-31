@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
+import { CampaignTargetPicker } from "@/components/campaign-form-dialog";
 import { mediaUrl } from "@/lib/media-url";
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
@@ -25,7 +26,9 @@ type Campaign = {
   contractValue: number;
   startsAt: string;
   endsAt: string;
-  allDevices: boolean;
+  targetMode: "all" | "devices" | "segments";
+  segmentIds: number[];
+  segmentNames: string[];
   isActive: boolean;
   plays: number;
   scans: number;
@@ -40,6 +43,22 @@ type Campaign = {
 type Advertiser = { id: number; name: string; company: string | null };
 type Announcement = { id: number; title: string; imageUrl: string };
 type Device = { id: number; name: string; location: string | null; clientName: string };
+type Segment = { id: number; name: string };
+
+/**
+ * Diz por que a campanha alcança as TVs que alcança, no vocabulário do modo.
+ */
+function describeTarget(campaign: Pick<Campaign, "targetMode" | "segmentNames" | "devices">) {
+  if (campaign.targetMode === "segments") {
+    return campaign.segmentNames.length
+      ? `Todas as TVs de: ${campaign.segmentNames.join(", ")}`
+      : "Nenhum segmento selecionado";
+  }
+  if (campaign.targetMode === "devices") {
+    return campaign.devices.map((device) => device.name).join(", ") || "Nenhuma TV selecionada";
+  }
+  return "Todas as TVs";
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -59,6 +78,7 @@ export default function CampaignDetail() {
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
 
   async function loadCampaign() {
     if (!params?.id) return;
@@ -74,16 +94,18 @@ export default function CampaignDetail() {
 
   async function loadFormData(): Promise<boolean> {
     try {
-      const [a, media, d] = await Promise.all([
+      const [a, media, d, seg] = await Promise.all([
         fetch(api("/advertisers")),
         fetch(api("/announcements")),
         fetch(api("/devices")),
+        fetch(api("/segments")),
       ]);
-      if (!a.ok || !media.ok || !d.ok) throw new Error("Falha ao carregar dados");
-      const [aj, mediaj, dj] = await Promise.all([a.json(), media.json(), d.json()]);
+      if (!a.ok || !media.ok || !d.ok || !seg.ok) throw new Error("Falha ao carregar dados");
+      const [aj, mediaj, dj, segj] = await Promise.all([a.json(), media.json(), d.json(), seg.json()]);
       setAdvertisers(Array.isArray(aj) ? aj : []);
       setAnnouncements(Array.isArray(mediaj) ? mediaj : []);
       setDevices(Array.isArray(dj) ? dj : []);
+      setSegments(Array.isArray(segj) ? segj : []);
       return true;
     } catch {
       return false;
@@ -202,23 +224,7 @@ export default function CampaignDetail() {
                 <Input type="date" value={form.endsAt} onChange={(e) => form.setEndsAt(e.target.value)} />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <p className="text-sm font-medium">Publicar em todas as TVs</p>
-                    <p className="text-xs text-muted-foreground">A campanha entra automaticamente na programação de toda a rede.</p>
-                  </div>
-                  <Switch checked={form.allDevices} onCheckedChange={form.setAllDevices} />
-                </div>
-                {!form.allDevices && (
-                  <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">
-                    {devices.map((device) => (
-                      <label key={device.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted">
-                        <input type="checkbox" checked={form.selectedDevices.includes(device.id)} onChange={(e) => form.setSelectedDevices(e.target.checked ? [...form.selectedDevices, device.id] : form.selectedDevices.filter((id) => id !== device.id))} />
-                        {device.name}<span className="text-xs text-muted-foreground">· {device.clientName}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <CampaignTargetPicker form={form} devices={devices} segments={segments} />
               </div>
             </>
           ) : (
@@ -227,7 +233,7 @@ export default function CampaignDetail() {
               <div><p className="text-xs text-muted-foreground">Período</p><p className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{date(data.startsAt)} — {date(data.endsAt)}</p></div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground">Cobertura de TVs</p>
-                <p>{data.allDevices ? "Todas as TVs" : data.devices.map((d) => d.name).join(", ") || "Nenhuma TV selecionada"}</p>
+                <p>{describeTarget(data)}</p>
               </div>
             </>
           )}

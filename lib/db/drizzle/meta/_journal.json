@@ -8,6 +8,20 @@
       "when": 1788111164581,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788130863048,
+      "tag": "0001_fair_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788144266517,
+      "tag": "0002_wooden_supernaut",
+      "breakpoints": true
     }
   ]
 }

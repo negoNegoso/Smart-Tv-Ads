@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, asc, sql, desc } from "drizzle-orm";
-import { db, clientsTable, devicesTable, playsTable, announcementsTable } from "@workspace/db";
+import { db, clientsTable, devicesTable, playsTable, announcementsTable, segmentsTable } from "@workspace/db";
 import {
   ListClientsResponse,
   CreateClientBody,
@@ -24,13 +24,16 @@ async function getClientWithCount(id: number) {
       name: clientsTable.name,
       email: clientsTable.email,
       phone: clientsTable.phone,
+      segmentId: clientsTable.segmentId,
+      segmentName: segmentsTable.name,
       createdAt: clientsTable.createdAt,
       deviceCount: sql<number>`COUNT(${devicesTable.id})::int`,
     })
     .from(clientsTable)
+    .leftJoin(segmentsTable, eq(segmentsTable.id, clientsTable.segmentId))
     .leftJoin(devicesTable, eq(devicesTable.clientId, clientsTable.id))
     .where(eq(clientsTable.id, id))
-    .groupBy(clientsTable.id);
+    .groupBy(clientsTable.id, segmentsTable.name);
   return rows[0] ?? null;
 }
 
@@ -41,12 +44,15 @@ router.get("/clients", async (_req, res): Promise<void> => {
       name: clientsTable.name,
       email: clientsTable.email,
       phone: clientsTable.phone,
+      segmentId: clientsTable.segmentId,
+      segmentName: segmentsTable.name,
       createdAt: clientsTable.createdAt,
       deviceCount: sql<number>`COUNT(${devicesTable.id})::int`,
     })
     .from(clientsTable)
+    .leftJoin(segmentsTable, eq(segmentsTable.id, clientsTable.segmentId))
     .leftJoin(devicesTable, eq(devicesTable.clientId, clientsTable.id))
-    .groupBy(clientsTable.id)
+    .groupBy(clientsTable.id, segmentsTable.name)
     .orderBy(asc(clientsTable.name));
   res.json(ListClientsResponse.parse(rows));
 });

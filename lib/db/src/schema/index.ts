@@ -1,3 +1,4 @@
+export * from "./segments";
 export * from "./announcements";
 export * from "./clients";
 export * from "./devices";
@@ -7,6 +8,7 @@ export * from "./advertisers";
 export * from "./campaigns";
 export * from "./campaign_devices";
 export * from "./campaign_announcements";
+export * from "./campaign_segments";
 export * from "./scans";
 export * from "./users";
 export * from "./user_clients";

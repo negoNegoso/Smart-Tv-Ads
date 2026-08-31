@@ -63,6 +63,17 @@ export interface ReorderInput {
   ids: number[];
 }
 
+export interface Segment {
+  id: number;
+  slug: string;
+  name: string;
+}
+
+export interface SegmentInput {
+  /** @minLength 1 */
+  name: string;
+}
+
 export interface Client {
   id: number;
   name: string;
@@ -70,6 +81,10 @@ export interface Client {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  segmentId?: number | null;
+  /** @nullable */
+  segmentName?: string | null;
   deviceCount: number;
   createdAt: string;
 }
@@ -79,6 +94,8 @@ export interface ClientInput {
   name: string;
   email?: string;
   phone?: string;
+  /** @nullable */
+  segmentId?: number | null;
 }
 
 export interface ClientUpdate {
@@ -88,6 +105,8 @@ export interface ClientUpdate {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  segmentId?: number | null;
 }
 
 export interface AnnouncementPlayStat {

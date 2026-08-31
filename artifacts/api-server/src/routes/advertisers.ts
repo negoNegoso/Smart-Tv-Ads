@@ -10,6 +10,9 @@ import {
   devicesTable,
   playsTable,
   campaignAnnouncementsTable,
+  segmentsTable,
+  clientsTable,
+  campaignSegmentsTable,
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
 
@@ -20,6 +23,10 @@ const advertiserInput = z.object({
   company: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
+  // Ramo do anunciante e, quando ele também é dono de TV, o cliente
+  // correspondente. Juntos decidem em quais TVs as peças podem entrar.
+  segmentId: z.coerce.number().int().positive().nullish(),
+  clientId: z.coerce.number().int().positive().nullish(),
 });
 
 const campaignInput = z.object({
@@ -30,8 +37,10 @@ const campaignInput = z.object({
   contractValue: z.coerce.number().min(0).default(0),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date(),
-  allDevices: z.boolean().default(true),
+  // Alvo da campanha. Os três modos são exclusivos: a TV entra por um motivo só.
+  targetMode: z.enum(["all", "devices", "segments"]).default("all"),
   deviceIds: z.array(z.coerce.number().int().positive()).default([]),
+  segmentIds: z.array(z.coerce.number().int().positive()).default([]),
   announcementDestinations: z
     .record(
       z.string(),
@@ -53,6 +62,49 @@ const campaignInput = z.object({
     )
     .default({}),
 });
+
+function validateCampaignTarget(input: z.infer<typeof campaignInput>): string | null {
+  if (input.targetMode === "devices" && input.deviceIds.length === 0) {
+    return "Escolha pelo menos uma TV";
+  }
+  if (input.targetMode === "segments" && input.segmentIds.length === 0) {
+    return "Escolha pelo menos um segmento";
+  }
+  return null;
+}
+
+/**
+ * Grava o alvo da campanha deixando só a lista do modo escolhido preenchida —
+ * é o que garante que dá para dizer por que uma TV entrou.
+ */
+async function syncCampaignTarget(campaignId: number, input: z.infer<typeof campaignInput>) {
+  const deviceIds = input.targetMode === "devices" ? input.deviceIds : [];
+  const segmentIds = input.targetMode === "segments" ? input.segmentIds : [];
+
+  if (deviceIds.length) {
+    await db
+      .insert(campaignDevicesTable)
+      .values(deviceIds.map((deviceId) => ({ campaignId, deviceId })))
+      .onConflictDoNothing();
+    await db
+      .delete(campaignDevicesTable)
+      .where(and(eq(campaignDevicesTable.campaignId, campaignId), notInArray(campaignDevicesTable.deviceId, deviceIds)));
+  } else {
+    await db.delete(campaignDevicesTable).where(eq(campaignDevicesTable.campaignId, campaignId));
+  }
+
+  if (segmentIds.length) {
+    await db
+      .insert(campaignSegmentsTable)
+      .values(segmentIds.map((segmentId) => ({ campaignId, segmentId })))
+      .onConflictDoNothing();
+    await db
+      .delete(campaignSegmentsTable)
+      .where(and(eq(campaignSegmentsTable.campaignId, campaignId), notInArray(campaignSegmentsTable.segmentId, segmentIds)));
+  } else {
+    await db.delete(campaignSegmentsTable).where(eq(campaignSegmentsTable.campaignId, campaignId));
+  }
+}
 
 function announcementIdsFor(input: z.infer<typeof campaignInput>) {
   return [...new Set([...(input.announcementIds || []), ...(input.announcementId ? [input.announcementId] : [])])];
@@ -81,6 +133,9 @@ const campaignSelection = {
   contractValue: campaignsTable.contractValue,
   startsAt: campaignsTable.startsAt,
   endsAt: campaignsTable.endsAt,
+  targetMode: campaignsTable.targetMode,
+  segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id order by cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+  segmentNames: sql<string[]>`coalesce((select array_agg(sg.name order by sg.name) from campaign_segments cs join segments sg on sg.id = cs.segment_id where cs.campaign_id = ${campaignsTable.id}), array[]::text[])`,
   allDevices: campaignsTable.allDevices,
   isActive: campaignsTable.isActive,
   plays: sql<number>`(select count(*)::int from plays p where p.campaign_id = ${campaignsTable.id})`,
@@ -121,14 +176,20 @@ router.get("/advertisers", async (_req, res): Promise<void> => {
       company: advertisersTable.company,
       email: advertisersTable.email,
       phone: advertisersTable.phone,
+      segmentId: advertisersTable.segmentId,
+      segmentName: segmentsTable.name,
+      clientId: advertisersTable.clientId,
+      clientName: clientsTable.name,
       createdAt: advertisersTable.createdAt,
       campaignCount: sql<number>`count(distinct ${campaignsTable.id})::int`,
       totalPlays: sql<number>`count(${playsTable.id})::int`,
     })
     .from(advertisersTable)
+    .leftJoin(segmentsTable, eq(segmentsTable.id, advertisersTable.segmentId))
+    .leftJoin(clientsTable, eq(clientsTable.id, advertisersTable.clientId))
     .leftJoin(campaignsTable, eq(campaignsTable.advertiserId, advertisersTable.id))
     .leftJoin(playsTable, eq(playsTable.campaignId, campaignsTable.id))
-    .groupBy(advertisersTable.id)
+    .groupBy(advertisersTable.id, segmentsTable.name, clientsTable.name)
     .orderBy(asc(advertisersTable.name));
   res.json(rows);
 });
@@ -223,8 +284,9 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Selecione pelo menos um anúncio" });
     return;
   }
-  if (!input.allDevices && input.deviceIds.length === 0) {
-    res.status(400).json({ error: "Select at least one TV or enable all devices" });
+  const targetError = validateCampaignTarget(input);
+  if (targetError) {
+    res.status(400).json({ error: targetError });
     return;
   }
   const [advertiser] = await db.select({ id: advertisersTable.id }).from(advertisersTable).where(eq(advertisersTable.id, input.advertiserId));
@@ -238,17 +300,14 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     contractValue: input.contractValue,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
-    allDevices: input.allDevices,
+    targetMode: input.targetMode,
+    allDevices: input.targetMode === "all",
   }).returning();
   await db.insert(campaignAnnouncementsTable).values(
     announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
   ).onConflictDoNothing();
   await syncAnnouncementDestinations(campaign.id, input.announcementDestinations);
-  if (!input.allDevices && input.deviceIds.length) {
-    await db.insert(campaignDevicesTable).values(
-      input.deviceIds.map((deviceId) => ({ campaignId: campaign.id, deviceId })),
-    ).onConflictDoNothing();
-  }
+  await syncCampaignTarget(campaign.id, input);
   res.status(201).json(await campaignWithStats(campaign.id));
 });
 
@@ -281,8 +340,9 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Selecione pelo menos um anúncio" });
     return;
   }
-  if (!input.allDevices && input.deviceIds.length === 0) {
-    res.status(400).json({ error: "Select at least one TV or enable all devices" });
+  const targetError = validateCampaignTarget(input);
+  if (targetError) {
+    res.status(400).json({ error: targetError });
     return;
   }
   const [advertiser] = await db.select({ id: advertisersTable.id }).from(advertisersTable).where(eq(advertisersTable.id, input.advertiserId));
@@ -296,19 +356,15 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     contractValue: input.contractValue,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
-    allDevices: input.allDevices,
+    targetMode: input.targetMode,
+    allDevices: input.targetMode === "all",
   }).where(eq(campaignsTable.id, id));
   await db.insert(campaignAnnouncementsTable).values(
     announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
   ).onConflictDoNothing();
   await db.delete(campaignAnnouncementsTable).where(and(eq(campaignAnnouncementsTable.campaignId, id), notInArray(campaignAnnouncementsTable.announcementId, announcementIds)));
   await syncAnnouncementDestinations(id, input.announcementDestinations);
-  if (input.allDevices || input.deviceIds.length === 0) {
-    await db.delete(campaignDevicesTable).where(eq(campaignDevicesTable.campaignId, id));
-  } else {
-    await db.insert(campaignDevicesTable).values(input.deviceIds.map((deviceId) => ({ campaignId: id, deviceId }))).onConflictDoNothing();
-    await db.delete(campaignDevicesTable).where(and(eq(campaignDevicesTable.campaignId, id), notInArray(campaignDevicesTable.deviceId, input.deviceIds)));
-  }
+  await syncCampaignTarget(id, input);
   res.json(await campaignWithStats(id));
 });
 

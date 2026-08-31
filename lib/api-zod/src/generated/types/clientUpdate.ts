@@ -13,4 +13,6 @@ export interface ClientUpdate {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  segmentId?: number | null;
 }

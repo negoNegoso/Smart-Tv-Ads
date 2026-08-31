@@ -201,6 +201,34 @@ export const ToggleAnnouncementResponse = zod.object({
 
 
 /**
+ * @summary List all segments
+ */
+export const ListSegmentsResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string()
+})
+export const ListSegmentsResponse = zod.array(ListSegmentsResponseItem)
+
+
+/**
+ * @summary Create a segment
+ */
+
+
+
+export const CreateSegmentBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const CreateSegmentResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string()
+})
+
+
+/**
  * @summary List all clients
  */
 export const ListClientsResponseItem = zod.object({
@@ -208,6 +236,8 @@ export const ListClientsResponseItem = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "segmentName": zod.string().nullish(),
   "deviceCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -223,7 +253,8 @@ export const ListClientsResponse = zod.array(ListClientsResponseItem)
 export const CreateClientBody = zod.object({
   "name": zod.string().min(1),
   "email": zod.string().optional(),
-  "phone": zod.string().optional()
+  "phone": zod.string().optional(),
+  "segmentId": zod.number().nullish()
 })
 
 export const CreateClientResponse = zod.object({
@@ -231,6 +262,8 @@ export const CreateClientResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "segmentName": zod.string().nullish(),
   "deviceCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -245,6 +278,8 @@ export const GetClientResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "segmentName": zod.string().nullish(),
   "deviceCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -260,7 +295,8 @@ export const UpdateClientParams = zod.object({
 export const UpdateClientBody = zod.object({
   "name": zod.string().min(1).optional(),
   "email": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish()
 })
 
 export const UpdateClientResponse = zod.object({
@@ -268,6 +304,8 @@ export const UpdateClientResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "segmentName": zod.string().nullish(),
   "deviceCount": zod.number(),
   "createdAt": zod.coerce.date()
 })

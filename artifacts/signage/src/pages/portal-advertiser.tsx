@@ -33,7 +33,7 @@ export default function PortalAdvertiser() {
               <th className="px-3 py-2">Campanha</th>
               <th className="px-3 py-2">Período</th>
               <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">TVs</th>
+              <th className="px-3 py-2 text-right" title="TVs em que esta campanha pode ir ao ar">TVs alcançadas</th>
               <th className="px-3 py-2 text-right">Exibições</th>
               <th className="px-3 py-2 text-right">Scans</th>
               <th className="px-3 py-2 text-right">Únicos</th>

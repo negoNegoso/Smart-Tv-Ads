@@ -37,6 +37,8 @@ export * from './portalDevice';
 export * from './reorderInput';
 export * from './resetPasswordBody';
 export * from './resetUserPassword200';
+export * from './segment';
+export * from './segmentInput';
 export * from './userAccount';
 export * from './userInput';
 export * from './userUpdate';

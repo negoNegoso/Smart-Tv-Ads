@@ -8,12 +8,13 @@ import { Plus, Users, Monitor, Trash2, ChevronRight, Loader2 } from 'lucide-reac
 import {
   useListClients,
   useCreateClient,
+  useListSegments,
   getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,7 @@ const newClientSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório'),
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
+  segmentId: z.string().min(1, 'Escolha o segmento'),
 });
 type NewClientForm = z.infer<typeof newClientSchema>;
 
@@ -31,6 +33,7 @@ export default function Clients() {
   const [open, setOpen] = useState(false);
 
   const { data: clients = [], isLoading } = useListClients();
+  const { data: segments = [] } = useListSegments();
 
   const createMutation = useCreateClient({
     mutation: {
@@ -58,7 +61,7 @@ export default function Clients() {
 
   const form = useForm<NewClientForm>({
     resolver: zodResolver(newClientSchema),
-    defaultValues: { name: '', email: '', phone: '' },
+    defaultValues: { name: '', email: '', phone: '', segmentId: '' },
   });
 
   function onSubmit(values: NewClientForm) {
@@ -67,6 +70,7 @@ export default function Clients() {
         name: values.name,
         email: values.email || undefined,
         phone: values.phone || undefined,
+        segmentId: Number(values.segmentId),
       },
     });
   }
@@ -124,6 +128,31 @@ export default function Clients() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="segmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Segmento</FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={field.value}
+                          onChange={field.onChange}
+                        >
+                          <option value="">Selecione o ramo</option>
+                          {segments.map((segment) => (
+                            <option key={segment.id} value={String(segment.id)}>{segment.name}</option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormDescription>
+                        Anúncios de concorrentes do mesmo segmento não entram nas TVs deste cliente.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -161,9 +190,9 @@ export default function Clients() {
                     {client.name}
                   </h3>
                 </Link>
-                {(client.email || client.phone) && (
+                {(client.email || client.phone || client.segmentName) && (
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {[client.email, client.phone].filter(Boolean).join(' · ')}
+                    {[client.segmentName, client.email, client.phone].filter(Boolean).join(' · ')}
                   </p>
                 )}
               </div>
