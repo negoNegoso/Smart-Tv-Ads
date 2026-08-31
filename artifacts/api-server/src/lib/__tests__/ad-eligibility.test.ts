@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canPlayOnDevice, filterEligibleSlides } from "../ad-eligibility";
+import { campaignReachesDevice, canPlayOnDevice, filterEligibleSlides } from "../ad-eligibility";
 
 const PADARIA = 1;
 const FARMACIA = 2;
@@ -62,10 +62,11 @@ describe("canPlayOnDevice", () => {
 });
 
 describe("filterEligibleSlides", () => {
-  const device = { clientId: 20, segmentId: PADARIA };
-  const concorrente = { announcementId: 1, advertiserSegmentId: PADARIA, advertiserClientId: 10 };
-  const propria = { announcementId: 2, advertiserSegmentId: PADARIA, advertiserClientId: 20 };
-  const outroRamo = { announcementId: 3, advertiserSegmentId: FARMACIA, advertiserClientId: 10 };
+  const device = { id: 7, clientId: 20, segmentId: PADARIA };
+  const paraTodos = { targetMode: "all" as const, deviceIds: [], segmentIds: [] };
+  const concorrente = { announcementId: 1, advertiserSegmentId: PADARIA, advertiserClientId: 10, ...paraTodos };
+  const propria = { announcementId: 2, advertiserSegmentId: PADARIA, advertiserClientId: 20, ...paraTodos };
+  const outroRamo = { announcementId: 3, advertiserSegmentId: FARMACIA, advertiserClientId: 10, ...paraTodos };
 
   it("tira da lista a peça do concorrente do mesmo segmento", () => {
     const slides = filterEligibleSlides([concorrente, propria, outroRamo], device);
@@ -73,7 +74,65 @@ describe("filterEligibleSlides", () => {
   });
 
   it("mantém a lista intacta quando o dono da TV não tem segmento", () => {
-    const slides = filterEligibleSlides([concorrente, propria, outroRamo], { clientId: 20, segmentId: null });
+    const slides = filterEligibleSlides([concorrente, propria, outroRamo], { id: 7, clientId: 20, segmentId: null });
     expect(slides).toHaveLength(3);
+  });
+
+  it("tira da lista a peça de campanha que não mira esta TV", () => {
+    const moinho = {
+      announcementId: 4,
+      advertiserSegmentId: null,
+      advertiserClientId: null,
+      targetMode: "segments" as const,
+      deviceIds: [],
+      segmentIds: [FARMACIA],
+    };
+    expect(filterEligibleSlides([moinho], device)).toHaveLength(0);
+    expect(filterEligibleSlides([{ ...moinho, segmentIds: [PADARIA] }], device)).toHaveLength(1);
+  });
+});
+
+describe("campaignReachesDevice", () => {
+  const tvDaPadaria = { id: 7, clientId: 20, segmentId: PADARIA };
+
+  it("alcança qualquer TV no modo todas", () => {
+    expect(
+      campaignReachesDevice({ targetMode: "all", deviceIds: [], segmentIds: [] }, tvDaPadaria),
+    ).toBe(true);
+  });
+
+  it("alcança só as TVs da lista no modo TVs escolhidas", () => {
+    const campaign = { targetMode: "devices" as const, deviceIds: [7, 9], segmentIds: [] };
+    expect(campaignReachesDevice(campaign, tvDaPadaria)).toBe(true);
+    expect(campaignReachesDevice(campaign, { id: 8, segmentId: PADARIA })).toBe(false);
+  });
+
+  it("alcança a TV cujo dono está em um dos segmentos mirados", () => {
+    const campaign = { targetMode: "segments" as const, deviceIds: [], segmentIds: [PADARIA, FARMACIA] };
+    expect(campaignReachesDevice(campaign, tvDaPadaria)).toBe(true);
+  });
+
+  it("não alcança a TV de dono de outro segmento", () => {
+    const campaign = { targetMode: "segments" as const, deviceIds: [], segmentIds: [FARMACIA] };
+    expect(campaignReachesDevice(campaign, tvDaPadaria)).toBe(false);
+  });
+
+  it("não alcança a TV de dono sem segmento no modo por segmento", () => {
+    const campaign = { targetMode: "segments" as const, deviceIds: [], segmentIds: [PADARIA] };
+    expect(campaignReachesDevice(campaign, { id: 7, segmentId: null })).toBe(false);
+  });
+
+  it("mirar um segmento não fura a regra de concorrência", () => {
+    // Padaria A mira "Padaria": alcança a TV da padaria B, mas a peça não entra.
+    const campaign = { targetMode: "segments" as const, deviceIds: [], segmentIds: [PADARIA] };
+    expect(campaignReachesDevice(campaign, tvDaPadaria)).toBe(true);
+    expect(
+      canPlayOnDevice({
+        advertiserSegmentId: PADARIA,
+        advertiserClientId: 10,
+        deviceClientId: tvDaPadaria.clientId,
+        deviceSegmentId: tvDaPadaria.segmentId,
+      }),
+    ).toBe(false);
   });
 });

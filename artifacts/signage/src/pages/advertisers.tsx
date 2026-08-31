@@ -38,7 +38,9 @@ type Campaign = {
   contractValue: number;
   startsAt: string;
   endsAt: string;
-  allDevices: boolean;
+  targetMode: "all" | "devices" | "segments";
+  segmentIds: number[];
+  segmentNames: string[];
   isActive: boolean;
   plays: number;
   totalDuration: number;
@@ -218,6 +220,7 @@ export default function Advertisers() {
         advertisers={advertisers}
         announcements={announcements}
         devices={devices}
+        segments={segments}
         onSaved={load}
       />
     </div>

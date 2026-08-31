@@ -16,7 +16,8 @@ type Campaign = {
   contractValue: number;
   startsAt: string;
   endsAt: string;
-  allDevices: boolean;
+  targetMode: "all" | "devices" | "segments";
+  segmentNames: string[];
   isActive: boolean;
   plays: number;
   totalDuration: number;

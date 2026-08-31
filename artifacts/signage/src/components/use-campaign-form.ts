@@ -5,6 +5,8 @@ const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 export type CampaignFormAdvertiser = { id: number; name: string; company: string | null };
 export type CampaignFormAnnouncement = { id: number; title: string };
 export type CampaignFormDevice = { id: number; name: string; location: string | null; clientName: string };
+export type CampaignFormSegment = { id: number; name: string };
+export type CampaignTargetMode = "all" | "devices" | "segments";
 
 export type CampaignFormCampaign = {
   id: number;
@@ -13,8 +15,9 @@ export type CampaignFormCampaign = {
   contractValue: number;
   startsAt: string;
   endsAt: string;
-  allDevices: boolean;
+  targetMode: CampaignTargetMode;
   deviceIds?: number[];
+  segmentIds?: number[];
   announcementIds?: number[];
   announcementLinks?: Array<{ announcementId: number; scanCode: string | null; destinationUrl: string | null }>;
 };
@@ -30,10 +33,12 @@ export type UseCampaignForm = {
   setEndsAt: (value: string) => void;
   selectedAdvertiser: number | null;
   setSelectedAdvertiser: (value: number | null) => void;
-  allDevices: boolean;
-  setAllDevices: (value: boolean) => void;
+  targetMode: CampaignTargetMode;
+  setTargetMode: (value: CampaignTargetMode) => void;
   selectedDevices: number[];
   setSelectedDevices: (value: number[]) => void;
+  selectedSegments: number[];
+  setSelectedSegments: (value: number[]) => void;
   selectedAnnouncements: number[];
   setSelectedAnnouncements: (value: number[]) => void;
   announcementDestinations: Record<string, string>;
@@ -50,8 +55,9 @@ export function useCampaignForm(): UseCampaignForm {
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<number | null>(null);
-  const [allDevices, setAllDevices] = useState(true);
+  const [targetMode, setTargetMode] = useState<CampaignTargetMode>("all");
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
   const [announcementDestinations, setAnnouncementDestinations] = useState<Record<string, string>>({});
   const [publishedScanCodes, setPublishedScanCodes] = useState<Record<string, boolean>>({});
@@ -65,6 +71,7 @@ export function useCampaignForm(): UseCampaignForm {
       setEndsAt(campaign.endsAt.slice(0, 10));
       setSelectedAdvertiser(campaign.advertiserId);
       setSelectedDevices(campaign.deviceIds ?? []);
+      setSelectedSegments(campaign.segmentIds ?? []);
       setSelectedAnnouncements(campaign.announcementIds ?? []);
       setAnnouncementDestinations(
         Object.fromEntries((campaign.announcementLinks ?? []).map((link) => [String(link.announcementId), link.destinationUrl ?? ""])),
@@ -76,7 +83,7 @@ export function useCampaignForm(): UseCampaignForm {
             .map((link) => [String(link.announcementId), true]),
         ),
       );
-      setAllDevices(campaign.allDevices);
+      setTargetMode(campaign.targetMode);
     } else {
       setCampaignId(null);
       setName("");
@@ -85,10 +92,11 @@ export function useCampaignForm(): UseCampaignForm {
       setEndsAt("");
       setSelectedAdvertiser(lockedAdvertiserId ?? null);
       setSelectedDevices([]);
+      setSelectedSegments([]);
       setSelectedAnnouncements([]);
       setAnnouncementDestinations({});
       setPublishedScanCodes({});
-      setAllDevices(true);
+      setTargetMode("all");
     }
   }
 
@@ -105,8 +113,9 @@ export function useCampaignForm(): UseCampaignForm {
         announcementIds: selectedAnnouncements,
         announcementDestinations,
         contractValue: Number(contractValue || 0),
-        allDevices,
+        targetMode,
         deviceIds: selectedDevices,
+        segmentIds: selectedSegments,
       }),
     });
     if (!response.ok) {
@@ -122,8 +131,9 @@ export function useCampaignForm(): UseCampaignForm {
     startsAt, setStartsAt,
     endsAt, setEndsAt,
     selectedAdvertiser, setSelectedAdvertiser,
-    allDevices, setAllDevices,
+    targetMode, setTargetMode,
     selectedDevices, setSelectedDevices,
+    selectedSegments, setSelectedSegments,
     selectedAnnouncements, setSelectedAnnouncements,
     announcementDestinations, setAnnouncementDestinations,
     publishedScanCodes,

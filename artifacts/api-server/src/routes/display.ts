@@ -59,6 +59,9 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       audioMode: announcementsTable.audioMode,
       advertiserSegmentId: sql<number | null>`NULL`,
       advertiserClientId: sql<number | null>`NULL`,
+      targetMode: sql<"all" | "devices" | "segments">`'all'`,
+      deviceIds: sql<number[]>`array[]::int[]`,
+      segmentIds: sql<number[]>`array[]::int[]`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -87,25 +90,27 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       audioMode: announcementsTable.audioMode,
       advertiserSegmentId: advertisersTable.segmentId,
       advertiserClientId: advertisersTable.clientId,
+      targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
+      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
     .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
     .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
-    .leftJoin(campaignDevicesTable, eq(campaignDevicesTable.campaignId, campaignsTable.id))
     .where(
       and(
         eq(campaignsTable.isActive, true),
         lte(campaignsTable.startsAt, now),
         gte(campaignsTable.endsAt, now),
-        or(eq(campaignsTable.allDevices, true), eq(campaignDevicesTable.deviceId, device.id)),
       ),
     )
     .orderBy(asc(campaignsTable.id));
 
-  // Peça de anunciante concorrente do dono da TV não entra na grade. A playlist
-  // do próprio device fica de fora da regra: é o lojista pondo o conteúdo dele.
+  // Alvo da campanha e regra de concorrência decidem juntos o que vai ao ar. A
+  // playlist do próprio device fica de fora: é o lojista pondo o conteúdo dele.
   const eligibleCampaignSlides = filterEligibleSlides(campaignSlides, {
+    id: device.id,
     clientId: device.clientId,
     segmentId: device.segmentId,
   });
@@ -118,7 +123,17 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
   });
 
   const slides = await Promise.all(
-    deduped.map(async ({ scanCode, showText, displayText, advertiserSegmentId, advertiserClientId, ...slide }) => {
+    deduped.map(async ({
+      scanCode,
+      showText,
+      displayText,
+      advertiserSegmentId,
+      advertiserClientId,
+      targetMode,
+      deviceIds,
+      segmentIds,
+      ...slide
+    }) => {
       const videoIds =
         slide.mediaKind === "youtube_playlist" && slide.youtubeId
           ? await resolvePlaylistVideoIds(slide.youtubeId)
