@@ -2,6 +2,8 @@ import { SiteHeader } from '@/components/landing/site-header';
 import { SiteFooter } from '@/components/landing/site-footer';
 import { Hero } from '@/components/landing/hero';
 import { StatsBand } from '@/components/landing/stats-band';
+import { HowItWorks } from '@/components/landing/how-it-works';
+import { Differentials } from '@/components/landing/differentials';
 
 /**
  * Porta de entrada pública. Este arquivo só compõe: todo texto vive em
@@ -17,6 +19,8 @@ export default function Landing() {
       <main>
         <Hero />
         <StatsBand />
+        <HowItWorks />
+        <Differentials />
       </main>
       <SiteFooter />
     </div>
