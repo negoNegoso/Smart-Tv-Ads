@@ -65,3 +65,25 @@ export function filterEligibleSlides<
       }),
   );
 }
+
+/**
+ * Quantas TVs a campanha realmente alcança: o alvo já descontando as peças que
+ * a regra de concorrência barra. É o número honesto para mostrar ao anunciante
+ * — contar linhas de `campaign_devices` erra em todo modo que não seja
+ * "TVs escolhidas".
+ */
+export function countReachedDevices(
+  campaign: CampaignTarget & { advertiserSegmentId: number | null; advertiserClientId: number | null },
+  devices: Array<{ id: number; clientId: number; segmentId: number | null }>,
+): number {
+  return devices.filter(
+    (device) =>
+      campaignReachesDevice(campaign, device) &&
+      canPlayOnDevice({
+        advertiserSegmentId: campaign.advertiserSegmentId,
+        advertiserClientId: campaign.advertiserClientId,
+        deviceClientId: device.clientId,
+        deviceSegmentId: device.segmentId,
+      }),
+  ).length;
+}

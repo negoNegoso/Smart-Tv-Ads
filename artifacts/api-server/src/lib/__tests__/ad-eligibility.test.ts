@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignReachesDevice, canPlayOnDevice, filterEligibleSlides } from "../ad-eligibility";
+import { campaignReachesDevice, canPlayOnDevice, countReachedDevices, filterEligibleSlides } from "../ad-eligibility";
 
 const PADARIA = 1;
 const FARMACIA = 2;
@@ -134,5 +134,41 @@ describe("campaignReachesDevice", () => {
         deviceSegmentId: tvDaPadaria.segmentId,
       }),
     ).toBe(false);
+  });
+});
+
+describe("countReachedDevices", () => {
+  const tvPadariaA = { id: 1, clientId: 10, segmentId: PADARIA };
+  const tvPadariaB = { id: 2, clientId: 20, segmentId: PADARIA };
+  const tvFarmacia = { id: 3, clientId: 30, segmentId: FARMACIA };
+  const tvSemSegmento = { id: 4, clientId: 40, segmentId: null };
+  const rede = [tvPadariaA, tvPadariaB, tvFarmacia, tvSemSegmento];
+
+  const moinho = { advertiserSegmentId: null, advertiserClientId: null };
+
+  it("conta a rede inteira no modo todas", () => {
+    expect(
+      countReachedDevices({ ...moinho, targetMode: "all", deviceIds: [], segmentIds: [] }, rede),
+    ).toBe(4);
+  });
+
+  it("conta só as TVs do segmento mirado", () => {
+    expect(
+      countReachedDevices({ ...moinho, targetMode: "segments", deviceIds: [], segmentIds: [PADARIA] }, rede),
+    ).toBe(2);
+  });
+
+  it("conta as TVs da lista no modo TVs escolhidas", () => {
+    expect(
+      countReachedDevices({ ...moinho, targetMode: "devices", deviceIds: [2, 3], segmentIds: [] }, rede),
+    ).toBe(2);
+  });
+
+  it("desconta a TV onde a peça é barrada por concorrência", () => {
+    // Padaria A anunciando para toda a rede: não entra na TV da padaria B.
+    const padariaA = { advertiserSegmentId: PADARIA, advertiserClientId: 10 };
+    expect(
+      countReachedDevices({ ...padariaA, targetMode: "all", deviceIds: [], segmentIds: [] }, rede),
+    ).toBe(3);
   });
 });
