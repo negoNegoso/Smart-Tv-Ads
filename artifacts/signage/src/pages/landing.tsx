@@ -1,11 +1,19 @@
+import { SiteHeader } from '@/components/landing/site-header';
+import { SiteFooter } from '@/components/landing/site-footer';
+
 /**
- * Porta de entrada pública. As seções entram nas tarefas seguintes; este
- * esqueleto existe para a rota `/` já ser navegável.
+ * Porta de entrada pública. Este arquivo só compõe: todo texto vive em
+ * lib/landing-content.ts e cada seção tem o seu componente.
+ *
+ * Tema claro fixo, sem depender da classe .dark — página pública de captação
+ * não deveria mudar de cara conforme a preferência de sistema de quem chega.
  */
 export default function Landing() {
   return (
-    <main className="min-h-[100dvh] bg-white text-zinc-900">
-      <h1 className="p-8 text-3xl font-semibold">Smart Vale TV</h1>
-    </main>
+    <div className="min-h-[100dvh] bg-white text-zinc-900">
+      <SiteHeader />
+      <main>{/* seções entram nas tarefas 5 a 8 */}</main>
+      <SiteFooter />
+    </div>
   );
 }
