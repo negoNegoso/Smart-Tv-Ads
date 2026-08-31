@@ -20,6 +20,10 @@ export const LANDING = {
     { href: '#diferenciais', label: 'Por que a gente' },
     { href: '#duvidas', label: 'Dúvidas' },
   ],
+  header: {
+    navLabel: 'Seções',
+    loginLabel: 'Entrar',
+  },
   hero: {
     title: 'Anuncie nas telas do comércio da região — ou coloque a sua para trabalhar.',
     subtitle:

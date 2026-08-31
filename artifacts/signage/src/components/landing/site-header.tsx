@@ -11,7 +11,7 @@ export function SiteHeader() {
           {BRAND}
         </span>
 
-        <nav aria-label="Seções" className="hidden items-center gap-6 md:flex">
+        <nav aria-label={LANDING.header.navLabel} className="hidden items-center gap-6 md:flex">
           {LANDING.nav.map((item) => (
             <a
               key={item.href}
@@ -27,7 +27,7 @@ export function SiteHeader() {
           href="/login"
           className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
         >
-          Entrar
+          {LANDING.header.loginLabel}
         </Link>
       </div>
     </header>
