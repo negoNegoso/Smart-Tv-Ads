@@ -96,6 +96,35 @@ const editSchema = z
 
 type EditFormValues = z.infer<typeof editSchema>;
 
+const BYTES_PER_MB = 1024 * 1024;
+const MAX_FILE_SIZE = 20 * BYTES_PER_MB; // 20MB
+const MAX_DIMENSION = 3840; // 4K resolution max to avoid crashes
+
+function validateImageFile(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (file.size > MAX_FILE_SIZE) {
+      return resolve(`A imagem deve ter no máximo ${MAX_FILE_SIZE / BYTES_PER_MB}MB.`);
+    }
+    
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      
+      if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
+        return resolve(`A imagem é muito grande (${img.width}x${img.height}). O tamanho máximo suportado é ${MAX_DIMENSION}px na maior dimensão para evitar travamentos nas TVs.`);
+      }
+      
+      resolve(null);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve("Não foi possível ler as dimensões da imagem. O arquivo pode ser inválido ou corrompido.");
+    };
+    img.src = url;
+  });
+}
+
 function SortableAnnouncementRow({
   item,
   onToggle,
@@ -298,6 +327,17 @@ export default function Admin() {
   async function onUpload(values: UploadFormValues) {
     try {
       setIsUploading(true);
+
+      const fileField = values.image?.[0];
+      if (fileField instanceof File) {
+        const errorMsg = await validateImageFile(fileField);
+        if (errorMsg) {
+          toast({ title: 'Imagem inválida', description: errorMsg, variant: 'destructive' });
+          setIsUploading(false);
+          return;
+        }
+      }
+
       const formData = new FormData();
       formData.append('title', values.title);
       formData.append('displayText', values.displayText);
@@ -358,6 +398,17 @@ export default function Admin() {
     if (!editing) return;
     try {
       setIsSaving(true);
+
+      const fileField = values.image?.[0];
+      if (fileField instanceof File) {
+        const errorMsg = await validateImageFile(fileField);
+        if (errorMsg) {
+          toast({ title: 'Imagem inválida', description: errorMsg, variant: 'destructive' });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const formData = new FormData();
       formData.append('title', values.title);
       formData.append('displayText', values.displayText);
@@ -609,6 +660,10 @@ export default function Admin() {
                             {...fieldProps}
                           />
                         </FormControl>
+                        <FormDescription>
+                          <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
+                          <span className="block">Tamanho máximo: 20MB. Resolução máxima: 3840px.</span>
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -856,6 +911,10 @@ export default function Admin() {
                         {...fieldProps}
                       />
                     </FormControl>
+                    <FormDescription>
+                      <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
+                      <span className="block">Tamanho máximo: 20MB. Resolução máxima: 3840px.</span>
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
