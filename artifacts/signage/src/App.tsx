@@ -28,6 +28,8 @@ import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
+import Landing from './pages/landing';
+import { clearSessionHint, hasSessionHint } from './lib/session-hint';
 
 interface Me {
   authenticated: boolean;
@@ -127,9 +129,8 @@ function PortalSwitch({ me }: { me: Me }) {
   );
 }
 
-function RoleRouter() {
-  const queryClient = useQueryClient();
-  const { data: me, isLoading } = useQuery({
+function useAuthMe() {
+  return useQuery({
     queryKey: ['auth'],
     queryFn: async (): Promise<Me> => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/auth/me`);
@@ -138,9 +139,15 @@ function RoleRouter() {
     },
     retry: false,
   });
+}
+
+function RoleRouter() {
+  const queryClient = useQueryClient();
+  const { data: me, isLoading } = useAuthMe();
 
   useEffect(() => {
     const onUnauthorized = () => {
+      clearSessionHint();
       queryClient.setQueryData(['auth'], UNAUTHENTICATED);
     };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
@@ -155,7 +162,7 @@ function RoleRouter() {
     );
   }
   if (!me?.authenticated) {
-    return <Login />;
+    return <Redirect to="/login" />;
   }
   if (me.mustChangePassword) {
     return <ChangePassword onDone={() => queryClient.invalidateQueries({ queryKey: ['auth'] })} />;
@@ -171,10 +178,51 @@ function RoleRouter() {
   return <Login />;
 }
 
+/**
+ * A raiz é pública. Enquanto GET /api/auth/me está em voo, quem nunca logou
+ * neste navegador já vê a landing; quem tem a dica de sessão vê o spinner de
+ * sempre, para não piscar a página de marketing antes do painel.
+ */
+function RootGate() {
+  const { data: me, isLoading } = useAuthMe();
+
+  if (isLoading) {
+    return hasSessionHint() ? (
+      <div className="flex min-h-[100dvh] items-center justify-center">
+        <Spinner />
+      </div>
+    ) : (
+      <Landing />
+    );
+  }
+  if (me?.authenticated) {
+    return <RoleRouter />;
+  }
+  return <Landing />;
+}
+
+function LoginGate() {
+  const { data: me, isLoading } = useAuthMe();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+  if (me?.authenticated) {
+    return <Redirect to="/" />;
+  }
+  return <Login />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/display/:deviceKey" component={Display} />
+      <Route path="/" component={RootGate} />
+      <Route path="/login" component={LoginGate} />
       <Route>
         <RoleRouter />
       </Route>

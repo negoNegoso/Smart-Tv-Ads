@@ -17,6 +17,7 @@ tags:
   - name: users
   - name: portal
   - name: segments
+  - name: public
 
 paths:
   /healthz:
@@ -31,6 +32,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Público (landing page) ──────────────────────────────────────────────────
+  /public/stats:
+    get:
+      operationId: getPublicStats
+      tags: [public]
+      summary: Aggregate counters for the public landing page
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStats"
 
   # ── Announcements (global media library) ────────────────────────────────────
   /announcements:
@@ -731,6 +746,15 @@ components:
       required: [status]
       properties:
         status: { type: string }
+
+    PublicStats:
+      type: object
+      required: [plays30d, activeScreens, clients, segments]
+      properties:
+        plays30d: { type: integer }
+        activeScreens: { type: integer }
+        clients: { type: integer }
+        segments: { type: integer }
 
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:
