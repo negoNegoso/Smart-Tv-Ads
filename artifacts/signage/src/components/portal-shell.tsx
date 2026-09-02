@@ -2,13 +2,13 @@ import { ReactNode } from 'react';
 import { MonitorPlay, LogOut } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { logout } from '@/lib/logout';
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   async function handleLogout() {
-    await fetch(`${import.meta.env.BASE_URL}api/auth/logout`, { method: 'POST' });
-    queryClient.setQueryData(['auth'], { authenticated: false });
+    await logout(queryClient);
   }
 
   return (

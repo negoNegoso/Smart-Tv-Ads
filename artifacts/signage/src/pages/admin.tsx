@@ -44,6 +44,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { mediaUrl } from '@/lib/media-url';
+import { BYTES_PER_MB, formatUploadLimit, useMaxUploadBytes } from '@/lib/upload-limit';
 import { parseYouTubeUrl } from '@workspace/db/youtube';
 
 const uploadSchema = z
@@ -96,14 +97,15 @@ const editSchema = z
 
 type EditFormValues = z.infer<typeof editSchema>;
 
-const BYTES_PER_MB = 1024 * 1024;
-const MAX_FILE_SIZE = 20 * BYTES_PER_MB; // 20MB
 const MAX_DIMENSION = 3840; // 4K resolution max to avoid crashes
 
-function validateImageFile(file: File): Promise<string | null> {
+// maxBytes vem do servidor (useMaxUploadBytes): repetir o padrão aqui faria o
+// cliente rejeitar arquivos que uma instância com MAX_UPLOAD_BYTES maior
+// aceitaria sem reclamar.
+function validateImageFile(file: File, maxBytes: number): Promise<string | null> {
   return new Promise((resolve) => {
-    if (file.size > MAX_FILE_SIZE) {
-      return resolve(`A imagem deve ter no máximo ${MAX_FILE_SIZE / BYTES_PER_MB}MB.`);
+    if (file.size > maxBytes) {
+      return resolve(`A imagem deve ter no máximo ${Math.round(maxBytes / BYTES_PER_MB)}MB.`);
     }
     
     const img = new Image();
@@ -233,6 +235,7 @@ function SortableAnnouncementRow({
 export default function Admin() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const maxUploadBytes = useMaxUploadBytes();
   
   const { data: announcements, isLoading } = useListAnnouncements();
   const { data: stats } = useGetAnnouncementStats();
@@ -330,7 +333,7 @@ export default function Admin() {
 
       const fileField = values.image?.[0];
       if (fileField instanceof File) {
-        const errorMsg = await validateImageFile(fileField);
+        const errorMsg = await validateImageFile(fileField, maxUploadBytes);
         if (errorMsg) {
           toast({ title: 'Imagem inválida', description: errorMsg, variant: 'destructive' });
           setIsUploading(false);
@@ -401,7 +404,7 @@ export default function Admin() {
 
       const fileField = values.image?.[0];
       if (fileField instanceof File) {
-        const errorMsg = await validateImageFile(fileField);
+        const errorMsg = await validateImageFile(fileField, maxUploadBytes);
         if (errorMsg) {
           toast({ title: 'Imagem inválida', description: errorMsg, variant: 'destructive' });
           setIsSaving(false);
@@ -662,7 +665,7 @@ export default function Admin() {
                         </FormControl>
                         <FormDescription>
                           <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
-                          <span className="block">Tamanho máximo: 20MB. Resolução máxima: 3840px.</span>
+                          <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -913,7 +916,7 @@ export default function Admin() {
                     </FormControl>
                     <FormDescription>
                       <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
-                      <span className="block">Tamanho máximo: 20MB. Resolução máxima: 3840px.</span>
+                      <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
