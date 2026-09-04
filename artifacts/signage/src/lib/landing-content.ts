@@ -18,6 +18,7 @@ export const LANDING = {
   nav: [
     { href: '#como-funciona', label: 'Como funciona' },
     { href: '#diferenciais', label: 'Por que a gente' },
+    { href: '#planos', label: 'Planos' },
     { href: '#duvidas', label: 'Dúvidas' },
   ],
   header: {
@@ -27,7 +28,7 @@ export const LANDING = {
   hero: {
     title: 'Anuncie nas telas do comércio da região — ou coloque a sua para trabalhar.',
     subtitle:
-      'A Smart Vale TV leva anúncios para TVs instaladas dentro de estabelecimentos. Quem anuncia entra na rotina do cliente; quem tem um ponto ganha com a tela que já está na parede.',
+      'A Smart Vale TV leva anúncios para TVs instaladas dentro de estabelecimentos. Quem anuncia entra na rotina do cliente; quem tem um ponto anuncia o próprio negócio de graça na tela.',
     doors: [
       {
         id: 'anunciante',
@@ -41,9 +42,10 @@ export const LANDING = {
         id: 'ponto',
         eyebrow: 'Para quem tem um espaço',
         title: 'Tenho um ponto',
-        description: 'A TV do seu estabelecimento passa a gerar receita, sem trabalho para você.',
+        description:
+          'Sua TV passa a anunciar o seu negócio de graça, e o concorrente fica de fora dela.',
         cta: 'Falar no WhatsApp',
-        message: 'Olá! Tenho um ponto e quero receber uma TV da Smart Vale TV.',
+        message: 'Olá! Tenho um ponto e quero colocar a Smart Vale TV na minha tela.',
       },
     ],
   },
@@ -83,8 +85,8 @@ export const LANDING = {
         title: 'Se você tem um ponto',
         steps: [
           {
-            title: 'A TV entra na parede',
-            body: 'Você cede o espaço e a energia. O equipamento e a programação são nossos.',
+            title: 'A tela entra no ar',
+            body: 'Serve a TV que você já tem. Se o ponto não tiver uma, a gente resolve o equipamento.',
           },
           {
             title: 'Ela roda sozinha',
@@ -119,16 +121,70 @@ export const LANDING = {
       },
     ],
   },
+  /**
+   * Plano único de propósito: a rede é pequena e vender "onde aparece" não
+   * diferencia nada enquanto todo mundo aparece em todas as telas. O que varia
+   * é só o prazo. Nada aqui promete frequência ou tempo de tela — o sistema não
+   * tem conceito de cota no loop, então o banner não pode vender uma.
+   */
+  plans: {
+    title: 'Planos',
+    subtitle: 'Um plano para quem anuncia. Nada a pagar para quem tem o ponto.',
+    advertiser: {
+      eyebrow: 'Para quem quer aparecer',
+      title: 'Anunciante',
+      price: 'R$ 150',
+      period: '/mês',
+      note: 'Em todas as telas da rede.',
+      features: [
+        'Sua marca em todas as telas da rede',
+        'Até 3 artes, com troca livre durante o mês',
+        'QR code próprio em cada peça',
+        'Relatório mensal de exibições e leituras, peça a peça',
+        'Imagem ou vídeo — a gente publica para você',
+      ],
+      termsLabel: 'Fechando por mais tempo, sai mais barato:',
+      terms: [
+        { label: 'Mensal', value: 'R$ 150/mês' },
+        { label: 'Trimestral', value: 'R$ 135/mês', hint: 'R$ 405 no período' },
+        { label: 'Anual', value: 'R$ 120/mês', hint: 'economia de R$ 360' },
+      ],
+      cta: 'Quero anunciar',
+      message: 'Olá! Quero anunciar na Smart Vale TV pelo plano de R$ 150/mês.',
+    },
+    host: {
+      eyebrow: 'Para quem tem um espaço',
+      title: 'Ponto parceiro',
+      price: 'Grátis',
+      period: '',
+      note: 'Sem mensalidade e sem trabalho.',
+      features: [
+        'Anuncie o seu próprio negócio de graça na tela',
+        'Concorrente do seu ramo bloqueado automaticamente',
+        'A programação roda sozinha, o dia inteiro',
+        'Serve a TV que você já tem; se não tiver, a gente resolve',
+        'Você entra só com o espaço e a energia',
+      ],
+      termsLabel: '',
+      terms: [],
+      cta: 'Quero ser ponto',
+      message: 'Olá! Tenho um ponto e quero ser parceiro da Smart Vale TV.',
+    },
+  },
   faq: {
     title: 'Dúvidas',
     items: [
       {
         q: 'Preciso comprar a TV?',
-        a: 'Não. Para ser ponto, você cede o espaço e a energia; o equipamento e a programação são nossos.',
+        a: 'Não. Se o seu ponto já tem uma TV, usamos ela. Se não tem, a gente resolve o equipamento. Você cede o espaço e a energia.',
       },
       {
         q: 'Quanto custa anunciar?',
-        a: 'Depende de quantas telas e por quanto tempo. Chame no WhatsApp que a gente monta a proposta.',
+        a: 'R$ 150 por mês, com a sua marca em todas as telas da rede. No trimestral sai R$ 135 por mês e no anual R$ 120 por mês.',
+      },
+      {
+        q: 'Ser ponto custa alguma coisa?',
+        a: 'Não. Não tem mensalidade. Você ainda anuncia o próprio negócio de graça na tela e o concorrente direto fica bloqueado.',
       },
       {
         q: 'Como sei que meu anúncio apareceu mesmo?',

@@ -62,3 +62,6 @@ artifacts/api-server/uploads/
 # Workspace temporário do fluxo de execução de planos
 .superpowers/
 .env*
+
+# HTML intermediario do gerador de pecas (os PNGs sao versionados)
+marketing/.tmp/
