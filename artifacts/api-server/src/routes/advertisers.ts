@@ -15,6 +15,7 @@ import {
   campaignSegmentsTable,
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
+import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
 
 const router: IRouter = Router();
 
@@ -366,6 +367,20 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
   await syncAnnouncementDestinations(id, input.announcementDestinations);
   await syncCampaignTarget(id, input);
   res.json(await campaignWithStats(id));
+});
+
+router.post("/campaigns/:id/reset-telemetry", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid campaign id" });
+    return;
+  }
+  const result = await resetCampaignTelemetry(id);
+  if (!result) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  res.json(result);
 });
 
 router.delete("/campaigns/:id", async (req, res): Promise<void> => {

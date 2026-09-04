@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
-import { ArrowLeft, CalendarDays, Check, DollarSign, Image as ImageIcon, Monitor, Pencil, Plus, Radio, Trash2, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, DollarSign, Image as ImageIcon, Monitor, Pencil, Plus, Radio, RotateCcw, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -144,6 +144,19 @@ export default function CampaignDetail() {
     loadCampaign();
   }
 
+  async function resetTelemetry() {
+    if (!data) return;
+    if (!window.confirm(`Zerar todas as métricas da campanha "${data.name}"? Exibições e scans serão apagados permanentemente.`)) return;
+    const res = await fetch(api(`/campaigns/${data.id}/reset-telemetry`), { method: "POST" });
+    if (!res.ok) {
+      toast({ title: "Não foi possível zerar as métricas", variant: "destructive" });
+      return;
+    }
+    const { deletedPlays, deletedScans } = (await res.json()) as { deletedPlays: number; deletedScans: number };
+    toast({ title: `${deletedPlays} exibições e ${deletedScans} scans apagados` });
+    loadCampaign();
+  }
+
   async function remove() {
     if (!data) return;
     if (!window.confirm(`Excluir a campanha "${data.name}"?`)) return;
@@ -182,6 +195,7 @@ export default function CampaignDetail() {
             <>
               <Switch checked={data.isActive} onCheckedChange={toggle} aria-label="Ativar campanha" />
               <Button variant="outline" size="sm" onClick={startEdit}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+              <Button variant="outline" size="sm" onClick={resetTelemetry}><RotateCcw className="mr-2 h-4 w-4" />Zerar métricas</Button>
               <Button variant="outline" size="sm" className="text-destructive" onClick={remove}><Trash2 className="mr-2 h-4 w-4" />Excluir</Button>
             </>
           )}
