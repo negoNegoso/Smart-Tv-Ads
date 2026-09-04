@@ -16,6 +16,7 @@ import {
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
 import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
+import { normalizeWeekdays } from "../lib/ad-eligibility";
 
 const router: IRouter = Router();
 
@@ -42,6 +43,9 @@ const campaignInput = z.object({
   targetMode: z.enum(["all", "devices", "segments"]).default("all"),
   deviceIds: z.array(z.coerce.number().int().positive()).default([]),
   segmentIds: z.array(z.coerce.number().int().positive()).default([]),
+  // Dias da semana em que a campanha roda (0 = domingo … 6 = sábado).
+  // Lista vazia é "todo dia".
+  weekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
   announcementDestinations: z
     .record(
       z.string(),
@@ -135,6 +139,7 @@ const campaignSelection = {
   startsAt: campaignsTable.startsAt,
   endsAt: campaignsTable.endsAt,
   targetMode: campaignsTable.targetMode,
+  weekdays: campaignsTable.weekdays,
   segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id order by cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
   segmentNames: sql<string[]>`coalesce((select array_agg(sg.name order by sg.name) from campaign_segments cs join segments sg on sg.id = cs.segment_id where cs.campaign_id = ${campaignsTable.id}), array[]::text[])`,
   allDevices: campaignsTable.allDevices,
@@ -303,6 +308,7 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     endsAt: input.endsAt,
     targetMode: input.targetMode,
     allDevices: input.targetMode === "all",
+    weekdays: normalizeWeekdays(input.weekdays),
   }).returning();
   await db.insert(campaignAnnouncementsTable).values(
     announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
@@ -359,6 +365,7 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     endsAt: input.endsAt,
     targetMode: input.targetMode,
     allDevices: input.targetMode === "all",
+    weekdays: normalizeWeekdays(input.weekdays),
   }).where(eq(campaignsTable.id, id));
   await db.insert(campaignAnnouncementsTable).values(
     announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),

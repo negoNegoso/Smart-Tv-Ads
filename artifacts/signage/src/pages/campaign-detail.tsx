@@ -10,8 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
-import { CampaignTargetPicker } from "@/components/campaign-form-dialog";
+import { CampaignTargetPicker, CampaignWeekdayPicker } from "@/components/campaign-form-dialog";
 import { mediaUrl } from "@/lib/media-url";
+import { weekdaysLabel } from "@/lib/weekdays";
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
@@ -27,6 +28,7 @@ type Campaign = {
   startsAt: string;
   endsAt: string;
   targetMode: "all" | "devices" | "segments";
+  weekdays: number[];
   segmentIds: number[];
   segmentNames: string[];
   isActive: boolean;
@@ -238,6 +240,9 @@ export default function CampaignDetail() {
                 <Input type="date" value={form.endsAt} onChange={(e) => form.setEndsAt(e.target.value)} />
               </div>
               <div className="space-y-2 sm:col-span-2">
+                <CampaignWeekdayPicker form={form} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <CampaignTargetPicker form={form} devices={devices} segments={segments} />
               </div>
             </>
@@ -245,6 +250,7 @@ export default function CampaignDetail() {
             <>
               <div><p className="text-xs text-muted-foreground">Anunciante</p><p>{data.company || data.advertiserName}</p></div>
               <div><p className="text-xs text-muted-foreground">Período</p><p className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{date(data.startsAt)} — {date(data.endsAt)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Dias da semana</p><p>{weekdaysLabel(data.weekdays)}</p></div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground">Cobertura de TVs</p>
                 <p>{describeTarget(data)}</p>

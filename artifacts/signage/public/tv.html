@@ -541,13 +541,39 @@
       // ─── Load slides from API ─────────────────────────────────────────────
       var refreshTimer = null;
 
+      // Tira tudo da tela e para o loop. Usada quando o servidor diz que esta
+      // TV não tem mais nada a exibir agora — campanha que acabou, que saiu do
+      // alvo ou que não roda hoje.
+      function showEmpty() {
+        if (timer) { clearInterval(timer); timer = null; }
+        teardownYt();
+        slides = [];
+        currentIndex = 0;
+        elapsed = 0;
+        slotA.style.opacity = '0';
+        slotB.style.opacity = '0';
+        overlayEl.style.display = 'none';
+        qrBox.style.display = 'none';
+        fillEl.style.width = '0%';
+        emptyEl.className = 'visible';
+      }
+
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/slides';
         xhrGet(url, function (err, data) {
-          if (err || !data || data.length === 0) {
-            if (!isRefresh) {
-              emptyEl.className = 'visible';
-            }
+          // Rede caiu: segura o que já está no ar. Melhor a TV repetir a lista
+          // velha do que apagar por causa de um GET perdido. Na primeira carga
+          // não há lista para segurar, então mostra a tela de vazio.
+          if (err || !data) {
+            if (!isRefresh) { emptyEl.className = 'visible'; }
+            return;
+          }
+
+          // Lista vazia é resposta boa do servidor, não falha: a TV tem de
+          // parar. Antes isso caía no mesmo return do erro e a campanha
+          // seguia em loop para sempre depois de sair do ar.
+          if (data.length === 0) {
+            showEmpty();
             return;
           }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "campaigns" ADD COLUMN "weekdays" smallint[] DEFAULT '{}' NOT NULL;

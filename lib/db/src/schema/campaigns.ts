@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, real, smallint, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { advertisersTable } from "./advertisers";
@@ -16,6 +16,9 @@ export const campaignsTable = pgTable("campaigns", {
   // versão anterior do servidor durante o deploy. Ninguém lê mais daqui;
   // a coluna sai numa migration posterior.
   allDevices: boolean("all_devices").notNull().default(true),
+  // Dias da semana em que a campanha vai ao ar (0 = domingo … 6 = sábado).
+  // Lista vazia é "todo dia": mantém as campanhas antigas rodando como antes.
+  weekdays: smallint("weekdays").array().notNull().default([]),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

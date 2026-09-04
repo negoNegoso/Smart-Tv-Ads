@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { campaignReachesDevice, canPlayOnDevice, countReachedDevices, filterEligibleSlides } from "../ad-eligibility";
+import {
+  campaignReachesDevice,
+  campaignRunsOnDay,
+  canPlayOnDevice,
+  countReachedDevices,
+  filterEligibleSlides,
+  normalizeWeekdays,
+} from "../ad-eligibility";
 
 const PADARIA = 1;
 const FARMACIA = 2;
@@ -63,7 +70,7 @@ describe("canPlayOnDevice", () => {
 
 describe("filterEligibleSlides", () => {
   const device = { id: 7, clientId: 20, segmentId: PADARIA };
-  const paraTodos = { targetMode: "all" as const, deviceIds: [], segmentIds: [] };
+  const paraTodos = { targetMode: "all" as const, deviceIds: [], segmentIds: [], weekdays: [] };
   const concorrente = { announcementId: 1, advertiserSegmentId: PADARIA, advertiserClientId: 10, ...paraTodos };
   const propria = { announcementId: 2, advertiserSegmentId: PADARIA, advertiserClientId: 20, ...paraTodos };
   const outroRamo = { announcementId: 3, advertiserSegmentId: FARMACIA, advertiserClientId: 10, ...paraTodos };
@@ -86,9 +93,17 @@ describe("filterEligibleSlides", () => {
       targetMode: "segments" as const,
       deviceIds: [],
       segmentIds: [FARMACIA],
+      weekdays: [],
     };
     expect(filterEligibleSlides([moinho], device)).toHaveLength(0);
     expect(filterEligibleSlides([{ ...moinho, segmentIds: [PADARIA] }], device)).toHaveLength(1);
+  });
+
+  it("tira da lista a peça da campanha que não roda hoje", () => {
+    const quarta = new Date("2026-03-04T15:00:00Z");
+    const soTerçaEQuinta = { ...propria, weekdays: [2, 4] };
+    expect(filterEligibleSlides([soTerçaEQuinta], device, quarta)).toHaveLength(0);
+    expect(filterEligibleSlides([soTerçaEQuinta], device, new Date("2026-03-03T15:00:00Z"))).toHaveLength(1);
   });
 });
 
@@ -170,5 +185,45 @@ describe("countReachedDevices", () => {
     expect(
       countReachedDevices({ ...padariaA, targetMode: "all", deviceIds: [], segmentIds: [] }, rede),
     ).toBe(3);
+  });
+});
+
+describe("campaignRunsOnDay", () => {
+  // Terça, 4 de março de 2026, meio-dia em São Paulo.
+  const tercaDeManha = new Date("2026-03-03T15:00:00Z");
+
+  it("roda em qualquer dia quando a lista está vazia", () => {
+    expect(campaignRunsOnDay([], tercaDeManha)).toBe(true);
+  });
+
+  it("roda no dia marcado", () => {
+    expect(campaignRunsOnDay([2, 4], tercaDeManha)).toBe(true);
+  });
+
+  it("não roda no dia fora da lista", () => {
+    const quarta = new Date("2026-03-04T15:00:00Z");
+    expect(campaignRunsOnDay([2, 4], quarta)).toBe(false);
+  });
+
+  it("usa o dia no fuso do negócio, não o do UTC", () => {
+    // 23h de segunda em São Paulo já é terça em UTC: a campanha de terça
+    // não pode entrar no ar antes da meia-noite de quem assiste.
+    const segundaTardeEmSaoPaulo = new Date("2026-03-03T02:00:00Z");
+    expect(campaignRunsOnDay([2], segundaTardeEmSaoPaulo)).toBe(false);
+    expect(campaignRunsOnDay([1], segundaTardeEmSaoPaulo)).toBe(true);
+  });
+});
+
+describe("normalizeWeekdays", () => {
+  it("ordena e tira repetidos", () => {
+    expect(normalizeWeekdays([4, 2, 4])).toEqual([2, 4]);
+  });
+
+  it("mantém a lista vazia, que significa todo dia", () => {
+    expect(normalizeWeekdays([])).toEqual([]);
+  });
+
+  it("descarta a semana inteira: sete dias marcados é todo dia", () => {
+    expect(normalizeWeekdays([0, 1, 2, 3, 4, 5, 6])).toEqual([]);
   });
 });

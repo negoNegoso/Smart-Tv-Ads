@@ -39,6 +39,7 @@ type Campaign = {
   startsAt: string;
   endsAt: string;
   targetMode: "all" | "devices" | "segments";
+  weekdays: number[];
   segmentIds: number[];
   segmentNames: string[];
   isActive: boolean;

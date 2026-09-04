@@ -17,6 +17,7 @@ type Campaign = {
   startsAt: string;
   endsAt: string;
   targetMode: "all" | "devices" | "segments";
+  weekdays: number[];
   segmentNames: string[];
   isActive: boolean;
   plays: number;
