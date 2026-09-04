@@ -1,7 +1,7 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -40,6 +40,40 @@ function resolveBasePath(): string {
   return basePath;
 }
 
+/**
+ * og:image e og:url só funcionam com URL absoluta: o crawler do WhatsApp, do
+ * Facebook e do X não resolve caminho relativo, e um card sem imagem é
+ * exatamente o que a landing não pode entregar — todo o CTA dela é ser
+ * compartilhada.
+ *
+ * SITE_URL manda. Na Vercel, VERCEL_PROJECT_PRODUCTION_URL já traz o domínio de
+ * produção sem ninguém configurar nada. Sem nenhum dos dois, as tags que
+ * dependem da URL saem do HTML em vez de saírem quebradas, e o twitter:card cai
+ * para `summary`, que não promete imagem nenhuma.
+ */
+function resolveSiteUrl(): string {
+  const explicit = process.env.SITE_URL;
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return vercel ? `https://${vercel}` : '';
+}
+
+function socialMetaTags(basePath: string): Plugin {
+  const prefix = `${resolveSiteUrl()}${basePath.replace(/\/+$/, '')}`;
+  return {
+    name: 'signage-social-meta',
+    transformIndexHtml(html) {
+      if (!resolveSiteUrl()) {
+        return html
+          // og:image:* sozinho, sem og:image, é lixo no head.
+          .replace(/^.*(?:__SITE_URL__|og:image:).*\n/gm, '')
+          .replace('content="summary_large_image"', 'content="summary"');
+      }
+      return html.replaceAll('__SITE_URL__', prefix);
+    },
+  };
+}
+
 export default defineConfig(async ({ command }) => {
   const port = command === 'serve' ? resolveServerPort() : 0;
   // `||`, not `??`: an exported-but-empty BASE_PATH would otherwise yield
@@ -53,6 +87,7 @@ export default defineConfig(async ({ command }) => {
       react(),
       tailwindcss(),
       runtimeErrorOverlay(),
+      socialMetaTags(basePath),
       ...(process.env.NODE_ENV !== 'production' &&
       process.env.REPL_ID !== undefined
         ? [

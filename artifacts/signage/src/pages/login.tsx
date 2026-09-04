@@ -1,16 +1,18 @@
 import { FormEvent, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { MonitorPlay } from 'lucide-react';
 import { markSessionStarted } from '@/lib/session-hint';
+import { readNextPath } from '@/lib/next-path';
 
 export default function Login() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,7 +34,7 @@ export default function Login() {
       }
       markSessionStarted();
       await queryClient.invalidateQueries({ queryKey: ['auth'] });
-      setLocation('/');
+      setLocation(readNextPath(search ? `?${search}` : ''));
     } catch {
       setError('Não foi possível entrar. Tente novamente.');
     } finally {

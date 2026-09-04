@@ -9,7 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Spinner } from '@/components/ui/spinner';
 import NotFound from '@/pages/not-found';
-import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
+import { Route, Switch, Router as WouterRouter, Redirect, useLocation, useSearch } from 'wouter';
 
 import { Layout } from './components/layout';
 import { PortalShell } from './components/portal-shell';
@@ -29,7 +29,8 @@ import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 import Landing from './pages/landing';
-import { clearSessionHint, hasSessionHint } from './lib/session-hint';
+import { clearSessionHint, hasSessionHint, markSessionStarted } from './lib/session-hint';
+import { loginPathFor, readNextPath } from './lib/next-path';
 
 interface Me {
   authenticated: boolean;
@@ -38,6 +39,7 @@ interface Me {
   clientIds: number[];
   advertiserIds: number[];
   mustChangePassword: boolean;
+  maxUploadBytes?: number;
 }
 
 const UNAUTHENTICATED: Me = {
@@ -129,13 +131,25 @@ function PortalSwitch({ me }: { me: Me }) {
   );
 }
 
+/**
+ * A dica de sessão é escrita aqui, e não só no login, porque o login não é o
+ * único jeito de chegar autenticado: cookie de antes deste deploy, outra aba,
+ * storage que voltou vazio. Todo mundo que o servidor reconhece sai daqui com
+ * a dica gravada — e quem ele não reconhece sai sem ela.
+ */
 function useAuthMe() {
   return useQuery({
     queryKey: ['auth'],
     queryFn: async (): Promise<Me> => {
       const res = await fetch(`${import.meta.env.BASE_URL}api/auth/me`);
-      if (!res.ok) return UNAUTHENTICATED;
-      return res.json();
+      if (!res.ok) {
+        clearSessionHint();
+        return UNAUTHENTICATED;
+      }
+      const me: Me = await res.json();
+      if (me.authenticated) markSessionStarted();
+      else clearSessionHint();
+      return me;
     },
     retry: false,
   });
@@ -143,6 +157,8 @@ function useAuthMe() {
 
 function RoleRouter() {
   const queryClient = useQueryClient();
+  const [location] = useLocation();
+  const search = useSearch();
   const { data: me, isLoading } = useAuthMe();
 
   useEffect(() => {
@@ -162,7 +178,7 @@ function RoleRouter() {
     );
   }
   if (!me?.authenticated) {
-    return <Redirect to="/login" />;
+    return <Redirect to={loginPathFor(location, search ? `?${search}` : '')} />;
   }
   if (me.mustChangePassword) {
     return <ChangePassword onDone={() => queryClient.invalidateQueries({ queryKey: ['auth'] })} />;
@@ -202,6 +218,7 @@ function RootGate() {
 }
 
 function LoginGate() {
+  const search = useSearch();
   const { data: me, isLoading } = useAuthMe();
 
   if (isLoading) {
@@ -212,7 +229,7 @@ function LoginGate() {
     );
   }
   if (me?.authenticated) {
-    return <Redirect to="/" />;
+    return <Redirect to={readNextPath(search ? `?${search}` : '')} />;
   }
   return <Login />;
 }

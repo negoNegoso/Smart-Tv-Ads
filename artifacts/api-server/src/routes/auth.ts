@@ -4,6 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { SESSION_COOKIE, SESSION_MAX_AGE_MS, createSession } from "../lib/auth/session";
 import { hashPassword, verifyPassword } from "../lib/auth/password";
 import { findUserByEmail, setPassword } from "../lib/auth/user-store";
+import { maxUploadBytes } from "../lib/upload-limit";
 
 const router: IRouter = Router();
 
@@ -82,6 +83,11 @@ router.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * maxUploadBytes viaja junto porque o painel valida o arquivo antes de subir.
+ * O limite é configurável por MAX_UPLOAD_BYTES; um número fixo no cliente
+ * rejeitaria localmente arquivos que o servidor aceitaria.
+ */
 router.get("/auth/me", async (req, res): Promise<void> => {
   if (!req.auth) {
     res.status(401).json({ authenticated: false });
@@ -95,6 +101,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       clientIds: [],
       advertiserIds: [],
       mustChangePassword: false,
+      maxUploadBytes: maxUploadBytes(),
     });
     return;
   }
@@ -109,6 +116,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     clientIds: u.clientIds,
     advertiserIds: u.advertiserIds,
     mustChangePassword: u.mustChangePassword,
+    maxUploadBytes: maxUploadBytes(),
   });
 });
 
