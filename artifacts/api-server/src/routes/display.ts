@@ -62,6 +62,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       targetMode: sql<"all" | "devices" | "segments">`'all'`,
       deviceIds: sql<number[]>`array[]::int[]`,
       segmentIds: sql<number[]>`array[]::int[]`,
+      weekdays: sql<number[]>`array[]::int[]`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -93,6 +94,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
       deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      weekdays: campaignsTable.weekdays,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
@@ -109,11 +111,11 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
 
   // Alvo da campanha e regra de concorrência decidem juntos o que vai ao ar. A
   // playlist do próprio device fica de fora: é o lojista pondo o conteúdo dele.
-  const eligibleCampaignSlides = filterEligibleSlides(campaignSlides, {
-    id: device.id,
-    clientId: device.clientId,
-    segmentId: device.segmentId,
-  });
+  const eligibleCampaignSlides = filterEligibleSlides(
+    campaignSlides,
+    { id: device.id, clientId: device.clientId, segmentId: device.segmentId },
+    now,
+  );
 
   const seen = new Set<number>();
   const deduped = [...eligibleCampaignSlides, ...playlistSlides].filter((slide) => {
@@ -132,6 +134,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       targetMode,
       deviceIds,
       segmentIds,
+      weekdays,
       ...slide
     }) => {
       const videoIds =

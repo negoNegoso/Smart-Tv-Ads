@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { WEEKDAYS, weekdaysLabel } from "@/lib/weekdays";
 import {
   useCampaignForm,
   type CampaignFormAdvertiser,
@@ -26,6 +27,41 @@ type Props = {
   lockedAdvertiserId?: number;
   onSaved: () => void;
 };
+
+/**
+ * Dias em que a campanha roda. Nenhum dia marcado é "todo dia" — é o estado
+ * inicial e o de quem nunca mexeu aqui, então o rótulo diz isso em vez de
+ * deixar a campanha parecer sem agenda.
+ */
+export function CampaignWeekdayPicker({ form }: { form: ReturnType<typeof useCampaignForm> }) {
+  return (
+    <div className="space-y-2">
+      <Label>Dias da semana</Label>
+      <div className="flex gap-1.5">
+        {WEEKDAYS.map((day) => {
+          const selected = form.weekdays.includes(day.value);
+          return (
+            <button
+              key={day.value}
+              type="button"
+              aria-pressed={selected}
+              aria-label={day.label}
+              onClick={() => form.toggleWeekday(day.value)}
+              className={`h-9 w-9 rounded-md border text-sm font-medium transition-colors ${
+                selected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input bg-background text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {day.short}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-muted-foreground">{weekdaysLabel(form.weekdays)}. Sem nenhum dia marcado, roda todos os dias do período.</p>
+    </div>
+  );
+}
 
 /**
  * Alvo da campanha: os três modos são exclusivos, então um radio — não um
@@ -179,6 +215,7 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           </div>
           <Field label="Valor contratado (R$)" type="number" value={form.contractValue} onChange={form.setContractValue} placeholder="0,00" />
           <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={form.startsAt} onChange={form.setStartsAt} required /><Field label="Fim" type="date" value={form.endsAt} onChange={form.setEndsAt} required /></div>
+          <CampaignWeekdayPicker form={form} />
           <CampaignTargetPicker form={form} devices={devices} segments={segments} />
           <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.selectedAnnouncements.length}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
         </form>

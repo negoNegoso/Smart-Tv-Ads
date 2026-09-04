@@ -9,6 +9,48 @@ export type CampaignTarget = {
   segmentIds: number[];
 };
 
+/**
+ * Dias da semana em que a campanha vai ao ar, no padrão do `Date.getDay()`:
+ * 0 = domingo … 6 = sábado. Lista vazia significa "todo dia" — é o que valia
+ * antes da recorrência existir, então campanha antiga não muda de comportamento.
+ */
+export type CampaignSchedule = { weekdays: number[] };
+
+/** Fuso do negócio. O dia da semana é o de quem assiste à TV, não o do UTC. */
+export const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+/**
+ * Guarda a agenda no formato canônico: sem repetição, em ordem, e a semana
+ * cheia vira lista vazia — marcar os sete dias é dizer "todo dia", e as duas
+ * formas precisam ser o mesmo dado no banco.
+ */
+export function normalizeWeekdays(weekdays: number[]): number[] {
+  const unique = [...new Set(weekdays)].sort((a, b) => a - b);
+  return unique.length === 7 ? [] : unique;
+}
+
+/**
+ * A campanha roda hoje? Lista vazia roda sempre.
+ *
+ * O dia sai de `Intl` no fuso do negócio, nunca de `getDay()`: das 21h em
+ * diante no Brasil o servidor já está no dia seguinte em UTC, e a campanha de
+ * terça sumiria da TV três horas antes da terça acabar.
+ */
+export function campaignRunsOnDay(
+  weekdays: number[],
+  now: Date = new Date(),
+  timeZone: string = BUSINESS_TIME_ZONE,
+): boolean {
+  if (weekdays.length === 0) return true;
+  const label = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(now);
+  const today = WEEKDAY_INDEX[label];
+  return today !== undefined && weekdays.includes(today);
+}
+
 export function campaignReachesDevice(
   campaign: CampaignTarget,
   device: { id: number; segmentId: number | null },
@@ -52,10 +94,16 @@ export function canPlayOnDevice(input: {
  * regra — a padaria que mira "Padaria" segue barrada na TV da concorrente.
  */
 export function filterEligibleSlides<
-  T extends CampaignTarget & { advertiserSegmentId: number | null; advertiserClientId: number | null },
->(slides: T[], device: { id: number; clientId: number; segmentId: number | null }): T[] {
+  T extends CampaignTarget &
+    CampaignSchedule & { advertiserSegmentId: number | null; advertiserClientId: number | null },
+>(
+  slides: T[],
+  device: { id: number; clientId: number; segmentId: number | null },
+  now: Date = new Date(),
+): T[] {
   return slides.filter(
     (slide) =>
+      campaignRunsOnDay(slide.weekdays, now) &&
       campaignReachesDevice(slide, device) &&
       canPlayOnDevice({
         advertiserSegmentId: slide.advertiserSegmentId,

@@ -16,6 +16,7 @@ export type CampaignFormCampaign = {
   startsAt: string;
   endsAt: string;
   targetMode: CampaignTargetMode;
+  weekdays?: number[];
   deviceIds?: number[];
   segmentIds?: number[];
   announcementIds?: number[];
@@ -35,6 +36,8 @@ export type UseCampaignForm = {
   setSelectedAdvertiser: (value: number | null) => void;
   targetMode: CampaignTargetMode;
   setTargetMode: (value: CampaignTargetMode) => void;
+  weekdays: number[];
+  toggleWeekday: (day: number) => void;
   selectedDevices: number[];
   setSelectedDevices: (value: number[]) => void;
   selectedSegments: number[];
@@ -56,6 +59,8 @@ export function useCampaignForm(): UseCampaignForm {
   const [endsAt, setEndsAt] = useState("");
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<number | null>(null);
   const [targetMode, setTargetMode] = useState<CampaignTargetMode>("all");
+  // Vazio = roda todo dia, mesma convenção do servidor.
+  const [weekdays, setWeekdays] = useState<number[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
@@ -84,6 +89,7 @@ export function useCampaignForm(): UseCampaignForm {
         ),
       );
       setTargetMode(campaign.targetMode);
+      setWeekdays(campaign.weekdays ?? []);
     } else {
       setCampaignId(null);
       setName("");
@@ -97,7 +103,14 @@ export function useCampaignForm(): UseCampaignForm {
       setAnnouncementDestinations({});
       setPublishedScanCodes({});
       setTargetMode("all");
+      setWeekdays([]);
     }
+  }
+
+  function toggleWeekday(day: number) {
+    setWeekdays((current) =>
+      current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort((a, b) => a - b),
+    );
   }
 
   async function submit(): Promise<{ ok: boolean; error?: string }> {
@@ -116,6 +129,7 @@ export function useCampaignForm(): UseCampaignForm {
         targetMode,
         deviceIds: selectedDevices,
         segmentIds: selectedSegments,
+        weekdays,
       }),
     });
     if (!response.ok) {
@@ -132,6 +146,7 @@ export function useCampaignForm(): UseCampaignForm {
     endsAt, setEndsAt,
     selectedAdvertiser, setSelectedAdvertiser,
     targetMode, setTargetMode,
+    weekdays, toggleWeekday,
     selectedDevices, setSelectedDevices,
     selectedSegments, setSelectedSegments,
     selectedAnnouncements, setSelectedAnnouncements,
