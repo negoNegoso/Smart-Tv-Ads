@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { MonitorPlay, Users, LayoutDashboard, BarChart3, Building2, LogOut, KeyRound } from 'lucide-react';
+import { MonitorPlay, Users, LayoutDashboard, BarChart3, Building2, LogOut, KeyRound, Megaphone } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { logout } from '@/lib/logout';
@@ -20,6 +20,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: '/analytics', label: 'Análises', icon: BarChart3 },
     { href: '/advertisers', label: 'Anunciantes', icon: Building2 },
     { href: '/users-admin', label: 'Contas de Acesso', icon: KeyRound },
+    { href: '/divulgacao', label: 'Divulgação', icon: Megaphone },
   ];
 
   return (

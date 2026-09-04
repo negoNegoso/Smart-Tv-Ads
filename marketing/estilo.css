@@ -1,0 +1,226 @@
+/*
+ * Estilo das peças de divulgação (Facebook e WhatsApp).
+ *
+ * Medidas em px absolutos porque o alvo é uma imagem de tamanho fixo, não uma
+ * página responsiva: o Chrome headless recorta exatamente o viewport pedido em
+ * gerar.sh. Mexer nos tamanhos aqui muda o corte lá.
+ *
+ * A paleta acompanha a landing: primary hsl(248 100% 50%).
+ */
+
+:root {
+  --primary: hsl(248 100% 50%);
+  --zinc-900: hsl(240 6% 10%);
+  --zinc-600: hsl(240 4% 46%);
+  --zinc-200: hsl(240 6% 90%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+body.feed {
+  width: 1080px;
+  height: 1080px;
+  padding: 80px;
+}
+
+body.story {
+  width: 1080px;
+  height: 1920px;
+  padding: 120px 80px 160px;
+}
+
+/* Peça do anunciante: fundo da marca, alto contraste no feed. */
+body.tema-marca {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Peça do ponto: fundo claro, oferta gratuita não precisa gritar. */
+body.tema-claro {
+  background: #fff;
+  color: var(--zinc-900);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.marca svg {
+  width: 42px;
+  height: 42px;
+}
+
+.tema-marca .marca {
+  color: #fff;
+}
+
+.tema-claro .marca {
+  color: var(--primary);
+}
+
+.corpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.titulo {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  max-width: 15ch;
+}
+
+.story .titulo {
+  font-size: 104px;
+}
+
+.preco {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 36px;
+}
+
+.preco strong {
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.story .preco strong {
+  font-size: 120px;
+}
+
+.preco span {
+  font-size: 34px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.preco-nota {
+  margin-top: 10px;
+  font-size: 30px;
+  opacity: 0.75;
+}
+
+.itens {
+  list-style: none;
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.story .itens {
+  margin-top: 64px;
+  gap: 26px;
+}
+
+.itens li {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  font-size: 32px;
+  line-height: 1.3;
+}
+
+.story .itens li {
+  font-size: 40px;
+}
+
+.itens svg {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  margin-top: 6px;
+}
+
+.story .itens svg {
+  width: 38px;
+  height: 38px;
+}
+
+.tema-claro .itens svg {
+  color: var(--primary);
+}
+
+.cta {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 32px;
+  border-radius: 20px;
+  padding: 30px 40px;
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.story .cta {
+  font-size: 46px;
+  padding: 38px 48px;
+}
+
+.tema-marca .cta {
+  background: #fff;
+  color: var(--primary);
+}
+
+.tema-claro .cta {
+  background: var(--primary);
+  color: #fff;
+}
+
+.cta svg {
+  width: 46px;
+  height: 46px;
+  flex: none;
+}
+
+.cta small {
+  display: block;
+  font-size: 26px;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.story .cta small {
+  font-size: 30px;
+}
+
+/*
+ * O story tem 840px a mais de altura que o feed. As medidas base são apertadas
+ * para caber no quadrado; aqui o respiro volta.
+ */
+.story .preco {
+  margin-top: 72px;
+}
+
+.story .preco-nota {
+  margin-top: 14px;
+  font-size: 34px;
+}

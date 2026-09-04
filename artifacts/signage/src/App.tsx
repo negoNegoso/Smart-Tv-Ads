@@ -24,6 +24,7 @@ import Advertisers from './pages/advertisers';
 import AdvertiserDetail from './pages/advertiser-detail';
 import CampaignDetail from './pages/campaign-detail';
 import Users from './pages/users';
+import Divulgacao from './pages/divulgacao';
 import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
@@ -92,6 +93,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/users-admin">
         <Layout><Users /></Layout>
+      </Route>
+      <Route path="/divulgacao">
+        <Layout><Divulgacao /></Layout>
       </Route>
       <Route>
         <Layout><NotFound /></Layout>
