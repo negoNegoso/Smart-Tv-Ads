@@ -35,6 +35,7 @@ describe('PortalClient', () => {
               String(url).includes('/overview')
                 ? {
                     period: { days: 30, from: '2026-08-07', to: '2026-09-05' },
+                    subjectName: null,
                     totals: { plays: 1234, devices: 1, devicesOnline: 1, previous: { plays: 1000 } },
                     series: [{ date: '2026-09-05', plays: 1234 }],
                   }
@@ -44,7 +45,8 @@ describe('PortalClient', () => {
                       name: 'TV Recepção',
                       location: 'Entrada',
                       lastSeenAt: '2026-09-05T15:00:00.000Z',
-                      totalPlays: 1234,
+                      totalPlays: 987,
+                      isOnline: true,
                     },
                   ],
             ),
@@ -53,11 +55,10 @@ describe('PortalClient', () => {
     );
     renderPage();
     expect(await screen.findByText('TV Recepção')).toBeInTheDocument();
-    // getAllByText, não getByText: com um único dispositivo, o total do
-    // período (KPI) e o total da própria TV (linha da tabela) coincidem em
-    // 1234, então "1.234" aparece em dois elementos legítimos na tela — não
-    // é ambiguidade de implementação, é o fixture do brief usando o mesmo
-    // valor nos dois lugares.
-    expect(screen.getAllByText('1.234').length).toBeGreaterThan(0);
+    // KPI (total do período) e linha da TV têm valores distintos agora —
+    // 1.234 e 987 —, então cada assert aponta para um elemento só, em vez de
+    // aceitar "apareceu em algum lugar".
+    expect(screen.getByText('1.234')).toBeInTheDocument();
+    expect(screen.getByText('987')).toBeInTheDocument();
   });
 });

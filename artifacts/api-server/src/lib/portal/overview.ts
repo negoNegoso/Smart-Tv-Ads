@@ -1,6 +1,6 @@
 // artifacts/api-server/src/lib/portal/overview.ts
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { db, campaignsTable, devicesTable, playsTable, scansTable } from "@workspace/db";
+import { advertisersTable, clientsTable, db, campaignsTable, devicesTable, playsTable, scansTable } from "@workspace/db";
 import { BUSINESS_TIME_ZONE } from "../ad-eligibility";
 import { scanRate } from "../scan-rate";
 import { fillSeries } from "./series";
@@ -31,6 +31,33 @@ const DAY_KEY = (column: unknown) =>
 /** Scans de gente. Bot não paga a conta do anunciante. */
 const HUMAN_SCAN = eq(scansTable.isBot, false);
 
+/**
+ * Nome do anunciante, só quando o vínculo é único.
+ *
+ * Um usuário pode estar ligado a vários anunciantes, e os totais do overview
+ * somam todos eles — "o nome" só é bem definido quando há exatamente um. Com
+ * zero ou vários vínculos, a página mantém o título genérico em vez de
+ * inventar uma string concatenada.
+ */
+async function advertiserName(advertiserIds: number[]): Promise<string | null> {
+  if (advertiserIds.length !== 1) return null;
+  const [row] = await db
+    .select({ name: advertisersTable.name })
+    .from(advertisersTable)
+    .where(eq(advertisersTable.id, advertiserIds[0]));
+  return row?.name ?? null;
+}
+
+/** Mesma regra de `advertiserName`, para clientes. */
+async function clientName(clientIds: number[]): Promise<string | null> {
+  if (clientIds.length !== 1) return null;
+  const [row] = await db
+    .select({ name: clientsTable.name })
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientIds[0]));
+  return row?.name ?? null;
+}
+
 export interface PeriodInfo {
   days: PortalDays;
   from: string;
@@ -50,8 +77,13 @@ export interface AdvertiserTotals {
 
 export interface AdvertiserOverview {
   period: PeriodInfo;
+  /**
+   * Nome do anunciante, só com vínculo único — ver `advertiserName`. `null`
+   * quando o usuário tem zero ou vários vínculos; a página cai no título
+   * genérico nesse caso.
+   */
+  subjectName: string | null;
   totals: AdvertiserTotals & {
-    activeCampaigns: number;
     reachedDevices: number;
     previous: AdvertiserTotals;
   };
@@ -113,22 +145,17 @@ export async function advertiserOverview(
   if (advertiserIds.length === 0) {
     return {
       period: periodInfo(period),
-      totals: { ...EMPTY_TOTALS, activeCampaigns: 0, reachedDevices: 0, previous: EMPTY_TOTALS },
+      subjectName: null,
+      totals: { ...EMPTY_TOTALS, reachedDevices: 0, previous: EMPTY_TOTALS },
       series: fillSeries(period.keys, [], ["plays", "scans", "uniqueVisitors"]),
     };
   }
 
-  const [current, before] = await Promise.all([
+  const [current, before, subjectName] = await Promise.all([
     advertiserTotals(advertiserIds, period),
     advertiserTotals(advertiserIds, previous),
+    advertiserName(advertiserIds),
   ]);
-
-  const [campaigns] = await db
-    .select({
-      active: sql<number>`COUNT(*) FILTER (WHERE ${campaignsTable.isActive})::int`,
-    })
-    .from(campaignsTable)
-    .where(inArray(campaignsTable.advertiserId, advertiserIds));
 
   const [devices] = await db
     .select({ n: sql<number>`COUNT(DISTINCT ${playsTable.deviceId})::int` })
@@ -189,9 +216,9 @@ export async function advertiserOverview(
 
   return {
     period: periodInfo(period),
+    subjectName,
     totals: {
       ...current,
-      activeCampaigns: campaigns?.active ?? 0,
       reachedDevices: devices?.n ?? 0,
       previous: before,
     },
@@ -201,6 +228,8 @@ export async function advertiserOverview(
 
 export interface ClientOverview {
   period: PeriodInfo;
+  /** Nome do cliente, só com vínculo único — mesma regra de `AdvertiserOverview.subjectName`. */
+  subjectName: string | null;
   totals: { plays: number; devices: number; devicesOnline: number; previous: { plays: number } };
   series: Array<{ date: string; plays: number }>;
 }
@@ -231,14 +260,16 @@ export async function clientOverview(
   if (clientIds.length === 0) {
     return {
       period: periodInfo(period),
+      subjectName: null,
       totals: { plays: 0, devices: 0, devicesOnline: 0, previous: { plays: 0 } },
       series: fillSeries(period.keys, [], ["plays"]),
     };
   }
 
-  const [plays, playsBefore] = await Promise.all([
+  const [plays, playsBefore, subjectName] = await Promise.all([
     clientPlays(clientIds, period),
     clientPlays(clientIds, previous),
+    clientName(clientIds),
   ]);
 
   // lastSeenAt nulo não satisfaz o gte: TV cadastrada que nunca reportou não
@@ -266,6 +297,7 @@ export async function clientOverview(
 
   return {
     period: periodInfo(period),
+    subjectName,
     totals: {
       plays,
       devices: devices?.total ?? 0,

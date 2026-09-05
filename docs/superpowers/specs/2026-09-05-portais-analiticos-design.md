@@ -90,8 +90,8 @@ regra vale em `overview.ts` igual vale em `queries.ts`.
 
 `days` aceita apenas `7`, `30` ou `90`. Qualquer outro valor responde **400**.
 Enum fechado em vez de número livre mantém a varredura limitada e o cache
-previsível. Ausente, `days` assume `30` nas rotas de overview e mantém o
-comportamento acumulado atual nas rotas de lista.
+previsível. Ausente, `days` assume `30` — nas rotas de overview e nas de
+lista, sem exceção. Não existe caminho acumulado.
 
 ### `GET /api/portal/advertiser/overview?days=30`
 
@@ -100,7 +100,7 @@ comportamento acumulado atual nas rotas de lista.
   "period": { "days": 30, "from": "2026-08-06", "to": "2026-09-05" },
   "totals": {
     "plays": 48210, "scans": 391, "uniqueVisitors": 274,
-    "scanRate": 0.0081, "activeCampaigns": 3, "reachedDevices": 12,
+    "scanRate": 0.0081, "reachedDevices": 12,
     "previous": { "plays": 43044, "scans": 376, "uniqueVisitors": 280, "scanRate": 0.0087 }
   },
   "series": [ { "date": "2026-08-06", "plays": 1610, "scans": 12, "uniqueVisitors": 9 } ]
@@ -151,8 +151,12 @@ comportamento acumulado atual nas rotas de lista.
 ### Rotas de lista
 
 `/advertiser/campaigns` e `/client/devices` passam a aceitar o mesmo `?days`,
-filtrando os joins de `plays` e `scans` pela janela. Sem o parâmetro, o
-comportamento atual (acumulado) é preservado.
+filtrando os joins de `plays` e `scans` pela janela. O parâmetro é obrigatório
+na assinatura das próprias funções — `advertiserCampaigns(ids, days:
+PortalDays)` e `clientDevices(ids, days: PortalDays)` —, e é a rota que resolve
+o `days` ausente para `30` antes de chamá-las. Não existe caminho acumulado:
+sem `?days` na URL, a lista vem filtrada nos últimos 30 dias, igual às rotas
+de overview.
 
 ## UI
 

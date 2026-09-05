@@ -4,6 +4,7 @@ import {
   db, campaignsTable, playsTable, scansTable, devicesTable, advertisersTable, clientsTable,
 } from "@workspace/db";
 import { countReachedDevices } from "../ad-eligibility";
+import { onlineSince } from "./overview";
 import { portalPeriod, type PortalDays } from "./period";
 
 export interface PortalCampaignRow {
@@ -22,9 +23,14 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
     gte(playsTable.createdAt, period.from),
     lt(playsTable.createdAt, period.to),
   );
+  // Bot também fica fora daqui, e pelo mesmo motivo da janela: no ON, e não
+  // no WHERE. Anunciante não paga para ver crawler (mesma regra de
+  // overview.ts), e uma campanha cujos únicos scans foram de bot precisa
+  // aparecer com zero na lista, não sumir dela.
   const scansWindow = and(
     gte(scansTable.createdAt, period.from),
     lt(scansTable.createdAt, period.to),
+    eq(scansTable.isBot, false),
   );
   const rows = await db
     .select({
@@ -69,16 +75,22 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
 
 export interface PortalDeviceRow {
   id: number; name: string; location: string | null; lastSeenAt: Date | null; totalPlays: number;
+  isOnline: boolean;
 }
 
 /** Dispositivos dos clientes vinculados. */
 export async function clientDevices(clientIds: number[], days: PortalDays): Promise<PortalDeviceRow[]> {
   if (clientIds.length === 0) return [];
-  const period = portalPeriod(days);
+  const now = new Date();
+  const period = portalPeriod(days, now);
   const playsWindow = and(
     gte(playsTable.createdAt, period.from),
     lt(playsTable.createdAt, period.to),
   );
+  // Mesma janela de `onlineSince` usada em clientOverview: se o card de "TVs
+  // online agora" e a badge de cada linha vierem de dois relógios diferentes
+  // (servidor vs. `Date.now()` do navegador), um cliente com o relógio
+  // adiantado ou atrasado vê os dois discordando sobre o mesmo dispositivo.
   const rows = await db
     .select({
       id: devicesTable.id,
@@ -86,6 +98,9 @@ export async function clientDevices(clientIds: number[], days: PortalDays): Prom
       location: devicesTable.location,
       lastSeenAt: devicesTable.lastSeenAt,
       totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
+      // COALESCE porque `lastSeenAt IS NULL` faz a comparação virar NULL, e
+      // TV que nunca reportou não é "online" nem "não sei" — é offline.
+      isOnline: sql<boolean>`COALESCE(${devicesTable.lastSeenAt} >= ${onlineSince(now)}, false)`,
     })
     .from(devicesTable)
     .leftJoin(playsTable, and(eq(playsTable.deviceId, devicesTable.id), playsWindow))

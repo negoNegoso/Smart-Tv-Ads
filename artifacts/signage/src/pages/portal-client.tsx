@@ -19,10 +19,12 @@ interface PortalDevice {
   location: string | null;
   lastSeenAt: string | null;
   totalPlays: number;
+  isOnline: boolean;
 }
 
 interface ClientOverview {
   period: { days: PortalDays; from: string; to: string };
+  subjectName: string | null;
   totals: { plays: number; devices: number; devicesOnline: number; previous: { plays: number } };
   series: Array<{ date: string; plays: number }>;
 }
@@ -38,15 +40,7 @@ const CHART_CONFIG = {
   plays: { label: 'Exibições', color: 'hsl(var(--chart-1))' },
 } satisfies ChartConfig;
 
-/** Mesma janela que o backend usa em DEVICE_ONLINE_WINDOW_MINUTES. */
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
-
 const int = (n: number) => n.toLocaleString('pt-BR');
-
-function isOnline(lastSeenAt: string | null): boolean {
-  if (!lastSeenAt) return false;
-  return Date.now() - new Date(lastSeenAt).getTime() <= ONLINE_WINDOW_MS;
-}
 
 export default function PortalClient() {
   const [days, setDays] = useState<PortalDays>(30);
@@ -89,7 +83,9 @@ export default function PortalClient() {
 
   return (
     <div>
-      {period ? <PrintHeader subject="Minhas TVs" period={period} /> : null}
+      {period ? (
+        <PrintHeader subject={overview.data?.subjectName ?? 'Minhas TVs'} period={period} />
+      ) : null}
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold print:hidden">Minhas TVs</h1>
@@ -180,10 +176,10 @@ export default function PortalClient() {
                             aria-hidden
                             className={cn(
                               'h-2 w-2 rounded-full print:border print:border-current',
-                              isOnline(d.lastSeenAt) ? 'bg-emerald-500' : 'bg-muted-foreground/40',
+                              d.isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40',
                             )}
                           />
-                          {isOnline(d.lastSeenAt) ? 'Online' : 'Offline'}
+                          {d.isOnline ? 'Online' : 'Offline'}
                         </span>
                       </td>
                       <td className="py-3 text-right tabular-nums">{int(d.totalPlays)}</td>

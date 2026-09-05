@@ -300,7 +300,9 @@
     print-color-adjust: exact;
   }
 
-  /* O shell é navegação: cabeçalho fixo, botão de sair. Nada disso é papel. */
+  /* O papel é sempre claro, mesmo com o tema escuro ligado na tela: sem isto
+     o fundo de `.dark` vai para o PDF e a impressora gasta tinta numa página
+     que devia sair branca. */
   body {
     background: #fff;
   }

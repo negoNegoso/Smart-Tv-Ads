@@ -34,8 +34,8 @@ interface AdvertiserTotals {
 
 interface AdvertiserOverview {
   period: { days: PortalDays; from: string; to: string };
+  subjectName: string | null;
   totals: AdvertiserTotals & {
-    activeCampaigns: number;
     reachedDevices: number;
     previous: AdvertiserTotals;
   };
@@ -107,7 +107,9 @@ export default function PortalAdvertiser() {
 
   return (
     <div>
-      {period ? <PrintHeader subject="Minhas campanhas" period={period} /> : null}
+      {period ? (
+        <PrintHeader subject={overview.data?.subjectName ?? 'Minhas campanhas'} period={period} />
+      ) : null}
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold print:hidden">Minhas campanhas</h1>

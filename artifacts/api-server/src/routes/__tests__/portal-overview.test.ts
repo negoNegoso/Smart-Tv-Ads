@@ -48,9 +48,10 @@ const clientCtx = {
 
 const EMPTY_ADV = {
   period: { days: 30, from: "2026-08-07", to: "2026-09-05" },
+  subjectName: null,
   totals: {
     plays: 0, scans: 0, uniqueVisitors: 0, scanRate: 0,
-    activeCampaigns: 0, reachedDevices: 0,
+    reachedDevices: 0,
     previous: { plays: 0, scans: 0, uniqueVisitors: 0, scanRate: 0 },
   },
   series: [],
@@ -120,6 +121,7 @@ describe("GET /portal/client/overview", () => {
     loadAuthContext.mockResolvedValue(clientCtx);
     clientOverview.mockResolvedValue({
       period: { days: 30, from: "2026-08-07", to: "2026-09-05" },
+      subjectName: null,
       totals: { plays: 0, devices: 0, devicesOnline: 0, previous: { plays: 0 } },
       series: [],
     });

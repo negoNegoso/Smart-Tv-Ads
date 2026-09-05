@@ -37,9 +37,10 @@ describe('PortalAdvertiser', () => {
               String(url).includes('/overview')
                 ? {
                     period: { days: 30, from: '2026-08-07', to: '2026-09-05' },
+                    subjectName: null,
                     totals: {
                       plays: 0, scans: 0, uniqueVisitors: 0, scanRate: 0,
-                      activeCampaigns: 0, reachedDevices: 0,
+                      reachedDevices: 0,
                       previous: { plays: 0, scans: 0, uniqueVisitors: 0, scanRate: 0 },
                     },
                     series: [{ date: '2026-09-05', plays: 0, scans: 0, uniqueVisitors: 0 }],

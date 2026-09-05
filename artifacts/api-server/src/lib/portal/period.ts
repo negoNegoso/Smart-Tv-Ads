@@ -110,7 +110,11 @@ export interface PortalPeriod {
   days: PortalDays;
   /** Início do primeiro dia local da janela. */
   from: Date;
-  /** Fim da janela: `now` no período atual, o `from` do atual no anterior. */
+  /**
+   * Fim da janela. No período atual é `now`. No anterior é `from` somado ao
+   * mesmo tempo decorrido do período atual — não o `from` do período atual —,
+   * para que as duas janelas cubram exatamente o mesmo intervalo de tempo.
+   */
   to: Date;
   /** Uma chave `YYYY-MM-DD` por dia, em ordem crescente. */
   keys: string[];
