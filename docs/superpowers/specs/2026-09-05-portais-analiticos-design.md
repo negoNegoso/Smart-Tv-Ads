@@ -62,7 +62,10 @@ Novo diretório `components/portal/`:
 | `kpi-card.tsx` | Recebe rótulo, valor formatado, delta e ícone |
 | `trend-chart.tsx` | Recebe `{ date, ...séries }[]` e a config das séries |
 | `print-header.tsx` | Cabeçalho só-impressão |
-| `use-portal-period.ts` | Estado do período + query keys |
+
+O período fica em um `useState` dentro de cada página e entra nas query keys
+do TanStack Query. Um hook dedicado para um único `useState` seria indireção
+sem ganho.
 
 `pages/portal-advertiser.tsx` e `pages/portal-client.tsx` passam a ser
 composição desses blocos. Nenhum deles sabe se está servindo anunciante ou
@@ -121,9 +124,15 @@ comportamento acumulado atual nas rotas de lista.
 
 - **`previous`** cobre a janela imediatamente anterior (`from − days` … `from`),
   com os mesmos filtros. É o que transforma um número solto em "melhorou 12%".
-- **`series` traz um ponto por dia do período, zeros inclusos**, via
-  `generate_series` no SQL. Um dia sem exibição é informação — a TV ficou muda.
-  Omitir o ponto faz o gráfico interpolar por cima do buraco e esconder a falha.
+- **`series` traz um ponto por dia do período, zeros inclusos.** Um dia sem
+  exibição é informação — a TV ficou muda. Omitir o ponto faz o gráfico
+  interpolar por cima do buraco e esconder a falha.
+
+  O preenchimento acontece em JavaScript, sobre as chaves de dia calculadas em
+  `period.ts`, e não com `generate_series` no SQL. O motivo é testabilidade:
+  nenhum teste deste repositório abre conexão com banco, então uma regra que
+  vive dentro da query não é verificável — e esta é exatamente uma regra que
+  erra em silêncio.
 - **Agrupamento por dia em `America/Sao_Paulo`**, via
   `(created_at AT TIME ZONE 'America/Sao_Paulo')::date`, reusando
   `BUSINESS_TIME_ZONE` de `lib/ad-eligibility.ts`. Em UTC, a segunda-feira do
@@ -219,19 +228,36 @@ Vitest nos dois lados, seguindo os padrões que já existem no repositório.
   os `clientIds`. Admin sem vínculo recebe vazio, como hoje.
 - Nenhuma resposta do portal contém `contractValue`.
 
-**Backend, queries** — `src/lib/portal/__tests__/`:
+**Backend, regras puras** — `src/lib/portal/__tests__/`:
 
-- `series` tem exatamente `days` pontos, com zeros nos dias sem evento.
-- Um play às 22h de São Paulo cai no dia local, não no dia UTC seguinte.
-- Scan com `is_bot = true` não entra em `scans` nem em `uniqueVisitors`.
-- `previous` cobre a janela anterior e não sobrepõe a atual.
+- `parseDays` aceita os três presets, cai no padrão quando ausente e recusa o
+  resto.
+- Um instante às 23h de São Paulo pertence ao dia local, não ao dia UTC
+  seguinte.
+- `dayKeysEndingAt` devolve exatamente `days` chaves, atravessando viradas de
+  mês.
+- `previousPortalPeriod` termina exatamente onde o período atual começa.
+- `fillSeries` devolve um ponto por chave, com zeros nos dias sem linha.
+- `onlineSince` olha 5 minutos para trás.
+
+O que é SQL — o agrupamento por dia no fuso do negócio e o filtro
+`is_bot = false` — não tem teste automatizado: verificá-lo exigiria um banco,
+e nenhum teste deste repositório abre conexão. Fica coberto por revisão de
+código e pela conferência manual descrita na ordem de implementação.
 
 **Frontend** — testes de componente nos blocos isolados:
 
 - `PeriodFilter` emite o valor escolhido e marca o ativo.
 - `KpiCard` formata delta positivo, negativo, zero e `previous` ausente (`—`).
-- `TrendChart` renderiza com série toda-zero sem quebrar.
 - As páginas mostram estado de erro quando o fetch falha, e não a lista vazia.
+
+`TrendChart` não tem teste de renderização: o `ResponsiveContainer` do Recharts
+mede zero em jsdom e só renderiza com a medição de largura mockada, o que
+tornaria o teste uma verificação do mock. O comportamento dele é conferido na
+verificação manual da impressão.
+
+O `artifacts/signage` não tem test runner hoje; a primeira task do frontend
+adiciona Vitest, Testing Library e jsdom.
 
 ## Ordem de implementação
 
