@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Fuso do negócio: `America/Sao_Paulo`, sempre via `BUSINESS_TIME_ZONE` importado de `src/lib/ad-eligibility.ts`. Nunca `getDay()`/`getDate()` local do servidor.
-- `days` aceita **somente** `7`, `30` ou `90`. Qualquer outro valor → HTTP **400**. Ausente → `30` nas rotas de overview; nas rotas de lista, ausente mantém o comportamento acumulado atual.
+- `days` aceita **somente** `7`, `30` ou `90`. Qualquer outro valor → HTTP **400**. Ausente → `30`, em **todas** as rotas do portal, listas incluídas. Não existe caminho acumulado: um período governa a página inteira.
 - `contractValue` **nunca** sai por rota de portal.
 - Escopo por sessão: overview do anunciante recebe apenas `req.auth.advertiserIds`; do cliente, apenas `req.auth.clientIds`. Admin sem vínculo recebe listas vazias, como já acontece hoje.
 - `scans.is_bot = true` fica fora de qualquer contagem de `scans` e `uniqueVisitors`.
@@ -1108,21 +1108,26 @@ import { portalPeriod, type PortalDays } from "./period";
 ```
 
 Em `advertiserCampaigns`, mude a assinatura para
-`export async function advertiserCampaigns(advertiserIds: number[], days?: PortalDays): Promise<PortalCampaignRow[]>`
+`export async function advertiserCampaigns(advertiserIds: number[], days: PortalDays): Promise<PortalCampaignRow[]>`
 e insira, logo depois do `if (advertiserIds.length === 0) return [];`:
 
 ```ts
   // A janela entra no ON do join, não no WHERE: no WHERE, uma campanha sem
   // exibição no período viraria linha nenhuma e sumiria da lista, em vez de
   // aparecer zerada — que é a informação que o anunciante precisa ver.
-  const period = days === undefined ? null : portalPeriod(days);
-  const playsWindow = period
-    ? and(gte(playsTable.createdAt, period.from), lt(playsTable.createdAt, period.to))
-    : undefined;
-  const scansWindow = period
-    ? and(gte(scansTable.createdAt, period.from), lt(scansTable.createdAt, period.to))
-    : undefined;
+  const period = portalPeriod(days);
+  const playsWindow = and(
+    gte(playsTable.createdAt, period.from),
+    lt(playsTable.createdAt, period.to),
+  );
+  const scansWindow = and(
+    gte(scansTable.createdAt, period.from),
+    lt(scansTable.createdAt, period.to),
+  );
 ```
+
+`days` é obrigatório: toda rota do portal resolve o período antes de chamar
+estas queries, então um ramo "sem janela" seria código inalcançável.
 
 Troque os dois `leftJoin` existentes por:
 
@@ -1132,14 +1137,15 @@ Troque os dois `leftJoin` existentes por:
 ```
 
 Em `clientDevices`, mude a assinatura para
-`export async function clientDevices(clientIds: number[], days?: PortalDays): Promise<PortalDeviceRow[]>`
+`export async function clientDevices(clientIds: number[], days: PortalDays): Promise<PortalDeviceRow[]>`
 e insira, depois do `if (clientIds.length === 0) return [];`:
 
 ```ts
-  const period = days === undefined ? null : portalPeriod(days);
-  const playsWindow = period
-    ? and(gte(playsTable.createdAt, period.from), lt(playsTable.createdAt, period.to))
-    : undefined;
+  const period = portalPeriod(days);
+  const playsWindow = and(
+    gte(playsTable.createdAt, period.from),
+    lt(playsTable.createdAt, period.to),
+  );
 ```
 
 Troque o `leftJoin` existente por:
@@ -1152,7 +1158,7 @@ Troque o `leftJoin` existente por:
 
 Run: `pnpm --filter api-server run test && pnpm --filter api-server run typecheck`
 
-Expected: PASS. `portal-scope.test.ts` continua verde — ele chama as rotas sem `days`, e `parseDays(undefined)` devolve 30, então a asserção antiga `toHaveBeenCalledWith([9])` **vai falhar**. Atualize-a para `toHaveBeenCalledWith([9], 30)` e a de `clientDevices` para `toHaveBeenCalledWith([4], 30)`.
+Expected: PASS — depois de um ajuste esperado. `portal-scope.test.ts` chama as rotas sem `days`, e `parseDays(undefined)` devolve 30, então as asserções antigas `toHaveBeenCalledWith([9])` e `toHaveBeenCalledWith([4])` **vão falhar**. Atualize-as para `toHaveBeenCalledWith([9], 30)` e `toHaveBeenCalledWith([4], 30)`. Nenhuma outra mudança nesse arquivo.
 
 - [ ] **Step 6: Commit**
 
