@@ -126,9 +126,13 @@ export function portalPeriod(
 }
 
 /**
- * A janela imediatamente anterior, do mesmo tamanho. Termina exatamente onde a
- * atual começa — um play na fronteira em ambos os lados inflaria o delta duas
- * vezes.
+ * A janela anterior, cobrindo o mesmo tempo decorrido da atual.
+ *
+ * O período atual termina em `now` — hoje pela metade —, então comparar contra
+ * uma janela de dias inteiros mede seis dias e meio contra sete. Às seis da
+ * manhã isso é uma queda de 11% que não aconteceu, com seta vermelha na cara de
+ * quem paga pela veiculação, e que se recupera sozinha até a meia-noite. Por
+ * isso a janela anterior começa no mesmo horário do dia e dura o mesmo tanto.
  */
 export function previousPortalPeriod(
   days: PortalDays,
@@ -137,10 +141,8 @@ export function previousPortalPeriod(
 ): PortalPeriod {
   const all = dayKeysEndingAt(now, days * 2, timeZone);
   const keys = all.slice(0, days);
-  return {
-    days,
-    from: startOfBusinessDay(keys[0], timeZone),
-    to: startOfBusinessDay(all[days], timeZone),
-    keys,
-  };
+  const from = startOfBusinessDay(keys[0], timeZone);
+  const currentFrom = startOfBusinessDay(all[days], timeZone);
+  const elapsed = now.getTime() - currentFrom.getTime();
+  return { days, from, to: new Date(from.getTime() + elapsed), keys };
 }

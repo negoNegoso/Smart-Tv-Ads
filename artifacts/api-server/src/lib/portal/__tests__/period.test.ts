@@ -96,11 +96,28 @@ describe("previousPortalPeriod", () => {
     expect(previous.keys.at(-1)).toBe("2026-08-29");
   });
 
+  // O período atual vai até `now`, no meio do dia de hoje. Comparar contra dias
+  // inteiros mediria seis dias e meio contra sete e acusaria uma queda que não
+  // aconteceu, toda manhã, sumindo sozinha à noite.
+  it("cobre o mesmo tempo decorrido do período atual", () => {
+    const current = portalPeriod(7, now);
+    const previous = previousPortalPeriod(7, now);
+    const elapsed = (p: { from: Date; to: Date }) => p.to.getTime() - p.from.getTime();
+    expect(elapsed(previous)).toBe(elapsed(current));
+  });
+
   // Um play na fronteira não pode entrar nos dois períodos: o delta ficaria
   // inflado dos dois lados.
-  it("termina exatamente onde o período atual começa", () => {
+  it("termina antes de o período atual começar", () => {
     const current = portalPeriod(30, now);
     const previous = previousPortalPeriod(30, now);
-    expect(previous.to.toISOString()).toBe(current.from.toISOString());
+    expect(previous.to.getTime()).toBeLessThanOrEqual(current.from.getTime());
+  });
+
+  // O começo continua ancorado na virada do dia: é o que mantém a janela
+  // anterior alinhada com o mesmo horário, e não deslizando a cada requisição.
+  it("começa na virada do primeiro dia da janela", () => {
+    const previous = previousPortalPeriod(7, now);
+    expect(previous.from.toISOString()).toBe("2026-08-23T03:00:00.000Z");
   });
 });
