@@ -16,7 +16,15 @@ export const playsTable = pgTable(
   // plays é a tabela que mais cresce (uma linha por exibição por tela) e a
   // contagem de 30 dias da landing roda sem sessão. Sem este índice, qualquer
   // requisição que escape do CDN é um sequential scan na maior tabela.
-  (t) => [index("plays_created_idx").on(t.createdAt)],
+  //
+  // Os dois compostos servem os portais: lá o filtro é sempre "esta campanha
+  // (ou esta TV) dentro desta janela", e o índice só de created_at obrigaria a
+  // ler todas as exibições do período para depois descartar as de outros.
+  (t) => [
+    index("plays_created_idx").on(t.createdAt),
+    index("plays_campaign_created_idx").on(t.campaignId, t.createdAt),
+    index("plays_device_created_idx").on(t.deviceId, t.createdAt),
+  ],
 );
 
 export type Play = typeof playsTable.$inferSelect;

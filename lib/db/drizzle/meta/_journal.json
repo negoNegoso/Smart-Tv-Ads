@@ -36,6 +36,13 @@
       "when": 1788545100862,
       "tag": "0004_common_wolf_cub",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788587294959,
+      "tag": "0005_legal_hydra",
+      "breakpoints": true
     }
   ]
 }
