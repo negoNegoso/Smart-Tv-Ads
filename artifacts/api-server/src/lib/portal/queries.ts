@@ -1,9 +1,10 @@
 // artifacts/api-server/src/lib/portal/queries.ts
-import { inArray, eq, sql } from "drizzle-orm";
+import { inArray, eq, and, gte, lt, sql } from "drizzle-orm";
 import {
   db, campaignsTable, playsTable, scansTable, devicesTable, advertisersTable, clientsTable,
 } from "@workspace/db";
 import { countReachedDevices } from "../ad-eligibility";
+import { portalPeriod, type PortalDays } from "./period";
 
 export interface PortalCampaignRow {
   id: number; name: string; startsAt: Date; endsAt: Date; isActive: boolean;
@@ -11,8 +12,20 @@ export interface PortalCampaignRow {
 }
 
 /** Campanhas dos anunciantes vinculados. NUNCA expõe contractValue. */
-export async function advertiserCampaigns(advertiserIds: number[]): Promise<PortalCampaignRow[]> {
+export async function advertiserCampaigns(advertiserIds: number[], days: PortalDays): Promise<PortalCampaignRow[]> {
   if (advertiserIds.length === 0) return [];
+  // A janela entra no ON do join, não no WHERE: no WHERE, uma campanha sem
+  // exibição no período viraria linha nenhuma e sumiria da lista, em vez de
+  // aparecer zerada — que é a informação que o anunciante precisa ver.
+  const period = portalPeriod(days);
+  const playsWindow = and(
+    gte(playsTable.createdAt, period.from),
+    lt(playsTable.createdAt, period.to),
+  );
+  const scansWindow = and(
+    gte(scansTable.createdAt, period.from),
+    lt(scansTable.createdAt, period.to),
+  );
   const rows = await db
     .select({
       id: campaignsTable.id,
@@ -31,8 +44,8 @@ export async function advertiserCampaigns(advertiserIds: number[]): Promise<Port
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .leftJoin(playsTable, eq(playsTable.campaignId, campaignsTable.id))
-    .leftJoin(scansTable, eq(scansTable.campaignId, campaignsTable.id))
+    .leftJoin(playsTable, and(eq(playsTable.campaignId, campaignsTable.id), playsWindow))
+    .leftJoin(scansTable, and(eq(scansTable.campaignId, campaignsTable.id), scansWindow))
     .where(inArray(campaignsTable.advertiserId, advertiserIds))
     .groupBy(campaignsTable.id, advertisersTable.segmentId, advertisersTable.clientId)
     .orderBy(campaignsTable.startsAt);
@@ -59,8 +72,13 @@ export interface PortalDeviceRow {
 }
 
 /** Dispositivos dos clientes vinculados. */
-export async function clientDevices(clientIds: number[]): Promise<PortalDeviceRow[]> {
+export async function clientDevices(clientIds: number[], days: PortalDays): Promise<PortalDeviceRow[]> {
   if (clientIds.length === 0) return [];
+  const period = portalPeriod(days);
+  const playsWindow = and(
+    gte(playsTable.createdAt, period.from),
+    lt(playsTable.createdAt, period.to),
+  );
   const rows = await db
     .select({
       id: devicesTable.id,
@@ -70,7 +88,7 @@ export async function clientDevices(clientIds: number[]): Promise<PortalDeviceRo
       totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
     })
     .from(devicesTable)
-    .leftJoin(playsTable, eq(playsTable.deviceId, devicesTable.id))
+    .leftJoin(playsTable, and(eq(playsTable.deviceId, devicesTable.id), playsWindow))
     .where(inArray(devicesTable.clientId, clientIds))
     .groupBy(devicesTable.id)
     .orderBy(devicesTable.name);

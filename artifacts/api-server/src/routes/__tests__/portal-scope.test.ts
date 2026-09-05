@@ -12,6 +12,14 @@ vi.mock("../../lib/portal/queries", () => ({
   advertiserCampaigns: (...a: unknown[]) => advertiserCampaigns(...a),
   clientDevices: (...a: unknown[]) => clientDevices(...a),
 }));
+// portal.ts passou a importar overview, que puxa @workspace/db. Este arquivo
+// testa o escopo das rotas de lista e nunca chega a chamar o overview — mockar
+// o módulo mantém o teste sem banco, em vez de fabricar uma DATABASE_URL só
+// para sobreviver ao import.
+vi.mock("../../lib/portal/overview", () => ({
+  advertiserOverview: vi.fn(),
+  clientOverview: vi.fn(),
+}));
 
 async function buildApp(): Promise<Express> {
   process.env.SESSION_SECRET = SECRET;
@@ -40,7 +48,7 @@ describe("escopo dos portais", () => {
     const token = createSession(SECRET, "7");
     const res = await request(app).get("/portal/advertiser/campaigns").set("Cookie", `sid=${token}`);
     expect(res.status).toBe(200);
-    expect(advertiserCampaigns).toHaveBeenCalledWith([9]);
+    expect(advertiserCampaigns).toHaveBeenCalledWith([9], 30);
   });
 
   it("usuário sem vínculo de anunciante recebe 403", async () => {
