@@ -291,3 +291,22 @@
     inset: -1px;
   }
 }
+@media print {
+  /* O navegador descarta preenchimentos de fundo por padrão ao imprimir. Sem
+     isto o gráfico sai sem linhas e as badges de status somem: o relatório
+     vira uma tabela cinza que não prova nada. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* O shell é navegação: cabeçalho fixo, botão de sair. Nada disso é papel. */
+  body {
+    background: #fff;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+}

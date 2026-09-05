@@ -13,7 +13,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-col bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden">
         <div className="container mx-auto flex h-16 items-center px-4">
           <div className="flex items-center gap-2 font-bold tracking-tight text-primary">
             <MonitorPlay className="h-6 w-6" />
@@ -27,7 +27,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="container mx-auto w-full flex-1 px-4 py-6">{children}</main>
+      <main className="container mx-auto w-full flex-1 px-4 py-6 print:max-w-none print:px-0 print:py-0">{children}</main>
     </div>
   );
 }
