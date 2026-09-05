@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserAccount {
@@ -19,6 +26,13 @@ interface NamedRow {
   name: string;
 }
 
+interface UserPatch {
+  id: number;
+  isActive: boolean;
+  clientIds: number[];
+  advertiserIds: number[];
+}
+
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
 export default function Users() {
@@ -28,6 +42,7 @@ export default function Users() {
   const [tempPassword, setTempPassword] = useState('');
   const [clientIds, setClientIds] = useState<number[]>([]);
   const [advertiserIds, setAdvertiserIds] = useState<number[]>([]);
+  const [editing, setEditing] = useState<UserAccount | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ['users'],
@@ -81,6 +96,30 @@ export default function Users() {
     onError: (err: Error) => {
       toast({ title: err.message, variant: 'destructive' });
     },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (patch: UserPatch) => {
+      const res = await fetch(api(`/users/${patch.id}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: patch.isActive,
+          clientIds: patch.clientIds,
+          advertiserIds: patch.advertiserIds,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Não foi possível salvar as alterações.');
+      }
+    },
+    onSuccess: () => {
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({ title: 'Conta atualizada.' });
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: 'destructive' }),
   });
 
   const toggleMutation = useMutation({
@@ -189,10 +228,14 @@ export default function Users() {
                 <td className="px-3 py-2">{u.isActive ? 'Sim' : 'Não'}</td>
                 <td className="px-3 py-2">{u.mustChangePassword ? 'Pendente' : 'OK'}</td>
                 <td className="px-3 py-2">
-                  {u.advertiserIds.length} anunc. / {u.clientIds.length} cli.
+                  <LinkSummary label="Anunciantes" ids={u.advertiserIds} options={advertisers} />
+                  <LinkSummary label="Clientes" ids={u.clientIds} options={clients} />
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(u)}>
+                      Editar
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => toggleMutation.mutate(u)}>
                       {u.isActive ? 'Desativar' : 'Ativar'}
                     </Button>
@@ -216,7 +259,117 @@ export default function Users() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => {
+        if (!open) setEditing(null);
+      }}>
+        <DialogContent>
+          {editing ? (
+            <EditUserForm
+              key={editing.id}
+              user={editing}
+              clients={clients}
+              advertisers={advertisers}
+              isPending={updateMutation.isPending}
+              onCancel={() => setEditing(null)}
+              onSubmit={(patch) => updateMutation.mutate(patch)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditUserForm({
+  user,
+  clients,
+  advertisers,
+  isPending,
+  onCancel,
+  onSubmit,
+}: {
+  user: UserAccount;
+  clients: NamedRow[];
+  advertisers: NamedRow[];
+  isPending: boolean;
+  onCancel: () => void;
+  onSubmit: (patch: UserPatch) => void;
+}) {
+  const [isActive, setIsActive] = useState(user.isActive);
+  const [clientIds, setClientIds] = useState<number[]>(user.clientIds);
+  const [advertiserIds, setAdvertiserIds] = useState<number[]>(user.advertiserIds);
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    onSubmit({ id: user.id, isActive, clientIds, advertiserIds });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>Editar conta</DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-user-email">Email</Label>
+        <Input id="edit-user-email" value={user.email} readOnly disabled />
+      </div>
+
+      <label className="inline-flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+        />
+        Conta ativa
+      </label>
+
+      <MultiSelect label="Clientes" options={clients} value={clientIds} onChange={setClientIds} />
+      <MultiSelect
+        label="Anunciantes"
+        options={advertisers}
+        value={advertiserIds}
+        onChange={setAdvertiserIds}
+      />
+
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Salvando…' : 'Salvar'}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+function LinkSummary({
+  label,
+  ids,
+  options,
+}: {
+  label: string;
+  ids: number[];
+  options: NamedRow[];
+}) {
+  if (ids.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {label}: <span>nenhum</span>
+      </p>
+    );
+  }
+  const byId = new Map(options.map((o) => [o.id, o.name]));
+  const names = ids.map((id) => byId.get(id) ?? `#${id}`);
+  const shown = names.slice(0, 2).join(', ');
+  const rest = names.length - 2;
+  return (
+    <p className="text-xs" title={names.join(', ')}>
+      <span className="text-muted-foreground">{label}:</span> {shown}
+      {rest > 0 ? ` +${rest}` : ''}
+    </p>
   );
 }
 
