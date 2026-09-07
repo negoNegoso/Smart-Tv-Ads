@@ -12,6 +12,7 @@ import {
   replaceItems,
   updatePanel,
 } from "../lib/panels/queries";
+import { PanelRenderError, publishPanel, unpublishPanel } from "../lib/panels/publish";
 
 const router: IRouter = Router();
 
@@ -143,8 +144,31 @@ router.put("/client/panels/:id/items", requirePanelAccess, async (req, res) => {
   res.json(await replaceItems(res.locals.panelId as number, parsed.data.items));
 });
 
+router.post("/client/panels/:id/publish", requirePanelAccess, async (_req, res) => {
+  try {
+    const result = await publishPanel(res.locals.panelId as number);
+    res.json({ status: "published", pages: result.pages });
+  } catch (error) {
+    if (error instanceof PanelRenderError) {
+      // 422: o pedido é válido, o conteúdo é que não virou imagem. A
+      // publicação anterior continua no ar.
+      res.status(422).json({ error: error.message, pageNo: error.pageNo });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.post("/client/panels/:id/unpublish", requirePanelAccess, async (_req, res) => {
+  await unpublishPanel(res.locals.panelId as number);
+  res.json({ status: "draft" });
+});
+
 router.delete("/client/panels/:id", requirePanelAccess, async (_req, res) => {
-  await deletePanel(res.locals.panelId as number);
+  const id = res.locals.panelId as number;
+  // As imagens precisam sair do storage; o cascade só apaga as linhas.
+  await unpublishPanel(id);
+  await deletePanel(id);
   res.status(204).end();
 });
 

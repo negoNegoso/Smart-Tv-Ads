@@ -11,6 +11,8 @@ const updatePanel = vi.fn();
 const replaceItems = vi.fn();
 const deletePanel = vi.fn();
 const panelClientId = vi.fn();
+const publishPanel = vi.fn();
+const unpublishPanel = vi.fn();
 
 vi.mock("../../lib/auth/user-store", () => ({
   loadAuthContext: (...a: unknown[]) => loadAuthContext(...a),
@@ -23,6 +25,18 @@ vi.mock("../../lib/panels/queries", () => ({
   replaceItems: (...a: unknown[]) => replaceItems(...a),
   deletePanel: (...a: unknown[]) => deletePanel(...a),
   panelClientId: (...a: unknown[]) => panelClientId(...a),
+}));
+vi.mock("../../lib/panels/publish", () => ({
+  publishPanel: (...a: unknown[]) => publishPanel(...a),
+  unpublishPanel: (...a: unknown[]) => unpublishPanel(...a),
+  PanelRenderError: class extends Error {
+    constructor(
+      message: string,
+      public pageNo: number,
+    ) {
+      super(message);
+    }
+  },
 }));
 // portal.ts monta as rotas de anunciante/cliente e de painéis no mesmo router;
 // os dois módulos abaixo puxam @workspace/db no import e este arquivo nunca
@@ -83,7 +97,18 @@ async function adminAgent() {
 
 describe("escopo das rotas de painéis", () => {
   beforeEach(() => {
-    for (const fn of [loadAuthContext, listPanels, getPanel, createPanel, updatePanel, replaceItems, deletePanel, panelClientId]) {
+    for (const fn of [
+      loadAuthContext,
+      listPanels,
+      getPanel,
+      createPanel,
+      updatePanel,
+      replaceItems,
+      deletePanel,
+      panelClientId,
+      publishPanel,
+      unpublishPanel,
+    ]) {
       fn.mockReset();
     }
     loadAuthContext.mockResolvedValue(ctx);
@@ -190,5 +215,22 @@ describe("escopo das rotas de painéis", () => {
       .set("Cookie", cookie)
       .send({ kind: "menu", name: "Cardápio", template: "menu-basico", clientId: 999 });
     expect(res.status).toBe(400);
+  });
+
+  it("publicar painel de outro cliente recebe 403 e não renderiza", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).post("/portal/client/panels/5/publish").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+    expect(publishPanel).not.toHaveBeenCalled();
+  });
+
+  it("publica o painel do próprio cliente", async () => {
+    panelClientId.mockResolvedValue(7);
+    publishPanel.mockResolvedValue({ pages: 2 });
+    const { request, app, cookie } = await agent();
+    const res = await request(app).post("/portal/client/panels/5/publish").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: "published", pages: 2 });
   });
 });
