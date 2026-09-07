@@ -48,4 +48,22 @@ describe("renderPanelPage", () => {
     );
     expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   });
+
+  it("cardápio com 8 itens (MENU_ITEMS_PER_PAGE) todos com descrição cabe em 1920x1080", async () => {
+    // Guarda de regressão para a aritmética de altura das linhas do menu: 8
+    // itens com descrição é o pior caso de uma página paginada por
+    // MENU_ITEMS_PER_PAGE (Task 2) e não pode estourar o quadro.
+    const items = Array.from({ length: 8 }, (_, i) => ({
+      name: `Item ${i + 1}`,
+      description: "Descrição curta do item para preencher a segunda linha",
+      priceCents: 1000 + i * 100,
+      oldPriceCents: null,
+      imageUrl: null,
+    }));
+    const png = await renderPanelPage(
+      { kind: "menu", headline: null, body: null },
+      { category: "Lanches", items },
+    );
+    expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  });
 });

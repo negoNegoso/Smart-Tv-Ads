@@ -10,7 +10,16 @@ export const PANEL_HEIGHT = 1080;
 // processo longo do Replit quanto a instância reaproveitada da Vercel.
 let wasmReady: Promise<void> | null = null;
 function ensureWasm(): Promise<void> {
-  if (!wasmReady) wasmReady = initWasm(resvgWasm());
+  if (!wasmReady) {
+    wasmReady = initWasm(resvgWasm()).catch((err) => {
+      // Se initWasm falhar (ex.: hiccup transitório no cold start), o resvg
+      // fica com `initialized = false` internamente — então limpamos o memo
+      // para a próxima chamada tentar de novo, em vez de todo render futuro
+      // nesse processo falhar para sempre.
+      wasmReady = null;
+      throw err;
+    });
+  }
   return wasmReady;
 }
 

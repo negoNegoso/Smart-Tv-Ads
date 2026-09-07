@@ -42,10 +42,36 @@ function frame(children: unknown[]) {
       backgroundColor: COLORS.background,
       color: COLORS.text,
       fontFamily: "Inter",
+      // Último recurso: se a aritmética de alguma página furar o orçamento
+      // vertical, corta em vez de deixar conteúdo pendurado fora do raster.
+      overflow: "hidden",
     },
     children,
   });
 }
+
+/*
+ * MENU_ITEMS_PER_PAGE (Task 2) é 8, e uma tela pode ter as 8 linhas com
+ * descrição. A altura de cada linha tem que caber nesse orçamento sem
+ * cortar. Área de conteúdo: 1080 - 128 (padding 64px top+bottom do frame) =
+ * 952px.
+ *
+ * Por linha (aproximando altura de linha ≈ 1.2x o fontSize, como o satori
+ * renderiza com esse line-height por padrão):
+ *   padding vertical (14 + 14)        = 28px
+ *   nome (fontSize 40 * 1.2)          ≈ 48px
+ *   gap entre nome e descrição        =  6px
+ *   descrição (fontSize 22 * 1.2)     ≈ 26px
+ *   borda inferior                    =  2px
+ *   total por linha                   ≈ 110px
+ *
+ * 8 linhas: 8 * 110 = 880px.
+ * Cabeçalho de categoria (fontSize 34 * 1.2 ≈ 41px + marginBottom 24px) = 65px.
+ * Total: 880 + 65 = 945px, dentro dos 952px disponíveis.
+ */
+const MENU_ROW_NAME_FONT_SIZE = 40;
+const MENU_ROW_DESCRIPTION_FONT_SIZE = 22;
+const MENU_ROW_PADDING = "14px 0";
 
 function menuNode(page: { category: string | null; items: RenderItem[] }) {
   const rows = page.items.map((item) =>
@@ -55,7 +81,7 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
         alignItems: "baseline",
         justifyContent: "space-between",
         gap: "32px",
-        padding: "18px 0",
+        padding: MENU_ROW_PADDING,
         borderBottom: `2px solid ${COLORS.surface}`,
       },
       children: [
@@ -63,12 +89,12 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
           style: { display: "flex", flexDirection: "column", gap: "6px" },
           children: [
             node("div", {
-              style: { fontSize: 46, fontWeight: 700 },
+              style: { fontSize: MENU_ROW_NAME_FONT_SIZE, fontWeight: 700 },
               children: truncate(item.name, MAX_ITEM_NAME),
             }),
             item.description
               ? node("div", {
-                  style: { fontSize: 26, color: COLORS.muted },
+                  style: { fontSize: MENU_ROW_DESCRIPTION_FONT_SIZE, color: COLORS.muted },
                   children: truncate(item.description, MAX_ITEM_DESCRIPTION),
                 })
               : null,
