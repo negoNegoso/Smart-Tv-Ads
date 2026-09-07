@@ -15,6 +15,7 @@ import { GetDeviceSlidesResponse } from "@workspace/api-zod";
 import { resolveSlideCaption } from "../lib/slide-caption";
 import { resolvePlaylistVideoIds } from "../lib/youtube/playlist-resolver";
 import { filterEligibleSlides } from "../lib/ad-eligibility";
+import { composeDeviceSlides, panelSlidesForClient } from "../lib/panels/device-slides";
 
 const router: IRouter = Router();
 
@@ -117,12 +118,10 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     now,
   );
 
-  const seen = new Set<number>();
-  const deduped = [...eligibleCampaignSlides, ...playlistSlides].filter((slide) => {
-    if (seen.has(slide.announcementId)) return false;
-    seen.add(slide.announcementId);
-    return true;
-  });
+  // Terceira fonte: painéis que o próprio lojista publicou no portal.
+  const panelSlides = await panelSlidesForClient(device.clientId);
+
+  const deduped = composeDeviceSlides(eligibleCampaignSlides, panelSlides, playlistSlides);
 
   const slides = await Promise.all(
     deduped.map(async ({
