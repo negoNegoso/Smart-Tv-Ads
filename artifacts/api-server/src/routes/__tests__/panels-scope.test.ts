@@ -185,6 +185,64 @@ describe("escopo das rotas de painéis", () => {
     });
   });
 
+  // createPanel() devolve a linha crua da tabela, sem `items` — mas o
+  // contrato (Panel no openapi.yaml) exige `items` em toda resposta desse
+  // formato. Sem isto, o cliente gerado promete um array que não existe.
+  it("resposta da criação sempre carrega items, mesmo vazio", async () => {
+    createPanel.mockResolvedValue({ id: 1, name: "Cardápio" });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels")
+      .set("Cookie", cookie)
+      .send({ kind: "menu", name: "Cardápio", template: "menu-basico" });
+    expect(res.status).toBe(201);
+    expect(res.body.items).toEqual([]);
+  });
+
+  // updatePanel() também devolve a linha crua, sem `items`. O PATCH busca de
+  // novo com getPanel para devolver o painel completo, com os itens atuais.
+  it("resposta do PATCH sempre carrega items, buscando o painel completo depois de atualizar", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5, name: "Novo nome" });
+    getPanel.mockResolvedValue({
+      id: 5,
+      name: "Novo nome",
+      items: [{ id: 1, panelId: 5, name: "Item", priceCents: 100 }],
+    });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(200);
+    expect(getPanel).toHaveBeenCalledWith(5);
+    expect(res.body.items).toEqual([{ id: 1, panelId: 5, name: "Item", priceCents: 100 }]);
+  });
+
+  it("PATCH em painel apagado entre a autorização e o update responde 404", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue(null);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(404);
+    expect(getPanel).not.toHaveBeenCalled();
+  });
+
+  it("PATCH em painel apagado entre o update e a releitura responde 404", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5, name: "Novo nome" });
+    getPanel.mockResolvedValue(null);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(404);
+  });
+
   it("recusa kind fora do enum", async () => {
     const { request, app, cookie } = await agent();
     const res = await request(app)

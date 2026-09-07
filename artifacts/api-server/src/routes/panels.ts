@@ -151,7 +151,10 @@ router.post("/client/panels", async (req, res) => {
       name: parsed.data.name,
       template: parsed.data.template,
     });
-    res.status(201).json(panel);
+    // Todo painel devolvido pela API carrega `items`, mesmo vazio: um
+    // consumidor nunca deveria precisar saber qual rota devolveu o objeto
+    // para decidir se o campo existe.
+    res.status(201).json({ ...panel, items: [] });
   } catch (err) {
     // Só um admin alcança isto: um usuário de cliente só resolve para um
     // clientId ao qual está vinculado. Ainda assim, um id inexistente vindo
@@ -174,7 +177,24 @@ router.patch("/client/panels/:id", requirePanelAccess, async (req, res) => {
     res.status(400).json({ error: "Dados inválidos para atualizar o painel." });
     return;
   }
-  res.json(await updatePanel(res.locals.panelId as number, parsed.data));
+  const updated = await updatePanel(res.locals.panelId as number, parsed.data);
+  if (!updated) {
+    // O painel sumiu entre o guard de requirePanelAccess e este update
+    // (corrida com outra requisição apagando o mesmo painel). 404 é a
+    // resposta correta: o pedido era válido, o recurso não existe mais.
+    res.status(404).json({ error: "Painel não encontrado." });
+    return;
+  }
+  // Busca de novo com os itens: quem chama o PATCH quer o painel inteiro,
+  // igual ao que GET /panels/:id devolveria, não só as colunas que mudaram.
+  const panel = await getPanel(updated.id);
+  if (!panel) {
+    // Mesma corrida acima, só que entre o update e esta leitura. Também
+    // vira 404 em vez de mandar um corpo sem `items`.
+    res.status(404).json({ error: "Painel não encontrado." });
+    return;
+  }
+  res.json(panel);
 });
 
 router.put("/client/panels/:id/items", requirePanelAccess, async (req, res) => {
