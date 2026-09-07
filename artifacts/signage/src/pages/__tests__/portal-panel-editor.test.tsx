@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortalPanelEditor from '../portal-panel-editor';
+import PortalPanelEditor, { parsePriceToCents } from '../portal-panel-editor';
 
 const panel = {
   id: 1, clientId: 7, kind: 'menu', name: 'Cardápio', template: 'menu-basico',
@@ -55,5 +55,63 @@ describe('PortalPanelEditor', () => {
       expect(put).toBeDefined();
       expect(JSON.parse((put![1] as RequestInit).body as string).items[0].priceCents).toBe(1290);
     });
+  });
+
+  it('preço inválido bloqueia o salvar, marca a linha e não chama a API', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH' || init?.method === 'PUT') {
+        throw new Error('não deveria salvar com preço inválido');
+      }
+      return new Response(JSON.stringify(panel), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderEditor();
+    await screen.findByDisplayValue('Coxinha');
+    await userEvent.clear(screen.getByDisplayValue('7,50'));
+    // Três casas decimais não é um preço válido — não pode virar 0 nem 1234
+    // silenciosamente, tem que travar o salvar.
+    await userEvent.type(screen.getByPlaceholderText(/pre[çc]o/i), '12,345');
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+
+    expect(await screen.findByText(/preço inválido/i)).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit)?.method === 'PATCH' || (init as RequestInit)?.method === 'PUT',
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('parsePriceToCents', () => {
+  it('lê dígitos puros como centavos — os dois últimos dígitos são os centavos', () => {
+    expect(parsePriceToCents('1290')).toEqual({ ok: true, cents: 1290 });
+  });
+
+  it('lê vírgula com duas casas como moeda brasileira', () => {
+    expect(parsePriceToCents('12,90')).toEqual({ ok: true, cents: 1290 });
+  });
+
+  it('lê ponto como separador de milhar e vírgula como decimal', () => {
+    expect(parsePriceToCents('1.234,56')).toEqual({ ok: true, cents: 123456 });
+  });
+
+  it('lê um único dígito decimal como décimos, não como centavos', () => {
+    expect(parsePriceToCents('1,5')).toEqual({ ok: true, cents: 150 });
+  });
+
+  it('aceita "0,00" como item de cortesia deliberado', () => {
+    expect(parsePriceToCents('0,00')).toEqual({ ok: true, cents: 0 });
+  });
+
+  it('rejeita três ou mais dígitos decimais em vez de embaralhar os centavos', () => {
+    expect(parsePriceToCents('12,345').ok).toBe(false);
+  });
+
+  it('rejeita texto vazio em vez de virar 0 silenciosamente', () => {
+    expect(parsePriceToCents('').ok).toBe(false);
+  });
+
+  it('rejeita texto não numérico em vez de virar 0 silenciosamente', () => {
+    expect(parsePriceToCents('abc').ok).toBe(false);
   });
 });
