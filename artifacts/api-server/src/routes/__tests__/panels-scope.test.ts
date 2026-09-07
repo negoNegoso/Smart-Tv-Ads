@@ -50,6 +50,8 @@ vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: vi.fn(),
   clientOverview: vi.fn(),
 }));
+const put = vi.fn();
+vi.mock("../../lib/storage", () => ({ mediaStore: () => ({ put, remove: vi.fn() }) }));
 
 async function buildApp(): Promise<Express> {
   process.env.SESSION_SECRET = SECRET;
@@ -111,6 +113,7 @@ describe("escopo das rotas de painéis", () => {
     ]) {
       fn.mockReset();
     }
+    put.mockReset();
     loadAuthContext.mockResolvedValue(ctx);
   });
 
@@ -232,5 +235,39 @@ describe("escopo das rotas de painéis", () => {
     const res = await request(app).post("/portal/client/panels/5/publish").set("Cookie", cookie);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: "published", pages: 2 });
+  });
+
+  it("upload em painel de outro cliente recebe 403", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from([0x89, 0x50, 0x4e, 0x47]), "foto.png");
+    expect(res.status).toBe(403);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("upload de imagem devolve a URL do storage", async () => {
+    panelClientId.mockResolvedValue(7);
+    put.mockResolvedValue("/api/uploads/foto.png");
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from([0x89, 0x50, 0x4e, 0x47]), "foto.png");
+    expect(res.status).toBe(201);
+    expect(res.body.imageUrl).toBe("/api/uploads/foto.png");
+  });
+
+  it("recusa arquivo que não é imagem", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("texto"), { filename: "nota.txt", contentType: "text/plain" });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
   });
 });

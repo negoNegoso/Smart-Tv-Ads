@@ -1,5 +1,6 @@
 // artifacts/api-server/src/routes/panels.ts
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
 import { z } from "zod/v4";
 import { requireClient } from "../lib/auth/middleware";
 import { canAccessPanel, resolveOwnerClientId, type PanelAuth } from "../lib/panels/ownership";
@@ -13,6 +14,8 @@ import {
   updatePanel,
 } from "../lib/panels/queries";
 import { PanelRenderError, publishPanel, unpublishPanel } from "../lib/panels/publish";
+import { mediaStore } from "../lib/storage";
+import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 
 const router: IRouter = Router();
 
@@ -51,6 +54,44 @@ const itemsBody = z.object({
     )
     .max(200),
 });
+
+/**
+ * Erro do fileFilter do multer para upload que não declara ser imagem. Uma
+ * classe dedicada deixa uploadImage reconhecer a recusa por identidade, sem
+ * comparar mensagem de erro.
+ */
+class NotAnImageError extends Error {}
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: maxUploadBytes() },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      cb(new NotAnImageError("Envie um arquivo de imagem."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+/** Traduz os erros do multer em resposta HTTP, como em announcements.ts. */
+function uploadImage(req: Request, res: Response, next: NextFunction): void {
+  upload.single("image")(req, res, (err: unknown) => {
+    if (err instanceof NotAnImageError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({ error: uploadTooLargeMessage(maxUploadBytes()) });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
 
 /** Código do Postgres para violação de chave estrangeira. */
 const FK_VIOLATION = "23503";
@@ -170,6 +211,15 @@ router.delete("/client/panels/:id", requirePanelAccess, async (_req, res) => {
   await unpublishPanel(id);
   await deletePanel(id);
   res.status(204).end();
+});
+
+router.post("/client/panels/:id/image", requirePanelAccess, uploadImage, async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Nenhuma imagem enviada." });
+    return;
+  }
+  const imageUrl = await mediaStore().put(req.file.buffer, req.file.mimetype, req.file.originalname);
+  res.status(201).json({ imageUrl });
 });
 
 export default router;
