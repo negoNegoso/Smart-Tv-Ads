@@ -14,6 +14,7 @@ import {
   updatePanel,
 } from "../lib/panels/queries";
 import { PanelRenderError, publishPanel, unpublishPanel } from "../lib/panels/publish";
+import { sniffImageMimeType } from "../lib/image-sniff";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 
@@ -218,7 +219,17 @@ router.post("/client/panels/:id/image", requirePanelAccess, uploadImage, async (
     res.status(400).json({ error: "Nenhuma imagem enviada." });
     return;
   }
-  const imageUrl = await mediaStore().put(req.file.buffer, req.file.mimetype, req.file.originalname);
+  // O fileFilter do multer só olha o Content-Type que o cliente declarou —
+  // texto livre que pode mentir. Antes de gravar, confirma pelos bytes de
+  // verdade e usa o tipo sniffado (não o declarado) no storage: assim um
+  // LocalDiskStore/ReplitObjectStore nunca serve de volta um HTML/SVG com
+  // script disfarçado de imagem a partir da própria origem do app.
+  const mimeType = sniffImageMimeType(req.file.buffer);
+  if (!mimeType) {
+    res.status(400).json({ error: "Envie um arquivo de imagem." });
+    return;
+  }
+  const imageUrl = await mediaStore().put(req.file.buffer, mimeType, req.file.originalname);
   res.status(201).json({ imageUrl });
 });
 

@@ -1,5 +1,6 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import net from "node:net";
+import { sniffImageMimeType } from "../image-sniff";
 import type { MediaStore } from "../storage/types";
 
 /**
@@ -188,28 +189,3 @@ function isPrivateIPv6(ip: string): boolean {
   return false;
 }
 
-const IMAGE_MAGIC_BYTES: Array<{ mimeType: string; test: (b: Buffer) => boolean }> = [
-  {
-    mimeType: "image/png",
-    test: (b) => b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
-  },
-  { mimeType: "image/jpeg", test: (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
-  { mimeType: "image/gif", test: (b) => b.length >= 6 && /^GIF8[79]a$/.test(b.subarray(0, 6).toString("latin1")) },
-  {
-    mimeType: "image/webp",
-    test: (b) =>
-      b.length >= 12 &&
-      b.subarray(0, 4).toString("latin1") === "RIFF" &&
-      b.subarray(8, 12).toString("latin1") === "WEBP",
-  },
-];
-
-/**
- * Sniffa o tipo pelos bytes mágicos: um objeto lido do nosso próprio
- * MediaStore não vem com content-type (a interface `get` devolve só
- * Buffer), então a checagem "não deixa passar não-imagem" (Finding 2) tem
- * que ser feita pelo conteúdo em vez do cabeçalho.
- */
-function sniffImageMimeType(buffer: Buffer): string | null {
-  return IMAGE_MAGIC_BYTES.find((format) => format.test(buffer))?.mimeType ?? null;
-}

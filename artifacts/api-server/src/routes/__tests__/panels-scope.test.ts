@@ -237,13 +237,17 @@ describe("escopo das rotas de painéis", () => {
     expect(res.body).toEqual({ status: "published", pages: 2 });
   });
 
+  // Assinatura PNG completa (8 bytes) — o sniff por bytes mágicos exige o
+  // cabeçalho inteiro, não só os 4 primeiros bytes.
+  const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
   it("upload em painel de outro cliente recebe 403", async () => {
     panelClientId.mockResolvedValue(99);
     const { request, app, cookie } = await agent();
     const res = await request(app)
       .post("/portal/client/panels/5/image")
       .set("Cookie", cookie)
-      .attach("image", Buffer.from([0x89, 0x50, 0x4e, 0x47]), "foto.png");
+      .attach("image", PNG_BYTES, "foto.png");
     expect(res.status).toBe(403);
     expect(put).not.toHaveBeenCalled();
   });
@@ -255,7 +259,7 @@ describe("escopo das rotas de painéis", () => {
     const res = await request(app)
       .post("/portal/client/panels/5/image")
       .set("Cookie", cookie)
-      .attach("image", Buffer.from([0x89, 0x50, 0x4e, 0x47]), "foto.png");
+      .attach("image", PNG_BYTES, "foto.png");
     expect(res.status).toBe(201);
     expect(res.body.imageUrl).toBe("/api/uploads/foto.png");
   });
@@ -268,6 +272,48 @@ describe("escopo das rotas de painéis", () => {
       .set("Cookie", cookie)
       .attach("image", Buffer.from("texto"), { filename: "nota.txt", contentType: "text/plain" });
     expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("recusa arquivo cujos bytes não são uma imagem, mesmo com Content-Type de imagem declarado", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("<script>alert(1)</script>"), {
+        filename: "evil.png",
+        contentType: "image/png",
+      });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("upload de imagem real grava no storage com o tipo sniffado pelos bytes", async () => {
+    panelClientId.mockResolvedValue(7);
+    put.mockResolvedValue("/api/uploads/foto.png");
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", PNG_BYTES, "foto.png");
+    expect(res.status).toBe(201);
+    expect(put).toHaveBeenCalledWith(expect.any(Buffer), "image/png", "foto.png");
+  });
+
+  it("upload não autorizado com arquivo inválido ainda assim recebe 403 (autorização roda antes do multer)", async () => {
+    // Painel de outro cliente (não autorizado) *e* arquivo que não é imagem.
+    // Se a ordem das rotas fosse trocada, o fileFilter do multer rejeitaria
+    // o arquivo primeiro e a resposta seria 400 — nunca chegando a checar a
+    // autorização. Só passa com a ordem correta: requirePanelAccess antes
+    // de uploadImage.
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("texto"), { filename: "nota.txt", contentType: "text/plain" });
+    expect(res.status).toBe(403);
     expect(put).not.toHaveBeenCalled();
   });
 });
