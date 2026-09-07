@@ -1,16 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-// device-slides.ts importa @workspace/db no topo (para panelSlidesForClient);
-// este arquivo só exercita composeDeviceSlides, que é puro. Mockar o módulo
-// evita exigir DATABASE_URL para importar.
-vi.mock("@workspace/db", () => ({
-  db: {},
-  panelsTable: {},
-  panelSlidesTable: {},
-  announcementsTable: {},
-}));
+// device-slides.ts importa @workspace/db no topo. composeDeviceSlides é
+// pura e não precisa de banco; buildPanelSlidesQuery precisa do query
+// builder de verdade (para inspecionar o SQL gerado via .toSQL()), então
+// aqui só garantimos um DATABASE_URL fictício antes de importar — o Pool do
+// `pg` só conecta na primeira query executada, e `.toSQL()` nunca executa
+// nada.
+process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/db";
 
-const { composeDeviceSlides } = await import("../device-slides");
+const { composeDeviceSlides, buildPanelSlidesQuery } = await import("../device-slides");
 
 const slide = (announcementId: number, label: string) => ({ announcementId, label });
 
@@ -39,5 +37,34 @@ describe("composeDeviceSlides", () => {
   it("preserva a ordem de cada fonte", () => {
     const out = composeDeviceSlides([], [slide(1, "p1"), slide(2, "p2")], []);
     expect(out.map((s) => s.announcementId)).toEqual([1, 2]);
+  });
+});
+
+describe("buildPanelSlidesQuery", () => {
+  // Sem banco e sem rede: `.toSQL()` só monta o texto do SQL e os parâmetros,
+  // nunca executa a consulta. É o que garante o escopo por cliente e os
+  // filtros que decidem o que aparece numa TV de restaurante — sem isso um
+  // painel rascunho, ou o de outro cliente, poderia ir ao ar.
+  it("filtra pelo client_id da TV, e o valor passado vai como parâmetro", () => {
+    const { sql, params } = buildPanelSlidesQuery(42).toSQL();
+    expect(sql).toContain('"panels"."client_id" = $1');
+    expect(params[0]).toBe(42);
+  });
+
+  it("só traz painel com status published — rascunho não aparece na TV", () => {
+    const { sql, params } = buildPanelSlidesQuery(42).toSQL();
+    expect(sql).toContain('"panels"."status" = $2');
+    expect(params[1]).toBe("published");
+  });
+
+  it("só traz peça com announcements.is_active", () => {
+    const { sql, params } = buildPanelSlidesQuery(42).toSQL();
+    expect(sql).toContain('"announcements"."is_active" = $3');
+    expect(params[2]).toBe(true);
+  });
+
+  it("ordena por painel (id) e, dentro do painel, por page_no", () => {
+    const { sql } = buildPanelSlidesQuery(42).toSQL();
+    expect(sql).toContain('order by "panels"."id" asc, "panel_slides"."page_no" asc');
   });
 });

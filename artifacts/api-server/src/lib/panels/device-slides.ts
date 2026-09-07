@@ -35,15 +35,35 @@ type CampaignOnlyFields = {
   weekdays?: number[];
 };
 
+/** Formato de uma linha de slide de painel, já com as chaves de campanha opcionais. */
+type PanelSlideRow = {
+  announcementId: number;
+  campaignId: number | null;
+  title: string;
+  displayText: string | null;
+  showText: boolean;
+  imageUrl: string | null;
+  duration: number;
+  scanCode: string | null;
+  mediaKind: string;
+  youtubeId: string | null;
+  playbackMode: string;
+  audioMode: string;
+} & CampaignOnlyFields;
+
 /**
- * Slides dos painéis publicados do cliente dono da TV.
+ * Monta (sem executar) a consulta dos slides dos painéis publicados do
+ * cliente dono da TV. Separada de `panelSlidesForClient` para o teste
+ * inspecionar o SQL gerado via `.toSQL()` — sem banco e sem rede — e
+ * confirmar o escopo por cliente, os filtros de `published`/`isActive` e a
+ * ordenação, que decidem o que aparece na TV de um restaurante.
  *
  * O vínculo é cliente→TVs, não device_playlist: uma linha por device
  * congelaria quais TVs o cliente tinha no dia da publicação, e a TV comprada
  * depois ficaria sem cardápio.
  */
-export async function panelSlidesForClient(clientId: number) {
-  const rows = await db
+export function buildPanelSlidesQuery(clientId: number) {
+  return db
     .select({
       announcementId: panelSlidesTable.announcementId,
       campaignId: sql<number | null>`NULL`,
@@ -69,6 +89,9 @@ export async function panelSlidesForClient(clientId: number) {
       ),
     )
     .orderBy(asc(panelsTable.id), asc(panelSlidesTable.pageNo));
+}
 
-  return rows as ((typeof rows)[number] & CampaignOnlyFields)[];
+/** Slides dos painéis publicados do cliente dono da TV. */
+export async function panelSlidesForClient(clientId: number): Promise<PanelSlideRow[]> {
+  return buildPanelSlidesQuery(clientId);
 }
