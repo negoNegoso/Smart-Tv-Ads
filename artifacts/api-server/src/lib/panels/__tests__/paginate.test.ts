@@ -57,4 +57,18 @@ describe("paginateMenuItems", () => {
     expect(pages).toHaveLength(1);
     expect(pages[0].category).toBeNull();
   });
+
+  it("perPage de 0 usa o tamanho padrão em vez de travar", () => {
+    const items = Array.from({ length: 10 }, (_, i) => item(`I${i}`, "Teste", i));
+    const pages = paginateMenuItems(items, 0);
+    expect(pages).toHaveLength(2); // 10 itens com padrão 8 = 2 páginas
+    expect(pages[0].items).toHaveLength(MENU_ITEMS_PER_PAGE);
+  });
+
+  it("perPage de NaN usa o tamanho padrão em vez de retornar []", () => {
+    const items = Array.from({ length: 5 }, (_, i) => item(`I${i}`, "Teste", i));
+    const pages = paginateMenuItems(items, NaN);
+    expect(pages).toHaveLength(1);
+    expect(pages[0].items).toHaveLength(5);
+  });
 });

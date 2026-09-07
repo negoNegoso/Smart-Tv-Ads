@@ -24,6 +24,11 @@ export function paginateMenuItems<T extends PaginateItem>(
   items: T[],
   perPage: number = MENU_ITEMS_PER_PAGE,
 ): PanelPage<T>[] {
+  // Configuração inválida não deve tirar o cardápio do ar: usar o padrão em vez de travar.
+  if (!Number.isFinite(perPage) || perPage < 1) {
+    perPage = MENU_ITEMS_PER_PAGE;
+  }
+
   const active = items.filter((i) => i.isActive).sort((a, b) => a.displayOrder - b.displayOrder);
 
   const groups: Array<{ category: string | null; items: T[] }> = [];
