@@ -2,36 +2,45 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/**
- * Fontes e binário do resvg entram no bundle como bytes (ver os loaders em
- * build.mjs), então nada é lido do disco em produção — a função da Vercel é um
- * arquivo só, sem node_modules e sem a pasta assets.
- *
- * Sob vitest os imports binários não existem, então o fallback lê do disco.
- * O caminho é relativo a este arquivo, não ao cwd.
- */
+// Sob esbuild estes imports viram Uint8Array embutidos (loader "binary").
+// Sob vitest eles falham, e o catch lê o mesmo arquivo do disco.
 const assetsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../assets");
 
-function load(relative: string): Buffer {
-  return readFileSync(path.join(assetsDir, relative));
+async function bytes(bundled: () => Promise<{ default: Uint8Array }>, relative: string): Promise<Buffer> {
+  try {
+    const mod = await bundled();
+    // Sob esbuild o loader "binary" resolve para um Uint8Array de verdade.
+    // Sob vitest (Vite por baixo) uma extensão desconhecida não lança: ela
+    // resolve para uma string de URL do asset. Tratamos qualquer coisa que
+    // não seja Uint8Array como "não embutido" e caímos no disco.
+    if (!(mod.default instanceof Uint8Array)) throw new Error("asset não embutido");
+    return Buffer.from(mod.default);
+  } catch {
+    return readFileSync(path.join(assetsDir, relative));
+  }
 }
 
-function toArrayBuffer(buffer: Buffer): ArrayBuffer {
-  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
-}
-
-export function panelFonts(): Array<{
-  name: string;
-  data: ArrayBuffer;
-  weight: 400 | 700;
-  style: "normal";
-}> {
+export async function panelFonts(): Promise<
+  Array<{
+    name: string;
+    data: ArrayBuffer;
+    weight: 400 | 700;
+    style: "normal";
+  }>
+> {
+  const [regular, bold] = await Promise.all([
+    bytes(() => import("../../../assets/fonts/Inter-Regular.ttf") as never, "fonts/Inter-Regular.ttf"),
+    bytes(() => import("../../../assets/fonts/Inter-Bold.ttf") as never, "fonts/Inter-Bold.ttf"),
+  ]);
+  const toArrayBuffer = (b: Buffer): ArrayBuffer =>
+    b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
   return [
-    { name: "Inter", data: toArrayBuffer(load("fonts/Inter-Regular.ttf")), weight: 400, style: "normal" },
-    { name: "Inter", data: toArrayBuffer(load("fonts/Inter-Bold.ttf")), weight: 700, style: "normal" },
+    { name: "Inter", data: toArrayBuffer(regular), weight: 400, style: "normal" },
+    { name: "Inter", data: toArrayBuffer(bold), weight: 700, style: "normal" },
   ];
 }
 
-export function resvgWasm(): ArrayBuffer {
-  return toArrayBuffer(load("resvg.wasm"));
+export async function resvgWasm(): Promise<ArrayBuffer> {
+  const b = await bytes(() => import("../../../assets/resvg.wasm") as never, "resvg.wasm");
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 }

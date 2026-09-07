@@ -11,14 +11,16 @@ export const PANEL_HEIGHT = 1080;
 let wasmReady: Promise<void> | null = null;
 function ensureWasm(): Promise<void> {
   if (!wasmReady) {
-    wasmReady = initWasm(resvgWasm()).catch((err) => {
-      // Se initWasm falhar (ex.: hiccup transitório no cold start), o resvg
-      // fica com `initialized = false` internamente — então limpamos o memo
-      // para a próxima chamada tentar de novo, em vez de todo render futuro
-      // nesse processo falhar para sempre.
-      wasmReady = null;
-      throw err;
-    });
+    wasmReady = resvgWasm()
+      .then((wasm) => initWasm(wasm))
+      .catch((err) => {
+        // Se resvgWasm ou initWasm falhar (ex.: hiccup transitório no cold
+        // start), o resvg fica com `initialized = false` internamente —
+        // então limpamos o memo para a próxima chamada tentar de novo, em
+        // vez de todo render futuro nesse processo falhar para sempre.
+        wasmReady = null;
+        throw err;
+      });
   }
   return wasmReady;
 }
@@ -30,7 +32,7 @@ export async function renderPanelPage(
   const svg = await satori(panelPageNode(panel, page) as never, {
     width: PANEL_WIDTH,
     height: PANEL_HEIGHT,
-    fonts: panelFonts(),
+    fonts: await panelFonts(),
   });
 
   await ensureWasm();
