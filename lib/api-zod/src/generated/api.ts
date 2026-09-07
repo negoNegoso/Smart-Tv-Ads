@@ -807,3 +807,303 @@ export const ListPortalClientDevicesResponseItem = zod.object({
 export const ListPortalClientDevicesResponse = zod.array(ListPortalClientDevicesResponseItem)
 
 
+/**
+ * @summary List client portal panels
+ */
+export const listClientPanelsResponseItemsItemPriceCentsMin = 0;
+
+export const listClientPanelsResponseItemsItemOldPriceCentsMin = 0;
+
+
+
+export const ListClientPanelsResponseItem = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string(),
+  "template": zod.string(),
+  "status": zod.enum(['draft', 'published']),
+  "duration": zod.number(),
+  "headline": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(listClientPanelsResponseItemsItemPriceCentsMin),
+  "oldPriceCents": zod.number().min(listClientPanelsResponseItemsItemOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+}))
+})
+export const ListClientPanelsResponse = zod.array(ListClientPanelsResponseItem)
+
+
+/**
+ * @summary Create a client portal panel (draft)
+ */
+export const createClientPanelBodyNameMax = 80;
+
+export const createClientPanelBodyTemplateMax = 40;
+
+
+
+export const CreateClientPanelBody = zod.object({
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string().min(1).max(createClientPanelBodyNameMax),
+  "template": zod.string().min(1).max(createClientPanelBodyTemplateMax),
+  "clientId": zod.number().optional()
+})
+
+export const createClientPanelResponseItemsItemPriceCentsMin = 0;
+
+export const createClientPanelResponseItemsItemOldPriceCentsMin = 0;
+
+
+
+export const CreateClientPanelResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string(),
+  "template": zod.string(),
+  "status": zod.enum(['draft', 'published']),
+  "duration": zod.number(),
+  "headline": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(createClientPanelResponseItemsItemPriceCentsMin),
+  "oldPriceCents": zod.number().min(createClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Get a client portal panel
+ */
+export const GetClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const getClientPanelResponseItemsItemPriceCentsMin = 0;
+
+export const getClientPanelResponseItemsItemOldPriceCentsMin = 0;
+
+
+
+export const GetClientPanelResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string(),
+  "template": zod.string(),
+  "status": zod.enum(['draft', 'published']),
+  "duration": zod.number(),
+  "headline": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(getClientPanelResponseItemsItemPriceCentsMin),
+  "oldPriceCents": zod.number().min(getClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Update a client portal panel
+ */
+export const UpdateClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateClientPanelBodyNameMax = 80;
+
+export const updateClientPanelBodyTemplateMax = 40;
+
+export const updateClientPanelBodyDurationMin = 5;
+export const updateClientPanelBodyDurationMax = 60;
+
+export const updateClientPanelBodyHeadlineMax = 80;
+
+export const updateClientPanelBodyBodyMax = 300;
+
+
+
+export const UpdateClientPanelBody = zod.object({
+  "name": zod.string().min(1).max(updateClientPanelBodyNameMax).optional(),
+  "template": zod.string().min(1).max(updateClientPanelBodyTemplateMax).optional(),
+  "duration": zod.number().min(updateClientPanelBodyDurationMin).max(updateClientPanelBodyDurationMax).optional(),
+  "headline": zod.string().max(updateClientPanelBodyHeadlineMax).nullish(),
+  "body": zod.string().max(updateClientPanelBodyBodyMax).nullish()
+})
+
+export const updateClientPanelResponseItemsItemPriceCentsMin = 0;
+
+export const updateClientPanelResponseItemsItemOldPriceCentsMin = 0;
+
+
+
+export const UpdateClientPanelResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string(),
+  "template": zod.string(),
+  "status": zod.enum(['draft', 'published']),
+  "duration": zod.number(),
+  "headline": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(updateClientPanelResponseItemsItemPriceCentsMin),
+  "oldPriceCents": zod.number().min(updateClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Delete a client portal panel
+ */
+export const DeleteClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteClientPanelResponse = zod.void()
+
+
+/**
+ * @summary Replace all items of a client portal panel
+ */
+export const ReplaceClientPanelItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const replaceClientPanelItemsBodyItemsItemNameMax = 120;
+
+export const replaceClientPanelItemsBodyItemsItemDescriptionMax = 200;
+
+export const replaceClientPanelItemsBodyItemsItemPriceCentsMin = 0;
+export const replaceClientPanelItemsBodyItemsItemPriceCentsMax = 100000000;
+
+export const replaceClientPanelItemsBodyItemsItemOldPriceCentsMin = 0;
+export const replaceClientPanelItemsBodyItemsItemOldPriceCentsMax = 100000000;
+
+export const replaceClientPanelItemsBodyItemsItemCategoryMax = 60;
+
+export const replaceClientPanelItemsBodyItemsItemImageUrlMax = 500;
+
+export const replaceClientPanelItemsBodyItemsMax = 200;
+
+
+
+export const ReplaceClientPanelItemsBody = zod.object({
+  "items": zod.array(zod.object({
+  "name": zod.string().min(1).max(replaceClientPanelItemsBodyItemsItemNameMax),
+  "description": zod.string().max(replaceClientPanelItemsBodyItemsItemDescriptionMax).nullish(),
+  "priceCents": zod.number().min(replaceClientPanelItemsBodyItemsItemPriceCentsMin).max(replaceClientPanelItemsBodyItemsItemPriceCentsMax),
+  "oldPriceCents": zod.number().min(replaceClientPanelItemsBodyItemsItemOldPriceCentsMin).max(replaceClientPanelItemsBodyItemsItemOldPriceCentsMax).nullish(),
+  "category": zod.string().max(replaceClientPanelItemsBodyItemsItemCategoryMax).nullish(),
+  "imageUrl": zod.string().max(replaceClientPanelItemsBodyItemsItemImageUrlMax).nullish()
+})).max(replaceClientPanelItemsBodyItemsMax)
+})
+
+export const replaceClientPanelItemsResponsePriceCentsMin = 0;
+
+export const replaceClientPanelItemsResponseOldPriceCentsMin = 0;
+
+
+
+export const ReplaceClientPanelItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(replaceClientPanelItemsResponsePriceCentsMin),
+  "oldPriceCents": zod.number().min(replaceClientPanelItemsResponseOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+})
+export const ReplaceClientPanelItemsResponse = zod.array(ReplaceClientPanelItemsResponseItem)
+
+
+/**
+ * @summary Publish a client portal panel
+ */
+export const PublishClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PublishClientPanelResponse = zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "pages": zod.number().optional()
+})
+
+
+/**
+ * @summary Unpublish a client portal panel
+ */
+export const UnpublishClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UnpublishClientPanelResponse = zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "pages": zod.number().optional()
+})
+
+
+/**
+ * @summary Upload an image for a client portal panel item (multipart/form-data)
+ */
+export const UploadClientPanelImageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UploadClientPanelImageBody = zod.object({
+  "image": zod.string()
+})
+
+export const UploadClientPanelImageResponse = zod.object({
+  "imageUrl": zod.string()
+})
+
+

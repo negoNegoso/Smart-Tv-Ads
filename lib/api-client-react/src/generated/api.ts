@@ -32,6 +32,7 @@ import type {
   ClientInput,
   ClientStats,
   ClientUpdate,
+  CreatePanelRequest,
   Device,
   DeviceAnalytics,
   DeviceInput,
@@ -39,6 +40,8 @@ import type {
   DisplaySlide,
   HealthStatus,
   ListDevicesParams,
+  Panel,
+  PanelItem,
   PlayInput,
   PlaylistItem,
   PlaylistItemInput,
@@ -46,11 +49,16 @@ import type {
   PortalCampaign,
   PortalDevice,
   PublicStats,
+  PublishPanelResponse,
   ReorderInput,
+  ReplacePanelItemsRequest,
   ResetPasswordBody,
   ResetUserPassword200,
   Segment,
   SegmentInput,
+  UpdatePanelRequest,
+  UploadClientPanelImage201,
+  UploadPanelImageRequest,
   UserAccount,
   UserInput,
   UserUpdate
@@ -3249,4 +3257,660 @@ export function useListPortalClientDevices<TData = Awaited<ReturnType<typeof lis
 
 
 
+
+export const getListClientPanelsUrl = () => {
+
+
+
+
+  return `/api/portal/client/panels`
+}
+
+/**
+ * @summary List client portal panels
+ */
+export const listClientPanels = async ( options?: RequestInit): Promise<Panel[]> => {
+
+  return customFetch<Panel[]>(getListClientPanelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientPanelsQueryKey = () => {
+    return [
+    `/api/portal/client/panels`
+    ] as const;
+    }
+
+
+export const getListClientPanelsQueryOptions = <TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientPanelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientPanels>>> = ({ signal }) => listClientPanels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientPanelsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientPanels>>>
+export type ListClientPanelsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List client portal panels
+ */
+
+export function useListClientPanels<TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientPanelsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClientPanelUrl = () => {
+
+
+
+
+  return `/api/portal/client/panels`
+}
+
+/**
+ * @summary Create a client portal panel (draft)
+ */
+export const createClientPanel = async (createPanelRequest: CreatePanelRequest, options?: RequestInit): Promise<Panel> => {
+
+  return customFetch<Panel>(getCreateClientPanelUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPanelRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientPanel>>, TError,{data: BodyType<CreatePanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientPanel>>, TError,{data: BodyType<CreatePanelRequest>}, TContext> => {
+
+const mutationKey = ['createClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientPanel>>, {data: BodyType<CreatePanelRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClientPanel(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof createClientPanel>>>
+    export type CreateClientPanelMutationBody = BodyType<CreatePanelRequest>
+    export type CreateClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a client portal panel (draft)
+ */
+export const useCreateClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientPanel>>, TError,{data: BodyType<CreatePanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClientPanel>>,
+        TError,
+        {data: BodyType<CreatePanelRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateClientPanelMutationOptions(options));
+    }
+
+export const getGetClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}`
+}
+
+/**
+ * @summary Get a client portal panel
+ */
+export const getClientPanel = async (id: number, options?: RequestInit): Promise<Panel> => {
+
+  return customFetch<Panel>(getGetClientPanelUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientPanelQueryKey = (id: number,) => {
+    return [
+    `/api/portal/client/panels/${id}`
+    ] as const;
+    }
+
+
+export const getGetClientPanelQueryOptions = <TData = Awaited<ReturnType<typeof getClientPanel>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientPanel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientPanelQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientPanel>>> = ({ signal }) => getClientPanel(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientPanel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientPanelQueryResult = NonNullable<Awaited<ReturnType<typeof getClientPanel>>>
+export type GetClientPanelQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a client portal panel
+ */
+
+export function useGetClientPanel<TData = Awaited<ReturnType<typeof getClientPanel>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientPanel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientPanelQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}`
+}
+
+/**
+ * @summary Update a client portal panel
+ */
+export const updateClientPanel = async (id: number,
+    updatePanelRequest: UpdatePanelRequest, options?: RequestInit): Promise<Panel> => {
+
+  return customFetch<Panel>(getUpdateClientPanelUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePanelRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientPanel>>, TError,{id: number;data: BodyType<UpdatePanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClientPanel>>, TError,{id: number;data: BodyType<UpdatePanelRequest>}, TContext> => {
+
+const mutationKey = ['updateClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClientPanel>>, {id: number;data: BodyType<UpdatePanelRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateClientPanel(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof updateClientPanel>>>
+    export type UpdateClientPanelMutationBody = BodyType<UpdatePanelRequest>
+    export type UpdateClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a client portal panel
+ */
+export const useUpdateClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientPanel>>, TError,{id: number;data: BodyType<UpdatePanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClientPanel>>,
+        TError,
+        {id: number;data: BodyType<UpdatePanelRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateClientPanelMutationOptions(options));
+    }
+
+export const getDeleteClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}`
+}
+
+/**
+ * @summary Delete a client portal panel
+ */
+export const deleteClientPanel = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteClientPanelUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteClientPanel>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteClientPanel>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteClientPanel(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof deleteClientPanel>>>
+
+    export type DeleteClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a client portal panel
+ */
+export const useDeleteClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteClientPanel>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteClientPanelMutationOptions(options));
+    }
+
+export const getReplaceClientPanelItemsUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/items`
+}
+
+/**
+ * @summary Replace all items of a client portal panel
+ */
+export const replaceClientPanelItems = async (id: number,
+    replacePanelItemsRequest: ReplacePanelItemsRequest, options?: RequestInit): Promise<PanelItem[]> => {
+
+  return customFetch<PanelItem[]>(getReplaceClientPanelItemsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(replacePanelItemsRequest)
+  }
+);}
+
+
+
+
+
+export const getReplaceClientPanelItemsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceClientPanelItems>>, TError,{id: number;data: BodyType<ReplacePanelItemsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replaceClientPanelItems>>, TError,{id: number;data: BodyType<ReplacePanelItemsRequest>}, TContext> => {
+
+const mutationKey = ['replaceClientPanelItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replaceClientPanelItems>>, {id: number;data: BodyType<ReplacePanelItemsRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  replaceClientPanelItems(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplaceClientPanelItemsMutationResult = NonNullable<Awaited<ReturnType<typeof replaceClientPanelItems>>>
+    export type ReplaceClientPanelItemsMutationBody = BodyType<ReplacePanelItemsRequest>
+    export type ReplaceClientPanelItemsMutationError = ErrorType<void>
+
+    /**
+ * @summary Replace all items of a client portal panel
+ */
+export const useReplaceClientPanelItems = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceClientPanelItems>>, TError,{id: number;data: BodyType<ReplacePanelItemsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replaceClientPanelItems>>,
+        TError,
+        {id: number;data: BodyType<ReplacePanelItemsRequest>},
+        TContext
+      > => {
+      return useMutation(getReplaceClientPanelItemsMutationOptions(options));
+    }
+
+export const getPublishClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/publish`
+}
+
+/**
+ * @summary Publish a client portal panel
+ */
+export const publishClientPanel = async (id: number, options?: RequestInit): Promise<PublishPanelResponse> => {
+
+  return customFetch<PublishPanelResponse>(getPublishClientPanelUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishClientPanel>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['publishClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishClientPanel>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  publishClientPanel(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof publishClientPanel>>>
+
+    export type PublishClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Publish a client portal panel
+ */
+export const usePublishClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishClientPanel>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPublishClientPanelMutationOptions(options));
+    }
+
+export const getUnpublishClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/unpublish`
+}
+
+/**
+ * @summary Unpublish a client portal panel
+ */
+export const unpublishClientPanel = async (id: number, options?: RequestInit): Promise<PublishPanelResponse> => {
+
+  return customFetch<PublishPanelResponse>(getUnpublishClientPanelUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnpublishClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unpublishClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unpublishClientPanel>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['unpublishClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unpublishClientPanel>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  unpublishClientPanel(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnpublishClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof unpublishClientPanel>>>
+
+    export type UnpublishClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Unpublish a client portal panel
+ */
+export const useUnpublishClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unpublishClientPanel>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unpublishClientPanel>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getUnpublishClientPanelMutationOptions(options));
+    }
+
+export const getUploadClientPanelImageUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/image`
+}
+
+/**
+ * @summary Upload an image for a client portal panel item (multipart/form-data)
+ */
+export const uploadClientPanelImage = async (id: number,
+    uploadPanelImageRequest: UploadPanelImageRequest, options?: RequestInit): Promise<UploadClientPanelImage201> => {
+    const formData = new FormData();
+formData.append(`image`, uploadPanelImageRequest.image);
+
+  return customFetch<UploadClientPanelImage201>(getUploadClientPanelImageUrl(id),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadClientPanelImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadClientPanelImage>>, TError,{id: number;data: BodyType<UploadPanelImageRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadClientPanelImage>>, TError,{id: number;data: BodyType<UploadPanelImageRequest>}, TContext> => {
+
+const mutationKey = ['uploadClientPanelImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadClientPanelImage>>, {id: number;data: BodyType<UploadPanelImageRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadClientPanelImage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadClientPanelImageMutationResult = NonNullable<Awaited<ReturnType<typeof uploadClientPanelImage>>>
+    export type UploadClientPanelImageMutationBody = BodyType<UploadPanelImageRequest>
+    export type UploadClientPanelImageMutationError = ErrorType<void>
+
+    /**
+ * @summary Upload an image for a client portal panel item (multipart/form-data)
+ */
+export const useUploadClientPanelImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadClientPanelImage>>, TError,{id: number;data: BodyType<UploadPanelImageRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadClientPanelImage>>,
+        TError,
+        {id: number;data: BodyType<UploadPanelImageRequest>},
+        TContext
+      > => {
+      return useMutation(getUploadClientPanelImageMutationOptions(options));
+    }
 
