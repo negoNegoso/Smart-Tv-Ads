@@ -17,6 +17,9 @@ export function formatPriceBRL(cents: number): string {
  */
 export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
+  // slice(0, max - 1) com max <= 0 cria um índice negativo, fazendo JavaScript
+  // contar a partir do fim da string. Isto violaria o contrato: nunca exceder max.
+  if (max <= 0) return "";
   const cut = text.slice(0, max - 1).trimEnd();
   return `${cut}…`;
 }

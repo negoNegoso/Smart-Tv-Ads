@@ -33,4 +33,16 @@ describe("truncate", () => {
   it("não deixa espaço antes da reticência", () => {
     expect(truncate("Coxinha de frango", 12)).toBe("Coxinha de…");
   });
+
+  it("retorna string vazia quando max é 0", () => {
+    const out = truncate("Pão de queijo", 0);
+    expect(out).toBe("");
+    expect(out.length).toBeLessThanOrEqual(0);
+  });
+
+  it("retorna string vazia quando max é negativo", () => {
+    const out = truncate("Pão de queijo", -5);
+    expect(out).toBe("");
+    expect(out.length).toBe(0);
+  });
 });
