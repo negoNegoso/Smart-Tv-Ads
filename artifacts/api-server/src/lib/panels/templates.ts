@@ -31,6 +31,9 @@ const COLORS = {
 /** Nó satori: mesma forma de um elemento React, sem depender do React aqui. */
 const node = (type: string, props: Record<string, unknown>) => ({ type, props });
 
+const FRAME_PADDING_VERTICAL = 64; // topo e base do frame
+const FRAME_PADDING_HORIZONTAL = 80; // esquerda e direita do frame
+
 function frame(children: unknown[]) {
   return node("div", {
     style: {
@@ -38,7 +41,7 @@ function frame(children: unknown[]) {
       flexDirection: "column",
       width: "100%",
       height: "100%",
-      padding: "64px 80px",
+      padding: `${FRAME_PADDING_VERTICAL}px ${FRAME_PADDING_HORIZONTAL}px`,
       backgroundColor: COLORS.background,
       color: COLORS.text,
       fontFamily: "Inter",
@@ -51,27 +54,47 @@ function frame(children: unknown[]) {
 }
 
 /*
- * MENU_ITEMS_PER_PAGE (Task 2) é 8, e uma tela pode ter as 8 linhas com
- * descrição. A altura de cada linha tem que caber nesse orçamento sem
- * cortar. Área de conteúdo: 1080 - 128 (padding 64px top+bottom do frame) =
- * 952px.
+ * MENU_ITEMS_PER_PAGE (Task 2, importado por quem testa isto de "./paginate")
+ * é 8, e uma tela pode ter as 8 linhas com descrição. A altura de cada linha
+ * tem que caber no orçamento vertical do quadro sem cortar.
  *
- * Por linha (aproximando altura de linha ≈ 1.2x o fontSize, como o satori
- * renderiza com esse line-height por padrão):
- *   padding vertical (14 + 14)        = 28px
- *   nome (fontSize 40 * 1.2)          ≈ 48px
- *   gap entre nome e descrição        =  6px
- *   descrição (fontSize 22 * 1.2)     ≈ 26px
- *   borda inferior                    =  2px
- *   total por linha                   ≈ 110px
+ * LINE_HEIGHT_FACTOR aproxima a métrica real do satori (que não expõe altura
+ * de linha calculada publicamente) — é só uma aproximação, não um valor
+ * exato do layout engine.
  *
- * 8 linhas: 8 * 110 = 880px.
- * Cabeçalho de categoria (fontSize 34 * 1.2 ≈ 41px + marginBottom 24px) = 65px.
- * Total: 880 + 65 = 945px, dentro dos 952px disponíveis.
+ * Os números abaixo alimentam tanto o estilo (MENU_ROW_*, MENU_CATEGORY_*)
+ * quanto os totais exportados (MENU_ROW_HEIGHT, MENU_CATEGORY_HEADER_HEIGHT,
+ * MENU_CONTENT_HEIGHT), para que um teste possa comparar
+ * MENU_ITEMS_PER_PAGE * MENU_ROW_HEIGHT + MENU_CATEGORY_HEADER_HEIGHT contra
+ * MENU_CONTENT_HEIGHT sem duplicar a conta.
  */
+export const LINE_HEIGHT_FACTOR = 1.2;
+
+const FRAME_HEIGHT = 1080; // mesmo valor de PANEL_HEIGHT (render.ts); duplicado aqui para não
+// criar import circular (render.ts importa templates.ts, não o contrário).
+export const MENU_CONTENT_HEIGHT = FRAME_HEIGHT - 2 * FRAME_PADDING_VERTICAL;
+
 const MENU_ROW_NAME_FONT_SIZE = 40;
 const MENU_ROW_DESCRIPTION_FONT_SIZE = 22;
-const MENU_ROW_PADDING = "14px 0";
+const MENU_ROW_PADDING_VERTICAL = 14; // topo e base da linha
+const MENU_ROW_GAP = 6; // entre nome e descrição
+const MENU_ROW_BORDER = 2; // borda inferior da linha
+const MENU_ROW_PADDING = `${MENU_ROW_PADDING_VERTICAL}px 0`;
+
+/** Altura estimada de uma linha do menu com descrição (padding + nome + gap + descrição + borda). */
+export const MENU_ROW_HEIGHT =
+  MENU_ROW_PADDING_VERTICAL * 2 +
+  MENU_ROW_NAME_FONT_SIZE * LINE_HEIGHT_FACTOR +
+  MENU_ROW_GAP +
+  MENU_ROW_DESCRIPTION_FONT_SIZE * LINE_HEIGHT_FACTOR +
+  MENU_ROW_BORDER;
+
+const MENU_CATEGORY_FONT_SIZE = 34;
+const MENU_CATEGORY_MARGIN_BOTTOM = 24;
+
+/** Altura estimada do cabeçalho de categoria (fonte + margem inferior). */
+export const MENU_CATEGORY_HEADER_HEIGHT =
+  MENU_CATEGORY_FONT_SIZE * LINE_HEIGHT_FACTOR + MENU_CATEGORY_MARGIN_BOTTOM;
 
 function menuNode(page: { category: string | null; items: RenderItem[] }) {
   const rows = page.items.map((item) =>
@@ -82,11 +105,11 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
         justifyContent: "space-between",
         gap: "32px",
         padding: MENU_ROW_PADDING,
-        borderBottom: `2px solid ${COLORS.surface}`,
+        borderBottom: `${MENU_ROW_BORDER}px solid ${COLORS.surface}`,
       },
       children: [
         node("div", {
-          style: { display: "flex", flexDirection: "column", gap: "6px" },
+          style: { display: "flex", flexDirection: "column", gap: `${MENU_ROW_GAP}px` },
           children: [
             node("div", {
               style: { fontSize: MENU_ROW_NAME_FONT_SIZE, fontWeight: 700 },
@@ -111,7 +134,12 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
   return frame([
     page.category
       ? node("div", {
-          style: { fontSize: 34, letterSpacing: "4px", color: COLORS.muted, marginBottom: "24px" },
+          style: {
+            fontSize: MENU_CATEGORY_FONT_SIZE,
+            letterSpacing: "4px",
+            color: COLORS.muted,
+            marginBottom: `${MENU_CATEGORY_MARGIN_BOTTOM}px`,
+          },
           children: page.category.toUpperCase(),
         })
       : null,
