@@ -5,9 +5,10 @@ const BRL = new Intl.NumberFormat("pt-BR", {
 
 /** Centavos inteiros para o texto que vai à tela. Nunca receba float aqui. */
 export function formatPriceBRL(cents: number): string {
-  // Intl emite U+00A0 (NO-BREAK SPACE) entre "R$" e os dígitos.
-  // Normalizamos para espaço comum (U+0020) para testes e exibição.
-  return BRL.format(cents / 100).replace(/ /g, " ");
+  // Intl emite U+00A0 (NO-BREAK SPACE) ou U+202F (NARROW NO-BREAK SPACE) entre "R$"
+  // e os dígitos conforme a versão do Node/ICU. Normalizamos para espaço comum
+  // (U+0020) para testes e exibição consistente.
+  return BRL.format(cents / 100).replace(/[  ]/g, " ");
 }
 
 /**
@@ -17,8 +18,5 @@ export function formatPriceBRL(cents: number): string {
 export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   const cut = text.slice(0, max - 1).trimEnd();
-  if (cut.length + 2 === max && cut.length > 10) {
-    return `${cut} …`;
-  }
   return `${cut}…`;
 }

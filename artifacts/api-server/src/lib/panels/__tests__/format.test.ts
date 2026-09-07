@@ -26,7 +26,7 @@ describe("truncate", () => {
 
   it("corta com reticência e respeita o limite", () => {
     const out = truncate("Pão de queijo mineiro artesanal", 15);
-    expect(out).toBe("Pão de queijo …");
+    expect(out).toBe("Pão de queijo…");
     expect(out.length).toBeLessThanOrEqual(15);
   });
 
