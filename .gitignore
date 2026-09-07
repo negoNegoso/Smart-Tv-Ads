@@ -65,3 +65,7 @@ artifacts/api-server/uploads/
 
 # HTML intermediario do gerador de pecas (os PNGs sao versionados)
 marketing/.tmp/
+
+# Worktrees do Claude Code: workspace isolado, nunca versionado.
+.claude/worktrees/
+.superpowers/
