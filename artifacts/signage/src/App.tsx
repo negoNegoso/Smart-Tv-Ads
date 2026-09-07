@@ -28,6 +28,8 @@ import Divulgacao from './pages/divulgacao';
 import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
+import PortalPanels from './pages/portal-panels';
+import PortalPanelEditor from './pages/portal-panel-editor';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 import Landing from './pages/landing';
 import { clearSessionHint, hasSessionHint, markSessionStarted } from './lib/session-hint';
@@ -104,6 +106,37 @@ function AdminRoutes() {
   );
 }
 
+function ClientArea() {
+  const [tab, setTab] = useState<'desempenho' | 'paineis'>('desempenho');
+  const [editingPanelId, setEditingPanelId] = useState<number | null>(null);
+
+  if (editingPanelId !== null) {
+    return <PortalPanelEditor panelId={editingPanelId} onBack={() => setEditingPanelId(null)} />;
+  }
+
+  return (
+    <>
+      <div className="mb-4 flex gap-2 border-b">
+        <button
+          type="button"
+          onClick={() => setTab('desempenho')}
+          className={`px-3 py-2 text-sm ${tab === 'desempenho' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
+        >
+          Desempenho
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('paineis')}
+          className={`px-3 py-2 text-sm ${tab === 'paineis' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
+        >
+          Meus painéis
+        </button>
+      </div>
+      {tab === 'desempenho' ? <PortalClient /> : <PortalPanels onEdit={setEditingPanelId} />}
+    </>
+  );
+}
+
 function PortalSwitch({ me }: { me: Me }) {
   const isAdv = me.roles.includes('advertiser');
   const isClient = me.roles.includes('client');
@@ -130,7 +163,7 @@ function PortalSwitch({ me }: { me: Me }) {
         </div>
       ) : null}
       {view === 'advertiser' && isAdv ? <PortalAdvertiser /> : null}
-      {view === 'client' && isClient ? <PortalClient /> : null}
+      {view === 'client' && isClient ? <ClientArea /> : null}
     </PortalShell>
   );
 }
