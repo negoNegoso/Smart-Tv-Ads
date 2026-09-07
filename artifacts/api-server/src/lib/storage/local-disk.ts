@@ -30,4 +30,15 @@ export class LocalDiskStore implements MediaStore {
     if (!filename || filename.includes("/")) return;
     await fs.promises.rm(path.join(this.dir, filename), { force: true });
   }
+
+  async get(imageUrl: string): Promise<Buffer | null> {
+    if (!imageUrl.startsWith(URL_PREFIX)) return null;
+    const filename = imageUrl.slice(URL_PREFIX.length);
+    if (!filename || filename.includes("/")) return null;
+    try {
+      return await fs.promises.readFile(path.join(this.dir, filename));
+    } catch {
+      return null;
+    }
+  }
 }

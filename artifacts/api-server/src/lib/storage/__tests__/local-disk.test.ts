@@ -57,4 +57,27 @@ describe("LocalDiskStore", () => {
 
     await expect(store.remove("/api/uploads/nao-existe.png")).resolves.toBeUndefined();
   });
+
+  it("lê de volta o arquivo gravado como Buffer", async () => {
+    const store = new LocalDiskStore(dir);
+    const imageUrl = await store.put(Buffer.from("conteudo"), "image/png", "foto.png");
+
+    const buffer = await store.get(imageUrl);
+
+    expect(buffer).toEqual(Buffer.from("conteudo"));
+  });
+
+  it("get devolve null para url de outro backend, sem lançar", async () => {
+    const store = new LocalDiskStore(dir);
+
+    await expect(
+      store.get("https://exemplo.public.blob.vercel-storage.com/a.png"),
+    ).resolves.toBeNull();
+  });
+
+  it("get devolve null quando o arquivo não existe, sem lançar", async () => {
+    const store = new LocalDiskStore(dir);
+
+    await expect(store.get("/api/uploads/nao-existe.png")).resolves.toBeNull();
+  });
 });

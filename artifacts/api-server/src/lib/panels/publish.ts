@@ -6,7 +6,7 @@ import {
   panelSlidesTable,
   type PanelItem,
 } from "@workspace/db";
-import { mediaStore } from "../storage";
+import { mediaStore, type MediaStore } from "../storage";
 import { paginateMenuItems, type PanelPage } from "./paginate";
 import { fetchImageDataUri } from "./promo-image";
 import { renderPanelPage } from "./render";
@@ -39,17 +39,20 @@ export function panelPages(panel: PanelWithItems): PanelPage<PanelItem>[] {
 
 /**
  * Página pronta para o satori: se for a promoção e o item tiver foto, a URL
- * cadastrada já virou `data:` URI (ou sumiu, se o download falhou). O
- * satori nunca vê a URL original — ver `promo-image.ts` para o porquê.
+ * cadastrada já virou `data:` URI (ou sumiu, se a busca falhou ou foi
+ * recusada). O satori nunca vê a URL original — ver `promo-image.ts` para
+ * o porquê (resolve pelo MediaStore quando é upload nosso, busca com
+ * guarda de SSRF quando é URL externa colada pelo lojista).
  */
 async function withResolvedImage(
   kind: string,
   page: PanelPage<PanelItem>,
+  store: MediaStore,
 ): Promise<PanelPage<PanelItem>> {
   if (kind !== "promo") return page;
   const [item] = page.items;
   if (!item?.imageUrl) return page;
-  const dataUri = await fetchImageDataUri(item.imageUrl);
+  const dataUri = await fetchImageDataUri(item.imageUrl, store);
   return { ...page, items: [{ ...item, imageUrl: dataUri }] };
 }
 
@@ -73,7 +76,7 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
   const uploaded: Array<{ pageNo: number; imageUrl: string }> = [];
   try {
     for (const page of pages) {
-      const renderPage = await withResolvedImage(panel.kind, page);
+      const renderPage = await withResolvedImage(panel.kind, page, store);
       const png = await renderPanelPage(
         { kind: panel.kind as "menu" | "promo" | "notice", headline: panel.headline, body: panel.body },
         renderPage,
@@ -91,51 +94,67 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
     );
   }
 
-  const previousImages = await db.transaction(async (tx) => {
-    const old = await tx
-      .select({ announcementId: panelSlidesTable.announcementId })
-      .from(panelSlidesTable)
-      .where(eq(panelSlidesTable.panelId, panel.id));
-    const oldIds = old.map((row) => row.announcementId);
+  let previousImages: string[];
+  try {
+    previousImages = await db.transaction(async (tx) => {
+      // Trava a linha do painel como primeira instrução: duas publicações
+      // concorrentes do mesmo painel serializam aqui em vez de as duas
+      // inserirem pageNo repetido e colidirem com
+      // panel_slides_panel_page_unique. A segunda espera, vê o estado que a
+      // primeira deixou, e troca por cima limpo.
+      await tx.select({ id: panelsTable.id }).from(panelsTable).where(eq(panelsTable.id, panel.id)).for("update");
 
-    let images: string[] = [];
-    if (oldIds.length > 0) {
-      const rows = await tx
-        .select({ imageUrl: announcementsTable.imageUrl })
-        .from(announcementsTable)
-        .where(inArray(announcementsTable.id, oldIds));
-      images = rows.map((r) => r.imageUrl).filter((url): url is string => !!url);
-      // panel_slides cai por cascade junto das announcements.
-      await tx.delete(announcementsTable).where(inArray(announcementsTable.id, oldIds));
-    }
+      const old = await tx
+        .select({ announcementId: panelSlidesTable.announcementId })
+        .from(panelSlidesTable)
+        .where(eq(panelSlidesTable.panelId, panel.id));
+      const oldIds = old.map((row) => row.announcementId);
 
-    for (const page of uploaded) {
-      const [announcement] = await tx
-        .insert(announcementsTable)
-        .values({
-          title: `${panel.name} — página ${page.pageNo}`,
-          imageUrl: page.imageUrl,
-          mediaKind: "image",
-          source: "panel",
-          duration: panel.duration,
-          displayOrder: page.pageNo,
-          isActive: true,
-        })
-        .returning();
-      await tx.insert(panelSlidesTable).values({
-        panelId: panel.id,
-        pageNo: page.pageNo,
-        announcementId: announcement.id,
-      });
-    }
+      let images: string[] = [];
+      if (oldIds.length > 0) {
+        const rows = await tx
+          .select({ imageUrl: announcementsTable.imageUrl })
+          .from(announcementsTable)
+          .where(inArray(announcementsTable.id, oldIds));
+        images = rows.map((r) => r.imageUrl).filter((url): url is string => !!url);
+        // panel_slides cai por cascade junto das announcements.
+        await tx.delete(announcementsTable).where(inArray(announcementsTable.id, oldIds));
+      }
 
-    await tx
-      .update(panelsTable)
-      .set({ status: "published", publishedAt: new Date() })
-      .where(eq(panelsTable.id, panel.id));
+      for (const page of uploaded) {
+        const [announcement] = await tx
+          .insert(announcementsTable)
+          .values({
+            title: `${panel.name} — página ${page.pageNo}`,
+            imageUrl: page.imageUrl,
+            mediaKind: "image",
+            source: "panel",
+            duration: panel.duration,
+            displayOrder: page.pageNo,
+            isActive: true,
+          })
+          .returning();
+        await tx.insert(panelSlidesTable).values({
+          panelId: panel.id,
+          pageNo: page.pageNo,
+          announcementId: announcement.id,
+        });
+      }
 
-    return images;
-  });
+      await tx
+        .update(panelsTable)
+        .set({ status: "published", publishedAt: new Date() })
+        .where(eq(panelsTable.id, panel.id));
+
+      return images;
+    });
+  } catch (error) {
+    // A transação não commitou: nada trocou no banco, mas as páginas já
+    // subiram ao MediaStore antes de abrirmos a transação. Sem isto elas
+    // ficam órfãs — não referenciadas por nenhuma announcement.
+    await Promise.allSettled(uploaded.map((u) => store.remove(u.imageUrl)));
+    throw error;
+  }
 
   // Depois do commit: remoção de arquivo não participa de rollback. Falha aqui
   // deixa lixo no storage, não uma publicação incoerente.

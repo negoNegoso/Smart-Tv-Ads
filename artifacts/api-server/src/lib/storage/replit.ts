@@ -26,4 +26,20 @@ export class ReplitObjectStore implements MediaStore {
 
   /** Deliberate no-op: the previous implementation never deleted App Storage objects. */
   async remove(_imageUrl: string): Promise<void> {}
+
+  async get(imageUrl: string): Promise<Buffer | null> {
+    const prefix = "/api/storage/objects/";
+    if (!imageUrl.startsWith(prefix)) return null;
+    try {
+      const { ObjectStorageService } = await import("../objectStorage");
+      const service = new ObjectStorageService();
+      const file = await service.getObjectEntityFile(`/objects/${imageUrl.slice(prefix.length)}`);
+      const [buffer] = await file.download();
+      return buffer;
+    } catch {
+      // Objeto inexistente, sidecar fora do ar, credencial expirada: tudo
+      // vira "sem imagem" para quem chama, nunca uma exceção.
+      return null;
+    }
+  }
 }

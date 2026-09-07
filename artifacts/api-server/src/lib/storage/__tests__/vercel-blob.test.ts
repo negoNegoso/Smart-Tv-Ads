@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.hoisted é obrigatório: vi.mock é içada para o topo do arquivo, então uma
 // fábrica que referencia `const` comum estoura ReferenceError.
@@ -50,5 +50,46 @@ describe("VercelBlobStore", () => {
     await store.remove("/api/uploads/antigo.png");
 
     expect(del).not.toHaveBeenCalled();
+  });
+
+  describe("get", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("lê o objeto de volta via fetch da url absoluta", async () => {
+      const bytes = Uint8Array.from([1, 2, 3, 4]);
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => bytes.buffer,
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const store = new VercelBlobStore();
+
+      const buffer = await store.get("https://exemplo.public.blob.vercel-storage.com/announcements/abc.png");
+
+      expect(buffer).toEqual(Buffer.from(bytes));
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://exemplo.public.blob.vercel-storage.com/announcements/abc.png",
+      );
+    });
+
+    it("devolve null para url de outro backend, sem chamar fetch", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+      const store = new VercelBlobStore();
+
+      await expect(store.get("/api/uploads/antigo.png")).resolves.toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("devolve null quando o fetch falha, sem lançar", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+      const store = new VercelBlobStore();
+
+      await expect(
+        store.get("https://exemplo.public.blob.vercel-storage.com/x.png"),
+      ).resolves.toBeNull();
+    });
   });
 });
