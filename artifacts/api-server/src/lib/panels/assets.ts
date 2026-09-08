@@ -16,13 +16,22 @@ async function bytes(bundled: () => Promise<{ default: Uint8Array }>, relative: 
     // não seja Uint8Array como "não embutido" e caímos no disco.
     if (!(mod.default instanceof Uint8Array)) throw new Error("asset não embutido");
     return Buffer.from(mod.default);
-  } catch (error) {
-    // Sob vitest isto é o caminho esperado (ver comentário acima), mas sob
-    // esbuild não deveria acontecer nunca — logar em vez de engolir é o que
-    // torna uma regressão de bundling de verdade visível, em vez de parecer
-    // só mais um fallback silencioso para disco.
-    logger.error({ err: error, relative }, "Falha ao carregar asset embutido; caindo para leitura em disco");
-    return readFileSync(path.join(assetsDir, relative));
+  } catch (embeddedError) {
+    // Sob vitest isto é o caminho esperado (ver comentário acima) e a leitura
+    // em disco sempre resolve — sem log, para não treinar quem lê os testes a
+    // ignorar erro. Sob esbuild não deveria acontecer nunca; se acontecer E a
+    // leitura em disco também falhar, aí sim é uma regressão de bundling de
+    // verdade (o asset não está embutido nem existe no disco do ambiente de
+    // produção) e precisa aparecer alto, não como mais um fallback silencioso.
+    try {
+      return readFileSync(path.join(assetsDir, relative));
+    } catch (diskError) {
+      logger.error(
+        { err: diskError, embeddedError, relative },
+        "Asset não está embutido nem foi encontrado em disco",
+      );
+      throw diskError;
+    }
   }
 }
 
