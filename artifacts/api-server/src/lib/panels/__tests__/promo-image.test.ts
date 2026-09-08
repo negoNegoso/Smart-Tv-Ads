@@ -167,6 +167,19 @@ describe("fetchImageDataUri — URL absoluta (rede, com guardas)", () => {
     expect(result).toBeNull();
   });
 
+  it("recusa IP literal IPv6 de loopback com colchetes (net.isIP exige o host sem colchetes)", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchImageDataUri("https://[::1]/x.png", fakeStore(async () => null));
+
+    expect(result).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Precisa ser recusado pela checagem de IP privado, não por o DNS falhar
+    // tentando resolver "[::1]" como se fosse um hostname.
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
   it("retorna null quando o fetch estoura o timeout de 5s", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockImplementation((_url: string, init?: { signal?: AbortSignal }) => {

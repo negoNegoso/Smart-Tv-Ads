@@ -124,10 +124,15 @@ async function fetchExternalImageDataUri(url: string): Promise<string | null> {
  * ar, host inexistente) também é recusa: na dúvida, não busca.
  */
 async function isSafeExternalHost(hostname: string): Promise<boolean> {
-  const literal = net.isIP(hostname) !== 0;
+  // `URL#hostname` mantém os colchetes de um literal IPv6 (`[::1]`), mas
+  // `net.isIP` não os reconhece — sem tirar, `[::1]` cai no ramo de DNS,
+  // o lookup falha por não ser um hostname válido, e a recusa acontece por
+  // acidente (erro de DNS) em vez de pela checagem de IP privado abaixo.
+  const bareHost = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  const literal = net.isIP(bareHost) !== 0;
   let addresses: string[];
   if (literal) {
-    addresses = [hostname];
+    addresses = [bareHost];
   } else {
     try {
       const results = await dnsLookup(hostname, { all: true });
