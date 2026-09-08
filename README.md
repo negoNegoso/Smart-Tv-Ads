@@ -120,6 +120,15 @@ cd ../..
 
 O `drizzle-kit push` deve ser usado no banco de desenvolvimento. Ao publicar no Replit, a plataforma compara e aplica as alterações de schema no banco de produção pelo fluxo de publicação.
 
+Para o deploy na Vercel, que roda migrações versionadas (não `push`) durante o
+build, gere e commite a migração antes de abrir o PR:
+
+```bash
+pnpm --filter @workspace/db run generate
+```
+
+Veja "Schema do banco" em Deploy na Vercel.
+
 ## Validação
 
 Antes de publicar ou enviar alterações:
@@ -236,12 +245,16 @@ depende do binário nativo do esbuild instalado corretamente na máquina.
 
 ### Schema do banco
 
-Aplicado manualmente, nunca no build:
+`scripts/build-vercel.mjs` roda `pnpm --filter db run migrate` no início de
+todo build, aplicando as migrações versionadas de `lib/db/drizzle/` (o
+`migrate.mjs` pula silenciosamente builds de preview sem `DATABASE_URL` e
+falha o build se uma migração quebrar). Por isso toda alteração de schema
+precisa gerar sua migração e commitá-la — veja "Após alterar o schema" acima —
+antes do deploy; sem o arquivo em `lib/db/drizzle/`, o build não aplica nada.
 
-```bash
-# DATABASE_URL pooled já definida no ambiente (ex.: em .env.production.local)
-pnpm --filter @workspace/db run push
-```
+`drizzle-kit push` (usado pelo `npx drizzle-kit push` acima) é a ferramenta de
+desenvolvimento: aplica o schema atual direto num banco de desenvolvimento,
+sem gerar migração versionada. Não é o que roda em produção.
 
 ### Armazenamento de imagens
 
