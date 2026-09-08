@@ -6,6 +6,7 @@
  * .vercel/output/ explicitly removes every piece of guesswork.
  */
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
@@ -56,6 +57,19 @@ await cp(path.join(root, "artifacts/signage/dist/public"), path.join(outputDir, 
 
 await mkdir(functionDir, { recursive: true });
 await cp(path.join(root, "artifacts/api-server/dist-vercel"), functionDir, { recursive: true });
+
+/**
+ * O harfbuzzjs (dependência do satori) lê `hb.wasm` do disco em tempo de
+ * execução, relativo ao diretório do bundle. Sem ele a função aborta no cold
+ * start e TODA a API cai — não só a renderização de painéis. Já aconteceu em
+ * produção uma vez; a checagem existe para não acontecer de novo em silêncio.
+ */
+if (!existsSync(path.join(functionDir, "hb.wasm"))) {
+  throw new Error(
+    "hb.wasm não está no .func: o harfbuzzjs vai falhar no cold start e derrubar a API inteira. " +
+      "Confira a cópia feita por artifacts/api-server/build.mjs.",
+  );
+}
 await writeFile(
   path.join(functionDir, ".vc-config.json"),
   `${JSON.stringify(

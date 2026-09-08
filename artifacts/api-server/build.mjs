@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { cp, rm } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -187,6 +187,31 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  await copyHarfbuzzWasm(distDir);
+}
+
+/**
+ * Copia o `hb.wasm` do harfbuzzjs para junto do bundle.
+ *
+ * O satori depende do harfbuzzjs, que faz `locateFile("hb.wasm")` e lê o
+ * arquivo do disco em tempo de execução, relativo ao `__dirname` do bundle. O
+ * esbuild empacota o JS mas não tem como saber desse `open()`, e o pacote não
+ * existe dentro da função da Vercel — o `.func` é o sistema de arquivos
+ * inteiro. Sem esta cópia o módulo aborta no cold start e derruba a API
+ * inteira, não só a renderização de painéis.
+ *
+ * Diferente das fontes e do resvg.wasm, este não dá para embutir: quem lê é
+ * código de terceiro, com caminho próprio.
+ */
+async function copyHarfbuzzWasm(distDir) {
+  const require = createRequire(import.meta.url);
+  // O harfbuzzjs é dependência do satori, não nossa: sob o layout estrito do
+  // pnpm ele não existe no node_modules deste pacote. Resolvemos a partir do
+  // satori, que é quem o declara.
+  const satori = require.resolve("satori");
+  const hbEntry = createRequire(satori).resolve("harfbuzzjs/hb.js");
+  await cp(path.join(path.dirname(hbEntry), "hb.wasm"), path.join(distDir, "hb.wasm"));
 }
 
 buildAll().catch((err) => {
