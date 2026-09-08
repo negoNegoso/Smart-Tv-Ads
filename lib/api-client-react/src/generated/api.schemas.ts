@@ -16,14 +16,6 @@ export interface PublicStats {
   segments: number;
 }
 
-export type AnnouncementSource = typeof AnnouncementSource[keyof typeof AnnouncementSource];
-
-
-export const AnnouncementSource = {
-  admin: 'admin',
-  panel: 'panel',
-} as const;
-
 export interface Announcement {
   id: number;
   title: string;
@@ -37,7 +29,7 @@ export interface Announcement {
   isActive: boolean;
   displayOrder: number;
   duration: number;
-  source?: AnnouncementSource;
+  source?: string;
   createdAt: string;
 }
 

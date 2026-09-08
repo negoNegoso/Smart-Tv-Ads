@@ -138,6 +138,14 @@ function SortableAnnouncementRow({
   onDelete: (id: number) => void;
   onEdit: (item: Announcement) => void;
 }) {
+  // Peça gerada pela publicação de um painel do cliente: o registro é o
+  // artefato renderizado, não o cadastro. Editar, apagar, reordenar ou
+  // ativar/desativar aqui o desconecta do painel que o produziu — a ação
+  // correta é editar ou despublicar o painel no portal do cliente, então
+  // todos os controles ficam desabilitados.
+  const isPanelGenerated = item.source === 'panel';
+  const panelGeneratedTitle = 'Peça gerada pelo painel do cliente. Para alterar, edite ou despublique o painel no portal do cliente.';
+
   const {
     attributes,
     listeners,
@@ -145,7 +153,7 @@ function SortableAnnouncementRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ id: item.id, disabled: isPanelGenerated });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -159,13 +167,6 @@ function SortableAnnouncementRow({
       ? `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`
       : '';
 
-  // Peça gerada pela publicação de um painel do cliente: o registro é o
-  // artefato renderizado, não o cadastro. Editar ou apagar aqui o desconecta
-  // do painel que o produziu — a ação correta é despublicar no portal do
-  // cliente, então os controles ficam desabilitados.
-  const isPanelGenerated = item.source === 'panel';
-  const panelGeneratedTitle = 'Peça gerada pelo painel do cliente. Para alterar, edite ou despublique o painel no portal do cliente.';
-
   return (
     <div
       ref={setNodeRef}
@@ -176,7 +177,10 @@ function SortableAnnouncementRow({
     >
       <button
         type="button"
-        className="cursor-grab text-muted-foreground/40 hover:text-foreground focus:outline-none px-1"
+        className={`text-muted-foreground/40 hover:text-foreground focus:outline-none px-1 ${
+          isPanelGenerated ? 'cursor-not-allowed opacity-40' : 'cursor-grab'
+        }`}
+        title={isPanelGenerated ? panelGeneratedTitle : undefined}
         {...attributes}
         {...listeners}
       >
@@ -220,6 +224,8 @@ function SortableAnnouncementRow({
             id={`active-${item.id}`}
             checked={item.isActive}
             onCheckedChange={() => onToggle(item.id)}
+            disabled={isPanelGenerated}
+            title={isPanelGenerated ? panelGeneratedTitle : undefined}
           />
         </div>
 
@@ -475,9 +481,14 @@ export default function Admin() {
         const oldIndex = items.findIndex((i) => i.id === active.id);
         const newIndex = items.findIndex((i) => i.id === over.id);
         const newItems = arrayMove(items, oldIndex, newIndex);
-        
-        reorderMutation.mutate({ data: { ids: newItems.map(i => i.id) } });
-        
+
+        // Peças de painel nunca são arrastadas (useSortable com disabled),
+        // mas continuam presentes no array — o servidor recusa o payload
+        // inteiro se algum id delas aparecer, então elas ficam de fora do
+        // que é enviado. displayOrder de painel só muda na republicação.
+        const ids = newItems.filter((i) => i.source !== 'panel').map((i) => i.id);
+        reorderMutation.mutate({ data: { ids } });
+
         return newItems;
       });
     }

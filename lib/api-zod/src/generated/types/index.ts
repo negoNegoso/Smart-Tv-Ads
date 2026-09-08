@@ -13,7 +13,6 @@ export * from './announcementAnalyticsByCampaignItem';
 export * from './announcementAnalyticsByDeviceItem';
 export * from './announcementInput';
 export * from './announcementPlayStat';
-export * from './announcementSource';
 export * from './announcementStats';
 export * from './announcementUpdate';
 export * from './campaignAnalytics';

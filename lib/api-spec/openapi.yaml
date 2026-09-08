@@ -973,8 +973,11 @@ components:
         duration: { type: integer }
         # "admin" (peça subida no painel de gestão) | "panel" (gerada pela
         # publicação de um painel do cliente — o admin não edita nem apaga
-        # essas linhas, só despublica o painel de origem).
-        source: { type: string, enum: [admin, panel] }
+        # essas linhas, só despublica o painel de origem). Sem enum, como os
+        # demais campos livres desta tabela (mediaKind, playbackMode,
+        # audioMode): um terceiro valor não deve derrubar o parse da lista
+        # inteira em GET /announcements.
+        source: { type: string }
         createdAt: { type: string, format: date-time }
 
     AnnouncementInput:

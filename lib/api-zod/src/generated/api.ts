@@ -43,7 +43,7 @@ export const ListAnnouncementsResponseItem = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
@@ -80,7 +80,7 @@ export const CreateAnnouncementResponse = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -101,7 +101,7 @@ export const ListActiveAnnouncementsResponseItem = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 export const ListActiveAnnouncementsResponse = zod.array(ListActiveAnnouncementsResponseItem)
@@ -144,7 +144,7 @@ export const GetAnnouncementResponse = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -183,7 +183,7 @@ export const UpdateAnnouncementResponse = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -212,7 +212,7 @@ export const ToggleAnnouncementResponse = zod.object({
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
-  "source": zod.enum(['admin', 'panel']).optional(),
+  "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
 })
 

@@ -6,8 +6,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * queries própria), então o mock reproduz só a parte da API que as rotas usam:
  * select().from().where() (e .orderBy() para a listagem), update().set().where().returning()
  * e delete().where().returning(). Mesma ideia do fakeTx em publish.test.ts, mas achatado.
+ *
+ * dbUpdate marca toda chamada a db.update(...), inclusive as do reorder, que
+ * nunca chama .returning() — só faz `await ...where(...)` direto. É o único
+ * jeito de provar "nada foi escrito" nesse caminho específico.
  */
 const dbSelectWhere = vi.fn();
+const dbUpdate = vi.fn();
 const dbUpdateReturning = vi.fn();
 const dbDeleteReturning = vi.fn();
 
@@ -19,20 +24,24 @@ vi.mock("@workspace/db", () => ({
         orderBy: () => Promise.resolve([]),
       }),
     }),
-    update: (_table: unknown) => ({
-      set: (patch: unknown) => ({
-        where: (_cond: unknown) => ({
-          returning: () => dbUpdateReturning(patch),
+    update: (table: unknown) => {
+      dbUpdate(table);
+      return {
+        set: (patch: unknown) => ({
+          where: (_cond: unknown) => ({
+            returning: () => dbUpdateReturning(patch),
+            then: (resolve: (v: unknown) => void) => resolve(undefined),
+          }),
         }),
-      }),
-    }),
+      };
+    },
     delete: (_table: unknown) => ({
       where: (_cond: unknown) => ({
         returning: () => dbDeleteReturning(),
       }),
     }),
   },
-  announcementsTable: { id: "id", source: "source", isActive: "isActive" },
+  announcementsTable: { id: "id", source: "source", isActive: "isActive", displayOrder: "displayOrder" },
 }));
 
 const put = vi.fn();
@@ -73,6 +82,7 @@ describe("peça gerada por painel não é editável no admin", () => {
 
   beforeEach(async () => {
     dbSelectWhere.mockReset();
+    dbUpdate.mockReset();
     dbUpdateReturning.mockReset();
     dbDeleteReturning.mockReset();
     put.mockReset();
@@ -133,5 +143,30 @@ describe("peça gerada por painel não é editável no admin", () => {
     const res = await request(app).delete("/announcements/2");
     expect(res.status).toBe(204);
     expect(dbDeleteReturning).toHaveBeenCalled();
+  });
+
+  it("POST /announcements/reorder com um id de peça de painel no payload responde 409 e não escreve", async () => {
+    // O payload inteiro é recusado mesmo que o id do painel não mude de
+    // posição: reordenar qualquer coisa nesta lista teria que reescrever o
+    // displayOrder de todo mundo incluído no array, e a peça de painel não
+    // pode ter seu displayOrder alterado por aqui.
+    dbSelectWhere.mockResolvedValueOnce([adminRow, panelRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .post("/announcements/reorder")
+      .send({ ids: [panelRow.id, adminRow.id] });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Peça gerada por painel do cliente. Edite o painel." });
+    expect(dbUpdate).not.toHaveBeenCalled();
+  });
+
+  it("POST /announcements/reorder sem id de painel continua funcionando", async () => {
+    dbSelectWhere.mockResolvedValueOnce([adminRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .post("/announcements/reorder")
+      .send({ ids: [adminRow.id] });
+    expect(res.status).toBe(200);
+    expect(dbUpdate).toHaveBeenCalled();
   });
 });

@@ -5,7 +5,6 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
-import type { AnnouncementSource } from './announcementSource';
 
 export interface Announcement {
   id: number;
@@ -20,6 +19,6 @@ export interface Announcement {
   isActive: boolean;
   displayOrder: number;
   duration: number;
-  source?: AnnouncementSource;
+  source?: string;
   createdAt: Date;
 }

@@ -2,7 +2,7 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, sql, inArray } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -229,6 +229,18 @@ router.post("/announcements/reorder", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const targeted = await db
+    .select()
+    .from(announcementsTable)
+    .where(inArray(announcementsTable.id, parsed.data.ids));
+  if (targeted.some((row) => row.source === "panel")) {
+    // A ordem de uma peça gerada por painel só muda quando o painel de
+    // origem é republicado — reordenar aqui a desconectaria do cadastro.
+    res.status(409).json({ error: "Peça gerada por painel do cliente. Edite o painel." });
+    return;
+  }
+
   await Promise.all(
     parsed.data.ids.map((id, index) =>
       db
