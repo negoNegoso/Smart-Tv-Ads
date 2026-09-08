@@ -166,6 +166,9 @@ async function buildAll() {
       ? externalPackages.filter((pkg) => pkg !== "@google-cloud/*")
       : externalPackages,
     sourcemap: "linked",
+    // As fontes e o resvg.wasm viram bytes dentro do bundle: a .func da Vercel
+    // não tem sistema de arquivos além do próprio index.mjs.
+    loader: { ".ttf": "binary", ".wasm": "binary" },
     plugins: isVercel
       ? [stubGoogleCloud]
       : [

@@ -739,6 +739,203 @@ paths:
                 items:
                   $ref: "#/components/schemas/PortalDevice"
 
+  # ── Panels (client portal) ────────────────────────────────────────────────
+  /portal/client/panels:
+    get:
+      operationId: listClientPanels
+      tags: [portal]
+      summary: List client portal panels
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Panel"
+    post:
+      operationId: createClientPanel
+      tags: [portal]
+      summary: Create a client portal panel (draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePanelRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Panel"
+        "400":
+          description: Bad request
+
+  /portal/client/panels/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getClientPanel
+      tags: [portal]
+      summary: Get a client portal panel
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Panel"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    patch:
+      operationId: updateClientPanel
+      tags: [portal]
+      summary: Update a client portal panel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePanelRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Panel"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteClientPanel
+      tags: [portal]
+      summary: Delete a client portal panel
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /portal/client/panels/{id}/items:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      operationId: replaceClientPanelItems
+      tags: [portal]
+      summary: Replace all items of a client portal panel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplacePanelItemsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PanelItem"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /portal/client/panels/{id}/publish:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: publishClientPanel
+      tags: [portal]
+      summary: Publish a client portal panel
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishPanelResponse"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "422":
+          description: Content could not be rendered
+
+  /portal/client/panels/{id}/unpublish:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: unpublishClientPanel
+      tags: [portal]
+      summary: Unpublish a client portal panel
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishPanelResponse"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /portal/client/panels/{id}/image:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: uploadClientPanelImage
+      tags: [portal]
+      summary: Upload an image for a client portal panel item (multipart/form-data)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UploadPanelImageRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl]
+                properties:
+                  imageUrl: { type: string }
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "413":
+          description: Payload too large
+
 components:
   schemas:
     HealthStatus:
@@ -774,6 +971,13 @@ components:
         isActive: { type: boolean }
         displayOrder: { type: integer }
         duration: { type: integer }
+        # "admin" (peça subida no painel de gestão) | "panel" (gerada pela
+        # publicação de um painel do cliente — o admin não edita nem apaga
+        # essas linhas, só despublica o painel de origem). Sem enum, como os
+        # demais campos livres desta tabela (mediaKind, playbackMode,
+        # audioMode): um terceiro valor não deve derrubar o parse da lista
+        # inteira em GET /announcements.
+        source: { type: string }
         createdAt: { type: string, format: date-time }
 
     AnnouncementInput:
@@ -1133,3 +1337,90 @@ components:
         location: { type: string, nullable: true }
         lastSeenAt: { type: string, format: date-time, nullable: true }
         totalPlays: { type: integer }
+
+    # ── Panels (client portal) ──────────────────────────────────────────────
+    PanelItem:
+      type: object
+      required: [id, panelId, name, priceCents, displayOrder, isActive]
+      properties:
+        id: { type: integer }
+        panelId: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        priceCents: { type: integer, minimum: 0 }
+        oldPriceCents: { type: integer, minimum: 0, nullable: true }
+        category: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        displayOrder: { type: integer }
+        isActive: { type: boolean }
+
+    PanelItemInput:
+      type: object
+      required: [name, priceCents]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 200, nullable: true }
+        priceCents: { type: integer, minimum: 0, maximum: 100000000 }
+        oldPriceCents: { type: integer, minimum: 0, maximum: 100000000, nullable: true }
+        category: { type: string, maxLength: 60, nullable: true }
+        imageUrl: { type: string, maxLength: 500, nullable: true }
+
+    Panel:
+      type: object
+      required: [id, clientId, kind, name, template, status, duration, createdAt, updatedAt, items]
+      properties:
+        id: { type: integer }
+        clientId: { type: integer }
+        kind: { type: string, enum: [menu, promo, notice] }
+        name: { type: string }
+        template: { type: string }
+        status: { type: string, enum: [draft, published] }
+        duration: { type: integer }
+        headline: { type: string, nullable: true }
+        body: { type: string, nullable: true }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PanelItem" }
+
+    CreatePanelRequest:
+      type: object
+      required: [kind, name, template]
+      properties:
+        kind: { type: string, enum: [menu, promo, notice] }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        template: { type: string, minLength: 1, maxLength: 40 }
+        clientId: { type: integer }
+
+    UpdatePanelRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        template: { type: string, minLength: 1, maxLength: 40 }
+        duration: { type: integer, minimum: 5, maximum: 60 }
+        headline: { type: string, maxLength: 80, nullable: true }
+        body: { type: string, maxLength: 300, nullable: true }
+
+    ReplacePanelItemsRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/PanelItemInput" }
+
+    PublishPanelResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [draft, published] }
+        pages: { type: integer }
+
+    UploadPanelImageRequest:
+      type: object
+      required: [image]
+      properties:
+        image: { type: string }

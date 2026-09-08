@@ -4,6 +4,7 @@ import { requireAdvertiser, requireClient } from "../lib/auth/middleware";
 import { advertiserCampaigns, clientDevices } from "../lib/portal/queries";
 import { advertiserOverview, clientOverview } from "../lib/portal/overview";
 import { parseDays, type PortalDays } from "../lib/portal/period";
+import panelsRouter from "./panels";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,7 @@ router.get("/client/overview", requireClient, async (req, res) => {
   if (days === null) return;
   res.json(await clientOverview(clientScope(req), days));
 });
+
+router.use(panelsRouter);
 
 export default router;

@@ -43,6 +43,13 @@
       "when": 1788587294959,
       "tag": "0005_legal_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788877423840,
+      "tag": "0006_green_nextwave",
+      "breakpoints": true
     }
   ]
 }

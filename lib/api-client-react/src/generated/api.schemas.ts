@@ -29,6 +29,7 @@ export interface Announcement {
   isActive: boolean;
   displayOrder: number;
   duration: number;
+  source?: string;
   createdAt: string;
 }
 
@@ -322,11 +323,155 @@ export interface PortalDevice {
   totalPlays: number;
 }
 
+export interface PanelItem {
+  id: number;
+  panelId: number;
+  name: string;
+  description?: string | null;
+  /** @minimum 0 */
+  priceCents: number;
+  /** @minimum 0 */
+  oldPriceCents?: number | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface PanelItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /** @maxLength 200 */
+  description?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  priceCents: number;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  oldPriceCents?: number | null;
+  /** @maxLength 60 */
+  category?: string | null;
+  /** @maxLength 500 */
+  imageUrl?: string | null;
+}
+
+export type PanelKind = typeof PanelKind[keyof typeof PanelKind];
+
+
+export const PanelKind = {
+  menu: 'menu',
+  promo: 'promo',
+  notice: 'notice',
+} as const;
+
+export type PanelStatus = typeof PanelStatus[keyof typeof PanelStatus];
+
+
+export const PanelStatus = {
+  draft: 'draft',
+  published: 'published',
+} as const;
+
+export interface Panel {
+  id: number;
+  clientId: number;
+  kind: PanelKind;
+  name: string;
+  template: string;
+  status: PanelStatus;
+  duration: number;
+  headline?: string | null;
+  body?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: PanelItem[];
+}
+
+export type CreatePanelRequestKind = typeof CreatePanelRequestKind[keyof typeof CreatePanelRequestKind];
+
+
+export const CreatePanelRequestKind = {
+  menu: 'menu',
+  promo: 'promo',
+  notice: 'notice',
+} as const;
+
+export interface CreatePanelRequest {
+  kind: CreatePanelRequestKind;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  template: string;
+  clientId?: number;
+}
+
+export interface UpdatePanelRequest {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name?: string;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  template?: string;
+  /**
+     * @minimum 5
+     * @maximum 60
+     */
+  duration?: number;
+  /** @maxLength 80 */
+  headline?: string | null;
+  /** @maxLength 300 */
+  body?: string | null;
+}
+
+export interface ReplacePanelItemsRequest {
+  /** @maxItems 200 */
+  items: PanelItemInput[];
+}
+
+export type PublishPanelResponseStatus = typeof PublishPanelResponseStatus[keyof typeof PublishPanelResponseStatus];
+
+
+export const PublishPanelResponseStatus = {
+  draft: 'draft',
+  published: 'published',
+} as const;
+
+export interface PublishPanelResponse {
+  status: PublishPanelResponseStatus;
+  pages?: number;
+}
+
+export interface UploadPanelImageRequest {
+  image: string;
+}
+
 export type ListDevicesParams = {
 clientId?: number;
 };
 
 export type ResetUserPassword200 = {
   ok: boolean;
+};
+
+export type UploadClientPanelImage201 = {
+  imageUrl: string;
 };
 

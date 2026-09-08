@@ -138,6 +138,18 @@ function SortableAnnouncementRow({
   onDelete: (id: number) => void;
   onEdit: (item: Announcement) => void;
 }) {
+  // Peça gerada pela publicação de um painel do cliente: o registro é o
+  // artefato renderizado, não o cadastro. Editar, apagar ou ativar/desativar
+  // aqui o desconecta do painel que o produziu ou muda o que toca na TV — a
+  // ação correta é editar ou despublicar o painel no portal do cliente, e
+  // esses três controles ficam desabilitados. Reordenar NÃO entra nessa
+  // lista de propósito: displayOrder de uma peça de painel só decide a
+  // posição dela nesta lista do admin, não alcança nenhuma TV (ver o
+  // comentário em POST /announcements/reorder), então a linha continua
+  // arrastável normalmente.
+  const isPanelGenerated = item.source === 'panel';
+  const panelGeneratedTitle = 'Peça gerada pelo painel do cliente. Para alterar, edite ou despublique o painel no portal do cliente.';
+
   const {
     attributes,
     listeners,
@@ -192,6 +204,14 @@ function SortableAnnouncementRow({
               ▶ YouTube
             </span>
           )}
+          {isPanelGenerated && (
+            <span
+              className="ml-2 rounded bg-blue-600/10 px-1.5 py-0.5 text-xs font-medium text-blue-600"
+              title={panelGeneratedTitle}
+            >
+              Painel do cliente
+            </span>
+          )}
         </h4>
         <p className="text-sm text-muted-foreground font-mono mt-0.5">{item.duration}s de duração</p>
       </div>
@@ -205,14 +225,18 @@ function SortableAnnouncementRow({
             id={`active-${item.id}`}
             checked={item.isActive}
             onCheckedChange={() => onToggle(item.id)}
+            disabled={isPanelGenerated}
+            title={isPanelGenerated ? panelGeneratedTitle : undefined}
           />
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-9 w-9"
+          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-9 w-9 disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onEdit(item)}
+          disabled={isPanelGenerated}
+          title={isPanelGenerated ? panelGeneratedTitle : undefined}
         >
           <Pencil className="h-4 w-4" />
           <span className="sr-only">Editar</span>
@@ -221,8 +245,10 @@ function SortableAnnouncementRow({
         <Button
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9 disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onDelete(item.id)}
+          disabled={isPanelGenerated}
+          title={isPanelGenerated ? panelGeneratedTitle : undefined}
         >
           <Trash2 className="h-4 w-4" />
           <span className="sr-only">Excluir</span>
@@ -456,9 +482,9 @@ export default function Admin() {
         const oldIndex = items.findIndex((i) => i.id === active.id);
         const newIndex = items.findIndex((i) => i.id === over.id);
         const newItems = arrayMove(items, oldIndex, newIndex);
-        
+
         reorderMutation.mutate({ data: { ids: newItems.map(i => i.id) } });
-        
+
         return newItems;
       });
     }

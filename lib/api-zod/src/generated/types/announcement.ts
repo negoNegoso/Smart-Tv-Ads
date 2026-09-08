@@ -19,5 +19,6 @@ export interface Announcement {
   isActive: boolean;
   displayOrder: number;
   duration: number;
+  source?: string;
   createdAt: Date;
 }

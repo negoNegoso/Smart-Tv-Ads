@@ -22,4 +22,18 @@ export class VercelBlobStore implements MediaStore {
     if (!imageUrl.startsWith("https://")) return;
     await delBlob(imageUrl);
   }
+
+  async get(imageUrl: string): Promise<Buffer | null> {
+    // A URL já é a nossa própria — gerada por `put` acima —, não entrada de
+    // terceiro: buscá-la diretamente não é o mesmo risco de SSRF que buscar
+    // uma URL que o lojista colou (ver promo-image.ts).
+    if (!imageUrl.startsWith("https://")) return null;
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
 }

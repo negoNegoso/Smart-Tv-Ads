@@ -1,0 +1,393 @@
+import type { Express } from "express";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSession } from "../../lib/auth/session";
+
+const SECRET = "segredo-paineis";
+const loadAuthContext = vi.fn();
+const listPanels = vi.fn();
+const getPanel = vi.fn();
+const createPanel = vi.fn();
+const updatePanel = vi.fn();
+const replaceItems = vi.fn();
+const deletePanel = vi.fn();
+const panelClientId = vi.fn();
+const publishPanel = vi.fn();
+const unpublishPanel = vi.fn();
+
+vi.mock("../../lib/auth/user-store", () => ({
+  loadAuthContext: (...a: unknown[]) => loadAuthContext(...a),
+}));
+vi.mock("../../lib/panels/queries", () => ({
+  listPanels: (...a: unknown[]) => listPanels(...a),
+  getPanel: (...a: unknown[]) => getPanel(...a),
+  createPanel: (...a: unknown[]) => createPanel(...a),
+  updatePanel: (...a: unknown[]) => updatePanel(...a),
+  replaceItems: (...a: unknown[]) => replaceItems(...a),
+  deletePanel: (...a: unknown[]) => deletePanel(...a),
+  panelClientId: (...a: unknown[]) => panelClientId(...a),
+}));
+vi.mock("../../lib/panels/publish", () => ({
+  publishPanel: (...a: unknown[]) => publishPanel(...a),
+  unpublishPanel: (...a: unknown[]) => unpublishPanel(...a),
+  PanelRenderError: class extends Error {
+    constructor(
+      message: string,
+      public pageNo: number,
+    ) {
+      super(message);
+    }
+  },
+}));
+// portal.ts monta as rotas de anunciante/cliente e de painéis no mesmo router;
+// os dois módulos abaixo puxam @workspace/db no import e este arquivo nunca
+// chega a chamá-los — mockar evita precisar de DATABASE_URL só para o import
+// não falhar (mesmo padrão de portal-scope.test.ts).
+vi.mock("../../lib/portal/queries", () => ({
+  advertiserCampaigns: vi.fn(),
+  clientDevices: vi.fn(),
+}));
+vi.mock("../../lib/portal/overview", () => ({
+  advertiserOverview: vi.fn(),
+  clientOverview: vi.fn(),
+}));
+const put = vi.fn();
+vi.mock("../../lib/storage", () => ({ mediaStore: () => ({ put, remove: vi.fn() }) }));
+
+async function buildApp(): Promise<Express> {
+  process.env.SESSION_SECRET = SECRET;
+  const { default: express } = await import("express");
+  const { default: cookieParser } = await import("cookie-parser");
+  const { loadSession, requireUser } = await import("../../lib/auth/middleware");
+  const { default: portalRouter } = await import("../portal");
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+  app.use(loadSession);
+  app.use("/portal", requireUser, portalRouter);
+  return app;
+}
+
+const ctx = {
+  userId: 7,
+  email: "lojista@example.com",
+  isActive: true,
+  mustChangePassword: false,
+  clientIds: [7],
+  advertiserIds: [],
+};
+
+const adminCtx = {
+  userId: 0,
+  email: "admin",
+  isActive: true,
+  mustChangePassword: false,
+  clientIds: [],
+  advertiserIds: [],
+};
+
+async function agent() {
+  const app = await buildApp();
+  const { default: request } = await import("supertest");
+  return { app, request, cookie: `sid=${createSession(SECRET, "7")}` };
+}
+
+async function adminAgent() {
+  const app = await buildApp();
+  const { default: request } = await import("supertest");
+  return { app, request, cookie: `sid=${createSession(SECRET, "admin")}` };
+}
+
+describe("escopo das rotas de painéis", () => {
+  beforeEach(() => {
+    for (const fn of [
+      loadAuthContext,
+      listPanels,
+      getPanel,
+      createPanel,
+      updatePanel,
+      replaceItems,
+      deletePanel,
+      panelClientId,
+      publishPanel,
+      unpublishPanel,
+    ]) {
+      fn.mockReset();
+    }
+    put.mockReset();
+    loadAuthContext.mockResolvedValue(ctx);
+  });
+
+  it("lista apenas os painéis dos clientes do usuário", async () => {
+    listPanels.mockResolvedValue([]);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).get("/portal/client/panels").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(listPanels).toHaveBeenCalledWith([7]);
+  });
+
+  it("usuário sem vínculo de cliente recebe 403", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, clientIds: [] });
+    const { request, app, cookie } = await agent();
+    const res = await request(app).get("/portal/client/panels").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it("PATCH em painel de outro cliente recebe 403 e não escreve", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Invadido" });
+    expect(res.status).toBe(403);
+    expect(updatePanel).not.toHaveBeenCalled();
+  });
+
+  it("PUT de itens em painel de outro cliente recebe 403 e não escreve", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .put("/portal/client/panels/5/items")
+      .set("Cookie", cookie)
+      .send({ items: [] });
+    expect(res.status).toBe(403);
+    expect(replaceItems).not.toHaveBeenCalled();
+  });
+
+  it("DELETE em painel de outro cliente recebe 403 e não apaga", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).delete("/portal/client/panels/5").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+    expect(deletePanel).not.toHaveBeenCalled();
+  });
+
+  it("painel inexistente responde 404, não 403", async () => {
+    panelClientId.mockResolvedValue(null);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).delete("/portal/client/panels/5").set("Cookie", cookie);
+    expect(res.status).toBe(404);
+  });
+
+  it("cria painel no cliente do usuário sem ele informar o id", async () => {
+    createPanel.mockResolvedValue({ id: 1 });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels")
+      .set("Cookie", cookie)
+      .send({ kind: "menu", name: "Cardápio", template: "menu-basico" });
+    expect(res.status).toBe(201);
+    expect(createPanel).toHaveBeenCalledWith({
+      clientId: 7,
+      kind: "menu",
+      name: "Cardápio",
+      template: "menu-basico",
+    });
+  });
+
+  // createPanel() devolve a linha crua da tabela, sem `items` — mas o
+  // contrato (Panel no openapi.yaml) exige `items` em toda resposta desse
+  // formato. Sem isto, o cliente gerado promete um array que não existe.
+  it("resposta da criação sempre carrega items, mesmo vazio", async () => {
+    createPanel.mockResolvedValue({ id: 1, name: "Cardápio" });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels")
+      .set("Cookie", cookie)
+      .send({ kind: "menu", name: "Cardápio", template: "menu-basico" });
+    expect(res.status).toBe(201);
+    expect(res.body.items).toEqual([]);
+  });
+
+  // updatePanel() também devolve a linha crua, sem `items`. O PATCH busca de
+  // novo com getPanel para devolver o painel completo, com os itens atuais.
+  it("resposta do PATCH sempre carrega items, buscando o painel completo depois de atualizar", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5, name: "Novo nome" });
+    getPanel.mockResolvedValue({
+      id: 5,
+      name: "Novo nome",
+      items: [{ id: 1, panelId: 5, name: "Item", priceCents: 100 }],
+    });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(200);
+    expect(getPanel).toHaveBeenCalledWith(5);
+    expect(res.body.items).toEqual([{ id: 1, panelId: 5, name: "Item", priceCents: 100 }]);
+  });
+
+  it("PATCH em painel apagado entre a autorização e o update responde 404", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue(null);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(404);
+    expect(getPanel).not.toHaveBeenCalled();
+  });
+
+  it("PATCH em painel apagado entre o update e a releitura responde 404", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5, name: "Novo nome" });
+    getPanel.mockResolvedValue(null);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ name: "Novo nome" });
+    expect(res.status).toBe(404);
+  });
+
+  it("recusa kind fora do enum", async () => {
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels")
+      .set("Cookie", cookie)
+      .send({ kind: "banner", name: "X", template: "menu-basico" });
+    expect(res.status).toBe(400);
+    expect(createPanel).not.toHaveBeenCalled();
+  });
+
+  it("recusa preço negativo na lista de itens", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .put("/portal/client/panels/5/items")
+      .set("Cookie", cookie)
+      .send({ items: [{ name: "Erro", priceCents: -1 }] });
+    expect(res.status).toBe(400);
+    expect(replaceItems).not.toHaveBeenCalled();
+  });
+
+  it("clientId inexistente na criação (violação de FK) responde 400", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    const fkError = Object.assign(new Error("insert or update on table \"panels\" violates foreign key constraint"), {
+      code: "23503",
+    });
+    createPanel.mockRejectedValue(fkError);
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app)
+      .post("/portal/client/panels")
+      .set("Cookie", cookie)
+      .send({ kind: "menu", name: "Cardápio", template: "menu-basico", clientId: 999 });
+    expect(res.status).toBe(400);
+  });
+
+  it("publicar painel de outro cliente recebe 403 e não renderiza", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).post("/portal/client/panels/5/publish").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+    expect(publishPanel).not.toHaveBeenCalled();
+  });
+
+  it("publica o painel do próprio cliente", async () => {
+    panelClientId.mockResolvedValue(7);
+    publishPanel.mockResolvedValue({ pages: 2 });
+    const { request, app, cookie } = await agent();
+    const res = await request(app).post("/portal/client/panels/5/publish").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: "published", pages: 2 });
+  });
+
+  // Assinatura PNG completa (8 bytes) — o sniff por bytes mágicos exige o
+  // cabeçalho inteiro, não só os 4 primeiros bytes.
+  const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  it("upload em painel de outro cliente recebe 403", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", PNG_BYTES, "foto.png");
+    expect(res.status).toBe(403);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("upload de imagem devolve a URL do storage", async () => {
+    panelClientId.mockResolvedValue(7);
+    put.mockResolvedValue("/api/uploads/foto.png");
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", PNG_BYTES, "foto.png");
+    expect(res.status).toBe(201);
+    expect(res.body.imageUrl).toBe("/api/uploads/foto.png");
+  });
+
+  it("recusa arquivo que não é imagem", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("texto"), { filename: "nota.txt", contentType: "text/plain" });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("recusa arquivo cujos bytes não são uma imagem, mesmo com Content-Type de imagem declarado", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("<script>alert(1)</script>"), {
+        filename: "evil.png",
+        contentType: "image/png",
+      });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("upload de imagem real grava no storage com o tipo sniffado pelos bytes", async () => {
+    panelClientId.mockResolvedValue(7);
+    put.mockResolvedValue("/api/uploads/foto.png");
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", PNG_BYTES, "foto.png");
+    expect(res.status).toBe(201);
+    expect(put).toHaveBeenCalledWith(expect.any(Buffer), "image/png", "foto.png");
+  });
+
+  // RIFF/WEBP completo (12 bytes) — bytes mágicos válidos de um WebP de verdade.
+  const WEBP_BYTES = Buffer.from([
+    0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+  ]);
+
+  it("recusa WebP mesmo com assinatura de bytes válida (o resvg não decodifica)", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", WEBP_BYTES, { filename: "foto.webp", contentType: "image/webp" });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("upload não autorizado com arquivo inválido ainda assim recebe 403 (autorização roda antes do multer)", async () => {
+    // Painel de outro cliente (não autorizado) *e* arquivo que não é imagem.
+    // Se a ordem das rotas fosse trocada, o fileFilter do multer rejeitaria
+    // o arquivo primeiro e a resposta seria 400 — nunca chegando a checar a
+    // autorização. Só passa com a ordem correta: requirePanelAccess antes
+    // de uploadImage.
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("texto"), { filename: "nota.txt", contentType: "text/plain" });
+    expect(res.status).toBe(403);
+    expect(put).not.toHaveBeenCalled();
+  });
+});

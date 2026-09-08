@@ -21,6 +21,10 @@ export const announcementsTable = pgTable("announcements", {
   audioMode: text("audio_mode").notNull().default("muted"),
   isActive: boolean("is_active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
+  // "admin" (peça subida no painel de gestão) | "panel" (gerada por um painel
+  // do cliente). O default mantém o servidor da versão anterior funcionando
+  // durante o deploy, antes de conhecer a coluna.
+  source: text("source").notNull().default("admin"),
   duration: integer("duration").notNull().default(10),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

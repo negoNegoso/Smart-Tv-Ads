@@ -120,6 +120,15 @@ cd ../..
 
 O `drizzle-kit push` deve ser usado no banco de desenvolvimento. Ao publicar no Replit, a plataforma compara e aplica as alterações de schema no banco de produção pelo fluxo de publicação.
 
+Para o deploy na Vercel, que roda migrações versionadas (não `push`) durante o
+build, gere e commite a migração antes de abrir o PR:
+
+```bash
+pnpm --filter @workspace/db run generate
+```
+
+Veja "Schema do banco" em Deploy na Vercel.
+
 ## Validação
 
 Antes de publicar ou enviar alterações:
@@ -140,6 +149,12 @@ Testes unitários da API (geração de código, detecção de bot, fingerprint e
 
 ```bash
 pnpm --filter @workspace/api-server run test
+```
+
+Testes do frontend (portal, pré-visualização e editor de painéis):
+
+```bash
+pnpm --filter @workspace/signage run test
 ```
 
 O build do workspace inclui o `mockup-sandbox`, cuja configuração exige `PORT` e
@@ -230,12 +245,16 @@ depende do binário nativo do esbuild instalado corretamente na máquina.
 
 ### Schema do banco
 
-Aplicado manualmente, nunca no build:
+`scripts/build-vercel.mjs` roda `pnpm --filter db run migrate` no início de
+todo build, aplicando as migrações versionadas de `lib/db/drizzle/` (o
+`migrate.mjs` pula silenciosamente builds de preview sem `DATABASE_URL` e
+falha o build se uma migração quebrar). Por isso toda alteração de schema
+precisa gerar sua migração e commitá-la — veja "Após alterar o schema" acima —
+antes do deploy; sem o arquivo em `lib/db/drizzle/`, o build não aplica nada.
 
-```bash
-# DATABASE_URL pooled já definida no ambiente (ex.: em .env.production.local)
-pnpm --filter @workspace/db run push
-```
+`drizzle-kit push` (usado pelo `npx drizzle-kit push` acima) é a ferramenta de
+desenvolvimento: aplica o schema atual direto num banco de desenvolvimento,
+sem gerar migração versionada. Não é o que roda em produção.
 
 ### Armazenamento de imagens
 
@@ -278,6 +297,25 @@ scripts/            scripts auxiliares do workspace
 - Scans são apresentados junto das exibições em números brutos e visitantes únicos, mais a taxa `scans / exibições`. A métrica mede resposta, não alcance: um scan não é atribuível a uma exibição ou TV específica.
 - Visitantes únicos são contados por `fingerprint` (hash de IP + user-agent com `SCAN_SALT`); não há cookie de rastreamento. Reabrir o mesmo link soma no bruto e não soma no único. Duas pessoas atrás do mesmo IP com o mesmo navegador contam como uma.
 - Uploads são persistidos no App Storage; o banco guarda somente o caminho do objeto e os metadados.
+- **Painéis do cliente** são cardápios, promoções e avisos que o próprio
+  lojista cadastra no portal. Publicar renderiza cada página no servidor
+  (satori + resvg-wasm) como PNG 1920×1080, grava no App Storage e materializa
+  uma peça com `source='panel'`. Os painéis publicados entram automaticamente
+  em todas as TVs daquele cliente — o vínculo é `panels.client_id` =
+  `devices.client_id` (uma consulta feita a cada carga do display), não
+  `device_playlist`, para que uma TV nova já nasça com o cardápio no ar.
+- Peças com `source='panel'` não são editáveis, ocultáveis nem apagáveis no
+  painel de gestão: essas ações voltam 409, porque a fonte da verdade é o
+  cadastro do painel — para tirar do ar, despublique o painel. Reordenar a
+  peça na lista do admin continua permitido: `displayOrder` só decide a
+  posição ali, não é o que leva a peça até a TV.
+- A foto da promoção é resolvida no servidor antes do render: se veio de um
+  upload já persistido em `MediaStore` (`/api/uploads/…`, `/api/storage/objects/…`),
+  é lida direto do storage; se é uma URL externa colada pelo lojista, é
+  buscada com timeout de 5 s, teto de 5 MB, exige HTTPS, recusa hosts que
+  resolvem para IP privado/loopback/link-local (bloqueando inclusive o
+  endpoint de metadados de nuvem) e nunca segue redirecionamento. Qualquer
+  recusa vira "sem foto" em vez de falhar a publicação.
 
 ## Integração com GitHub
 

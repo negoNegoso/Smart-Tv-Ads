@@ -20,6 +20,33 @@ vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: vi.fn(),
   clientOverview: vi.fn(),
 }));
+// portal.ts também monta panels.ts, que puxa lib/panels/queries e por tabela
+// @workspace/db. Este arquivo nunca chega às rotas de painéis — mockar evita
+// o mesmo problema de precisar de DATABASE_URL só para o import não falhar.
+vi.mock("../../lib/panels/queries", () => ({
+  listPanels: vi.fn(),
+  getPanel: vi.fn(),
+  createPanel: vi.fn(),
+  updatePanel: vi.fn(),
+  replaceItems: vi.fn(),
+  deletePanel: vi.fn(),
+  panelClientId: vi.fn(),
+}));
+// panels.ts também importa lib/panels/publish, que puxa @workspace/db no
+// topo. Mesmo motivo do mock acima: este arquivo nunca chama publicar/
+// despublicar, então mockar evita exigir DATABASE_URL só para o import.
+vi.mock("../../lib/panels/publish", () => ({
+  publishPanel: vi.fn(),
+  unpublishPanel: vi.fn(),
+  PanelRenderError: class extends Error {
+    constructor(
+      message: string,
+      public pageNo: number,
+    ) {
+      super(message);
+    }
+  },
+}));
 
 async function buildApp(): Promise<Express> {
   process.env.SESSION_SECRET = SECRET;
