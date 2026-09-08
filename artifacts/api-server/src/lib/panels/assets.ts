@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { logger } from "../logger";
 
 // Sob esbuild estes imports viram Uint8Array embutidos (loader "binary").
 // Sob vitest eles falham, e o catch lê o mesmo arquivo do disco.
@@ -15,7 +16,12 @@ async function bytes(bundled: () => Promise<{ default: Uint8Array }>, relative: 
     // não seja Uint8Array como "não embutido" e caímos no disco.
     if (!(mod.default instanceof Uint8Array)) throw new Error("asset não embutido");
     return Buffer.from(mod.default);
-  } catch {
+  } catch (error) {
+    // Sob vitest isto é o caminho esperado (ver comentário acima), mas sob
+    // esbuild não deveria acontecer nunca — logar em vez de engolir é o que
+    // torna uma regressão de bundling de verdade visível, em vez de parecer
+    // só mais um fallback silencioso para disco.
+    logger.error({ err: error, relative }, "Falha ao carregar asset embutido; caindo para leitura em disco");
     return readFileSync(path.join(assetsDir, relative));
   }
 }
