@@ -159,6 +159,13 @@ function SortableAnnouncementRow({
       ? `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`
       : '';
 
+  // Peça gerada pela publicação de um painel do cliente: o registro é o
+  // artefato renderizado, não o cadastro. Editar ou apagar aqui o desconecta
+  // do painel que o produziu — a ação correta é despublicar no portal do
+  // cliente, então os controles ficam desabilitados.
+  const isPanelGenerated = item.source === 'panel';
+  const panelGeneratedTitle = 'Peça gerada pelo painel do cliente. Para alterar, edite ou despublique o painel no portal do cliente.';
+
   return (
     <div
       ref={setNodeRef}
@@ -192,6 +199,14 @@ function SortableAnnouncementRow({
               ▶ YouTube
             </span>
           )}
+          {isPanelGenerated && (
+            <span
+              className="ml-2 rounded bg-blue-600/10 px-1.5 py-0.5 text-xs font-medium text-blue-600"
+              title={panelGeneratedTitle}
+            >
+              Painel do cliente
+            </span>
+          )}
         </h4>
         <p className="text-sm text-muted-foreground font-mono mt-0.5">{item.duration}s de duração</p>
       </div>
@@ -211,8 +226,10 @@ function SortableAnnouncementRow({
         <Button
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-9 w-9"
+          className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-9 w-9 disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onEdit(item)}
+          disabled={isPanelGenerated}
+          title={isPanelGenerated ? panelGeneratedTitle : undefined}
         >
           <Pencil className="h-4 w-4" />
           <span className="sr-only">Editar</span>
@@ -221,8 +238,10 @@ function SortableAnnouncementRow({
         <Button
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9 disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onDelete(item.id)}
+          disabled={isPanelGenerated}
+          title={isPanelGenerated ? panelGeneratedTitle : undefined}
         >
           <Trash2 className="h-4 w-4" />
           <span className="sr-only">Excluir</span>

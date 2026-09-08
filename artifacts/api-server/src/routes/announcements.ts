@@ -291,6 +291,12 @@ router.patch(
       res.status(404).json({ error: "Announcement not found" });
       return;
     }
+    if (existing.source === "panel") {
+      // Editar o PNG gerado quebraria a relação com o cadastro que o produziu.
+      // A ação certa é despublicar o painel no portal do cliente.
+      res.status(409).json({ error: "Peça gerada por painel do cliente. Edite o painel." });
+      return;
+    }
 
     const updates: Record<string, unknown> = { ...parsed.data };
 
@@ -351,6 +357,21 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const [existing] = await db
+    .select()
+    .from(announcementsTable)
+    .where(eq(announcementsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Announcement not found" });
+    return;
+  }
+  if (existing.source === "panel") {
+    // Apagar só o registro deixaria panel_slides apontando para nada, com o
+    // painel ainda marcado como publicado. A ação certa é despublicar o
+    // painel no portal do cliente.
+    res.status(409).json({ error: "Peça gerada por painel do cliente. Edite o painel." });
+    return;
+  }
   const [row] = await db
     .delete(announcementsTable)
     .where(eq(announcementsTable.id, params.data.id))
@@ -381,6 +402,12 @@ router.patch("/announcements/:id/toggle", async (req, res): Promise<void> => {
     .where(eq(announcementsTable.id, params.data.id));
   if (!existing) {
     res.status(404).json({ error: "Announcement not found" });
+    return;
+  }
+  if (existing.source === "panel") {
+    // Editar o PNG gerado quebraria a relação com o cadastro que o produziu.
+    // A ação certa é despublicar o painel no portal do cliente.
+    res.status(409).json({ error: "Peça gerada por painel do cliente. Edite o painel." });
     return;
   }
   const [row] = await db
