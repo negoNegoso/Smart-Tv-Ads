@@ -49,8 +49,18 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
   const { loadAuthContext } = await import("./user-store");
   const ctx = await loadAuthContext(id);
   if (!ctx || !ctx.isActive) {
-    // Conta inexistente ou desativada: trata como não autenticado.
-    unauthorized(res);
+    // Conta inexistente ou desativada: segue como anônimo, sem `req.auth`.
+    //
+    // Responder 401 aqui trancava o navegador: este middleware roda ANTES de
+    // /auth/login, então um cookie assinado para um usuário que não existe mais
+    // derrubava a própria tentativa de entrar — a mesma credencial funcionava
+    // em outra máquina, que não tinha o cookie. Quem exige sessão são as
+    // guardas adiante; elas devolvem 401 sozinhas.
+    //
+    // O cookie morto sai junto: mantê-lo faria o navegador repetir a viagem ao
+    // banco a cada requisição, para nada.
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    next();
     return;
   }
   req.auth = {

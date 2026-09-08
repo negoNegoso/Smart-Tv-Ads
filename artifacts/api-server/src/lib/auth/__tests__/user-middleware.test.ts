@@ -18,6 +18,8 @@ async function buildApp(): Promise<Express> {
   app.use(loadSession);
   app.get("/adv", requireAdvertiser, (req, res) => res.json({ ids: (req as any).auth.advertiserIds }));
   app.get("/cli", requireClient, (req, res) => res.json({ ids: (req as any).auth.clientIds }));
+  // Espelha o /auth/login real, que também fica atrás do loadSession.
+  app.post("/login", (req, res) => res.json({ ok: true, autenticado: !!(req as any).auth }));
   return app;
 }
 
@@ -73,6 +75,51 @@ describe("guardas por papel", () => {
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).get("/adv");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("cookie de usuário que não existe mais", () => {
+  beforeEach(() => loadAuthContext.mockReset());
+
+  it("não tranca o login: segue como anônimo em vez de responder 401", async () => {
+    // O cookie está bem assinado, mas o usuário sumiu do banco (apagado, ou
+    // banco diferente do que emitiu a sessão). Antes disto o loadSession
+    // respondia 401 e o navegador não conseguia mais nem tentar entrar.
+    loadAuthContext.mockResolvedValue(null);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).post("/login").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.autenticado).toBe(false);
+  });
+
+  it("apaga o cookie morto para não repetir a consulta ao banco a cada requisição", async () => {
+    loadAuthContext.mockResolvedValue(null);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).post("/login").set("Cookie", `sid=${token}`);
+    expect(String(res.headers["set-cookie"])).toMatch(/sid=;/);
+  });
+
+  it("usuário desativado também segue como anônimo", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, isActive: false });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).post("/login").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.autenticado).toBe(false);
+  });
+
+  it("rota protegida continua devolvendo 401 para esse cookie", async () => {
+    loadAuthContext.mockResolvedValue(null);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).get("/cli").set("Cookie", `sid=${token}`);
     expect(res.status).toBe(401);
   });
 });
