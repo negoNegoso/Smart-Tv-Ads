@@ -118,8 +118,16 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     now,
   );
 
-  // Terceira fonte: painéis que o próprio lojista publicou no portal.
-  const panelSlides = await panelSlidesForClient(device.clientId);
+  // Terceira fonte: painéis que o próprio lojista publicou no portal. Essa é
+  // a fonte menos crítica das três — uma falha aqui (tabela ausente, lock,
+  // linha inválida) nunca pode apagar campanhas pagas e a playlist do device
+  // que já estavam prontas para ir ao ar, então cai para lista vazia.
+  let panelSlides: Awaited<ReturnType<typeof panelSlidesForClient>> = [];
+  try {
+    panelSlides = await panelSlidesForClient(device.clientId);
+  } catch (error) {
+    req.log.error({ err: error }, "Could not load panel slides for device");
+  }
 
   const deduped = composeDeviceSlides(eligibleCampaignSlides, panelSlides, playlistSlides);
 
