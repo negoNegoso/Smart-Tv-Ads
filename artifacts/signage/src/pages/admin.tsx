@@ -139,10 +139,14 @@ function SortableAnnouncementRow({
   onEdit: (item: Announcement) => void;
 }) {
   // Peça gerada pela publicação de um painel do cliente: o registro é o
-  // artefato renderizado, não o cadastro. Editar, apagar, reordenar ou
-  // ativar/desativar aqui o desconecta do painel que o produziu — a ação
-  // correta é editar ou despublicar o painel no portal do cliente, então
-  // todos os controles ficam desabilitados.
+  // artefato renderizado, não o cadastro. Editar, apagar ou ativar/desativar
+  // aqui o desconecta do painel que o produziu ou muda o que toca na TV — a
+  // ação correta é editar ou despublicar o painel no portal do cliente, e
+  // esses três controles ficam desabilitados. Reordenar NÃO entra nessa
+  // lista de propósito: displayOrder de uma peça de painel só decide a
+  // posição dela nesta lista do admin, não alcança nenhuma TV (ver o
+  // comentário em POST /announcements/reorder), então a linha continua
+  // arrastável normalmente.
   const isPanelGenerated = item.source === 'panel';
   const panelGeneratedTitle = 'Peça gerada pelo painel do cliente. Para alterar, edite ou despublique o painel no portal do cliente.';
 
@@ -153,7 +157,7 @@ function SortableAnnouncementRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, disabled: isPanelGenerated });
+  } = useSortable({ id: item.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -177,10 +181,7 @@ function SortableAnnouncementRow({
     >
       <button
         type="button"
-        className={`text-muted-foreground/40 hover:text-foreground focus:outline-none px-1 ${
-          isPanelGenerated ? 'cursor-not-allowed opacity-40' : 'cursor-grab'
-        }`}
-        title={isPanelGenerated ? panelGeneratedTitle : undefined}
+        className="cursor-grab text-muted-foreground/40 hover:text-foreground focus:outline-none px-1"
         {...attributes}
         {...listeners}
       >
@@ -482,12 +483,7 @@ export default function Admin() {
         const newIndex = items.findIndex((i) => i.id === over.id);
         const newItems = arrayMove(items, oldIndex, newIndex);
 
-        // Peças de painel nunca são arrastadas (useSortable com disabled),
-        // mas continuam presentes no array — o servidor recusa o payload
-        // inteiro se algum id delas aparecer, então elas ficam de fora do
-        // que é enviado. displayOrder de painel só muda na republicação.
-        const ids = newItems.filter((i) => i.source !== 'panel').map((i) => i.id);
-        reorderMutation.mutate({ data: { ids } });
+        reorderMutation.mutate({ data: { ids: newItems.map(i => i.id) } });
 
         return newItems;
       });

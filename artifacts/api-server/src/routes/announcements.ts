@@ -2,7 +2,7 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { eq, asc, sql, inArray } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -230,17 +230,14 @@ router.post("/announcements/reorder", async (req, res): Promise<void> => {
     return;
   }
 
-  const targeted = await db
-    .select()
-    .from(announcementsTable)
-    .where(inArray(announcementsTable.id, parsed.data.ids));
-  if (targeted.some((row) => row.source === "panel")) {
-    // A ordem de uma peça gerada por painel só muda quando o painel de
-    // origem é republicado — reordenar aqui a desconectaria do cadastro.
-    res.status(409).json({ error: "Peça gerada por painel do cliente. Edite o painel." });
-    return;
-  }
-
+  // Peças de painel são reordenáveis de propósito, sem checar `source` aqui.
+  // Diferente de PATCH/toggle/DELETE, `displayOrder` de uma peça gerada não
+  // controla nada que chega numa TV: slides de painel tocam na ordem de
+  // panels.id + panel_slides.page_no (lib/panels/device-slides.ts), a
+  // playlist do device segue device_playlist.displayOrder (peças de painel
+  // nunca entram nessa tabela), e campanhas seguem a ordem de campaign id.
+  // `displayOrder` aqui só decide a posição na lista do admin — não é parte
+  // do invariante "o artefato gerado é imutável" que os outros três guardam.
   await Promise.all(
     parsed.data.ids.map((id, index) =>
       db
