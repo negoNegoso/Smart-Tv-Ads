@@ -801,6 +801,16 @@ export const ListPortalAdvertiserCampaignsResponse = zod.array(ListPortalAdverti
 
 
 /**
+ * @summary Stores linked to the signed-in user
+ */
+export const ListPortalClientClientsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string()
+})
+export const ListPortalClientClientsResponse = zod.array(ListPortalClientClientsResponseItem)
+
+
+/**
  * @summary List client portal devices
  */
 export const ListPortalClientDevicesResponseItem = zod.object({

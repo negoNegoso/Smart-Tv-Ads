@@ -40,6 +40,7 @@ export * from './playlistItem';
 export * from './playlistItemInput';
 export * from './playlistReorder';
 export * from './portalCampaign';
+export * from './portalClient';
 export * from './portalDevice';
 export * from './publicStats';
 export * from './publishPanelResponse';

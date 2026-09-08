@@ -109,3 +109,25 @@ export async function clientDevices(clientIds: number[], days: PortalDays): Prom
     .orderBy(devicesTable.name);
   return rows;
 }
+
+export interface PortalClientRow {
+  id: number;
+  name: string;
+}
+
+/**
+ * Lojas vinculadas ao usuário, com nome.
+ *
+ * Existe porque quem opera duas lojas precisa dizer em qual está criando o
+ * painel, e um seletor com "cliente 7" e "cliente 12" não ajuda ninguém.
+ * Devolve só o par id/nome: o portal não tem o que fazer com o resto do
+ * cadastro do cliente.
+ */
+export async function clientsOf(clientIds: number[]): Promise<PortalClientRow[]> {
+  if (clientIds.length === 0) return [];
+  return db
+    .select({ id: clientsTable.id, name: clientsTable.name })
+    .from(clientsTable)
+    .where(inArray(clientsTable.id, clientIds))
+    .orderBy(clientsTable.name);
+}

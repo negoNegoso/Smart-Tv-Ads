@@ -724,6 +724,23 @@ paths:
                 items:
                   $ref: "#/components/schemas/PortalCampaign"
 
+  /portal/client/clients:
+    get:
+      operationId: listPortalClientClients
+      tags: [portal]
+      summary: Stores linked to the signed-in user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortalClient"
+        "403":
+          description: Usuário sem vínculo de cliente
+
   /portal/client/devices:
     get:
       operationId: listPortalClientDevices
@@ -1337,6 +1354,13 @@ components:
         location: { type: string, nullable: true }
         lastSeenAt: { type: string, format: date-time, nullable: true }
         totalPlays: { type: integer }
+
+    PortalClient:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
 
     # ── Panels (client portal) ──────────────────────────────────────────────
     PanelItem:

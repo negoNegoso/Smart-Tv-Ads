@@ -323,6 +323,11 @@ export interface PortalDevice {
   totalPlays: number;
 }
 
+export interface PortalClient {
+  id: number;
+  name: string;
+}
+
 export interface PanelItem {
   id: number;
   panelId: number;

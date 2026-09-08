@@ -7,10 +7,12 @@ const SECRET = "segredo-portal";
 const loadAuthContext = vi.fn();
 const advertiserCampaigns = vi.fn();
 const clientDevices = vi.fn();
+const clientsOf = vi.fn();
 vi.mock("../../lib/auth/user-store", () => ({ loadAuthContext: (...a: unknown[]) => loadAuthContext(...a) }));
 vi.mock("../../lib/portal/queries", () => ({
   advertiserCampaigns: (...a: unknown[]) => advertiserCampaigns(...a),
   clientDevices: (...a: unknown[]) => clientDevices(...a),
+  clientsOf: (...a: unknown[]) => clientsOf(...a),
 }));
 // portal.ts passou a importar overview, que puxa @workspace/db. Este arquivo
 // testa o escopo das rotas de lista e nunca chega a chamar o overview — mockar
@@ -65,7 +67,7 @@ async function buildApp(): Promise<Express> {
 const advCtx = { userId: 7, email: "a@b.com", isActive: true, mustChangePassword: false, clientIds: [], advertiserIds: [9] };
 
 describe("escopo dos portais", () => {
-  beforeEach(() => { loadAuthContext.mockReset(); advertiserCampaigns.mockReset(); clientDevices.mockReset(); });
+  beforeEach(() => { loadAuthContext.mockReset(); advertiserCampaigns.mockReset(); clientDevices.mockReset(); clientsOf.mockReset(); });
 
   it("passa apenas os advertiserIds do usuário para a query", async () => {
     loadAuthContext.mockResolvedValue(advCtx);
@@ -86,5 +88,27 @@ describe("escopo dos portais", () => {
     const res = await request(app).get("/portal/advertiser/campaigns").set("Cookie", `sid=${token}`);
     expect(res.status).toBe(403);
     expect(advertiserCampaigns).not.toHaveBeenCalled();
+  });
+
+  it("lista apenas as lojas vinculadas ao usuário", async () => {
+    loadAuthContext.mockResolvedValue({ ...advCtx, clientIds: [7, 12] });
+    clientsOf.mockResolvedValue([{ id: 7, name: "Padaria Central" }, { id: 12, name: "Padaria da Praça" }]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).get("/portal/client/clients").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(200);
+    expect(clientsOf).toHaveBeenCalledWith([7, 12]);
+    expect(res.body.map((c: { name: string }) => c.name)).toEqual(["Padaria Central", "Padaria da Praça"]);
+  });
+
+  it("usuário sem vínculo de cliente não alcança a lista de lojas", async () => {
+    loadAuthContext.mockResolvedValue({ ...advCtx, clientIds: [] });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).get("/portal/client/clients").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(403);
+    expect(clientsOf).not.toHaveBeenCalled();
   });
 });

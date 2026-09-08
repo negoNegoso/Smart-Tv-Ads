@@ -47,6 +47,7 @@ import type {
   PlaylistItemInput,
   PlaylistReorder,
   PortalCampaign,
+  PortalClient,
   PortalDevice,
   PublicStats,
   PublishPanelResponse,
@@ -3169,6 +3170,83 @@ export function useListPortalAdvertiserCampaigns<TData = Awaited<ReturnType<type
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListPortalAdvertiserCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPortalClientClientsUrl = () => {
+
+
+
+
+  return `/api/portal/client/clients`
+}
+
+/**
+ * @summary Stores linked to the signed-in user
+ */
+export const listPortalClientClients = async ( options?: RequestInit): Promise<PortalClient[]> => {
+
+  return customFetch<PortalClient[]>(getListPortalClientClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPortalClientClientsQueryKey = () => {
+    return [
+    `/api/portal/client/clients`
+    ] as const;
+    }
+
+
+export const getListPortalClientClientsQueryOptions = <TData = Awaited<ReturnType<typeof listPortalClientClients>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPortalClientClients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPortalClientClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPortalClientClients>>> = ({ signal }) => listPortalClientClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPortalClientClients>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPortalClientClientsQueryResult = NonNullable<Awaited<ReturnType<typeof listPortalClientClients>>>
+export type ListPortalClientClientsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Stores linked to the signed-in user
+ */
+
+export function useListPortalClientClients<TData = Awaited<ReturnType<typeof listPortalClientClients>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPortalClientClients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPortalClientClientsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

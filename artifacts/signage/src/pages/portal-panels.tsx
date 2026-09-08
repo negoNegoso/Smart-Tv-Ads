@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import {
@@ -29,6 +30,11 @@ import { useToast } from '@/hooks/use-toast';
 
 interface PortalDevice {
   id: number;
+}
+
+interface PortalClient {
+  id: number;
+  name: string;
 }
 
 /** Erro de rede não pode virar lista vazia — ver a nota em portal-advertiser.tsx. */
@@ -80,6 +86,7 @@ function publishErrorInfo(error: unknown): { is422: boolean; message?: string } 
 
 interface PanelCardProps {
   panel: Panel;
+  clientName?: string;
   onEdit: (panelId: number) => void;
   onPublish: (panel: Panel) => void;
   onUnpublish: (panel: Panel) => void;
@@ -91,6 +98,7 @@ interface PanelCardProps {
 
 function PanelCard({
   panel,
+  clientName,
   onEdit,
   onPublish,
   onUnpublish,
@@ -106,7 +114,12 @@ function PanelCard({
       <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle>{panel.name}</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">{KIND_LABEL[panel.kind]}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {KIND_LABEL[panel.kind]}
+            {/* Só aparece para quem opera mais de uma loja: sem isto, dois
+                cardápios de lojas diferentes ficam indistinguíveis na lista. */}
+            {clientName ? ` · ${clientName}` : ''}
+          </p>
         </div>
         <Badge variant={isPublished ? 'default' : 'secondary'}>
           {isPublished && panel.publishedAt ? publishedDateLabel(panel.publishedAt) : 'Rascunho'}
@@ -169,6 +182,21 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
     queryFn: () => getJson<PortalDevice[]>('api/portal/client/devices?days=30'),
     retry: false,
   });
+
+  const clientsQuery = useQuery({
+    queryKey: ['portal', 'client', 'clients'],
+    queryFn: () => getJson<PortalClient[]>('api/portal/client/clients'),
+    retry: false,
+  });
+
+  // Quem opera uma loja só nunca vê o seletor: o id vai junto do pedido de
+  // qualquer jeito. Com duas ou mais, o servidor se recusa a adivinhar — e faz
+  // bem, criar o cardápio na loja errada é pior que um erro na tela.
+  const clients = clientsQuery.data ?? [];
+  const needsClientChoice = clients.length > 1;
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const ownerClientId = needsClientChoice ? selectedClientId : (clients[0]?.id ?? null);
+  const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
   const invalidatePanels = () =>
     queryClient.invalidateQueries({ queryKey: getListClientPanelsQueryKey() });
@@ -247,16 +275,47 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Meus painéis</h1>
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {needsClientChoice ? (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Loja</span>
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={selectedClientId ?? ''}
+                onChange={(event) =>
+                  setSelectedClientId(event.target.value === '' ? null : Number(event.target.value))
+                }
+              >
+                <option value="">Escolha a loja</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {NEW_PANEL_OPTIONS.map((option) => (
             <Button
               key={option.kind}
               variant="outline"
               size="sm"
-              disabled={createPanel.isPending}
+              title={
+                needsClientChoice && ownerClientId === null
+                  ? 'Escolha em qual loja o painel será criado.'
+                  : undefined
+              }
+              disabled={createPanel.isPending || ownerClientId === null}
               onClick={() =>
                 createPanel.mutate({
-                  data: { kind: option.kind, name: option.label, template: option.template },
+                  data: {
+                    kind: option.kind,
+                    name: option.label,
+                    template: option.template,
+                    // Sempre explícito: com uma loja só, o servidor deduziria,
+                    // mas mandar o id evita que a criação dependa de dedução.
+                    ...(ownerClientId === null ? {} : { clientId: ownerClientId }),
+                  },
                 })
               }
             >
@@ -287,6 +346,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
             <PanelCard
               key={panel.id}
               panel={panel}
+              clientName={needsClientChoice ? clientNameById.get(panel.clientId) : undefined}
               onEdit={onEdit}
               onPublish={(p) => publishPanel.mutate({ id: p.id })}
               onUnpublish={(p) => unpublishPanel.mutate({ id: p.id })}

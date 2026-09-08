@@ -32,7 +32,18 @@ function renderPageWithToaster() {
 
 describe('PortalPanels', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(panels), { headers: { 'Content-Type': 'application/json' } })));
+    // /clients responde uma loja só: é o caso comum, e sem essa distinção
+    // o stub devolveria a lista de painéis também para esse endpoint.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/clients')
+          ? new Response(JSON.stringify([{ id: 7, name: 'Padaria Central' }]), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          : new Response(JSON.stringify(panels), { headers: { 'Content-Type': 'application/json' } }),
+      ),
+    );
   });
 
   it('mostra cada painel com o estado', async () => {
@@ -89,5 +100,82 @@ describe('PortalPanels', () => {
     // apesar do erro, o painel teria virado "Tirar do ar" e este seletor
     // deixaria de encontrar nada.
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument();
+  });
+
+  it('com duas lojas, criar exige escolher a loja e envia o clientId', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url: String(url), init });
+        if (String(url).includes('/clients')) {
+          return new Response(
+            JSON.stringify([
+              { id: 7, name: 'Padaria Central' },
+              { id: 12, name: 'Padaria da Praça' },
+            ]),
+            { headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (init?.method === 'POST') {
+          return new Response(JSON.stringify({ ...panels[1], id: 3, clientId: 12 }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(panels), { headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+
+    renderPage();
+    await screen.findByText('Cardápio da semana');
+
+    // Sem loja escolhida o botão não deixa criar: o servidor recusaria, e um
+    // 400 depois do clique é pior que um botão que se explica antes.
+    const criar = await screen.findByRole('button', { name: 'Novo cardápio' });
+    expect(criar).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByRole('combobox'), '12');
+    await waitFor(() => expect(criar).toBeEnabled());
+    await userEvent.click(criar);
+
+    await waitFor(() => {
+      const post = calls.find((c) => c.init?.method === 'POST');
+      expect(post).toBeDefined();
+      expect(JSON.parse(post!.init!.body as string).clientId).toBe(12);
+    });
+  });
+
+  it('com uma loja só, não mostra seletor e ainda manda o clientId', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url: String(url), init });
+        if (String(url).includes('/clients')) {
+          return new Response(JSON.stringify([{ id: 7, name: 'Padaria Central' }]), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (init?.method === 'POST') {
+          return new Response(JSON.stringify({ ...panels[1], id: 3 }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(panels), { headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+
+    renderPage();
+    const criar = await screen.findByRole('button', { name: 'Novo cardápio' });
+    await waitFor(() => expect(criar).toBeEnabled());
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+    await userEvent.click(criar);
+    await waitFor(() => {
+      const post = calls.find((c) => c.init?.method === 'POST');
+      expect(JSON.parse(post!.init!.body as string).clientId).toBe(7);
+    });
   });
 });

@@ -1,7 +1,7 @@
 // artifacts/api-server/src/routes/portal.ts
 import { Router, type IRouter, type Request, type Response } from "express";
 import { requireAdvertiser, requireClient } from "../lib/auth/middleware";
-import { advertiserCampaigns, clientDevices } from "../lib/portal/queries";
+import { advertiserCampaigns, clientDevices, clientsOf } from "../lib/portal/queries";
 import { advertiserOverview, clientOverview } from "../lib/portal/overview";
 import { parseDays, type PortalDays } from "../lib/portal/period";
 import panelsRouter from "./panels";
@@ -38,6 +38,16 @@ router.get("/advertiser/overview", requireAdvertiser, async (req, res) => {
   const days = resolvePeriod(req, res);
   if (days === null) return;
   res.json(await advertiserOverview(advertiserScope(req), days));
+});
+
+/**
+ * Lojas do usuário logado. Sem período: é cadastro, não métrica.
+ *
+ * O portal precisa disto para quem opera mais de uma loja escolher onde o
+ * painel será criado — o servidor se recusa a adivinhar, e com razão.
+ */
+router.get("/client/clients", requireClient, async (req, res) => {
+  res.json(await clientsOf(clientScope(req)));
 });
 
 router.get("/client/devices", requireClient, async (req, res) => {
