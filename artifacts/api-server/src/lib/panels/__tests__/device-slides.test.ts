@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 // device-slides.ts importa @workspace/db no topo. composeDeviceSlides é
 // pura e não precisa de banco; buildPanelSlidesQuery precisa do query
@@ -6,7 +6,20 @@ import { describe, expect, it } from "vitest";
 // aqui só garantimos um DATABASE_URL fictício antes de importar — o Pool do
 // `pg` só conecta na primeira query executada, e `.toSQL()` nunca executa
 // nada.
+//
+// O Vitest reaproveita workers entre arquivos de teste: mutar a env global
+// sem desfazer vazaria esse DATABASE_URL fictício para outro arquivo que
+// rode no mesmo worker depois deste, tornando-o dependente de ordem.
+const previousDatabaseUrl = process.env.DATABASE_URL;
 process.env.DATABASE_URL ??= "postgres://user:pass@localhost:5432/db";
+
+afterAll(() => {
+  if (previousDatabaseUrl === undefined) {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = previousDatabaseUrl;
+  }
+});
 
 const { composeDeviceSlides, buildPanelSlidesQuery } = await import("../device-slides");
 
