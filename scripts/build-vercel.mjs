@@ -64,11 +64,19 @@ await cp(path.join(root, "artifacts/api-server/dist-vercel"), functionDir, { rec
  * start e TODA a API cai — não só a renderização de painéis. Já aconteceu em
  * produção uma vez; a checagem existe para não acontecer de novo em silêncio.
  */
-if (!existsSync(path.join(functionDir, "hb.wasm"))) {
-  throw new Error(
-    "hb.wasm não está no .func: o harfbuzzjs vai falhar no cold start e derrubar a API inteira. " +
-      "Confira a cópia feita por artifacts/api-server/build.mjs.",
-  );
+for (const required of [
+  "hb.wasm",
+  "assets/fonts/Inter-Regular.ttf",
+  "assets/fonts/Inter-Bold.ttf",
+  "assets/resvg.wasm",
+]) {
+  if (!existsSync(path.join(functionDir, required))) {
+    throw new Error(
+      `${required} não está no .func. Sem ele a função falha em produção — ` +
+        "no cold start, no caso do hb.wasm, ou ao publicar um painel, no caso das fontes. " +
+        "Confira as cópias feitas por artifacts/api-server/build.mjs.",
+    );
+  }
 }
 await writeFile(
   path.join(functionDir, ".vc-config.json"),

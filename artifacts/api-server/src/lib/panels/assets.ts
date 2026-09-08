@@ -5,7 +5,27 @@ import { logger } from "../logger";
 
 // Sob esbuild estes imports viram Uint8Array embutidos (loader "binary").
 // Sob vitest eles falham, e o catch lê o mesmo arquivo do disco.
-const assetsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../assets");
+//
+// São dois layouts possíveis, e o fallback precisa achar os dois. Rodando do
+// código-fonte (vitest), este arquivo está em src/lib/panels e os assets ficam
+// três níveis acima. Rodando do bundle, o `__dirname` é o diretório do próprio
+// index.mjs e o build copia os assets para lá. Antes daqui só o primeiro caso
+// era considerado, e em produção o caminho virava `/assets/...` na raiz do
+// sistema — um ENOENT que não dizia nada a quem lia.
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const ASSET_DIRS = [path.join(moduleDir, "assets"), path.resolve(moduleDir, "../../../assets")];
+
+function readFromDisk(relative: string): Buffer {
+  let lastError: unknown;
+  for (const dir of ASSET_DIRS) {
+    try {
+      return readFileSync(path.join(dir, relative));
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
 
 async function bytes(bundled: () => Promise<{ default: Uint8Array }>, relative: string): Promise<Buffer> {
   try {
@@ -24,10 +44,10 @@ async function bytes(bundled: () => Promise<{ default: Uint8Array }>, relative: 
     // verdade (o asset não está embutido nem existe no disco do ambiente de
     // produção) e precisa aparecer alto, não como mais um fallback silencioso.
     try {
-      return readFileSync(path.join(assetsDir, relative));
+      return readFromDisk(relative);
     } catch (diskError) {
       logger.error(
-        { err: diskError, embeddedError, relative },
+        { err: diskError, embeddedError, relative, dirs: ASSET_DIRS },
         "Asset não está embutido nem foi encontrado em disco",
       );
       throw diskError;

@@ -155,6 +155,13 @@ async function buildAll() {
     platform: "node",
     bundle: true,
     format: "esm",
+    // Sem isto o esbuild assume "esnext" — a máquina de quem builda, não a que
+    // executa. A função da Vercel roda Node 22 (ver .vc-config.json), e o
+    // esbuild chegou a emitir `Uint8Array.fromBase64` para os assets binários,
+    // API que só existe a partir do Node 24: em produção a chamada lançava e
+    // derrubava a geração dos painéis. Declarar o alvo faz o esbuild emitir o
+    // equivalente compatível.
+    target: "node22",
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
@@ -189,6 +196,12 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   });
 
   await copyHarfbuzzWasm(distDir);
+
+  // Os assets vão embutidos no bundle, mas também em disco ao lado dele: se o
+  // embutido falhar (foi o que aconteceu quando o esbuild emitiu API de Node
+  // mais novo que o da função), o fallback tem onde cair em vez de derrubar a
+  // publicação de painéis. São ~3 MB num bundle que já tem 10.
+  await cp(path.resolve(artifactDir, "assets"), path.join(distDir, "assets"), { recursive: true });
 }
 
 /**
