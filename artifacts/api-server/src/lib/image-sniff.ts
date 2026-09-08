@@ -15,13 +15,10 @@ const IMAGE_MAGIC_BYTES: Array<{ mimeType: string; test: (b: Buffer) => boolean 
   },
   { mimeType: "image/jpeg", test: (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   { mimeType: "image/gif", test: (b) => b.length >= 6 && /^GIF8[79]a$/.test(b.subarray(0, 6).toString("latin1")) },
-  {
-    mimeType: "image/webp",
-    test: (b) =>
-      b.length >= 12 &&
-      b.subarray(0, 4).toString("latin1") === "RIFF" &&
-      b.subarray(8, 12).toString("latin1") === "WEBP",
-  },
+  // image/webp fica de fora de propósito: o resvg 2.6.2 (o wasm que rasteriza
+  // os slides) só decodifica jpeg, png, gif e svg+xml, e descarta silenciosamente
+  // (sem lançar) uma imagem que não sabe abrir — um WebP publicaria "com sucesso"
+  // e a TV mostraria um buraco vazio 640x640 no lugar da foto.
 ];
 
 /** Sniffa o tipo pelos bytes mágicos. Devolve `null` quando nenhuma assinatura bate. */

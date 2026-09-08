@@ -153,6 +153,20 @@ describe("fetchImageDataUri — URL absoluta (rede, com guardas)", () => {
     expect(result).toBeNull();
   });
 
+  // O resvg 2.6.2 (o wasm que rasteriza os slides) não decodifica webp — só
+  // aceitar png/jpeg/gif aqui evita publicar "com sucesso" uma foto que a TV
+  // mostra como um buraco vazio.
+  it("recusa content-type image/webp (resvg não decodifica)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      fakeResponse({ contentType: "image/webp", chunks: [new Uint8Array([1, 2, 3])] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchImageDataUri("https://cdn.example.com/pizza.webp", fakeStore(async () => null));
+
+    expect(result).toBeNull();
+  });
+
   it("retorna null quando o fetch estoura o timeout de 5s", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockImplementation((_url: string, init?: { signal?: AbortSignal }) => {

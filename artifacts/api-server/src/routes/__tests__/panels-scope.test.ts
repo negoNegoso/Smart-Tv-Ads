@@ -359,6 +359,22 @@ describe("escopo das rotas de painéis", () => {
     expect(put).toHaveBeenCalledWith(expect.any(Buffer), "image/png", "foto.png");
   });
 
+  // RIFF/WEBP completo (12 bytes) — bytes mágicos válidos de um WebP de verdade.
+  const WEBP_BYTES = Buffer.from([
+    0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+  ]);
+
+  it("recusa WebP mesmo com assinatura de bytes válida (o resvg não decodifica)", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/image")
+      .set("Cookie", cookie)
+      .attach("image", WEBP_BYTES, { filename: "foto.webp", contentType: "image/webp" });
+    expect(res.status).toBe(400);
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it("upload não autorizado com arquivo inválido ainda assim recebe 403 (autorização roda antes do multer)", async () => {
     // Painel de outro cliente (não autorizado) *e* arquivo que não é imagem.
     // Se a ordem das rotas fosse trocada, o fileFilter do multer rejeitaria

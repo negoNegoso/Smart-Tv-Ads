@@ -43,6 +43,9 @@ export async function fetchImageDataUri(
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/** Formatos que o resvg 2.6.2 sabe decodificar; ver o comentário no fetch. */
+const EXTERNAL_IMAGE_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/gif"]);
+
 function isAbsoluteHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
@@ -51,7 +54,7 @@ function isAbsoluteHttpUrl(url: string): boolean {
  * Busca uma URL absoluta e devolve um `data:` URI com o conteúdo, ou `null`
  * se o esquema não for https, o host não for público, o fetch falhar,
  * estourar o prazo, exceder o teto de tamanho, a resposta redirecionar, não
- * for 2xx, ou o content-type não começar com `image/`. Nunca lança.
+ * for 2xx, ou o content-type não for png, jpeg ou gif. Nunca lança.
  */
 async function fetchExternalImageDataUri(url: string): Promise<string | null> {
   let parsed: URL;
@@ -76,8 +79,12 @@ async function fetchExternalImageDataUri(url: string): Promise<string | null> {
     if (res.status >= 300 && res.status < 400) return null;
     if (!res.ok) return null;
 
-    const contentType = (res.headers.get("content-type") ?? "").split(";")[0]!.trim();
-    if (!contentType.toLowerCase().startsWith("image/")) return null;
+    const contentType = (res.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
+    // Só png, jpeg e gif: é o que o resvg 2.6.2 (o wasm que rasteriza os
+    // slides) sabe decodificar. Ele descarta silenciosamente, sem lançar, uma
+    // imagem que não reconhece — um `image/*` mais largo (webp incluso)
+    // publicaria "com sucesso" e a TV mostraria um buraco vazio no lugar da foto.
+    if (!EXTERNAL_IMAGE_CONTENT_TYPES.has(contentType)) return null;
 
     const declaredLength = Number(res.headers.get("content-length") ?? "");
     if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES) return null;
