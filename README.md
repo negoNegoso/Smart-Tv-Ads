@@ -316,6 +316,14 @@ scripts/            scripts auxiliares do workspace
   resolvem para IP privado/loopback/link-local (bloqueando inclusive o
   endpoint de metadados de nuvem) e nunca segue redirecionamento. Qualquer
   recusa vira "sem foto" em vez de falhar a publicação.
+- Os formatos aceitos são PNG, JPEG e GIF, verificados pelos bytes e não pelo
+  que o cliente declara. WebP fica de fora porque o resvg fixado o **ignora em
+  silêncio** — a publicação daria certo e a TV mostraria a promoção com um
+  buraco no lugar da foto. Como WebP é o que sai de celular, o portal converte
+  para PNG no próprio navegador antes de enviar (JPEG quando o PNG passa do
+  teto de upload); ver `artifacts/signage/src/lib/image-para-renderizador.ts`.
+  Converter no cliente evita colocar mais um decodificador wasm no bundle do
+  servidor.
 
 ## Integração com GitHub
 

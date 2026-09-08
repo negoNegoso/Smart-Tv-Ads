@@ -246,7 +246,13 @@ router.post("/client/panels/:id/image", requirePanelAccess, uploadImage, async (
   // script disfarçado de imagem a partir da própria origem do app.
   const mimeType = sniffImageMimeType(req.file.buffer);
   if (!mimeType) {
-    res.status(400).json({ error: "Envie um arquivo de imagem." });
+    // A mensagem nomeia os formatos porque WebP chega aqui com frequência (é o
+    // que sai de celular) e o renderizador não o desenha — o portal converte
+    // antes de enviar, então quem cai neste erro está fora daquele caminho e
+    // precisa saber o que fazer.
+    res.status(400).json({
+      error: "Envie uma imagem PNG, JPEG ou GIF.",
+    });
     return;
   }
   const imageUrl = await mediaStore().put(req.file.buffer, mimeType, req.file.originalname);

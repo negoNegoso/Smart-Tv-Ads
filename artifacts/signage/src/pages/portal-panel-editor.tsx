@@ -21,6 +21,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-preview';
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
+import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
 
 /**
  * Espelha `MENU_ITEMS_PER_PAGE` de `artifacts/api-server/src/lib/panels/paginate.ts`.
@@ -418,8 +419,22 @@ export default function PortalPanelEditor({
   async function handleImageSelected(file: File) {
     setIsUploadingImage(true);
     try {
+      // WebP (o que sai de celular hoje) é recusado pelo servidor porque o
+      // renderizador não desenha — converte aqui, onde o navegador já sabe
+      // decodificar. Ver lib/image-para-renderizador.ts.
+      let arquivo: File;
+      try {
+        arquivo = await prepararImagemParaUpload(file, maxUploadBytes);
+      } catch (erro) {
+        toast({
+          title: erro instanceof Error ? erro.message : 'Não foi possível preparar a imagem.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', arquivo);
       const res = await fetch(`${import.meta.env.BASE_URL}api/portal/client/panels/${panelId}/image`, {
         method: 'POST',
         body: formData,
