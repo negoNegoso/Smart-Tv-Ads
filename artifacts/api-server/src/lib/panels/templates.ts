@@ -54,24 +54,23 @@ function frame(children: unknown[]) {
 }
 
 /*
- * MENU_ITEMS_PER_PAGE (Task 2, importado por quem testa isto de "./paginate")
- * é 8, e uma tela pode ter as 8 linhas com descrição. A altura de cada linha
- * tem que caber no orçamento vertical do quadro sem cortar.
+ * Orçamento vertical do cardápio.
  *
- * LINE_HEIGHT_FACTOR aproxima a métrica real do satori (que não expõe altura
- * de linha calculada publicamente) — é só uma aproximação, não um valor
- * exato do layout engine.
+ * As alturas abaixo NÃO são estimadas por fórmula: são medidas do satori
+ * renderizando este mesmo template (`__tests__/menu-layout.test.ts` mede de
+ * novo a cada execução e falha se divergirem). A versão anterior estimava a
+ * linha por `fontSize * 1.2` e errava ~10px por linha — com 8 linhas o erro
+ * acumulado empurrava a última para fora do quadro, onde o `overflow: hidden`
+ * do frame a cortava sem que ninguém criasse página nova.
  *
- * Os números abaixo alimentam tanto o estilo (MENU_ROW_*, MENU_CATEGORY_*)
- * quanto os totais exportados (MENU_ROW_HEIGHT, MENU_CATEGORY_HEADER_HEIGHT,
- * MENU_CONTENT_HEIGHT), para que um teste possa comparar
- * MENU_ITEMS_PER_PAGE * MENU_ROW_HEIGHT + MENU_CATEGORY_HEADER_HEIGHT contra
- * MENU_CONTENT_HEIGHT sem duplicar a conta.
+ * `paginate.ts` usa estes números como orçamento: enche a página até acabar o
+ * espaço, em vez de contar itens.
  */
-export const LINE_HEIGHT_FACTOR = 1.2;
 
 const FRAME_HEIGHT = 1080; // mesmo valor de PANEL_HEIGHT (render.ts); duplicado aqui para não
 // criar import circular (render.ts importa templates.ts, não o contrário).
+
+/** Altura útil do quadro do cardápio, já descontado o padding do frame. */
 export const MENU_CONTENT_HEIGHT = FRAME_HEIGHT - 2 * FRAME_PADDING_VERTICAL;
 
 const MENU_ROW_NAME_FONT_SIZE = 40;
@@ -81,20 +80,22 @@ const MENU_ROW_GAP = 6; // entre nome e descrição
 const MENU_ROW_BORDER = 2; // borda inferior da linha
 const MENU_ROW_PADDING = `${MENU_ROW_PADDING_VERTICAL}px 0`;
 
-/** Altura estimada de uma linha do menu com descrição (padding + nome + gap + descrição + borda). */
-export const MENU_ROW_HEIGHT =
-  MENU_ROW_PADDING_VERTICAL * 2 +
-  MENU_ROW_NAME_FONT_SIZE * LINE_HEIGHT_FACTOR +
-  MENU_ROW_GAP +
-  MENU_ROW_DESCRIPTION_FONT_SIZE * LINE_HEIGHT_FACTOR +
-  MENU_ROW_BORDER;
+/** Altura real de uma linha com nome e descrição (medida no satori). */
+export const MENU_ROW_HEIGHT_WITH_DESCRIPTION = 121;
+
+/** Altura real de uma linha só com o nome (medida no satori). */
+export const MENU_ROW_HEIGHT_PLAIN = 88;
+
+/** Altura real do cabeçalho de categoria, com a margem inferior (medida no satori). */
+export const MENU_CATEGORY_HEADER_HEIGHT = 65;
+
+/** Altura que uma linha ocupa, conforme tenha ou não descrição. */
+export function menuRowHeight(hasDescription: boolean): number {
+  return hasDescription ? MENU_ROW_HEIGHT_WITH_DESCRIPTION : MENU_ROW_HEIGHT_PLAIN;
+}
 
 const MENU_CATEGORY_FONT_SIZE = 34;
 const MENU_CATEGORY_MARGIN_BOTTOM = 24;
-
-/** Altura estimada do cabeçalho de categoria (fonte + margem inferior). */
-export const MENU_CATEGORY_HEADER_HEIGHT =
-  MENU_CATEGORY_FONT_SIZE * LINE_HEIGHT_FACTOR + MENU_CATEGORY_MARGIN_BOTTOM;
 
 function menuNode(page: { category: string | null; items: RenderItem[] }) {
   const rows = page.items.map((item) =>
@@ -143,7 +144,13 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
           children: page.category.toUpperCase(),
         })
       : null,
-    node("div", { style: { display: "flex", flexDirection: "column", flex: 1 }, children: rows }),
+    // Centrado: a paginação por orçamento raramente enche a página exata, e
+    // sobra sempre um resto de altura. Centrado, a sobra vira margem simétrica
+    // em vez de um vazio pendurado embaixo do último item.
+    node("div", {
+      style: { display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" },
+      children: rows,
+    }),
   ].filter(Boolean));
 }
 

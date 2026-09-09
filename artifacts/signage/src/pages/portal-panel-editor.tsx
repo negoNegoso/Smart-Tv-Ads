@@ -24,12 +24,20 @@ import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
 
 /**
- * Espelha `MENU_ITEMS_PER_PAGE` de `artifacts/api-server/src/lib/panels/paginate.ts`.
- * O signage não depende do pacote do servidor, então o número — e a regra de
- * agrupar por categoria — é reimplementado aqui só para a navegação da prévia.
- * Quem decide o que realmente cabe na tela é sempre o PNG do servidor.
+ * Espelha o orçamento vertical de `artifacts/api-server/src/lib/panels/`
+ * (`templates.ts` mede as alturas no satori, `paginate.ts` corta por elas).
+ * O signage não depende do pacote do servidor, então os números — e a regra de
+ * agrupar por categoria — são reimplementados aqui só para a navegação da
+ * prévia. Quem decide o que realmente cabe na tela é sempre o PNG do servidor.
+ *
+ * O corte é por altura, não por contagem de itens: linha com descrição ocupa
+ * bem mais que linha só com nome, então "quantos itens cabem" muda de página
+ * para página.
  */
-const MENU_ITEMS_PER_PAGE = 8;
+const MENU_CONTENT_HEIGHT = 952;
+const MENU_CATEGORY_HEADER_HEIGHT = 65;
+const MENU_ROW_HEIGHT_WITH_DESCRIPTION = 121;
+const MENU_ROW_HEIGHT_PLAIN = 88;
 
 interface ItemDraft {
   name: string;
@@ -201,7 +209,51 @@ function buildItemsPayload(drafts: ItemDraft[]): ItemsValidationResult {
   return { ok: true, items };
 }
 
-/** Mesma regra de `paginateMenuItems`: uma categoria por tela, em blocos de MENU_ITEMS_PER_PAGE. */
+/** Altura que a linha ocupa na tela, conforme tenha ou não descrição. */
+function draftHeight(item: ItemDraft): number {
+  return item.description.trim() === '' ? MENU_ROW_HEIGHT_PLAIN : MENU_ROW_HEIGHT_WITH_DESCRIPTION;
+}
+
+/** Enche páginas até o orçamento acabar; devolve o mínimo de páginas do grupo. */
+function greedyDraftPages(items: ItemDraft[], budget: number): ItemDraft[][] {
+  const pages: ItemDraft[][] = [];
+  let current: ItemDraft[] = [];
+  let used = 0;
+  for (const item of items) {
+    const height = draftHeight(item);
+    if (current.length > 0 && used + height > budget) {
+      pages.push(current);
+      current = [];
+      used = 0;
+    }
+    current.push(item);
+    used += height;
+  }
+  if (current.length > 0) pages.push(current);
+  return pages;
+}
+
+/** Reparte em páginas de tamanho parecido; `null` quando o corte parelho não cabe. */
+function balancedDraftPages(
+  items: ItemDraft[],
+  pageCount: number,
+  budget: number,
+): ItemDraft[][] | null {
+  const base = Math.floor(items.length / pageCount);
+  const extra = items.length % pageCount;
+  const pages: ItemDraft[][] = [];
+  let index = 0;
+  for (let page = 0; page < pageCount; page += 1) {
+    const size = base + (page < extra ? 1 : 0);
+    const slice = items.slice(index, index + size);
+    index += size;
+    if (slice.length > 1 && slice.reduce((sum, i) => sum + draftHeight(i), 0) > budget) return null;
+    pages.push(slice);
+  }
+  return pages;
+}
+
+/** Mesma regra de `paginateMenuItems`: uma categoria por tela, cortada por altura. */
 function paginateMenuDrafts(items: ItemDraft[]): ItemDraft[][] {
   const groups: ItemDraft[][] = [];
   for (const item of items) {
@@ -211,9 +263,18 @@ function paginateMenuDrafts(items: ItemDraft[]): ItemDraft[][] {
   }
   const pages: ItemDraft[][] = [];
   for (const group of groups) {
-    for (let start = 0; start < group.length; start += MENU_ITEMS_PER_PAGE) {
-      pages.push(group.slice(start, start + MENU_ITEMS_PER_PAGE));
-    }
+    // O cabeçalho se repete em toda página do grupo, então sai do orçamento de
+    // todas elas, não só da primeira.
+    const budget = Math.max(
+      1,
+      group[0].category.trim() === ''
+        ? MENU_CONTENT_HEIGHT
+        : MENU_CONTENT_HEIGHT - MENU_CATEGORY_HEADER_HEIGHT,
+    );
+    const greedy = greedyDraftPages(group, budget);
+    const split =
+      greedy.length > 1 ? (balancedDraftPages(group, greedy.length, budget) ?? greedy) : greedy;
+    pages.push(...split);
   }
   return pages;
 }

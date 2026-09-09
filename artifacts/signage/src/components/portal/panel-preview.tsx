@@ -55,7 +55,10 @@ function MenuPreview({ items, page }: { items: PanelPreviewItem[]; page: number 
           {category}
         </div>
       ) : null}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* Centrado como no servidor (`templates.ts`): a paginação por orçamento
+          quase nunca enche a página exata, e a sobra vira margem simétrica em
+          vez de um vazio embaixo do último item. */}
+      <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
         {items.map((item, index) => (
           <div
             key={index}
