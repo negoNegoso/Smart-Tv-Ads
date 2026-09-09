@@ -165,6 +165,11 @@
       var timer         = null;
       var playSent = false;
       var activeSlot    = 'a';   // 'a' or 'b'
+      // Artes que nao carregaram desde a ultima que carregou. Publicar um
+      // painel apaga do storage a arte da publicacao anterior, entao uma TV que
+      // ainda nao pegou a lista nova pede uma URL que ja morreu. Sem contar
+      // isso, a TV gira a lista inteira pedindo imagem que nunca vem.
+      var falhasDeArte  = 0;
 
       var ytPlayer      = null;
       var ytApiReady    = false;
@@ -404,8 +409,8 @@
         }
       }
 
-      function showImageSlide(slide) {
-        var url  = imgUrl(slide.imageUrl);
+      // Pinta a arte já carregada no próximo slot e faz o crossfade.
+      function paintImageSlide(slide, url) {
         var prev = activeSlot === 'a' ? slotA : slotB;
         var next = activeSlot === 'a' ? slotB : slotA;
 
@@ -426,6 +431,70 @@
         if (slides[nextIdx] && (!slides[nextIdx].mediaKind || slides[nextIdx].mediaKind === 'image') && slides[nextIdx].imageUrl) {
           preload(imgUrl(slides[nextIdx].imageUrl));
         }
+      }
+
+      /**
+       * Só troca a tela depois que a arte carregou.
+       *
+       * `background-image` não avisa quando a URL falha: a versão anterior
+       * pintava a URL direto e uma arte morta virava tela preta muda, com o
+       * slide ainda contando exibição como se tivesse ido ao ar. Agora a arte é
+       * carregada antes; se falhar, tenta uma vez furando cache (TV que guardou
+       * um 404) e, persistindo, cede a vez para o próximo slide sem contar play.
+       */
+      function showImageSlide(slide) {
+        var url = imgUrl(slide.imageUrl);
+        if (!url) { onArteFalhou(slide, 'sem URL de arte'); return; }
+
+        var pedido = currentIndex;
+        var img = new Image();
+        img.onload = function () {
+          // Chegou tarde, depois de a TV já ter passado adiante: ignora, senão
+          // a arte atrasada some por cima do slide que está no ar agora.
+          if (pedido !== currentIndex) { return; }
+          falhasDeArte = 0;
+          paintImageSlide(slide, url);
+        };
+        img.onerror = function () {
+          if (pedido !== currentIndex) { return; }
+          if (!slide.__reTentada) {
+            slide.__reTentada = true;
+            var furaCache = url + (url.indexOf('?') === -1 ? '?' : '&') + 'r=' + (new Date()).getTime();
+            var retry = new Image();
+            retry.onload = function () {
+              if (pedido !== currentIndex) { return; }
+              falhasDeArte = 0;
+              paintImageSlide(slide, furaCache);
+            };
+            retry.onerror = function () {
+              if (pedido !== currentIndex) { return; }
+              onArteFalhou(slide, 'arte não carregou');
+            };
+            retry.src = furaCache;
+            return;
+          }
+          onArteFalhou(slide, 'arte não carregou');
+        };
+        img.src = url;
+      }
+
+      /**
+       * Arte que não veio: passa adiante sem contar exibição.
+       *
+       * Se a volta inteira falhar, para em vez de girar para sempre pedindo
+       * imagem que não existe — o refresh de 60 s traz a lista nova e a TV
+       * volta sozinha quando o servidor tiver artes válidas de novo.
+       */
+      function onArteFalhou(slide, motivo) {
+        if (window.console && console.warn) {
+          console.warn('[tv] slide ' + (slide && slide.announcementId) + ': ' + motivo + ' (' + imgUrl(slide && slide.imageUrl) + ')');
+        }
+        falhasDeArte += 1;
+        if (falhasDeArte >= slides.length) {
+          showEmpty('Sem arte para exibir', 'A TV tenta de novo assim que o servidor publicar as artes.');
+          return;
+        }
+        goNextNoCount();
       }
 
       // ─── Impression recording ─────────────────────────────────────────────
@@ -544,7 +613,10 @@
       // Tira tudo da tela e para o loop. Usada quando o servidor diz que esta
       // TV não tem mais nada a exibir agora — campanha que acabou, que saiu do
       // alvo ou que não roda hoje.
-      function showEmpty() {
+      function showEmpty(titulo, sub) {
+        document.getElementById('empty-title').textContent = titulo || 'Nenhum slide configurado';
+        document.getElementById('empty-sub').textContent =
+          sub || 'Acesse o painel admin e adicione anúncios à playlist deste dispositivo.';
         if (timer) { clearInterval(timer); timer = null; }
         teardownYt();
         slides = [];
@@ -588,6 +660,9 @@
           }
 
           slides = data;
+
+          // Lista nova: as artes que falharam podem ter sido substituídas.
+          if (changed) { falhasDeArte = 0; }
 
           if (!isRefresh || changed) {
             if (timer) { clearInterval(timer); timer = null; }
