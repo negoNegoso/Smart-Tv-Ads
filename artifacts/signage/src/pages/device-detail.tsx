@@ -409,7 +409,7 @@ export default function DeviceDetail() {
   const displayUrl = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
       <Link href={`/clients/${device.clientId}`}>
         <Button variant="ghost" size="sm" className="mb-6 text-muted-foreground -ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -440,38 +440,45 @@ export default function DeviceDetail() {
         </Button>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Prévia da TV</CardTitle>
-          <p className="text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
-        </CardHeader>
-        <CardContent>
-          {preview.isLoading ? (
-            <Skeleton className="aspect-video w-full rounded-lg" />
-          ) : preview.isError ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
-          ) : (
-            <DevicePreview slides={preview.data ?? []} />
-          )}
-        </CardContent>
-      </Card>
+      {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
+          ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a
+          prévia primeiro. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="min-w-0">
+          <div className="flex border-b mb-6">
+            {(['playlist', 'analytics'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t === 'playlist' ? 'Playlist' : 'Análises'}
+              </button>
+            ))}
+          </div>
 
-      <div className="flex border-b mb-6">
-        {(['playlist', 'analytics'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'playlist' ? 'Playlist' : 'Análises'}
-          </button>
-        ))}
+          {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
+        </div>
+
+        <Card className="order-first self-start lg:order-none lg:sticky lg:top-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Prévia da TV</CardTitle>
+            <p className="text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
+          </CardHeader>
+          <CardContent>
+            {preview.isLoading ? (
+              <Skeleton className="aspect-video w-full rounded-lg" />
+            ) : preview.isError ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
+            ) : (
+              <DevicePreview slides={preview.data ?? []} />
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
     </div>
   );
 }
