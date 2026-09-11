@@ -463,21 +463,20 @@ export default function DeviceDetail() {
           {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
         </div>
 
-        <Card className="order-first self-start lg:order-none lg:sticky lg:top-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Prévia da TV</CardTitle>
-            <p className="text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
-          </CardHeader>
-          <CardContent>
-            {preview.isLoading ? (
-              <Skeleton className="aspect-video w-full rounded-lg" />
-            ) : preview.isError ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
-            ) : (
-              <DevicePreview slides={preview.data ?? []} />
-            )}
-          </CardContent>
-        </Card>
+        <div className="order-first min-w-0 self-start lg:order-none lg:sticky lg:top-6">
+          {/* Mesmo cabeçalho das abas da esquerda, com uma aba só. */}
+          <div className="flex border-b mb-6">
+            <h2 className="px-4 py-2.5 text-sm font-medium border-b-2 border-primary text-foreground">Prévia da TV</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
+          {preview.isLoading ? (
+            <Skeleton className="aspect-video w-full rounded-lg" />
+          ) : preview.isError ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
+          ) : (
+            <DevicePreview slides={preview.data ?? []} />
+          )}
+        </div>
       </div>
     </div>
   );
