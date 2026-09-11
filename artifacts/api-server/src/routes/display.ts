@@ -1,21 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, and, or, gte, lte, sql } from "drizzle-orm";
-import {
-  db,
-  devicesTable,
-  devicePlaylistTable,
-  announcementsTable,
-  campaignsTable,
-  campaignDevicesTable,
-  campaignAnnouncementsTable,
-  advertisersTable,
-  clientsTable,
-} from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, devicesTable, clientsTable } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
-import { resolveSlideCaption } from "../lib/slide-caption";
-import { resolvePlaylistVideoIds } from "../lib/youtube/playlist-resolver";
-import { filterEligibleSlides } from "../lib/ad-eligibility";
-import { composeDeviceSlides, panelSlidesForClient } from "../lib/panels/device-slides";
+import { loadDeviceSlides } from "../lib/device-feed";
 
 const router: IRouter = Router();
 
@@ -44,122 +31,10 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     .set({ lastSeenAt: new Date() })
     .where(eq(devicesTable.id, device.id));
 
-  const playlistSlides = await db
-    .select({
-      announcementId: devicePlaylistTable.announcementId,
-      campaignId: sql<number | null>`NULL`,
-      title: announcementsTable.title,
-      displayText: announcementsTable.displayText,
-      showText: announcementsTable.showText,
-      imageUrl: announcementsTable.imageUrl,
-      duration: announcementsTable.duration,
-      scanCode: sql<string | null>`NULL`,
-      mediaKind: announcementsTable.mediaKind,
-      youtubeId: announcementsTable.youtubeId,
-      playbackMode: announcementsTable.playbackMode,
-      audioMode: announcementsTable.audioMode,
-      advertiserSegmentId: sql<number | null>`NULL`,
-      advertiserClientId: sql<number | null>`NULL`,
-      targetMode: sql<"all" | "devices" | "segments">`'all'`,
-      deviceIds: sql<number[]>`array[]::int[]`,
-      segmentIds: sql<number[]>`array[]::int[]`,
-      weekdays: sql<number[]>`array[]::int[]`,
-    })
-    .from(devicePlaylistTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
-    .where(
-      and(
-        eq(devicePlaylistTable.deviceId, device.id),
-        eq(devicePlaylistTable.isActive, true)
-      )
-    )
-    .orderBy(asc(devicePlaylistTable.displayOrder));
+  const slides = await loadDeviceSlides(device, req.log);
 
-  const now = new Date();
-  const campaignSlides = await db
-    .select({
-      announcementId: campaignAnnouncementsTable.announcementId,
-      campaignId: campaignsTable.id,
-      title: announcementsTable.title,
-      displayText: announcementsTable.displayText,
-      showText: announcementsTable.showText,
-      imageUrl: announcementsTable.imageUrl,
-      duration: announcementsTable.duration,
-      scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
-      mediaKind: announcementsTable.mediaKind,
-      youtubeId: announcementsTable.youtubeId,
-      playbackMode: announcementsTable.playbackMode,
-      audioMode: announcementsTable.audioMode,
-      advertiserSegmentId: advertisersTable.segmentId,
-      advertiserClientId: advertisersTable.clientId,
-      targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
-      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      weekdays: campaignsTable.weekdays,
-    })
-    .from(campaignsTable)
-    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
-    .where(
-      and(
-        eq(campaignsTable.isActive, true),
-        lte(campaignsTable.startsAt, now),
-        gte(campaignsTable.endsAt, now),
-      ),
-    )
-    .orderBy(asc(campaignsTable.id));
-
-  // Alvo da campanha e regra de concorrência decidem juntos o que vai ao ar. A
-  // playlist do próprio device fica de fora: é o lojista pondo o conteúdo dele.
-  const eligibleCampaignSlides = filterEligibleSlides(
-    campaignSlides,
-    { id: device.id, clientId: device.clientId, segmentId: device.segmentId },
-    now,
-  );
-
-  // Terceira fonte: painéis que o próprio lojista publicou no portal. Essa é
-  // a fonte menos crítica das três — uma falha aqui (tabela ausente, lock,
-  // linha inválida) nunca pode apagar campanhas pagas e a playlist do device
-  // que já estavam prontas para ir ao ar, então cai para lista vazia.
-  let panelSlides: Awaited<ReturnType<typeof panelSlidesForClient>> = [];
-  try {
-    panelSlides = await panelSlidesForClient(device.clientId);
-  } catch (error) {
-    req.log.error({ err: error }, "Could not load panel slides for device");
-  }
-
-  const deduped = composeDeviceSlides(eligibleCampaignSlides, panelSlides, playlistSlides);
-
-  const slides = await Promise.all(
-    deduped.map(async ({
-      scanCode,
-      showText,
-      displayText,
-      advertiserSegmentId,
-      advertiserClientId,
-      targetMode,
-      deviceIds,
-      segmentIds,
-      weekdays,
-      ...slide
-    }) => {
-      const videoIds =
-        slide.mediaKind === "youtube_playlist" && slide.youtubeId
-          ? await resolvePlaylistVideoIds(slide.youtubeId)
-          : null;
-      return {
-        ...slide,
-        // O servidor decide o texto: null significa slide sem legenda, para os
-        // dois renderizadores (display.tsx e tv.html) não divergirem na regra.
-        displayText: resolveSlideCaption({ showText, displayText }),
-        qrImageUrl: scanCode ? `/api/qr/${scanCode}.png` : null,
-        videoIds,
-      };
-    }),
-  );
-
-  res.json(GetDeviceSlidesResponse.parse(slides));
+  // A origem do slide é só para a prévia do admin; a TV não precisa dela.
+  res.json(GetDeviceSlidesResponse.parse(slides.map(({ source, ...slide }) => slide)));
 });
 
 export default router;

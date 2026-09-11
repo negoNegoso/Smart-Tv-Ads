@@ -28,10 +28,13 @@ import {
   useReorderDevicePlaylist,
   useTogglePlaylistItem,
   useGetDeviceAnalytics,
+  useGetDevicePreview,
   getGetDeviceQueryKey,
   getGetDevicePlaylistQueryKey,
   getGetDeviceAnalyticsQueryKey,
+  getGetDevicePreviewQueryKey,
 } from '@workspace/api-client-react';
+import { DevicePreview } from '@/components/device-preview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -154,10 +157,16 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Toda mudança na playlist muda o que a TV exibe: a prévia acompanha.
+  function refreshPlaylist() {
+    queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
+    queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
+  }
+
   const addMutation = useAddToDevicePlaylist({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
+        refreshPlaylist();
         setAddOpen(false);
       },
       onError: () => toast({ title: 'Já está na playlist ou falhou', variant: 'destructive' }),
@@ -166,13 +175,14 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
 
   const removeMutation = useRemoveFromDevicePlaylist({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
+      onSuccess: refreshPlaylist,
       onError: () => toast({ title: 'Não foi possível remover', variant: 'destructive' }),
     },
   });
 
   const reorderMutation = useReorderDevicePlaylist({
     mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) }),
       onError: () => {
         queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
         toast({ title: 'Não foi possível reordenar', variant: 'destructive' });
@@ -182,7 +192,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
 
   const toggleMutation = useTogglePlaylistItem({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
+      onSuccess: refreshPlaylist,
       onError: () => toast({ title: 'Não foi possível alterar o status', variant: 'destructive' }),
     },
   });
@@ -359,6 +369,11 @@ export default function DeviceDetail() {
     query: { enabled: !!deviceId, queryKey: getGetDeviceQueryKey(deviceId) },
   });
 
+  // Mesmo ritmo do player: a TV busca a rotação a cada 60s.
+  const preview = useGetDevicePreview(deviceId, {
+    query: { enabled: !!deviceId, queryKey: getGetDevicePreviewQueryKey(deviceId), refetchInterval: 60_000 },
+  });
+
   function copyUrl() {
     if (!device) return;
     const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
@@ -424,6 +439,22 @@ export default function DeviceDetail() {
           {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
         </Button>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Prévia da TV</CardTitle>
+          <p className="text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
+        </CardHeader>
+        <CardContent>
+          {preview.isLoading ? (
+            <Skeleton className="aspect-video w-full rounded-lg" />
+          ) : preview.isError ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
+          ) : (
+            <DevicePreview slides={preview.data ?? []} />
+          )}
+        </CardContent>
+      </Card>
 
       <div className="flex border-b mb-6">
         {(['playlist', 'analytics'] as const).map((t) => (

@@ -197,6 +197,19 @@ export interface DisplaySlide {
   videoIds?: string[] | null;
 }
 
+export type DevicePreviewSlideSource = typeof DevicePreviewSlideSource[keyof typeof DevicePreviewSlideSource];
+
+
+export const DevicePreviewSlideSource = {
+  campaign: 'campaign',
+  panel: 'panel',
+  playlist: 'playlist',
+} as const;
+
+export type DevicePreviewSlide = DisplaySlide & {
+  source: DevicePreviewSlideSource;
+};
+
 export interface PlayInput {
   deviceKey: string;
   announcementId: number;

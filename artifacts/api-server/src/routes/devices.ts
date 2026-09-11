@@ -21,6 +21,8 @@ import {
   DeleteDeviceParams,
   GetDevicePlaylistParams,
   GetDevicePlaylistResponse,
+  GetDevicePreviewParams,
+  GetDevicePreviewResponse,
   AddToDevicePlaylistParams,
   AddToDevicePlaylistBody,
   AddToDevicePlaylistResponse,
@@ -30,6 +32,7 @@ import {
   TogglePlaylistItemParams,
   TogglePlaylistItemResponse,
 } from "@workspace/api-zod";
+import { loadDeviceSlides } from "../lib/device-feed";
 
 const router: IRouter = Router();
 
@@ -182,6 +185,31 @@ router.get("/devices/:id/playlist", async (req, res): Promise<void> => {
     .where(eq(devicePlaylistTable.deviceId, params.data.id))
     .orderBy(asc(devicePlaylistTable.displayOrder));
   res.json(GetDevicePlaylistResponse.parse(rows));
+});
+
+// Preview: a rotação que a TV exibe agora, sem os efeitos colaterais da TV
+// (não grava lastSeenAt — abrir a página no admin não põe a TV online).
+router.get("/devices/:id/preview", async (req, res): Promise<void> => {
+  const params = GetDevicePreviewParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [device] = await db
+    .select({
+      id: devicesTable.id,
+      clientId: devicesTable.clientId,
+      segmentId: clientsTable.segmentId,
+    })
+    .from(devicesTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .where(eq(devicesTable.id, params.data.id));
+  if (!device) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  const slides = await loadDeviceSlides(device, req.log);
+  res.json(GetDevicePreviewResponse.parse(slides));
 });
 
 // Add to playlist
