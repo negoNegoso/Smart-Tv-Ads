@@ -36,6 +36,7 @@ import type {
   Device,
   DeviceAnalytics,
   DeviceInput,
+  DevicePreviewSlide,
   DeviceUpdate,
   DisplaySlide,
   HealthStatus,
@@ -1931,6 +1932,84 @@ export function useGetDevicePlaylist<TData = Awaited<ReturnType<typeof getDevice
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDevicePlaylistQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDevicePreviewUrl = (id: number,) => {
+
+
+
+
+  return `/api/devices/${id}/preview`
+}
+
+/**
+ * Mesma rotação que /display/{deviceKey}/slides entrega à TV, com a origem de cada slide. Sem efeito colateral: não mexe em lastSeenAt.
+ * @summary Slides the TV is showing right now, for the admin preview
+ */
+export const getDevicePreview = async (id: number, options?: RequestInit): Promise<DevicePreviewSlide[]> => {
+
+  return customFetch<DevicePreviewSlide[]>(getGetDevicePreviewUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDevicePreviewQueryKey = (id: number,) => {
+    return [
+    `/api/devices/${id}/preview`
+    ] as const;
+    }
+
+
+export const getGetDevicePreviewQueryOptions = <TData = Awaited<ReturnType<typeof getDevicePreview>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDevicePreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDevicePreviewQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDevicePreview>>> = ({ signal }) => getDevicePreview(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDevicePreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDevicePreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getDevicePreview>>>
+export type GetDevicePreviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Slides the TV is showing right now, for the admin preview
+ */
+
+export function useGetDevicePreview<TData = Awaited<ReturnType<typeof getDevicePreview>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDevicePreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDevicePreviewQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

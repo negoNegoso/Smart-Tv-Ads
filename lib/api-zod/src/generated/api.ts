@@ -468,6 +468,33 @@ export const GetDevicePlaylistResponse = zod.array(GetDevicePlaylistResponseItem
 
 
 /**
+ * Mesma rotação que /display/{deviceKey}/slides entrega à TV, com a origem de cada slide. Sem efeito colateral: não mexe em lastSeenAt.
+ * @summary Slides the TV is showing right now, for the admin preview
+ */
+export const GetDevicePreviewParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDevicePreviewResponseItem = zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}).and(zod.object({
+  "source": zod.enum(['campaign', 'panel', 'playlist'])
+}))
+export const GetDevicePreviewResponse = zod.array(GetDevicePreviewResponseItem)
+
+
+/**
  * @summary Assign an announcement to a device
  */
 export const AddToDevicePlaylistParams = zod.object({
