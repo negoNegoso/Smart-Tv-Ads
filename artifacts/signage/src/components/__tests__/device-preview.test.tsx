@@ -75,6 +75,19 @@ describe('DevicePreview', () => {
     expect(screen.getByText('1/3')).toBeInTheDocument();
   });
 
+  // Aba em segundo plano: o Chrome segura o setInterval em ~1 disparo por
+  // segundo. O tempo do slide tem de vir do relógio, não da soma de disparos,
+  // senão a prévia anda mais devagar que a TV.
+  it('segue o relógio mesmo quando o navegador atrasa o timer', () => {
+    render(<DevicePreview slides={ROTATION} />);
+
+    act(() => {
+      vi.setSystemTime(Date.now() + 10_000);
+      vi.advanceTimersByTime(100);
+    });
+    expect(screen.getByText('2/3')).toBeInTheDocument();
+  });
+
   it('pausar congela o slide atual', () => {
     render(<DevicePreview slides={ROTATION} />);
 

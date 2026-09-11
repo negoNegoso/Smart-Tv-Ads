@@ -48,9 +48,19 @@ export function DevicePreview({ slides }: { slides: DevicePreviewSlide[] }) {
     setElapsedMs(0);
   }
 
+  // Soma o tempo de relógio entre disparos, não TICK_MS fixo: em aba de fundo
+  // o navegador atrasa o setInterval e a prévia andaria mais devagar que a TV.
   useEffect(() => {
     if (paused || count === 0) return;
-    const timer = setInterval(() => setElapsedMs((ms) => ms + TICK_MS), TICK_MS);
+    let last = Date.now();
+    const timer = setInterval(() => {
+      // Delta calculado aqui, não dentro do updater: o React roda o updater
+      // depois, quando `last` já avançou, e o delta viraria zero.
+      const now = Date.now();
+      const delta = now - last;
+      last = now;
+      setElapsedMs((ms) => ms + delta);
+    }, TICK_MS);
     return () => clearInterval(timer);
   }, [paused, count]);
 
