@@ -41,7 +41,9 @@ vi.mock("../../lib/panels/publish", () => ({
 // portal.ts monta as rotas de anunciante/cliente e de painéis no mesmo router;
 // os dois módulos abaixo puxam @workspace/db no import e este arquivo nunca
 // chega a chamá-los — mockar evita precisar de DATABASE_URL só para o import
-// não falhar (mesmo padrão de portal-scope.test.ts).
+// não falhar (mesmo padrão de portal-scope.test.ts). O mesmo vale para
+// lib/device-feed, que a prévia da TV no portal usa.
+vi.mock("../../lib/device-feed", () => ({ loadDeviceSlides: vi.fn() }));
 vi.mock("../../lib/portal/queries", () => ({
   advertiserCampaigns: vi.fn(),
   clientDevices: vi.fn(),
