@@ -28,10 +28,13 @@ import {
   useReorderDevicePlaylist,
   useTogglePlaylistItem,
   useGetDeviceAnalytics,
+  useGetDevicePreview,
   getGetDeviceQueryKey,
   getGetDevicePlaylistQueryKey,
   getGetDeviceAnalyticsQueryKey,
+  getGetDevicePreviewQueryKey,
 } from '@workspace/api-client-react';
+import { DevicePreview } from '@/components/device-preview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -154,10 +157,16 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Toda mudança na playlist muda o que a TV exibe: a prévia acompanha.
+  function refreshPlaylist() {
+    queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
+    queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
+  }
+
   const addMutation = useAddToDevicePlaylist({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
+        refreshPlaylist();
         setAddOpen(false);
       },
       onError: () => toast({ title: 'Já está na playlist ou falhou', variant: 'destructive' }),
@@ -166,13 +175,14 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
 
   const removeMutation = useRemoveFromDevicePlaylist({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
+      onSuccess: refreshPlaylist,
       onError: () => toast({ title: 'Não foi possível remover', variant: 'destructive' }),
     },
   });
 
   const reorderMutation = useReorderDevicePlaylist({
     mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) }),
       onError: () => {
         queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) });
         toast({ title: 'Não foi possível reordenar', variant: 'destructive' });
@@ -182,7 +192,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
 
   const toggleMutation = useTogglePlaylistItem({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetDevicePlaylistQueryKey(deviceId) }),
+      onSuccess: refreshPlaylist,
       onError: () => toast({ title: 'Não foi possível alterar o status', variant: 'destructive' }),
     },
   });
@@ -359,6 +369,11 @@ export default function DeviceDetail() {
     query: { enabled: !!deviceId, queryKey: getGetDeviceQueryKey(deviceId) },
   });
 
+  // Mesmo ritmo do player: a TV busca a rotação a cada 60s.
+  const preview = useGetDevicePreview(deviceId, {
+    query: { enabled: !!deviceId, queryKey: getGetDevicePreviewQueryKey(deviceId), refetchInterval: 60_000 },
+  });
+
   function copyUrl() {
     if (!device) return;
     const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
@@ -394,7 +409,7 @@ export default function DeviceDetail() {
   const displayUrl = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
       <Link href={`/clients/${device.clientId}`}>
         <Button variant="ghost" size="sm" className="mb-6 text-muted-foreground -ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -425,22 +440,44 @@ export default function DeviceDetail() {
         </Button>
       </div>
 
-      <div className="flex border-b mb-6">
-        {(['playlist', 'analytics'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'playlist' ? 'Playlist' : 'Análises'}
-          </button>
-        ))}
-      </div>
+      {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
+          ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a
+          prévia primeiro. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="min-w-0">
+          <div className="flex border-b mb-6">
+            {(['playlist', 'analytics'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  tab === t ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t === 'playlist' ? 'Playlist' : 'Análises'}
+              </button>
+            ))}
+          </div>
 
-      {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
+          {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
+        </div>
+
+        <div className="order-first min-w-0 self-start lg:order-none lg:sticky lg:top-6">
+          {/* Mesmo cabeçalho das abas da esquerda, com uma aba só. */}
+          <div className="flex border-b mb-6">
+            <h2 className="px-4 py-2.5 text-sm font-medium border-b-2 border-primary text-foreground">Prévia da TV</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
+          {preview.isLoading ? (
+            <Skeleton className="aspect-video w-full rounded-lg" />
+          ) : preview.isError ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
+          ) : (
+            <DevicePreview slides={preview.data ?? []} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

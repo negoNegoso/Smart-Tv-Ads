@@ -1,7 +1,8 @@
 // artifacts/api-server/src/routes/portal.ts
 import { Router, type IRouter, type Request, type Response } from "express";
 import { requireAdvertiser, requireClient } from "../lib/auth/middleware";
-import { advertiserCampaigns, clientDevices, clientsOf } from "../lib/portal/queries";
+import { advertiserCampaigns, clientDevices, clientsOf, previewDevice } from "../lib/portal/queries";
+import { loadDeviceSlides } from "../lib/device-feed";
 import { advertiserOverview, clientOverview } from "../lib/portal/overview";
 import { parseDays, type PortalDays } from "../lib/portal/period";
 import panelsRouter from "./panels";
@@ -54,6 +55,30 @@ router.get("/client/devices", requireClient, async (req, res) => {
   const days = resolvePeriod(req, res);
   if (days === null) return;
   res.json(await clientDevices(clientScope(req), days));
+});
+
+/**
+ * Prévia da TV para o lojista: a mesma rotação que a TV exibe agora, sem os
+ * efeitos colaterais da TV. O `:id` vem da barra de endereços — TV de outra
+ * loja responde igual a TV inexistente, para não confirmar que ela existe.
+ */
+router.get("/client/devices/:id/preview", requireClient, async (req, res) => {
+  const deviceId = Number(req.params.id);
+  if (!Number.isInteger(deviceId) || deviceId <= 0) {
+    res.status(400).json({ error: "TV inválida." });
+    return;
+  }
+  const scope = clientScope(req);
+  if (scope.length === 0) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  const device = await previewDevice(deviceId);
+  if (!device || !scope.includes(device.clientId)) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  res.json(await loadDeviceSlides(device, req.log));
 });
 
 router.get("/client/overview", requireClient, async (req, res) => {

@@ -13,7 +13,12 @@ vi.mock("../../lib/portal/queries", () => ({
   advertiserCampaigns: (...a: unknown[]) => advertiserCampaigns(...a),
   clientDevices: (...a: unknown[]) => clientDevices(...a),
   clientsOf: (...a: unknown[]) => clientsOf(...a),
+  previewDevice: vi.fn(),
 }));
+// portal.ts monta a prévia da TV com lib/device-feed, que puxa @workspace/db
+// no topo. Este arquivo nunca chega a essa rota — mesmo motivo dos mocks
+// abaixo: não exigir DATABASE_URL só para o import.
+vi.mock("../../lib/device-feed", () => ({ loadDeviceSlides: vi.fn() }));
 // portal.ts passou a importar overview, que puxa @workspace/db. Este arquivo
 // testa o escopo das rotas de lista e nunca chega a chamar o overview — mockar
 // o módulo mantém o teste sem banco, em vez de fabricar uma DATABASE_URL só

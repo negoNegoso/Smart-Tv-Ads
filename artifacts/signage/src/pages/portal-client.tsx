@@ -11,7 +11,9 @@ import { PeriodFilter, type PortalDays } from '@/components/portal/period-filter
 import { PrintHeader } from '@/components/portal/print-header';
 import { TrendChart } from '@/components/portal/trend-chart';
 import { formatDelta } from '@/components/portal/delta';
+import { TvPreviewGrid } from '@/components/tv-preview-grid';
 import { cn } from '@/lib/utils';
+import type { DevicePreviewSlide } from '@workspace/api-client-react';
 
 interface PortalDevice {
   id: number;
@@ -191,6 +193,23 @@ export default function PortalClient() {
           )}
         </CardContent>
       </Card>
+
+      {/* Só com pelo menos uma TV. Fora da impressão: prévia girando não é
+          relatório. */}
+      {devices.data && devices.data.length > 0 ? (
+        <Card className="mt-6 print:hidden">
+          <CardHeader>
+            <CardTitle>Prévias das TVs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TvPreviewGrid
+              devices={devices.data}
+              loadPreview={(id) => getJson<DevicePreviewSlide[]>(`api/portal/client/devices/${id}/preview`)}
+              queryKey={(id) => ['portal', 'client', 'device-preview', id]}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

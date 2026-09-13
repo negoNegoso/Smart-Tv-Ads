@@ -427,6 +427,28 @@ paths:
         "404":
           description: Not found
 
+  /devices/{id}/preview:
+    get:
+      operationId: getDevicePreview
+      tags: [devices]
+      summary: Slides the TV is showing right now, for the admin preview
+      description: >
+        Mesma rotação que /display/{deviceKey}/slides entrega à TV, com a
+        origem de cada slide. Sem efeito colateral: não mexe em lastSeenAt.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DevicePreviewSlide"
+        "404":
+          description: Not found
+
   /devices/{id}/playlist/add:
     post:
       operationId: addToDevicePlaylist
@@ -1180,6 +1202,16 @@ components:
           type: array
           nullable: true
           items: { type: string }
+
+    DevicePreviewSlide:
+      allOf:
+        - $ref: "#/components/schemas/DisplaySlide"
+        - type: object
+          required: [source]
+          properties:
+            source:
+              type: string
+              enum: [campaign, panel, playlist]
 
     # ── Telemetry ────────────────────────────────────────────────────────────
     PlayInput:

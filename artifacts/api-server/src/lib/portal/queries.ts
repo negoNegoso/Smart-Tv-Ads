@@ -110,6 +110,26 @@ export async function clientDevices(clientIds: number[], days: PortalDays): Prom
   return rows;
 }
 
+/**
+ * O que a prévia do portal precisa da TV para montar a rotação: dono e
+ * segmento (a regra de concorrência das campanhas depende dele). A checagem
+ * de que a TV é de uma loja do usuário fica na rota.
+ */
+export async function previewDevice(
+  deviceId: number,
+): Promise<{ id: number; clientId: number; segmentId: number | null } | null> {
+  const [row] = await db
+    .select({
+      id: devicesTable.id,
+      clientId: devicesTable.clientId,
+      segmentId: clientsTable.segmentId,
+    })
+    .from(devicesTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .where(eq(devicesTable.id, deviceId));
+  return row ?? null;
+}
+
 export interface PortalClientRow {
   id: number;
   name: string;

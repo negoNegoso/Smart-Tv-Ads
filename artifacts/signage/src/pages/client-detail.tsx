@@ -14,7 +14,10 @@ import {
   getGetClientQueryKey,
   getListDevicesQueryKey,
   getListClientsQueryKey,
+  getDevicePreview,
+  getGetDevicePreviewQueryKey,
 } from '@workspace/api-client-react';
+import { TvPreviewGrid } from '@/components/tv-preview-grid';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -365,6 +368,19 @@ export default function ClientDetail() {
           ))}
         </div>
       )}
+
+      {/* Só aparece com pelo menos uma TV: sem TV não há o que prever. */}
+      {devices.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold mb-4">Prévias das TVs</h2>
+          <TvPreviewGrid
+            devices={devices}
+            loadPreview={(id) => getDevicePreview(id)}
+            queryKey={getGetDevicePreviewQueryKey}
+            hrefFor={(id) => `/devices/${id}`}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

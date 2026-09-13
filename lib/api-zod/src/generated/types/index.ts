@@ -26,6 +26,8 @@ export * from './createPanelRequestKind';
 export * from './device';
 export * from './deviceAnalytics';
 export * from './deviceInput';
+export * from './devicePreviewSlide';
+export * from './devicePreviewSlideSource';
 export * from './deviceUpdate';
 export * from './displaySlide';
 export * from './healthStatus';
