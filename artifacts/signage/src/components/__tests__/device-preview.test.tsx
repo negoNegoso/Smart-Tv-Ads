@@ -181,6 +181,15 @@ describe('DevicePreview', () => {
     fetchSpy.mockRestore();
   });
 
+  // Várias TVs lado a lado: a lista de cada uma deixaria a grade comprida demais.
+  it('modo compacto mostra o palco e os controles, sem a lista da rotação', () => {
+    render(<DevicePreview slides={ROTATION} compact />);
+    expect(onStage('Pizzaria X')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Próximo slide' })).toBeInTheDocument();
+    expect(screen.getByText('1/3')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Rotação da TV' })).not.toBeInTheDocument();
+  });
+
   it('sem slides, avisa que nada está no ar', () => {
     render(<DevicePreview slides={[]} />);
     expect(screen.getByText('Nada no ar nesta TV')).toBeInTheDocument();

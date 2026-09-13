@@ -29,8 +29,10 @@ function posterFor(slide: DevicePreviewSlide): string {
  *
  * Diferente do player, não conta exibição (inflaria o relatório do
  * anunciante) e não toca vídeo: YouTube aparece como capa, sem som no admin.
+ *
+ * `compact` tira a lista da rotação — para grades com várias TVs lado a lado.
  */
-export function DevicePreview({ slides }: { slides: DevicePreviewSlide[] }) {
+export function DevicePreview({ slides, compact = false }: { slides: DevicePreviewSlide[]; compact?: boolean }) {
   const [index, setIndex] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -161,6 +163,7 @@ export function DevicePreview({ slides }: { slides: DevicePreviewSlide[] }) {
         <span className="min-w-0 truncate text-sm">{slide.title}</span>
       </div>
 
+      {compact ? null : (
       <ol aria-label="Rotação da TV" className="max-h-64 space-y-1 overflow-y-auto">
         {slides.map((item, i) => (
           <li key={`${i}-${item.announcementId}`}>
@@ -183,6 +186,7 @@ export function DevicePreview({ slides }: { slides: DevicePreviewSlide[] }) {
           </li>
         ))}
       </ol>
+      )}
     </div>
   );
 }
