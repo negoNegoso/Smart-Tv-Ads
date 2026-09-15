@@ -7,6 +7,9 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  name: text("name"),
+  // Admin no banco: mesmo acesso do admin do env.
+  isAdmin: boolean("is_admin").notNull().default(false),
   mustChangePassword: boolean("must_change_password").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
