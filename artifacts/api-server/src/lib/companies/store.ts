@@ -85,6 +85,9 @@ export async function getCompany(id: number): Promise<CompanyDetail | null> {
 }
 
 function rethrowConflict(err: unknown): never {
+  // drizzle-orm@0.45.2's node-postgres driver (node_modules/drizzle-orm/node-postgres/session.js)
+  // does `catch (error) { throw error; }` around `client.query(...)`: it rethrows the raw `pg`
+  // error untouched, so `.code` (e.g. "23505") is still readable here.
   if ((err as { code?: string })?.code === PG_UNIQUE_VIOLATION) {
     throw new CompanyConflictError("A empresa já tem esse papel.");
   }

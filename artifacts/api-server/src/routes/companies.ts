@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { COMPANY_STATUSES } from "@workspace/db/schema";
 import { createCompanyInput, updateCompanyInput } from "../lib/companies/input";
 import { deleteBlock, planRoles } from "../lib/companies/roles";
 import {
@@ -20,6 +21,10 @@ function idParam(raw: unknown): number | null {
 router.get("/companies", async (req, res): Promise<void> => {
   const role = req.query.role === "client" || req.query.role === "advertiser" ? req.query.role : undefined;
   const status = typeof req.query.status === "string" && req.query.status ? req.query.status : undefined;
+  if (status && !(COMPANY_STATUSES as readonly string[]).includes(status)) {
+    res.status(400).json({ error: "Status inválido." });
+    return;
+  }
   const q = typeof req.query.q === "string" && req.query.q.trim() ? req.query.q.trim() : undefined;
   res.json(await listCompanies({ status, role, q }));
 });

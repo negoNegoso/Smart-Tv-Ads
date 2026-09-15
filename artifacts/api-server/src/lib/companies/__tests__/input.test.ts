@@ -36,4 +36,16 @@ describe("updateCompanyInput", () => {
     expect(r).not.toHaveProperty("email");
     expect(r).not.toHaveProperty("cep");
   });
+
+  it("aceita null explícito para limpar campos opcionais", () => {
+    expect(updateCompanyInput.parse({ email: null })).toEqual({ email: null });
+    expect(updateCompanyInput.parse({ cep: null })).toEqual({ cep: null });
+    expect(updateCompanyInput.parse({ advertiserCompany: null })).toEqual({ advertiserCompany: null });
+  });
+
+  it("recusa CEP incompleto com a mesma mensagem do criar", () => {
+    const r = updateCompanyInput.safeParse({ cep: "0131" });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].message).toBe("CEP deve ter 8 dígitos.");
+  });
 });

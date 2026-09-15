@@ -63,6 +63,14 @@ describe("rotas de empresas", () => {
     expect(store.listCompanies).toHaveBeenCalledWith({ status: "paused", role: "client", q: "pada" });
   });
 
+  it("status desconhecido na listagem é 400 e não consulta o store", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).get("/companies?status=inadimplente");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Status inválido.");
+    expect(store.listCompanies).not.toHaveBeenCalled();
+  });
+
   it("empresa inexistente é 404", async () => {
     store.getCompany.mockResolvedValue(null);
     const { default: request } = await import("supertest");
