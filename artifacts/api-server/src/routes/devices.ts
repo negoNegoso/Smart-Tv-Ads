@@ -42,7 +42,7 @@ async function getDeviceWithClient(id: number) {
     .select({
       id: devicesTable.id,
       clientId: devicesTable.clientId,
-      clientName: clientsTable.name,
+      clientName: companiesTable.name,
       name: devicesTable.name,
       location: devicesTable.location,
       deviceKey: devicesTable.deviceKey,
@@ -51,6 +51,7 @@ async function getDeviceWithClient(id: number) {
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(devicesTable.id, id));
   return rows[0] ?? null;
 }
@@ -67,7 +68,7 @@ router.get("/devices", async (req, res): Promise<void> => {
     .select({
       id: devicesTable.id,
       clientId: devicesTable.clientId,
-      clientName: clientsTable.name,
+      clientName: companiesTable.name,
       name: devicesTable.name,
       location: devicesTable.location,
       deviceKey: devicesTable.deviceKey,
@@ -75,7 +76,8 @@ router.get("/devices", async (req, res): Promise<void> => {
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
-    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId));
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId));
 
   const rows = queryParams.data.clientId
     ? await query.where(eq(devicesTable.clientId, queryParams.data.clientId)).orderBy(asc(devicesTable.name))

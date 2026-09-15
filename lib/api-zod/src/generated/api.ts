@@ -250,6 +250,7 @@ export const CreateSegmentResponse = zod.object({
  */
 export const ListClientsResponseItem = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
@@ -276,6 +277,7 @@ export const CreateClientBody = zod.object({
 
 export const CreateClientResponse = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
@@ -292,6 +294,7 @@ export const GetClientParams = zod.object({
 
 export const GetClientResponse = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
@@ -318,6 +321,7 @@ export const UpdateClientBody = zod.object({
 
 export const UpdateClientResponse = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),

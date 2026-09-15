@@ -149,8 +149,9 @@ export interface PortalClientRow {
 export async function clientsOf(clientIds: number[]): Promise<PortalClientRow[]> {
   if (clientIds.length === 0) return [];
   return db
-    .select({ id: clientsTable.id, name: clientsTable.name })
+    .select({ id: clientsTable.id, name: companiesTable.name })
     .from(clientsTable)
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(inArray(clientsTable.id, clientIds))
-    .orderBy(clientsTable.name);
+    .orderBy(companiesTable.name);
 }

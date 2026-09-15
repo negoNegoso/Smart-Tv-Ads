@@ -1,6 +1,6 @@
 // artifacts/api-server/src/lib/portal/overview.ts
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { advertisersTable, clientsTable, db, campaignsTable, devicesTable, playsTable, scansTable } from "@workspace/db";
+import { advertisersTable, clientsTable, companiesTable, db, campaignsTable, devicesTable, playsTable, scansTable } from "@workspace/db";
 import { BUSINESS_TIME_ZONE } from "../ad-eligibility";
 import { scanRate } from "../scan-rate";
 import { fillSeries } from "./series";
@@ -42,8 +42,9 @@ const HUMAN_SCAN = eq(scansTable.isBot, false);
 async function advertiserName(advertiserIds: number[]): Promise<string | null> {
   if (advertiserIds.length !== 1) return null;
   const [row] = await db
-    .select({ name: advertisersTable.name })
+    .select({ name: companiesTable.name })
     .from(advertisersTable)
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .where(eq(advertisersTable.id, advertiserIds[0]));
   return row?.name ?? null;
 }
@@ -52,8 +53,9 @@ async function advertiserName(advertiserIds: number[]): Promise<string | null> {
 async function clientName(clientIds: number[]): Promise<string | null> {
   if (clientIds.length !== 1) return null;
   const [row] = await db
-    .select({ name: clientsTable.name })
+    .select({ name: companiesTable.name })
     .from(clientsTable)
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(clientsTable.id, clientIds[0]));
   return row?.name ?? null;
 }

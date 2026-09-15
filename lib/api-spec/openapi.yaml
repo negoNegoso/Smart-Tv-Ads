@@ -1080,9 +1080,10 @@ components:
     # ── Clients ──────────────────────────────────────────────────────────────
     Client:
       type: object
-      required: [id, name, createdAt, deviceCount]
+      required: [id, companyId, name, createdAt, deviceCount]
       properties:
         id: { type: integer }
+        companyId: { type: integer }
         name: { type: string }
         email: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }

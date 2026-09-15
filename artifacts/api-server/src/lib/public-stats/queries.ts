@@ -1,5 +1,5 @@
-import { gte, isNotNull, sql } from "drizzle-orm";
-import { db, playsTable, devicesTable, clientsTable } from "@workspace/db";
+import { eq, gte, isNotNull, sql } from "drizzle-orm";
+import { db, playsTable, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 
 /**
  * Contadores agregados que a landing pública exibe.
@@ -47,9 +47,10 @@ export async function publicStats(now: Date = new Date()): Promise<PublicStats> 
     .from(clientsTable);
 
   const [segments] = await db
-    .select({ n: sql<number>`COUNT(DISTINCT ${clientsTable.segmentId})::int` })
+    .select({ n: sql<number>`COUNT(DISTINCT ${companiesTable.segmentId})::int` })
     .from(clientsTable)
-    .where(isNotNull(clientsTable.segmentId));
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
+    .where(isNotNull(companiesTable.segmentId));
 
   return {
     plays30d: plays?.n ?? 0,

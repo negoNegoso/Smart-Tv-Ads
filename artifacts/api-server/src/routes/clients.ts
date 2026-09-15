@@ -1,71 +1,46 @@
 import { Router, type IRouter } from "express";
 import { eq, asc, sql, desc } from "drizzle-orm";
-import { db, clientsTable, devicesTable, playsTable, announcementsTable, segmentsTable } from "@workspace/db";
+import { db, clientsTable, companiesTable, devicesTable, playsTable, announcementsTable, segmentsTable } from "@workspace/db";
 import {
   ListClientsResponse,
-  CreateClientBody,
-  CreateClientResponse,
   GetClientParams,
   GetClientResponse,
-  UpdateClientParams,
-  UpdateClientBody,
-  UpdateClientResponse,
-  DeleteClientParams,
   GetClientStatsParams,
   GetClientStatsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-async function getClientWithCount(id: number) {
-  const rows = await db
-    .select({
-      id: clientsTable.id,
-      name: clientsTable.name,
-      email: clientsTable.email,
-      phone: clientsTable.phone,
-      segmentId: clientsTable.segmentId,
-      segmentName: segmentsTable.name,
-      createdAt: clientsTable.createdAt,
-      deviceCount: sql<number>`COUNT(${devicesTable.id})::int`,
-    })
+const clientSelection = {
+  id: clientsTable.id,
+  companyId: clientsTable.companyId,
+  name: companiesTable.name,
+  email: companiesTable.email,
+  phone: companiesTable.phone,
+  segmentId: companiesTable.segmentId,
+  segmentName: segmentsTable.name,
+  createdAt: clientsTable.createdAt,
+  deviceCount: sql<number>`COUNT(${devicesTable.id})::int`,
+};
+
+function clientQuery() {
+  return db
+    .select(clientSelection)
     .from(clientsTable)
-    .leftJoin(segmentsTable, eq(segmentsTable.id, clientsTable.segmentId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
+    .leftJoin(segmentsTable, eq(segmentsTable.id, companiesTable.segmentId))
     .leftJoin(devicesTable, eq(devicesTable.clientId, clientsTable.id))
-    .where(eq(clientsTable.id, id))
-    .groupBy(clientsTable.id, segmentsTable.name);
+    .groupBy(clientsTable.id, companiesTable.id, segmentsTable.name);
+}
+
+async function getClientWithCount(id: number) {
+  const rows = await clientQuery().where(eq(clientsTable.id, id));
   return rows[0] ?? null;
 }
 
 router.get("/clients", async (_req, res): Promise<void> => {
-  const rows = await db
-    .select({
-      id: clientsTable.id,
-      name: clientsTable.name,
-      email: clientsTable.email,
-      phone: clientsTable.phone,
-      segmentId: clientsTable.segmentId,
-      segmentName: segmentsTable.name,
-      createdAt: clientsTable.createdAt,
-      deviceCount: sql<number>`COUNT(${devicesTable.id})::int`,
-    })
-    .from(clientsTable)
-    .leftJoin(segmentsTable, eq(segmentsTable.id, clientsTable.segmentId))
-    .leftJoin(devicesTable, eq(devicesTable.clientId, clientsTable.id))
-    .groupBy(clientsTable.id, segmentsTable.name)
-    .orderBy(asc(clientsTable.name));
+  const rows = await clientQuery().orderBy(asc(companiesTable.name));
   res.json(ListClientsResponse.parse(rows));
-});
-
-router.post("/clients", async (req, res): Promise<void> => {
-  const parsed = CreateClientBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [row] = await db.insert(clientsTable).values(parsed.data).returning();
-  const withCount = await getClientWithCount(row.id);
-  res.status(201).json(CreateClientResponse.parse(withCount));
 });
 
 router.get("/clients/:id", async (req, res): Promise<void> => {
@@ -80,47 +55,6 @@ router.get("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
   res.json(GetClientResponse.parse(row));
-});
-
-router.patch("/clients/:id", async (req, res): Promise<void> => {
-  const params = UpdateClientParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const parsed = UpdateClientBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [updated] = await db
-    .update(clientsTable)
-    .set(parsed.data)
-    .where(eq(clientsTable.id, params.data.id))
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Client not found" });
-    return;
-  }
-  const withCount = await getClientWithCount(updated.id);
-  res.json(UpdateClientResponse.parse(withCount));
-});
-
-router.delete("/clients/:id", async (req, res): Promise<void> => {
-  const params = DeleteClientParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const [row] = await db
-    .delete(clientsTable)
-    .where(eq(clientsTable.id, params.data.id))
-    .returning();
-  if (!row) {
-    res.status(404).json({ error: "Client not found" });
-    return;
-  }
-  res.sendStatus(204);
 });
 
 router.get("/clients/:id/stats", async (req, res): Promise<void> => {

@@ -28,7 +28,7 @@ export function composeDeviceSlides<T extends { announcementId: number }>(
  */
 type CampaignOnlyFields = {
   advertiserSegmentId?: number | null;
-  advertiserClientId?: number | null;
+  advertiserCompanyId?: number | null;
   targetMode?: "all" | "devices" | "segments";
   deviceIds?: number[];
   segmentIds?: number[];
