@@ -16,19 +16,19 @@ describe("canPlayOnDevice", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: PADARIA,
-        advertiserClientId: 10,
-        deviceClientId: 20,
+        advertiserCompanyId: 10,
+        deviceCompanyId: 20,
         deviceSegmentId: PADARIA,
       }),
     ).toBe(false);
   });
 
-  it("libera o anunciante na TV do próprio cliente mesmo com segmento igual", () => {
+  it("libera o anunciante na TV da própria empresa mesmo com segmento igual", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: PADARIA,
-        advertiserClientId: 20,
-        deviceClientId: 20,
+        advertiserCompanyId: 20,
+        deviceCompanyId: 20,
         deviceSegmentId: PADARIA,
       }),
     ).toBe(true);
@@ -38,8 +38,8 @@ describe("canPlayOnDevice", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: FARMACIA,
-        advertiserClientId: 10,
-        deviceClientId: 20,
+        advertiserCompanyId: 10,
+        deviceCompanyId: 20,
         deviceSegmentId: PADARIA,
       }),
     ).toBe(true);
@@ -49,8 +49,8 @@ describe("canPlayOnDevice", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: null,
-        advertiserClientId: null,
-        deviceClientId: 20,
+        advertiserCompanyId: null,
+        deviceCompanyId: 20,
         deviceSegmentId: PADARIA,
       }),
     ).toBe(true);
@@ -60,8 +60,8 @@ describe("canPlayOnDevice", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: PADARIA,
-        advertiserClientId: 10,
-        deviceClientId: 20,
+        advertiserCompanyId: 10,
+        deviceCompanyId: 20,
         deviceSegmentId: null,
       }),
     ).toBe(true);
@@ -69,11 +69,11 @@ describe("canPlayOnDevice", () => {
 });
 
 describe("filterEligibleSlides", () => {
-  const device = { id: 7, clientId: 20, segmentId: PADARIA };
+  const device = { id: 7, companyId: 20, segmentId: PADARIA };
   const paraTodos = { targetMode: "all" as const, deviceIds: [], segmentIds: [], weekdays: [] };
-  const concorrente = { announcementId: 1, advertiserSegmentId: PADARIA, advertiserClientId: 10, ...paraTodos };
-  const propria = { announcementId: 2, advertiserSegmentId: PADARIA, advertiserClientId: 20, ...paraTodos };
-  const outroRamo = { announcementId: 3, advertiserSegmentId: FARMACIA, advertiserClientId: 10, ...paraTodos };
+  const concorrente = { announcementId: 1, advertiserSegmentId: PADARIA, advertiserCompanyId: 10, ...paraTodos };
+  const propria = { announcementId: 2, advertiserSegmentId: PADARIA, advertiserCompanyId: 20, ...paraTodos };
+  const outroRamo = { announcementId: 3, advertiserSegmentId: FARMACIA, advertiserCompanyId: 10, ...paraTodos };
 
   it("tira da lista a peça do concorrente do mesmo segmento", () => {
     const slides = filterEligibleSlides([concorrente, propria, outroRamo], device);
@@ -81,7 +81,7 @@ describe("filterEligibleSlides", () => {
   });
 
   it("mantém a lista intacta quando o dono da TV não tem segmento", () => {
-    const slides = filterEligibleSlides([concorrente, propria, outroRamo], { id: 7, clientId: 20, segmentId: null });
+    const slides = filterEligibleSlides([concorrente, propria, outroRamo], { id: 7, companyId: 20, segmentId: null });
     expect(slides).toHaveLength(3);
   });
 
@@ -89,7 +89,7 @@ describe("filterEligibleSlides", () => {
     const moinho = {
       announcementId: 4,
       advertiserSegmentId: null,
-      advertiserClientId: null,
+      advertiserCompanyId: null,
       targetMode: "segments" as const,
       deviceIds: [],
       segmentIds: [FARMACIA],
@@ -108,7 +108,7 @@ describe("filterEligibleSlides", () => {
 });
 
 describe("campaignReachesDevice", () => {
-  const tvDaPadaria = { id: 7, clientId: 20, segmentId: PADARIA };
+  const tvDaPadaria = { id: 7, companyId: 20, segmentId: PADARIA };
 
   it("alcança qualquer TV no modo todas", () => {
     expect(
@@ -144,8 +144,8 @@ describe("campaignReachesDevice", () => {
     expect(
       canPlayOnDevice({
         advertiserSegmentId: PADARIA,
-        advertiserClientId: 10,
-        deviceClientId: tvDaPadaria.clientId,
+        advertiserCompanyId: 10,
+        deviceCompanyId: tvDaPadaria.companyId,
         deviceSegmentId: tvDaPadaria.segmentId,
       }),
     ).toBe(false);
@@ -153,13 +153,13 @@ describe("campaignReachesDevice", () => {
 });
 
 describe("countReachedDevices", () => {
-  const tvPadariaA = { id: 1, clientId: 10, segmentId: PADARIA };
-  const tvPadariaB = { id: 2, clientId: 20, segmentId: PADARIA };
-  const tvFarmacia = { id: 3, clientId: 30, segmentId: FARMACIA };
-  const tvSemSegmento = { id: 4, clientId: 40, segmentId: null };
+  const tvPadariaA = { id: 1, companyId: 10, segmentId: PADARIA };
+  const tvPadariaB = { id: 2, companyId: 20, segmentId: PADARIA };
+  const tvFarmacia = { id: 3, companyId: 30, segmentId: FARMACIA };
+  const tvSemSegmento = { id: 4, companyId: 40, segmentId: null };
   const rede = [tvPadariaA, tvPadariaB, tvFarmacia, tvSemSegmento];
 
-  const moinho = { advertiserSegmentId: null, advertiserClientId: null };
+  const moinho = { advertiserSegmentId: null, advertiserCompanyId: null };
 
   it("conta a rede inteira no modo todas", () => {
     expect(
@@ -181,7 +181,7 @@ describe("countReachedDevices", () => {
 
   it("desconta a TV onde a peça é barrada por concorrência", () => {
     // Padaria A anunciando para toda a rede: não entra na TV da padaria B.
-    const padariaA = { advertiserSegmentId: PADARIA, advertiserClientId: 10 };
+    const padariaA = { advertiserSegmentId: PADARIA, advertiserCompanyId: 10 };
     expect(
       countReachedDevices({ ...padariaA, targetMode: "all", deviceIds: [], segmentIds: [] }, rede),
     ).toBe(3);

@@ -70,35 +70,34 @@ export function campaignReachesDevice(
  * Decide se a peça de um anunciante pode ir ao ar na TV de um cliente.
  *
  * Regra do concorrente: anunciante e dono da TV do mesmo segmento não se
- * misturam — a padaria A não anuncia na TV da padaria B. A exceção é a TV do
- * próprio anunciante (`advertisers.client_id` aponta para o cliente dono).
+ * misturam — a padaria A não anuncia na TV da padaria B. A exceção é a TV da
+ * própria empresa: o perfil de anunciante e o de cliente apontam para a mesma
+ * `companies.id`.
  *
- * Sem segmento em qualquer um dos lados, a peça passa: o cadastro antigo não
- * tem classificação e não pode sair do ar por causa disso.
+ * Sem segmento em qualquer um dos lados, a peça passa.
  */
 export function canPlayOnDevice(input: {
   advertiserSegmentId: number | null;
-  advertiserClientId: number | null;
-  deviceClientId: number;
+  advertiserCompanyId: number | null;
+  deviceCompanyId: number;
   deviceSegmentId: number | null;
 }): boolean {
-  const { advertiserSegmentId, advertiserClientId, deviceClientId, deviceSegmentId } = input;
+  const { advertiserSegmentId, advertiserCompanyId, deviceCompanyId, deviceSegmentId } = input;
   if (advertiserSegmentId === null || deviceSegmentId === null) return true;
   if (advertiserSegmentId !== deviceSegmentId) return true;
-  return advertiserClientId === deviceClientId;
+  return advertiserCompanyId === deviceCompanyId;
 }
 
 /**
  * Monta a grade da TV: primeiro o alvo da campanha (esta TV está na mira?),
- * depois a concorrência (o anunciante pode entrar aqui?). Mirar não fura a
- * regra — a padaria que mira "Padaria" segue barrada na TV da concorrente.
+ * depois a concorrência (o anunciante pode entrar aqui?).
  */
 export function filterEligibleSlides<
   T extends CampaignTarget &
-    CampaignSchedule & { advertiserSegmentId: number | null; advertiserClientId: number | null },
+    CampaignSchedule & { advertiserSegmentId: number | null; advertiserCompanyId: number | null },
 >(
   slides: T[],
-  device: { id: number; clientId: number; segmentId: number | null },
+  device: { id: number; companyId: number; segmentId: number | null },
   now: Date = new Date(),
 ): T[] {
   return slides.filter(
@@ -107,30 +106,25 @@ export function filterEligibleSlides<
       campaignReachesDevice(slide, device) &&
       canPlayOnDevice({
         advertiserSegmentId: slide.advertiserSegmentId,
-        advertiserClientId: slide.advertiserClientId,
-        deviceClientId: device.clientId,
+        advertiserCompanyId: slide.advertiserCompanyId,
+        deviceCompanyId: device.companyId,
         deviceSegmentId: device.segmentId,
       }),
   );
 }
 
-/**
- * Quantas TVs a campanha realmente alcança: o alvo já descontando as peças que
- * a regra de concorrência barra. É o número honesto para mostrar ao anunciante
- * — contar linhas de `campaign_devices` erra em todo modo que não seja
- * "TVs escolhidas".
- */
+/** Quantas TVs a campanha realmente alcança, já descontada a concorrência. */
 export function countReachedDevices(
-  campaign: CampaignTarget & { advertiserSegmentId: number | null; advertiserClientId: number | null },
-  devices: Array<{ id: number; clientId: number; segmentId: number | null }>,
+  campaign: CampaignTarget & { advertiserSegmentId: number | null; advertiserCompanyId: number | null },
+  devices: Array<{ id: number; companyId: number; segmentId: number | null }>,
 ): number {
   return devices.filter(
     (device) =>
       campaignReachesDevice(campaign, device) &&
       canPlayOnDevice({
         advertiserSegmentId: campaign.advertiserSegmentId,
-        advertiserClientId: campaign.advertiserClientId,
-        deviceClientId: device.clientId,
+        advertiserCompanyId: campaign.advertiserCompanyId,
+        deviceCompanyId: device.companyId,
         deviceSegmentId: device.segmentId,
       }),
   ).length;
