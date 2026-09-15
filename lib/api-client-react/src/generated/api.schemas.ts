@@ -208,26 +208,6 @@ export interface Client {
   createdAt: string;
 }
 
-export interface ClientInput {
-  /** @minLength 1 */
-  name: string;
-  email?: string;
-  phone?: string;
-  /** @nullable */
-  segmentId?: number | null;
-}
-
-export interface ClientUpdate {
-  /** @minLength 1 */
-  name?: string;
-  /** @nullable */
-  email?: string | null;
-  /** @nullable */
-  phone?: string | null;
-  /** @nullable */
-  segmentId?: number | null;
-}
-
 export interface AnnouncementPlayStat {
   announcementId: number;
   title: string;

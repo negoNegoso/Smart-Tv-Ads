@@ -332,25 +332,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Client"
-    post:
-      operationId: createClient
-      tags: [clients]
-      summary: Create a client
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ClientInput"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Client"
-        "400":
-          description: Bad request
 
   /clients/{id}:
     get:
@@ -365,36 +346,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Client"
-        "404":
-          description: Not found
-    patch:
-      operationId: updateClient
-      tags: [clients]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ClientUpdate"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Client"
-        "404":
-          description: Not found
-    delete:
-      operationId: deleteClient
-      tags: [clients]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      responses:
-        "204":
-          description: Deleted
         "404":
           description: Not found
 
@@ -1259,23 +1210,6 @@ components:
         segmentName: { type: ["string", "null"] }
         deviceCount: { type: integer }
         createdAt: { type: string, format: date-time }
-
-    ClientInput:
-      type: object
-      required: [name]
-      properties:
-        name: { type: string, minLength: 1 }
-        email: { type: string }
-        phone: { type: string }
-        segmentId: { type: ["integer", "null"] }
-
-    ClientUpdate:
-      type: object
-      properties:
-        name: { type: string, minLength: 1 }
-        email: { type: ["string", "null"] }
-        phone: { type: ["string", "null"] }
-        segmentId: { type: ["integer", "null"] }
 
     ClientStats:
       type: object

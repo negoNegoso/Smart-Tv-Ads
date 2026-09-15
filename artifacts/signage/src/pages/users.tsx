@@ -16,6 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 interface UserAccount {
   id: number;
   email: string;
+  name: string | null;
+  isAdmin: boolean;
   isActive: boolean;
   mustChangePassword: boolean;
   clientIds: number[];
@@ -28,6 +30,8 @@ interface NamedRow {
 
 interface UserPatch {
   id: number;
+  name: string | null;
+  isAdmin: boolean;
   isActive: boolean;
   clientIds: number[];
   advertiserIds: number[];
@@ -38,8 +42,10 @@ const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 export default function Users() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [tempPassword, setTempPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [clientIds, setClientIds] = useState<number[]>([]);
   const [advertiserIds, setAdvertiserIds] = useState<number[]>([]);
   const [editing, setEditing] = useState<UserAccount | null>(null);
@@ -78,7 +84,7 @@ export default function Users() {
       const res = await fetch(api('/users'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, tempPassword, clientIds, advertiserIds }),
+        body: JSON.stringify({ email, tempPassword, name: name.trim() || null, isAdmin, clientIds, advertiserIds }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -86,8 +92,10 @@ export default function Users() {
       }
     },
     onSuccess: () => {
+      setName('');
       setEmail('');
       setTempPassword('');
+      setIsAdmin(false);
       setClientIds([]);
       setAdvertiserIds([]);
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -104,6 +112,8 @@ export default function Users() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: patch.name,
+          isAdmin: patch.isAdmin,
           isActive: patch.isActive,
           clientIds: patch.clientIds,
           advertiserIds: patch.advertiserIds,
@@ -129,7 +139,10 @@ export default function Users() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !u.isActive }),
       });
-      if (!res.ok) throw new Error('Não foi possível atualizar a conta.');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Não foi possível atualizar a conta.');
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
     onError: (err: Error) => toast({ title: err.message, variant: 'destructive' }),
@@ -157,7 +170,10 @@ export default function Users() {
     mutationFn: async (u: UserAccount) => {
       if (!window.confirm(`Remover a conta ${u.email}?`)) return;
       const res = await fetch(api(`/users/${u.id}`), { method: 'DELETE' });
-      if (!res.ok && res.status !== 204) throw new Error('Não foi possível remover a conta.');
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Não foi possível remover a conta.');
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
     onError: (err: Error) => toast({ title: err.message, variant: 'destructive' }),
@@ -174,16 +190,14 @@ export default function Users() {
 
       <Card className="p-4">
         <form onSubmit={handleCreate} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="user-name">Nome</Label>
+              <Input id="user-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="user-email">Email</Label>
-              <Input
-                id="user-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <Input id="user-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="user-temp-password">Senha temporária (mín. 8)</Label>
@@ -197,9 +211,13 @@ export default function Users() {
               />
             </div>
           </div>
-          <MultiSelect label="Clientes" options={clients} value={clientIds} onChange={setClientIds} />
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
+            Administrador (acesso total)
+          </label>
+          <MultiSelect label="Empresas clientes" options={clients} value={clientIds} onChange={setClientIds} />
           <MultiSelect
-            label="Anunciantes"
+            label="Empresas anunciantes"
             options={advertisers}
             value={advertiserIds}
             onChange={setAdvertiserIds}
@@ -214,7 +232,9 @@ export default function Users() {
         <table className="w-full text-left text-sm">
           <thead className="border-b bg-muted/50 text-muted-foreground">
             <tr>
+              <th className="px-3 py-2">Nome</th>
               <th className="px-3 py-2">Email</th>
+              <th className="px-3 py-2">Papel</th>
               <th className="px-3 py-2">Ativo</th>
               <th className="px-3 py-2">Trocar senha?</th>
               <th className="px-3 py-2">Vínculos</th>
@@ -224,7 +244,9 @@ export default function Users() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-t">
+                <td className="px-3 py-2">{u.name ?? '—'}</td>
                 <td className="px-3 py-2">{u.email}</td>
+                <td className="px-3 py-2">{u.isAdmin ? 'Administrador' : 'Portal'}</td>
                 <td className="px-3 py-2">{u.isActive ? 'Sim' : 'Não'}</td>
                 <td className="px-3 py-2">{u.mustChangePassword ? 'Pendente' : 'OK'}</td>
                 <td className="px-3 py-2">
@@ -251,7 +273,7 @@ export default function Users() {
             ))}
             {users.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={5}>
+                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={7}>
                   Nenhuma conta cadastrada.
                 </td>
               </tr>
@@ -296,13 +318,15 @@ function EditUserForm({
   onCancel: () => void;
   onSubmit: (patch: UserPatch) => void;
 }) {
+  const [name, setName] = useState(user.name ?? '');
+  const [isAdmin, setIsAdmin] = useState(user.isAdmin);
   const [isActive, setIsActive] = useState(user.isActive);
   const [clientIds, setClientIds] = useState<number[]>(user.clientIds);
   const [advertiserIds, setAdvertiserIds] = useState<number[]>(user.advertiserIds);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    onSubmit({ id: user.id, isActive, clientIds, advertiserIds });
+    onSubmit({ id: user.id, name: name.trim() || null, isAdmin, isActive, clientIds, advertiserIds });
   }
 
   return (
@@ -316,6 +340,15 @@ function EditUserForm({
         <Input id="edit-user-email" value={user.email} readOnly disabled />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="edit-user-name">Nome</Label>
+        <Input id="edit-user-name" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <label className="inline-flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
+        Administrador (acesso total)
+      </label>
+
       <label className="inline-flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -325,9 +358,9 @@ function EditUserForm({
         Conta ativa
       </label>
 
-      <MultiSelect label="Clientes" options={clients} value={clientIds} onChange={setClientIds} />
+      <MultiSelect label="Empresas clientes" options={clients} value={clientIds} onChange={setClientIds} />
       <MultiSelect
-        label="Anunciantes"
+        label="Empresas anunciantes"
         options={advertisers}
         value={advertiserIds}
         onChange={setAdvertiserIds}

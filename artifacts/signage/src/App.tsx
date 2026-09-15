@@ -16,12 +16,11 @@ import { PortalShell } from './components/portal-shell';
 import Admin from './pages/admin';
 import Login from './pages/login';
 import Display from './pages/display';
-import Clients from './pages/clients';
-import ClientDetail from './pages/client-detail';
+import Companies from './pages/companies';
+import CompanyDetailPage from './pages/company-detail';
+import LegacyRedirect from './pages/legacy-redirect';
 import DeviceDetail from './pages/device-detail';
 import Analytics from './pages/analytics';
-import Advertisers from './pages/advertisers';
-import AdvertiserDetail from './pages/advertiser-detail';
 import CampaignDetail from './pages/campaign-detail';
 import Users from './pages/users';
 import Divulgacao from './pages/divulgacao';
@@ -67,13 +66,25 @@ function AdminRoutes() {
   return (
     <Switch>
       <Route path="/">
-        <Redirect to="/clients" />
+        <Redirect to="/companies" />
+      </Route>
+      <Route path="/companies">
+        <Layout><Companies /></Layout>
+      </Route>
+      <Route path="/companies/:id">
+        <Layout><CompanyDetailPage /></Layout>
       </Route>
       <Route path="/clients">
-        <Layout><Clients /></Layout>
+        <Redirect to="/companies" />
       </Route>
       <Route path="/clients/:id">
-        <Layout><ClientDetail /></Layout>
+        <Layout><LegacyRedirect kind="client" /></Layout>
+      </Route>
+      <Route path="/advertisers">
+        <Redirect to="/companies" />
+      </Route>
+      <Route path="/advertisers/:id">
+        <Layout><LegacyRedirect kind="advertiser" /></Layout>
       </Route>
       <Route path="/devices/:id">
         <Layout><DeviceDetail /></Layout>
@@ -83,12 +94,6 @@ function AdminRoutes() {
       </Route>
       <Route path="/analytics">
         <Layout><Analytics /></Layout>
-      </Route>
-      <Route path="/advertisers">
-        <Layout><Advertisers /></Layout>
-      </Route>
-      <Route path="/advertisers/:id">
-        <Layout><AdvertiserDetail /></Layout>
       </Route>
       <Route path="/campaigns/:id">
         <Layout><CampaignDetail /></Layout>
