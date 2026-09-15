@@ -27,6 +27,7 @@ import type {
   AnnouncementStats,
   AnnouncementUpdate,
   CampaignAnalytics,
+  CepResult,
   Client,
   ClientAnalytics,
   ClientInput,
@@ -1088,6 +1089,77 @@ export const useCreateSegment = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateSegmentMutationOptions(options));
     }
+
+export const getLookupCepUrl = (cep: string,) => {
+
+
+
+
+  return `/api/cep/${cep}`
+}
+
+export const lookupCep = async (cep: string, options?: RequestInit): Promise<CepResult> => {
+
+  return customFetch<CepResult>(getLookupCepUrl(cep),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLookupCepQueryKey = (cep: string,) => {
+    return [
+    `/api/cep/${cep}`
+    ] as const;
+    }
+
+
+export const getLookupCepQueryOptions = <TData = Awaited<ReturnType<typeof lookupCep>>, TError = ErrorType<void>>(cep: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupCep>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLookupCepQueryKey(cep);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupCep>>> = ({ signal }) => lookupCep(cep, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: cep !== null && cep !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof lookupCep>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LookupCepQueryResult = NonNullable<Awaited<ReturnType<typeof lookupCep>>>
+export type LookupCepQueryError = ErrorType<void>
+
+
+
+export function useLookupCep<TData = Awaited<ReturnType<typeof lookupCep>>, TError = ErrorType<void>>(
+ cep: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupCep>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLookupCepQueryOptions(cep,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListClientsUrl = () => {
 

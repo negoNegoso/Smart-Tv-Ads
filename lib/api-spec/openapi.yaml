@@ -10,6 +10,7 @@ servers:
 tags:
   - name: health
   - name: announcements
+  - name: cep
   - name: clients
   - name: devices
   - name: telemetry
@@ -224,6 +225,24 @@ paths:
           description: Bad request
         "409":
           description: Segment already exists
+
+  # ── CEP (endereço + coordenadas; proxy de AwesomeAPI com BrasilAPI de reserva)
+  /cep/{cep}:
+    get:
+      operationId: lookupCep
+      tags: [cep]
+      parameters:
+        - { name: cep, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CepResult"
+        "400": { description: CEP com formato inválido }
+        "404": { description: CEP não encontrado }
+        "502": { description: Serviços de CEP indisponíveis }
 
   /clients:
     get:
@@ -1076,6 +1095,19 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1 }
+
+    CepResult:
+      type: object
+      required: [cep, street, district, city, state, cityIbge, lat, lng]
+      properties:
+        cep: { type: string }
+        street: { type: ["string", "null"] }
+        district: { type: ["string", "null"] }
+        city: { type: string }
+        state: { type: string }
+        cityIbge: { type: ["string", "null"] }
+        lat: { type: ["number", "null"] }
+        lng: { type: ["number", "null"] }
 
     # ── Clients ──────────────────────────────────────────────────────────────
     Client:

@@ -82,6 +82,22 @@ export interface SegmentInput {
   name: string;
 }
 
+export interface CepResult {
+  cep: string;
+  /** @nullable */
+  street: string | null;
+  /** @nullable */
+  district: string | null;
+  city: string;
+  state: string;
+  /** @nullable */
+  cityIbge: string | null;
+  /** @nullable */
+  lat: number | null;
+  /** @nullable */
+  lng: number | null;
+}
+
 export interface Client {
   id: number;
   companyId: number;

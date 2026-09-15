@@ -245,6 +245,22 @@ export const CreateSegmentResponse = zod.object({
 })
 
 
+export const LookupCepParams = zod.object({
+  "cep": zod.coerce.string()
+})
+
+export const LookupCepResponse = zod.object({
+  "cep": zod.string(),
+  "street": zod.string().nullable(),
+  "district": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "cityIbge": zod.string().nullable(),
+  "lat": zod.number().nullable(),
+  "lng": zod.number().nullable()
+})
+
+
 /**
  * @summary List all clients
  */

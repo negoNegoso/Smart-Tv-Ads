@@ -16,6 +16,7 @@ export * from './announcementPlayStat';
 export * from './announcementStats';
 export * from './announcementUpdate';
 export * from './campaignAnalytics';
+export * from './cepResult';
 export * from './client';
 export * from './clientAnalytics';
 export * from './clientInput';
