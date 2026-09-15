@@ -9,6 +9,9 @@
 export interface UserAccount {
   id: number;
   email: string;
+  /** @nullable */
+  name: string | null;
+  isAdmin: boolean;
   isActive: boolean;
   mustChangePassword: boolean;
   clientIds: number[];

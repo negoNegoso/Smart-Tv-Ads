@@ -1504,10 +1504,12 @@ components:
     # ── Users ────────────────────────────────────────────────────────────────
     UserAccount:
       type: object
-      required: [id, email, isActive, mustChangePassword, clientIds, advertiserIds]
+      required: [id, email, name, isAdmin, isActive, mustChangePassword, clientIds, advertiserIds]
       properties:
         id: { type: integer }
         email: { type: string }
+        name: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
         isActive: { type: boolean }
         mustChangePassword: { type: boolean }
         clientIds: { type: array, items: { type: integer } }
@@ -1518,11 +1520,15 @@ components:
       properties:
         email: { type: string }
         tempPassword: { type: string, minLength: 8 }
+        name: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
         clientIds: { type: array, items: { type: integer } }
         advertiserIds: { type: array, items: { type: integer } }
     UserUpdate:
       type: object
       properties:
+        name: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
         isActive: { type: boolean }
         clientIds: { type: array, items: { type: integer } }
         advertiserIds: { type: array, items: { type: integer } }

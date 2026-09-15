@@ -12,12 +12,13 @@ async function buildApp(): Promise<Express> {
   process.env.SESSION_SECRET = SECRET;
   const { default: express } = await import("express");
   const { default: cookieParser } = await import("cookie-parser");
-  const { loadSession, requireAdvertiser, requireClient } = await import("../middleware");
+  const { loadSession, requireAdvertiser, requireClient, requireAdmin } = await import("../middleware");
   const app = express();
   app.use(cookieParser());
   app.use(loadSession);
   app.get("/adv", requireAdvertiser, (req, res) => res.json({ ids: (req as any).auth.advertiserIds }));
   app.get("/cli", requireClient, (req, res) => res.json({ ids: (req as any).auth.clientIds }));
+  app.get("/admin", requireAdmin, (_req, res) => res.json({ ok: true }));
   // Espelha o /auth/login real, que também fica atrás do loadSession.
   app.post("/login", (req, res) => res.json({ ok: true, autenticado: !!(req as any).auth }));
   return app;
@@ -75,6 +76,30 @@ describe("guardas por papel", () => {
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).get("/adv");
+    expect(res.status).toBe(401);
+  });
+
+  it("usuário admin do banco passa em requireAdmin", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, isAdmin: true, name: "Yuri" });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/admin").set("Cookie", `sid=${createSession(SECRET, "7")}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("admin do banco com troca de senha pendente recebe 403", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, isAdmin: true, mustChangePassword: true });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/admin").set("Cookie", `sid=${createSession(SECRET, "7")}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("usuário comum não passa em requireAdmin", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, isAdmin: false });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/admin").set("Cookie", `sid=${createSession(SECRET, "7")}`);
     expect(res.status).toBe(401);
   });
 });

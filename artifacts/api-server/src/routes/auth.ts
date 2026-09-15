@@ -57,7 +57,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/change-password", async (req, res): Promise<void> => {
-  if (!req.auth || req.auth.isAdmin || !req.auth.user) {
+  if (!req.auth?.user) {
     res.status(401).json({ error: "Não autenticado." });
     return;
   }
@@ -93,10 +93,11 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ authenticated: false });
     return;
   }
-  if (req.auth.isAdmin) {
+  if (req.auth.isAdmin && !req.auth.user) {
     res.json({
       authenticated: true,
       isAdmin: true,
+      name: null,
       roles: ["admin"],
       clientIds: [],
       advertiserIds: [],
@@ -107,11 +108,13 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }
   const u = req.auth.user!;
   const roles: string[] = [];
+  if (u.isAdmin) roles.push("admin");
   if (u.advertiserIds.length > 0) roles.push("advertiser");
   if (u.clientIds.length > 0) roles.push("client");
   res.json({
     authenticated: true,
-    isAdmin: false,
+    isAdmin: u.isAdmin,
+    name: u.name,
     roles,
     clientIds: u.clientIds,
     advertiserIds: u.advertiserIds,

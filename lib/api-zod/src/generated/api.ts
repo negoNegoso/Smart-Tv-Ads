@@ -957,6 +957,8 @@ export const GetCampaignAnalyticsResponse = zod.object({
 export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),
@@ -975,6 +977,8 @@ export const createUserBodyTempPasswordMin = 8;
 export const CreateUserBody = zod.object({
   "email": zod.string(),
   "tempPassword": zod.string().min(createUserBodyTempPasswordMin),
+  "name": zod.string().nullish(),
+  "isAdmin": zod.boolean().optional(),
   "clientIds": zod.array(zod.number()).optional(),
   "advertiserIds": zod.array(zod.number()).optional()
 })
@@ -982,6 +986,8 @@ export const CreateUserBody = zod.object({
 export const CreateUserResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),
@@ -997,6 +1003,8 @@ export const UpdateUserParams = zod.object({
 })
 
 export const UpdateUserBody = zod.object({
+  "name": zod.string().nullish(),
+  "isAdmin": zod.boolean().optional(),
   "isActive": zod.boolean().optional(),
   "clientIds": zod.array(zod.number()).optional(),
   "advertiserIds": zod.array(zod.number()).optional()
@@ -1005,6 +1013,8 @@ export const UpdateUserBody = zod.object({
 export const UpdateUserResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),

@@ -402,6 +402,9 @@ export interface CampaignAnalytics {
 export interface UserAccount {
   id: number;
   email: string;
+  /** @nullable */
+  name: string | null;
+  isAdmin: boolean;
   isActive: boolean;
   mustChangePassword: boolean;
   clientIds: number[];
@@ -412,11 +415,17 @@ export interface UserInput {
   email: string;
   /** @minLength 8 */
   tempPassword: string;
+  /** @nullable */
+  name?: string | null;
+  isAdmin?: boolean;
   clientIds?: number[];
   advertiserIds?: number[];
 }
 
 export interface UserUpdate {
+  /** @nullable */
+  name?: string | null;
+  isAdmin?: boolean;
   isActive?: boolean;
   clientIds?: number[];
   advertiserIds?: number[];
