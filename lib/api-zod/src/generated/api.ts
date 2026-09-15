@@ -261,6 +261,218 @@ export const LookupCepResponse = zod.object({
 })
 
 
+export const ListCompaniesQueryParams = zod.object({
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "role": zod.enum(['client', 'advertiser']).optional(),
+  "q": zod.coerce.string().optional()
+})
+
+
+
+
+export const ListCompaniesResponseItem = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+export const ListCompaniesResponse = zod.array(ListCompaniesResponseItem)
+
+
+
+
+
+export const CreateCompanyBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "isClient": zod.boolean(),
+  "isAdvertiser": zod.boolean(),
+  "advertiserCompany": zod.string().nullish()
+}))
+
+
+
+
+export const CreateCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const GetCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const GetCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const UpdateCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateCompanyBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "isClient": zod.boolean().optional(),
+  "isAdvertiser": zod.boolean().optional(),
+  "advertiserCompany": zod.string().nullish()
+}))
+
+
+
+
+export const UpdateCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const DeleteCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCompanyResponse = zod.void()
+
+
 /**
  * @summary List all clients
  */

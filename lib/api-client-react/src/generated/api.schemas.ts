@@ -98,6 +98,100 @@ export interface CepResult {
   lng: number | null;
 }
 
+export type CompanyFieldsStatus = typeof CompanyFieldsStatus[keyof typeof CompanyFieldsStatus];
+
+
+export const CompanyFieldsStatus = {
+  active: 'active',
+  paused: 'paused',
+  closed: 'closed',
+} as const;
+
+export interface CompanyFields {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  segmentId?: number | null;
+  status?: CompanyFieldsStatus;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  cep?: string | null;
+  /** @nullable */
+  street?: string | null;
+  /** @nullable */
+  number?: string | null;
+  /** @nullable */
+  complement?: string | null;
+  /** @nullable */
+  district?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  cityIbge?: string | null;
+  /** @nullable */
+  lat?: number | null;
+  /** @nullable */
+  lng?: number | null;
+}
+
+export type CompanyInput = CompanyFields & ({
+  isClient: boolean;
+  isAdvertiser: boolean;
+  /** @nullable */
+  advertiserCompany?: string | null;
+}) & Required<Pick<CompanyFields & ({
+  isClient: boolean;
+  isAdvertiser: boolean;
+  /** @nullable */
+  advertiserCompany?: string | null;
+}), 'name'>>;
+
+export type CompanyUpdate = CompanyFields & ({
+  isClient?: boolean;
+  isAdvertiser?: boolean;
+  /** @nullable */
+  advertiserCompany?: string | null;
+});
+
+export type Company = CompanyFields & ({
+  id: number;
+  /** @nullable */
+  clientId: number | null;
+  /** @nullable */
+  advertiserId: number | null;
+  /** @nullable */
+  advertiserCompany: string | null;
+  createdAt: string;
+  updatedAt: string;
+}) & Required<Pick<CompanyFields & ({
+  id: number;
+  /** @nullable */
+  clientId: number | null;
+  /** @nullable */
+  advertiserId: number | null;
+  /** @nullable */
+  advertiserCompany: string | null;
+  createdAt: string;
+  updatedAt: string;
+}), 'name' | 'status'>>;
+
+export type CompanyDetailDependencies = {
+  devices: number;
+  panels: number;
+  campaigns: number;
+};
+
+export type CompanyDetail = Company & {
+  dependencies: CompanyDetailDependencies;
+};
+
 export interface Client {
   id: number;
   companyId: number;
@@ -497,6 +591,29 @@ export interface PublishPanelResponse {
 export interface UploadPanelImageRequest {
   image: string;
 }
+
+export type ListCompaniesParams = {
+status?: ListCompaniesStatus;
+role?: ListCompaniesRole;
+q?: string;
+};
+
+export type ListCompaniesStatus = typeof ListCompaniesStatus[keyof typeof ListCompaniesStatus];
+
+
+export const ListCompaniesStatus = {
+  active: 'active',
+  paused: 'paused',
+  closed: 'closed',
+} as const;
+
+export type ListCompaniesRole = typeof ListCompaniesRole[keyof typeof ListCompaniesRole];
+
+
+export const ListCompaniesRole = {
+  client: 'client',
+  advertiser: 'advertiser',
+} as const;
 
 export type ListDevicesParams = {
 clientId?: number;

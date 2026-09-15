@@ -244,6 +244,80 @@ paths:
         "404": { description: CEP não encontrado }
         "502": { description: Serviços de CEP indisponíveis }
 
+  # ── Companies (cadastro único; cliente e anunciante são papéis) ─────────────
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [active, paused, closed] } }
+        - { name: role, in: query, required: false, schema: { type: string, enum: [client, advertiser] } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Company" } }
+    post:
+      operationId: createCompany
+      tags: [companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyDetail" }
+        "400": { description: Dados inválidos ou nenhum papel marcado }
+        "409": { description: Papel duplicado }
+
+  /companies/{id}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyDetail" }
+        "404": { description: Empresa não encontrada }
+    patch:
+      operationId: updateCompany
+      tags: [companies]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyDetail" }
+        "400": { description: Dados inválidos ou nenhum papel }
+        "404": { description: Empresa não encontrada }
+        "409": { description: "Papel com TVs, painéis ou campanhas" }
+    delete:
+      operationId: deleteCompany
+      tags: [companies]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Empresa não encontrada }
+        "409": { description: "Empresa com TVs, painéis ou campanhas" }
+
   /clients:
     get:
       operationId: listClients
@@ -1108,6 +1182,68 @@ components:
         cityIbge: { type: ["string", "null"] }
         lat: { type: ["number", "null"] }
         lng: { type: ["number", "null"] }
+
+    CompanyFields:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        segmentId: { type: ["integer", "null"] }
+        status: { type: string, enum: [active, paused, closed] }
+        notes: { type: ["string", "null"] }
+        cep: { type: ["string", "null"] }
+        street: { type: ["string", "null"] }
+        number: { type: ["string", "null"] }
+        complement: { type: ["string", "null"] }
+        district: { type: ["string", "null"] }
+        city: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        cityIbge: { type: ["string", "null"] }
+        lat: { type: ["number", "null"] }
+        lng: { type: ["number", "null"] }
+    CompanyInput:
+      allOf:
+        - $ref: "#/components/schemas/CompanyFields"
+        - type: object
+          required: [name, isClient, isAdvertiser]
+          properties:
+            isClient: { type: boolean }
+            isAdvertiser: { type: boolean }
+            advertiserCompany: { type: ["string", "null"] }
+    CompanyUpdate:
+      allOf:
+        - $ref: "#/components/schemas/CompanyFields"
+        - type: object
+          properties:
+            isClient: { type: boolean }
+            isAdvertiser: { type: boolean }
+            advertiserCompany: { type: ["string", "null"] }
+    Company:
+      allOf:
+        - $ref: "#/components/schemas/CompanyFields"
+        - type: object
+          required: [id, name, status, clientId, advertiserId, advertiserCompany, createdAt, updatedAt]
+          properties:
+            id: { type: integer }
+            clientId: { type: ["integer", "null"] }
+            advertiserId: { type: ["integer", "null"] }
+            advertiserCompany: { type: ["string", "null"] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    CompanyDetail:
+      allOf:
+        - $ref: "#/components/schemas/Company"
+        - type: object
+          required: [dependencies]
+          properties:
+            dependencies:
+              type: object
+              required: [devices, panels, campaigns]
+              properties:
+                devices: { type: integer }
+                panels: { type: integer }
+                campaigns: { type: integer }
 
     # ── Clients ──────────────────────────────────────────────────────────────
     Client:
