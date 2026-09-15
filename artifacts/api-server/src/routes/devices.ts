@@ -5,6 +5,7 @@ import {
   db,
   devicesTable,
   clientsTable,
+  companiesTable,
   devicePlaylistTable,
   announcementsTable,
 } from "@workspace/db";
@@ -199,10 +200,12 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
     .select({
       id: devicesTable.id,
       clientId: devicesTable.clientId,
-      segmentId: clientsTable.segmentId,
+      companyId: clientsTable.companyId,
+      segmentId: companiesTable.segmentId,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(devicesTable.id, params.data.id));
   if (!device) {
     res.status(404).json({ error: "Device not found" });

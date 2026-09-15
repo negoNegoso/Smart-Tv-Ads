@@ -1,11 +1,12 @@
 // artifacts/api-server/src/lib/portal/queries.ts
 import { inArray, eq, and, gte, lt, sql } from "drizzle-orm";
 import {
-  db, campaignsTable, playsTable, scansTable, devicesTable, advertisersTable, clientsTable,
+  db, campaignsTable, playsTable, scansTable, devicesTable, advertisersTable, clientsTable, companiesTable,
 } from "@workspace/db";
 import { countReachedDevices } from "../ad-eligibility";
 import { onlineSince } from "./overview";
 import { portalPeriod, type PortalDays } from "./period";
+import type { FeedDevice } from "../device-feed";
 
 export interface PortalCampaignRow {
   id: number; name: string; startsAt: Date; endsAt: Date; isActive: boolean;
@@ -42,32 +43,34 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
       targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
       deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      advertiserSegmentId: advertisersTable.segmentId,
-      advertiserClientId: advertisersTable.clientId,
+      advertiserSegmentId: companiesTable.segmentId,
+      advertiserCompanyId: advertisersTable.companyId,
       totalPlays: sql<number>`COUNT(DISTINCT ${playsTable.id})::int`,
       totalScans: sql<number>`COUNT(DISTINCT ${scansTable.id})::int`,
       uniqueVisitors: sql<number>`COUNT(DISTINCT ${scansTable.fingerprint})::int`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .leftJoin(playsTable, and(eq(playsTable.campaignId, campaignsTable.id), playsWindow))
     .leftJoin(scansTable, and(eq(scansTable.campaignId, campaignsTable.id), scansWindow))
     .where(inArray(campaignsTable.advertiserId, advertiserIds))
-    .groupBy(campaignsTable.id, advertisersTable.segmentId, advertisersTable.clientId)
+    .groupBy(campaignsTable.id, companiesTable.segmentId, advertisersTable.companyId)
     .orderBy(campaignsTable.startsAt);
 
   // A cobertura depende do alvo e da regra de concorrência, então é contada
   // sobre a rede inteira — não dá para tirar de `campaign_devices`, que só tem
   // linha no modo "TVs escolhidas".
   const network = await db
-    .select({ id: devicesTable.id, clientId: devicesTable.clientId, segmentId: clientsTable.segmentId })
+    .select({ id: devicesTable.id, companyId: clientsTable.companyId, segmentId: companiesTable.segmentId })
     .from(devicesTable)
-    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId));
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId));
 
-  return rows.map(({ targetMode, deviceIds, segmentIds, advertiserSegmentId, advertiserClientId, ...campaign }) => ({
+  return rows.map(({ targetMode, deviceIds, segmentIds, advertiserSegmentId, advertiserCompanyId, ...campaign }) => ({
     ...campaign,
     deviceCount: countReachedDevices(
-      { targetMode, deviceIds, segmentIds, advertiserSegmentId, advertiserClientId },
+      { targetMode, deviceIds, segmentIds, advertiserSegmentId, advertiserCompanyId },
       network,
     ),
   }));
@@ -115,17 +118,17 @@ export async function clientDevices(clientIds: number[], days: PortalDays): Prom
  * segmento (a regra de concorrência das campanhas depende dele). A checagem
  * de que a TV é de uma loja do usuário fica na rota.
  */
-export async function previewDevice(
-  deviceId: number,
-): Promise<{ id: number; clientId: number; segmentId: number | null } | null> {
+export async function previewDevice(deviceId: number): Promise<FeedDevice | null> {
   const [row] = await db
     .select({
       id: devicesTable.id,
       clientId: devicesTable.clientId,
-      segmentId: clientsTable.segmentId,
+      companyId: clientsTable.companyId,
+      segmentId: companiesTable.segmentId,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(devicesTable.id, deviceId));
   return row ?? null;
 }

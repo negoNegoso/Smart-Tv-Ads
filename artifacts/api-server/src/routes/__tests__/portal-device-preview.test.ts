@@ -88,7 +88,7 @@ describe("GET /portal/client/devices/:id/preview", () => {
 
   it("TV de uma loja do usuário devolve a rotação dela", async () => {
     loadAuthContext.mockResolvedValue(lojistaCtx);
-    const device = { id: 3, clientId: 12, segmentId: null };
+    const device = { id: 3, clientId: 12, companyId: 120, segmentId: null };
     previewDevice.mockResolvedValue(device);
     loadDeviceSlides.mockResolvedValue(SLIDES);
 
@@ -102,7 +102,7 @@ describe("GET /portal/client/devices/:id/preview", () => {
 
   it("TV de outra loja responde 404 e não monta a rotação", async () => {
     loadAuthContext.mockResolvedValue(lojistaCtx);
-    previewDevice.mockResolvedValue({ id: 4, clientId: 99, segmentId: null });
+    previewDevice.mockResolvedValue({ id: 4, clientId: 99, companyId: 990, segmentId: null });
 
     const res = await getPreview(4);
 

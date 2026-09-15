@@ -57,8 +57,9 @@ vi.mock("@workspace/db", () => ({
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
-  advertisersTable: { id: "id", segmentId: "segmentId", clientId: "clientId" },
-  clientsTable: { id: "id", segmentId: "segmentId", name: "name" },
+  advertisersTable: { id: "id", companyId: "companyId" },
+  clientsTable: { id: "id", companyId: "companyId", name: "name" },
+  companiesTable: { id: "id", segmentId: "segmentId", name: "name" },
 }));
 
 vi.mock("../../lib/panels/device-slides", async (importOriginal) => {
@@ -79,7 +80,7 @@ async function buildApp(): Promise<Express> {
   return app;
 }
 
-const DEVICE_ROW = { id: 1, clientId: 7, segmentId: null };
+const DEVICE_ROW = { id: 1, clientId: 7, companyId: 70, segmentId: null };
 
 const SLIDE_BASE = {
   campaignId: null,
@@ -95,7 +96,7 @@ const SLIDE_BASE = {
 
 const CAMPAIGN_ONLY_DEFAULTS = {
   advertiserSegmentId: null,
-  advertiserClientId: null,
+  advertiserCompanyId: null,
   targetMode: "all" as const,
   deviceIds: [],
   segmentIds: [],
