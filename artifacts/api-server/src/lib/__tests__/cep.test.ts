@@ -24,7 +24,10 @@ function stubFetch(routes: Record<string, () => Promise<unknown>>) {
   return fetchMock;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("normalizeCep", () => {
   it("aceita máscara e devolve 8 dígitos", () => {
@@ -45,6 +48,7 @@ describe("lookupCep", () => {
   });
 
   it("cai para a BrasilAPI quando a AwesomeAPI falha", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
     const fetchMock = stubFetch({
       "awesomeapi": () => Promise.reject(new Error("timeout")),
       "brasilapi": () => reply(200, BRASIL_PAULISTA),
@@ -52,6 +56,12 @@ describe("lookupCep", () => {
     const result = await lookupCep("01310100");
     expect(result).toMatchObject({ street: "Avenida Paulista", district: "Bela Vista", lat: -23.5617698, lng: -46.6553299 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Cada provedor (AwesomeAPI e, na reserva, BrasilAPI) recebe seu próprio
+    // timeout de 5 s — não um único AbortSignal reaproveitado entre as duas
+    // chamadas nem um valor diferente de 5000 escondido atrás de `expect.any`.
+    expect(timeoutSpy).toHaveBeenCalledTimes(2);
+    expect(timeoutSpy).toHaveBeenNthCalledWith(1, 5000);
+    expect(timeoutSpy).toHaveBeenNthCalledWith(2, 5000);
   });
 
   it("BrasilAPI sem coordenada devolve lat/lng nulos", async () => {
@@ -82,8 +92,13 @@ describe("lookupCep", () => {
   });
 
   it("usa timeout de 5 s em cada chamada", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
     const fetchMock = stubFetch({ "awesomeapi": () => reply(200, AWESOME_PAULISTA) });
     await lookupCep("01310100");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ signal: expect.any(AbortSignal) });
+    // `expect.any(AbortSignal)` sozinho passaria com qualquer duração; o spy
+    // prova que é exatamente 5000 ms, não 500 nem 50000.
+    expect(timeoutSpy).toHaveBeenCalledTimes(1);
+    expect(timeoutSpy).toHaveBeenCalledWith(5000);
   });
 });
