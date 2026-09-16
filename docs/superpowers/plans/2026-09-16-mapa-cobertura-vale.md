@@ -699,9 +699,10 @@ Criar `artifacts/signage/src/components/landing/__tests__/cobertura.test.tsx`:
 
 ```tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LANDING } from '@/lib/landing-content';
 import { Cobertura } from '../cobertura';
 
 const BASE = { plays30d: 10, activeScreens: 12, clients: 5, segments: 3 };
@@ -715,11 +716,22 @@ function stubStats(body: unknown) {
 
 function renderSecao() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const utils = render(
     <QueryClientProvider client={client}>
       <Cobertura />
     </QueryClientProvider>,
   );
+  return { ...utils, client };
+}
+
+/**
+ * O vazio só prova alguma coisa depois que a consulta terminou: antes disso a
+ * seção está vazia porque ainda não há dado, não porque a regra funcionou.
+ */
+async function esperarConsulta(client: QueryClient) {
+  await waitFor(() => {
+    expect(client.getQueryState(['public-stats'])?.status).not.toBe('pending');
+  });
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -761,25 +773,25 @@ describe('Cobertura', () => {
     expect(screen.queryByRole('button', { name: /Tapiraí/ })).not.toBeInTheDocument();
   });
 
+  it('esconde o número de telas quando a rede está com zero ativas', async () => {
+    stubStats({ ...BASE, activeScreens: 0, cities: [{ ibge: '3542602', companies: 3 }] });
+    renderSecao();
+    // A seção continua de pé — o que some é só o número que mentiria.
+    expect(await screen.findByRole('heading', { name: 'Registro', level: 3 })).toBeInTheDocument();
+    expect(screen.queryByText(LANDING.cobertura.screensLabel)).not.toBeInTheDocument();
+  });
+
   it('some da página quando a API falha', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500 })));
-    const { container } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <Cobertura />
-      </QueryClientProvider>,
-    );
-    await new Promise((r) => setTimeout(r, 0));
+    const { container, client } = renderSecao();
+    await esperarConsulta(client);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('some da página quando nenhuma cidade tem parceiro', async () => {
     stubStats({ ...BASE, cities: [] });
-    const { container } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <Cobertura />
-      </QueryClientProvider>,
-    );
-    await new Promise((r) => setTimeout(r, 0));
+    const { container, client } = renderSecao();
+    await esperarConsulta(client);
     expect(container).toBeEmptyDOMElement();
   });
 });
@@ -870,7 +882,10 @@ export function Cobertura() {
     return cidades[0]?.[0] ?? null;
   }, [porCidade]);
 
-  if (!data || porCidade.size === 0) return null;
+  // A guarda cruza com o mapa, não só com o payload: código fora dos 24 não
+  // tem path para desenhar, e sozinho produziria uma seção sem cidade nenhuma.
+  const parceiras = VALE_MUNICIPIOS.filter((m) => porCidade.has(m.ibge));
+  if (!data || parceiras.length === 0) return null;
 
   const ativa = selecionada && porCidade.has(selecionada) ? selecionada : padrao;
   const municipioAtivo = VALE_MUNICIPIOS.find((m) => m.ibge === ativa);
@@ -887,10 +902,18 @@ export function Cobertura() {
             {LANDING.cobertura.subtitle}
           </p>
 
-          <p className="mt-8 text-lg font-semibold text-zinc-900">
-            {format.format(data.activeScreens)}{' '}
-            <span className="font-normal text-zinc-600">{LANDING.cobertura.screensLabel}</span>
-          </p>
+          {/*
+            Zero não vai para a tela, regra herdada da faixa que esta seção
+            substituiu: "0 telas ativas" numa página que vende rede de telas é
+            pior que número nenhum, e a contagem zera numa madrugada de TVs
+            desligadas sem a rede ter deixado de existir.
+          */}
+          {data.activeScreens > 0 && (
+            <p className="mt-8 text-lg font-semibold text-zinc-900">
+              {format.format(data.activeScreens)}{' '}
+              <span className="font-normal text-zinc-600">{LANDING.cobertura.screensLabel}</span>
+            </p>
+          )}
           <p className="text-lg font-semibold text-zinc-900">{LANDING.cobertura.regionLabel}</p>
 
           {municipioAtivo && (
@@ -942,7 +965,7 @@ export function Cobertura() {
           </svg>
 
           <ul className="mt-6 flex flex-wrap gap-2" aria-label={LANDING.cobertura.listLabel}>
-            {VALE_MUNICIPIOS.filter((m) => porCidade.has(m.ibge)).map((municipio) => (
+            {parceiras.map((municipio) => (
               <li key={municipio.ibge}>
                 <button
                   type="button"
