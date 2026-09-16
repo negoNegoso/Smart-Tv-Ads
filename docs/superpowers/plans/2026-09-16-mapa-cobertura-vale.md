@@ -491,6 +491,16 @@ describe('asset do mapa do Vale', () => {
     const nomes = VALE_MUNICIPIOS.map((m) => m.nome);
     expect(nomes).toEqual([...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR')));
   });
+
+  it('tem proporção plausível para a região, não uma tira achatada', () => {
+    // A razão real entre as extensões de latitude e longitude dos 24
+    // municípios é ~0,61; com a esticada do Mercator nessa latitude a altura
+    // fica perto de 672 para largura 1000. Uma projeção com unidades
+    // misturadas cai para ~12 e passaria em todos os outros testes.
+    const altura = Number(VALE_VIEW_BOX.split(' ')[3]);
+    expect(altura).toBeGreaterThan(550);
+    expect(altura).toBeLessThan(750);
+  });
 });
 ```
 
@@ -537,12 +547,16 @@ async function baixarJson(url: string): Promise<any> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`IBGE respondeu ${res.status} em ${url}`);
   const texto = await res.text();
-  return JSON.parse(texto.replace(/[ -]/g, " "));
+  return JSON.parse(texto.replace(/[\u0000-\u001F]/g, " "));
 }
 
+/**
+ * Mercator com o y em graus, não em radianos: o x do mapa é a longitude crua,
+ * e misturar as duas unidades achata o desenho por um fator de 180/π.
+ */
 function mercatorY(latGraus: number): number {
   const lat = (latGraus * Math.PI) / 180;
-  return Math.log(Math.tan(Math.PI / 4 + lat / 2));
+  return (Math.log(Math.tan(Math.PI / 4 + lat / 2)) * 180) / Math.PI;
 }
 
 /** Um Polygon vira uma lista de anéis; um MultiPolygon, a concatenação dos anéis de cada parte. */
