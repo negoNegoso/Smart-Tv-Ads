@@ -9,6 +9,7 @@
     "migrate:plays": "tsx ./src/migrate-plays.ts",
     "backfill:play-campaign": "tsx ./src/backfill-play-campaign.ts",
     "backfill:scan-codes": "tsx ./src/backfill-scan-codes.ts",
+    "gerar:malha-vale": "tsx ./src/gerar-malha-vale.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
