@@ -25,9 +25,14 @@ function resolvePeriod(req: Request, res: Response): PortalDays | null {
   return days;
 }
 
-// Admin visualizando o portal: sem vínculo, retorna vazio (usa o painel admin).
-const advertiserScope = (req: Request) => (req.auth?.isAdmin ? [] : (req.auth?.advertiserIds ?? []));
-const clientScope = (req: Request) => (req.auth?.isAdmin ? [] : (req.auth?.clientIds ?? []));
+// Admin do env (sem usuário no banco) visualizando o portal: sem vínculo,
+// retorna vazio (usa o painel admin). Admin do banco é um usuário real, que
+// pode ter loja/anunciante vinculado (ex.: dono de loja marcado admin) — para
+// esse, o escopo é o vínculo dele mesmo, não vazio.
+const advertiserScope = (req: Request) =>
+  req.auth?.isAdmin && !req.auth.user ? [] : (req.auth?.advertiserIds ?? []);
+const clientScope = (req: Request) =>
+  req.auth?.isAdmin && !req.auth.user ? [] : (req.auth?.clientIds ?? []);
 
 router.get("/advertiser/campaigns", requireAdvertiser, async (req, res) => {
   const days = resolvePeriod(req, res);

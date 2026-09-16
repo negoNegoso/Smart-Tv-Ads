@@ -7,6 +7,7 @@ import {
   campaignsTable,
   campaignAnnouncementsTable,
   advertisersTable,
+  companiesTable,
 } from "@workspace/db";
 import { resolveSlideCaption } from "./slide-caption";
 import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
@@ -16,7 +17,7 @@ import { composeDeviceSlides, panelSlidesForClient } from "./panels/device-slide
 /** De onde o slide veio: campanha vendida, painel do lojista ou playlist do device. */
 export type DeviceSlideSource = "campaign" | "panel" | "playlist";
 
-export type FeedDevice = { id: number; clientId: number; segmentId: number | null };
+export type FeedDevice = { id: number; clientId: number; companyId: number; segmentId: number | null };
 
 function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source: DeviceSlideSource }> {
   return rows.map((row) => ({ ...row, source }));
@@ -44,7 +45,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
       advertiserSegmentId: sql<number | null>`NULL`,
-      advertiserClientId: sql<number | null>`NULL`,
+      advertiserCompanyId: sql<number | null>`NULL`,
       targetMode: sql<"all" | "devices" | "segments">`'all'`,
       deviceIds: sql<number[]>`array[]::int[]`,
       segmentIds: sql<number[]>`array[]::int[]`,
@@ -74,8 +75,8 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
-      advertiserSegmentId: advertisersTable.segmentId,
-      advertiserClientId: advertisersTable.clientId,
+      advertiserSegmentId: companiesTable.segmentId,
+      advertiserCompanyId: advertisersTable.companyId,
       targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
       deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
@@ -83,6 +84,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
     .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
     .where(
@@ -121,7 +123,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       showText,
       displayText,
       advertiserSegmentId,
-      advertiserClientId,
+      advertiserCompanyId,
       targetMode,
       deviceIds,
       segmentIds,

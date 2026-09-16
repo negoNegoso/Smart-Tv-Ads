@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, devicesTable, clientsTable } from "@workspace/db";
+import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse } from "@workspace/api-zod";
 import { loadDeviceSlides } from "../lib/device-feed";
 
@@ -14,10 +14,12 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
     .select({
       id: devicesTable.id,
       clientId: devicesTable.clientId,
-      segmentId: clientsTable.segmentId,
+      companyId: clientsTable.companyId,
+      segmentId: companiesTable.segmentId,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(devicesTable.deviceKey, raw));
 
   if (!device) {

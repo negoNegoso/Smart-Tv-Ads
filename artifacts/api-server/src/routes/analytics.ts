@@ -3,6 +3,7 @@ import { eq, and, sql, desc, inArray, type SQL } from "drizzle-orm";
 import {
   db,
   clientsTable,
+  companiesTable,
   devicesTable,
   playsTable,
   announcementsTable,
@@ -103,7 +104,11 @@ router.get("/analytics/clients/:clientId", async (req, res): Promise<void> => {
     return;
   }
   const clientId = params.data.clientId;
-  const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, clientId));
+  const [client] = await db
+    .select({ id: clientsTable.id, name: companiesTable.name })
+    .from(clientsTable)
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
+    .where(eq(clientsTable.id, clientId));
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -159,9 +164,10 @@ router.get("/analytics/devices/:deviceId", async (req, res): Promise<void> => {
   }
   const deviceId = params.data.deviceId;
   const [deviceRow] = await db
-    .select({ device: devicesTable, clientName: clientsTable.name })
+    .select({ device: devicesTable, clientName: companiesTable.name })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(devicesTable.id, deviceId));
 
   if (!deviceRow) {
@@ -232,15 +238,16 @@ router.get("/analytics/announcements/:announcementId", async (req, res): Promise
     .select({
       deviceId: devicesTable.id,
       deviceName: devicesTable.name,
-      clientName: clientsTable.name,
+      clientName: companiesTable.name,
       plays: sql<number>`COUNT(${playsTable.id})::int`,
       totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
     })
     .from(playsTable)
     .innerJoin(devicesTable, eq(devicesTable.id, playsTable.deviceId))
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(eq(playsTable.announcementId, announcementId))
-    .groupBy(devicesTable.id, devicesTable.name, clientsTable.name)
+    .groupBy(devicesTable.id, devicesTable.name, companiesTable.name)
     .orderBy(desc(sql`COUNT(${playsTable.id})`));
 
   const scanAgg = await scanTotals(eq(scansTable.announcementId, announcementId));
@@ -330,12 +337,13 @@ router.get("/analytics/campaigns/:campaignId", async (req, res): Promise<void> =
       id: campaignsTable.id,
       name: campaignsTable.name,
       advertiserId: campaignsTable.advertiserId,
-      advertiserName: advertisersTable.name,
+      advertiserName: companiesTable.name,
       startsAt: campaignsTable.startsAt,
       endsAt: campaignsTable.endsAt,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .where(eq(campaignsTable.id, campaignId));
 
   if (!campaign) {

@@ -10,6 +10,9 @@ export interface UserInput {
   email: string;
   /** @minLength 8 */
   tempPassword: string;
+  /** @nullable */
+  name?: string | null;
+  isAdmin?: boolean;
   clientIds?: number[];
   advertiserIds?: number[];
 }

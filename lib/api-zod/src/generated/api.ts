@@ -245,11 +245,240 @@ export const CreateSegmentResponse = zod.object({
 })
 
 
+export const LookupCepParams = zod.object({
+  "cep": zod.coerce.string()
+})
+
+export const LookupCepResponse = zod.object({
+  "cep": zod.string(),
+  "street": zod.string().nullable(),
+  "district": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "cityIbge": zod.string().nullable(),
+  "lat": zod.number().nullable(),
+  "lng": zod.number().nullable()
+})
+
+
+export const ListCompaniesQueryParams = zod.object({
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "role": zod.enum(['client', 'advertiser']).optional(),
+  "q": zod.coerce.string().optional()
+})
+
+
+
+
+export const ListCompaniesResponseItem = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+export const ListCompaniesResponse = zod.array(ListCompaniesResponseItem)
+
+
+
+
+
+export const CreateCompanyBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "isClient": zod.boolean(),
+  "isAdvertiser": zod.boolean(),
+  "advertiserCompany": zod.string().nullish()
+}))
+
+
+
+
+export const CreateCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const GetCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const GetCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const UpdateCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateCompanyBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']).optional(),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "isClient": zod.boolean().optional(),
+  "isAdvertiser": zod.boolean().optional(),
+  "advertiserCompany": zod.string().nullish()
+}))
+
+
+
+
+export const UpdateCompanyResponse = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "segmentId": zod.number().nullish(),
+  "status": zod.enum(['active', 'paused', 'closed']),
+  "notes": zod.string().nullish(),
+  "cep": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "number": zod.string().nullish(),
+  "complement": zod.string().nullish(),
+  "district": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "cityIbge": zod.string().nullish(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish()
+}).and(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullable(),
+  "advertiserId": zod.number().nullable(),
+  "advertiserCompany": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "dependencies": zod.object({
+  "devices": zod.number(),
+  "panels": zod.number(),
+  "campaigns": zod.number()
+})
+}))
+
+
+export const DeleteCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCompanyResponse = zod.void()
+
+
 /**
  * @summary List all clients
  */
 export const ListClientsResponseItem = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
@@ -261,37 +490,13 @@ export const ListClientsResponseItem = zod.object({
 export const ListClientsResponse = zod.array(ListClientsResponseItem)
 
 
-/**
- * @summary Create a client
- */
-
-
-
-export const CreateClientBody = zod.object({
-  "name": zod.string().min(1),
-  "email": zod.string().optional(),
-  "phone": zod.string().optional(),
-  "segmentId": zod.number().nullish()
-})
-
-export const CreateClientResponse = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "email": zod.string().nullish(),
-  "phone": zod.string().nullish(),
-  "segmentId": zod.number().nullish(),
-  "segmentName": zod.string().nullish(),
-  "deviceCount": zod.number(),
-  "createdAt": zod.coerce.date()
-})
-
-
 export const GetClientParams = zod.object({
   "id": zod.coerce.number()
 })
 
 export const GetClientResponse = zod.object({
   "id": zod.number(),
+  "companyId": zod.number(),
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
@@ -300,39 +505,6 @@ export const GetClientResponse = zod.object({
   "deviceCount": zod.number(),
   "createdAt": zod.coerce.date()
 })
-
-
-export const UpdateClientParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-
-
-
-export const UpdateClientBody = zod.object({
-  "name": zod.string().min(1).optional(),
-  "email": zod.string().nullish(),
-  "phone": zod.string().nullish(),
-  "segmentId": zod.number().nullish()
-})
-
-export const UpdateClientResponse = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "email": zod.string().nullish(),
-  "phone": zod.string().nullish(),
-  "segmentId": zod.number().nullish(),
-  "segmentName": zod.string().nullish(),
-  "deviceCount": zod.number(),
-  "createdAt": zod.coerce.date()
-})
-
-
-export const DeleteClientParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const DeleteClientResponse = zod.void()
 
 
 export const GetClientStatsParams = zod.object({
@@ -725,6 +897,8 @@ export const GetCampaignAnalyticsResponse = zod.object({
 export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),
@@ -743,6 +917,8 @@ export const createUserBodyTempPasswordMin = 8;
 export const CreateUserBody = zod.object({
   "email": zod.string(),
   "tempPassword": zod.string().min(createUserBodyTempPasswordMin),
+  "name": zod.string().nullish(),
+  "isAdmin": zod.boolean().optional(),
   "clientIds": zod.array(zod.number()).optional(),
   "advertiserIds": zod.array(zod.number()).optional()
 })
@@ -750,6 +926,8 @@ export const CreateUserBody = zod.object({
 export const CreateUserResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),
@@ -765,6 +943,8 @@ export const UpdateUserParams = zod.object({
 })
 
 export const UpdateUserBody = zod.object({
+  "name": zod.string().nullish(),
+  "isAdmin": zod.boolean().optional(),
   "isActive": zod.boolean().optional(),
   "clientIds": zod.array(zod.number()).optional(),
   "advertiserIds": zod.array(zod.number()).optional()
@@ -773,6 +953,8 @@ export const UpdateUserBody = zod.object({
 export const UpdateUserResponse = zod.object({
   "id": zod.number(),
   "email": zod.string(),
+  "name": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
   "mustChangePassword": zod.boolean(),
   "clientIds": zod.array(zod.number()),

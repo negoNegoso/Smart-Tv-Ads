@@ -8,6 +8,7 @@
 
 export interface Client {
   id: number;
+  companyId: number;
   name: string;
   /** @nullable */
   email?: string | null;

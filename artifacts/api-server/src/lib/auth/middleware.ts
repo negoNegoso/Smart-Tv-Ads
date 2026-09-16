@@ -64,7 +64,8 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
     return;
   }
   req.auth = {
-    isAdmin: false,
+    // Admin do banco tem o mesmo acesso do admin do env nas rotas de gestão.
+    isAdmin: ctx.isAdmin,
     user: ctx,
     clientIds: ctx.clientIds,
     advertiserIds: ctx.advertiserIds,
@@ -72,16 +73,24 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
   next();
 }
 
-/** Exige sessão de admin (comportamento legado; usado nas rotas de gestão). */
+/** Exige admin: o do env (cookie "admin") ou usuário do banco com is_admin. */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const secret = process.env.SESSION_SECRET ?? "";
   const sub = secret ? sessionSubject(req.cookies?.[SESSION_COOKIE], secret) : null;
-  if (sub !== "admin") {
-    unauthorized(res);
+  if (sub === "admin") {
+    req.auth = { isAdmin: true, clientIds: [], advertiserIds: [] };
+    next();
     return;
   }
-  req.auth = { isAdmin: true, clientIds: [], advertiserIds: [] };
-  next();
+  if (req.auth?.isAdmin && req.auth.user) {
+    if (req.auth.user.mustChangePassword) {
+      res.status(403).json({ error: "Troque a senha antes de continuar." });
+      return;
+    }
+    next();
+    return;
+  }
+  unauthorized(res);
 }
 
 /** Exige sessão válida (admin ou usuário). Requer loadSession antes. */

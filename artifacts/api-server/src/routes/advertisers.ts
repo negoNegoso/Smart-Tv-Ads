@@ -11,7 +11,7 @@ import {
   playsTable,
   campaignAnnouncementsTable,
   segmentsTable,
-  clientsTable,
+  companiesTable,
   campaignSegmentsTable,
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
@@ -19,17 +19,6 @@ import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
 import { normalizeWeekdays } from "../lib/ad-eligibility";
 
 const router: IRouter = Router();
-
-const advertiserInput = z.object({
-  name: z.string().min(1),
-  company: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  // Ramo do anunciante e, quando ele também é dono de TV, o cliente
-  // correspondente. Juntos decidem em quais TVs as peças podem entrar.
-  segmentId: z.coerce.number().int().positive().nullish(),
-  clientId: z.coerce.number().int().positive().nullish(),
-});
 
 const campaignInput = z.object({
   advertiserId: z.coerce.number().int().positive(),
@@ -129,7 +118,7 @@ async function syncAnnouncementDestinations(campaignId: number, destinations: Re
 const campaignSelection = {
   id: campaignsTable.id,
   advertiserId: campaignsTable.advertiserId,
-  advertiserName: advertisersTable.name,
+  advertiserName: companiesTable.name,
   company: advertisersTable.company,
   deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
   announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
@@ -164,6 +153,7 @@ async function campaignWithStats(campaignId: number) {
     .select(campaignSelection)
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .where(eq(campaignsTable.id, campaignId));
   if (!row) return null;
   const devices = await db
@@ -178,44 +168,42 @@ router.get("/advertisers", async (_req, res): Promise<void> => {
   const rows = await db
     .select({
       id: advertisersTable.id,
-      name: advertisersTable.name,
+      companyId: advertisersTable.companyId,
+      name: companiesTable.name,
       company: advertisersTable.company,
-      email: advertisersTable.email,
-      phone: advertisersTable.phone,
-      segmentId: advertisersTable.segmentId,
+      email: companiesTable.email,
+      phone: companiesTable.phone,
+      segmentId: companiesTable.segmentId,
       segmentName: segmentsTable.name,
-      clientId: advertisersTable.clientId,
-      clientName: clientsTable.name,
       createdAt: advertisersTable.createdAt,
       campaignCount: sql<number>`count(distinct ${campaignsTable.id})::int`,
       totalPlays: sql<number>`count(${playsTable.id})::int`,
     })
     .from(advertisersTable)
-    .leftJoin(segmentsTable, eq(segmentsTable.id, advertisersTable.segmentId))
-    .leftJoin(clientsTable, eq(clientsTable.id, advertisersTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
+    .leftJoin(segmentsTable, eq(segmentsTable.id, companiesTable.segmentId))
     .leftJoin(campaignsTable, eq(campaignsTable.advertiserId, advertisersTable.id))
     .leftJoin(playsTable, eq(playsTable.campaignId, campaignsTable.id))
-    .groupBy(advertisersTable.id, segmentsTable.name, clientsTable.name)
-    .orderBy(asc(advertisersTable.name));
+    .groupBy(advertisersTable.id, companiesTable.id, segmentsTable.name)
+    .orderBy(asc(companiesTable.name));
   res.json(rows);
-});
-
-router.post("/advertisers", async (req, res): Promise<void> => {
-  const parsed = advertiserInput.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [row] = await db.insert(advertisersTable).values({
-    ...parsed.data,
-    email: parsed.data.email || null,
-  }).returning();
-  res.status(201).json({ ...row, campaignCount: 0, totalPlays: 0 });
 });
 
 router.get("/advertisers/:id", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
-  const [advertiser] = await db.select().from(advertisersTable).where(eq(advertisersTable.id, id));
+  const [advertiser] = await db
+    .select({
+      id: advertisersTable.id,
+      companyId: advertisersTable.companyId,
+      name: companiesTable.name,
+      company: advertisersTable.company,
+      email: companiesTable.email,
+      phone: companiesTable.phone,
+      segmentId: companiesTable.segmentId,
+    })
+    .from(advertisersTable)
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
+    .where(eq(advertisersTable.id, id));
   if (!advertiser) {
     res.status(404).json({ error: "Advertiser not found" });
     return;
@@ -224,35 +212,10 @@ router.get("/advertisers/:id", async (req, res): Promise<void> => {
     .select(campaignSelection)
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .where(eq(campaignsTable.advertiserId, id))
     .orderBy(desc(campaignsTable.startsAt));
   res.json({ ...advertiser, campaigns });
-});
-
-router.patch("/advertisers/:id", async (req, res): Promise<void> => {
-  const parsed = advertiserInput.partial().safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [row] = await db.update(advertisersTable).set({
-    ...parsed.data,
-    email: parsed.data.email === "" ? null : parsed.data.email,
-  }).where(eq(advertisersTable.id, Number(req.params.id))).returning();
-  if (!row) {
-    res.status(404).json({ error: "Advertiser not found" });
-    return;
-  }
-  res.json(row);
-});
-
-router.delete("/advertisers/:id", async (req, res): Promise<void> => {
-  const [row] = await db.delete(advertisersTable).where(eq(advertisersTable.id, Number(req.params.id))).returning();
-  if (!row) {
-    res.status(404).json({ error: "Advertiser not found" });
-    return;
-  }
-  res.sendStatus(204);
 });
 
 router.get("/campaigns", async (_req, res): Promise<void> => {
@@ -260,6 +223,7 @@ router.get("/campaigns", async (_req, res): Promise<void> => {
     .select(campaignSelection)
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
     .orderBy(desc(campaignsTable.startsAt));
   res.json(rows);
 });

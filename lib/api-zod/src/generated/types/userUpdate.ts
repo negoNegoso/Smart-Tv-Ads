@@ -7,6 +7,9 @@
  */
 
 export interface UserUpdate {
+  /** @nullable */
+  name?: string | null;
+  isAdmin?: boolean;
   isActive?: boolean;
   clientIds?: number[];
   advertiserIds?: number[];
