@@ -2,7 +2,7 @@ import * as React from 'react';
 import { SiteHeader } from '@/components/landing/site-header';
 import { SiteFooter } from '@/components/landing/site-footer';
 import { Hero } from '@/components/landing/hero';
-import { StatsBand } from '@/components/landing/stats-band';
+import { Cobertura } from '@/components/landing/cobertura';
 import { HowItWorks } from '@/components/landing/how-it-works';
 import { Differentials } from '@/components/landing/differentials';
 import { Plans } from '@/components/landing/plans';
@@ -28,7 +28,7 @@ export default function Landing() {
       <SiteHeader />
       <main>
         <Hero />
-        <StatsBand />
+        <Cobertura />
         <HowItWorks />
         <Differentials />
         <Plans />

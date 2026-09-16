@@ -53,11 +53,16 @@ export const LANDING = {
     caption: 'Seu anúncio aqui',
     qrLabel: 'SAIBA +',
   },
-  stats: {
-    plays30d: 'exibições nos últimos 30 dias',
-    activeScreens: 'telas ativas',
-    clients: 'estabelecimentos parceiros',
-    segments: 'ramos atendidos',
+  cobertura: {
+    title: 'Onde a sua marca aparece',
+    subtitle:
+      'Telas instaladas no comércio do Vale do Ribeira. Toque numa cidade para ver quantos estabelecimentos parceiros a rede já tem lá.',
+    screensLabel: 'telas ativas na rede',
+    regionLabel: '24 cidades do Vale do Ribeira',
+    cityLabel: 'estabelecimentos parceiros',
+    listLabel: 'Cidades com telas',
+    cta: 'Quero anunciar aqui',
+    ctaMessage: 'Olá! Quero anunciar nas telas da Smart Vale TV em',
   },
   howItWorks: {
     title: 'Como funciona',

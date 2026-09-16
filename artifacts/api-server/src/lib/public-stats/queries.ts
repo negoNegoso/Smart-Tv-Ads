@@ -1,5 +1,7 @@
-import { eq, gte, isNotNull, sql } from "drizzle-orm";
+import { eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, playsTable, devicesTable, clientsTable, companiesTable } from "@workspace/db";
+import { VALE_DO_RIBEIRA_IBGE } from "@workspace/db/vale-do-ribeira";
+import { coverageFromRows, type CityCoverage } from "./coverage";
 
 /**
  * Contadores agregados que a landing pública exibe.
@@ -27,6 +29,28 @@ export interface PublicStats {
   activeScreens: number;
   clients: number;
   segments: number;
+  cities: CityCoverage[];
+}
+
+/**
+ * Quantos estabelecimentos parceiros a rede tem em cada município do Vale.
+ *
+ * O innerJoin com clients é o que define "parceiro": empresa que só anuncia
+ * não vira ponto no mapa. O IN restringe ao recorte da landing — cidade fora
+ * dele não é desenhada, então contá-la só gastaria linha.
+ */
+export async function citiesCoverage(): Promise<CityCoverage[]> {
+  const rows = await db
+    .select({
+      ibge: companiesTable.cityIbge,
+      companies: sql<number>`COUNT(*)::int`,
+    })
+    .from(companiesTable)
+    .innerJoin(clientsTable, eq(clientsTable.companyId, companiesTable.id))
+    .where(inArray(companiesTable.cityIbge, [...VALE_DO_RIBEIRA_IBGE]))
+    .groupBy(companiesTable.cityIbge);
+
+  return coverageFromRows(rows);
 }
 
 export async function publicStats(now: Date = new Date()): Promise<PublicStats> {
@@ -52,10 +76,13 @@ export async function publicStats(now: Date = new Date()): Promise<PublicStats> 
     .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
     .where(isNotNull(companiesTable.segmentId));
 
+  const cities = await citiesCoverage();
+
   return {
     plays30d: plays?.n ?? 0,
     activeScreens: screens?.n ?? 0,
     clients: clients?.n ?? 0,
     segments: segments?.n ?? 0,
+    cities,
   };
 }

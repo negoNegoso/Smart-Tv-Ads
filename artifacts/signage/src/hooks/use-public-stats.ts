@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 
+export interface CityCoverage {
+  ibge: string;
+  companies: number;
+}
+
 export interface PublicStats {
   plays30d: number;
   activeScreens: number;
   clients: number;
   segments: number;
+  cities: CityCoverage[];
 }
 
 /**

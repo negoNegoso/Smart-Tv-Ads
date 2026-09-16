@@ -41,21 +41,69 @@ describe("janelas de tempo dos números públicos", () => {
 });
 
 describe("GET /public/stats", () => {
+  const VAZIO = { plays30d: 0, activeScreens: 0, clients: 0, segments: 0, cities: [] };
+
   beforeEach(() => {
     publicStats.mockReset();
   });
 
-  it("responde os quatro contadores", async () => {
-    publicStats.mockResolvedValue({ plays30d: 1204, activeScreens: 7, clients: 5, segments: 3 });
+  it("responde os contadores e a cobertura por cidade", async () => {
+    publicStats.mockResolvedValue({
+      plays30d: 1204,
+      activeScreens: 7,
+      clients: 5,
+      segments: 3,
+      cities: [
+        { ibge: "3542602", companies: 4 },
+        { ibge: "3509254", companies: 1 },
+      ],
+    });
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).get("/public/stats");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ plays30d: 1204, activeScreens: 7, clients: 5, segments: 3 });
+    expect(res.body).toEqual({
+      plays30d: 1204,
+      activeScreens: 7,
+      clients: 5,
+      segments: 3,
+      cities: [
+        { ibge: "3542602", companies: 4 },
+        { ibge: "3509254", companies: 1 },
+      ],
+    });
+  });
+
+  it("aceita rede sem nenhuma cidade parceira", async () => {
+    publicStats.mockResolvedValue(VAZIO);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/public/stats");
+    expect(res.status).toBe(200);
+    expect(res.body.cities).toEqual([]);
+  });
+
+  it("descarta campo extra que a consulta porventura traga", async () => {
+    publicStats.mockResolvedValue({
+      plays30d: 1,
+      activeScreens: 1,
+      clients: 1,
+      segments: 1,
+      // Linha suja de propósito: se um dia a consulta passar a trazer o nome do
+      // estabelecimento, o schema da rota é o que precisa barrar — este teste é
+      // o que prova isso. Mockar uma linha já limpa (como antes) não provava
+      // nada além de a rota repassar o que recebeu.
+      cities: [{ ibge: "3542602", companies: 1, name: "Padaria Central" }],
+    });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/public/stats");
+    expect(res.body.cities[0]).toEqual({ ibge: "3542602", companies: 1 });
+    expect(res.body.cities[0].name).toBeUndefined();
   });
 
   it("permite cache no CDN", async () => {
-    publicStats.mockResolvedValue({ plays30d: 0, activeScreens: 0, clients: 0, segments: 0 });
+    publicStats.mockResolvedValue(VAZIO);
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).get("/public/stats");
@@ -63,7 +111,7 @@ describe("GET /public/stats", () => {
   });
 
   it("não exige sessão", async () => {
-    publicStats.mockResolvedValue({ plays30d: 0, activeScreens: 0, clients: 0, segments: 0 });
+    publicStats.mockResolvedValue(VAZIO);
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).get("/public/stats");

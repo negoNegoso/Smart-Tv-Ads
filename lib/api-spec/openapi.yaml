@@ -1029,12 +1029,23 @@ components:
 
     PublicStats:
       type: object
-      required: [plays30d, activeScreens, clients, segments]
+      required: [plays30d, activeScreens, clients, segments, cities]
       properties:
         plays30d: { type: integer }
         activeScreens: { type: integer }
         clients: { type: integer }
         segments: { type: integer }
+        # Cobertura por município do Vale do Ribeira. Só cidade com pelo menos
+        # um estabelecimento parceiro entra na lista; nome de empresa, endereço
+        # e coordenada nunca saem desta rota.
+        cities:
+          type: array
+          items:
+            type: object
+            required: [ibge, companies]
+            properties:
+              ibge: { type: string }
+              companies: { type: integer }
 
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:

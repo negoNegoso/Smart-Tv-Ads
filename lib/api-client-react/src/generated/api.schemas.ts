@@ -9,11 +9,17 @@ export interface HealthStatus {
   status: string;
 }
 
+export type PublicStatsCitiesItem = {
+  ibge: string;
+  companies: number;
+};
+
 export interface PublicStats {
   plays30d: number;
   activeScreens: number;
   clients: number;
   segments: number;
+  cities: PublicStatsCitiesItem[];
 }
 
 export interface Announcement {

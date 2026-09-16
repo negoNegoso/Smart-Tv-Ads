@@ -23,7 +23,11 @@ export const GetPublicStatsResponse = zod.object({
   "plays30d": zod.number(),
   "activeScreens": zod.number(),
   "clients": zod.number(),
-  "segments": zod.number()
+  "segments": zod.number(),
+  "cities": zod.array(zod.object({
+  "ibge": zod.string(),
+  "companies": zod.number()
+}))
 })
 
 
