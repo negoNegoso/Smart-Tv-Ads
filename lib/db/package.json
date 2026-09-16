@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
     "./scan-code": "./src/scan-code.ts",
+    "./vale-do-ribeira": "./src/vale-do-ribeira.ts",
     "./youtube": "./src/youtube.ts"
   },
   "scripts": {
