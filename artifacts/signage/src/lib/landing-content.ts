@@ -53,12 +53,6 @@ export const LANDING = {
     caption: 'Seu anúncio aqui',
     qrLabel: 'SAIBA +',
   },
-  stats: {
-    plays30d: 'exibições nos últimos 30 dias',
-    activeScreens: 'telas ativas',
-    clients: 'estabelecimentos parceiros',
-    segments: 'ramos atendidos',
-  },
   cobertura: {
     title: 'Onde a sua marca aparece',
     subtitle:
