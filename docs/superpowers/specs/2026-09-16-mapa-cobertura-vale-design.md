@@ -158,8 +158,8 @@ Layout em duas colunas (empilha no mobile), no padrão do `Hero`:
 - **Direita:** o SVG, `VALE_VIEW_BOX`, um `<path>` por município.
 
 Estado: `useState<string>` com o código IBGE selecionado. Seleção inicial é a
-cidade com mais parceiros (empate resolve por ordem alfabética, para o render
-ser determinístico).
+cidade com mais parceiros (empate resolve pelo código IBGE, para o render ser
+determinístico — é o mesmo critério de desempate da ordenação no servidor).
 
 Cidade **com** parceiro: preenchida na cor primária, `role="button"`,
 `tabIndex={0}`, `aria-pressed`, clique e Enter/Espaço selecionam.
@@ -190,9 +190,10 @@ interface dentro do `.tsx`.
 
 **API** (`pnpm --filter @workspace/api-server run test`)
 
-- `lib/public-stats/__tests__/cities-coverage.test.ts`: agrupa por `city_ibge`;
-  ignora município fora da lista; ignora empresa sem perfil de cliente; cidade
-  sem parceiro não aparece no resultado.
+- `lib/public-stats/__tests__/coverage.test.ts`: filtro puro `coverageFromRows`
+  — ignora município fora da lista, ignora empresa sem código IBGE, descarta
+  contagem zero e ordena por contagem. O `JOIN clients` que exclui anunciante
+  puro é exercido pelo SQL, não por teste (a suíte não toca banco).
 - `routes/__tests__/public-stats.test.ts`: resposta inclui `cities`; array
   vazio continua sendo 200.
 
