@@ -34,7 +34,13 @@ export function Cobertura() {
     return cidades[0]?.[0] ?? null;
   }, [porCidade]);
 
-  if (!data || porCidade.size === 0) return null;
+  // Municípios dos 24 do Vale que têm parceiro — única fonte da guarda da
+  // seção e da lista de botões. Ancorar em VALE_MUNICIPIOS (não em porCidade
+  // diretamente) garante que um ibge fora dos 24 vindo da API não conta como
+  // parceiro: sem isso a seção renderizaria com título e mapa vazios.
+  const parceiras = VALE_MUNICIPIOS.filter((m) => porCidade.has(m.ibge));
+
+  if (!data || parceiras.length === 0) return null;
 
   const ativa = selecionada && porCidade.has(selecionada) ? selecionada : padrao;
   const municipioAtivo = VALE_MUNICIPIOS.find((m) => m.ibge === ativa);
@@ -51,11 +57,22 @@ export function Cobertura() {
             {LANDING.cobertura.subtitle}
           </p>
 
-          <p className="mt-8 text-lg font-semibold text-zinc-900">
-            {format.format(data.activeScreens)}{' '}
-            <span className="font-normal text-zinc-600">{LANDING.cobertura.screensLabel}</span>
-          </p>
-          <p className="text-lg font-semibold text-zinc-900">{LANDING.cobertura.regionLabel}</p>
+          <div className="mt-8">
+            {/*
+              Regra herdada da StatsBand que esta seção substituiu: "0 telas
+              ativas" numa página que vende rede de telas é pior que a ausência
+              do número. De madrugada, com queda de internet ou em manutenção,
+              nenhum device manda sinal nas últimas 24h e o dado zera sem a
+              rede ter sumido — então o número some, não a frase "0 telas".
+            */}
+            {data.activeScreens > 0 && (
+              <p className="text-lg font-semibold text-zinc-900">
+                {format.format(data.activeScreens)}{' '}
+                <span className="font-normal text-zinc-600">{LANDING.cobertura.screensLabel}</span>
+              </p>
+            )}
+            <p className="text-lg font-semibold text-zinc-900">{LANDING.cobertura.regionLabel}</p>
+          </div>
 
           {municipioAtivo && (
             <div className="mt-8">
@@ -106,7 +123,7 @@ export function Cobertura() {
           </svg>
 
           <ul className="mt-6 flex flex-wrap gap-2" aria-label={LANDING.cobertura.listLabel}>
-            {VALE_MUNICIPIOS.filter((m) => porCidade.has(m.ibge)).map((municipio) => (
+            {parceiras.map((municipio) => (
               <li key={municipio.ibge}>
                 <button
                   type="button"
