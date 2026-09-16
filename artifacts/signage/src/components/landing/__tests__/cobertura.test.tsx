@@ -34,7 +34,11 @@ describe('Cobertura', () => {
       ],
     });
     renderSecao();
-    expect(await screen.findByText('Registro')).toBeInTheDocument();
+    // Consulta por papel (heading) evita ambiguidade com o botão homônimo na
+    // lista abaixo — ambos mostram "Registro", mas em papéis diferentes.
+    expect(
+      await screen.findByRole('heading', { name: 'Registro', level: 3 }),
+    ).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
   });
 
@@ -48,14 +52,16 @@ describe('Cobertura', () => {
     });
     renderSecao();
     await userEvent.click(await screen.findByRole('button', { name: /Miracatu/ }));
-    expect(screen.getByText('Miracatu')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Miracatu', level: 3 })).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('não deixa clicar em cidade sem parceiro', async () => {
     stubStats({ ...BASE, cities: [{ ibge: '3542602', companies: 9 }] });
     renderSecao();
-    await screen.findByText('Registro');
+    // Mesma ambiguidade do primeiro teste: com só um parceiro, "Registro"
+    // aparece no heading do painel e no botão da lista. Espera pelo heading.
+    await screen.findByRole('heading', { name: 'Registro', level: 3 });
     expect(screen.queryByRole('button', { name: /Tapiraí/ })).not.toBeInTheDocument();
   });
 

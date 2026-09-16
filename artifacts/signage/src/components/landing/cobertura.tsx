@@ -59,12 +59,7 @@ export function Cobertura() {
 
           {municipioAtivo && (
             <div className="mt-8">
-              {/*
-                O nome da cidade não repete aqui: o botão ativo na lista abaixo
-                (aria-pressed) já é quem identifica a seleção, com o mesmo texto.
-                Repetir o nome duplicava o mesmo nó de texto em dois lugares da
-                árvore de acessibilidade — pior leitura de tela, não melhor.
-              */}
+              <h3 className="text-xl font-semibold text-zinc-900">{municipioAtivo.nome}</h3>
               <p className="text-3xl font-semibold tracking-tight text-primary">
                 {format.format(parceiros)}
               </p>

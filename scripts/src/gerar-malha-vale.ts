@@ -58,7 +58,10 @@ function aneis(geometry: any): number[][][] {
 }
 
 async function main() {
-  const porCodigo = new Map(VALE_DO_RIBEIRA.map((m) => [m.ibge, m.nome]));
+  // Anotado como Map<string, string>: sem isso o TS infere a chave como a
+  // união literal dos 24 códigos do `as const`, e as comparações com
+  // `String(...)` abaixo (dado externo, não literal) não tipam.
+  const porCodigo = new Map<string, string>(VALE_DO_RIBEIRA.map((m) => [m.ibge, m.nome]));
   const malha = await baixarJson(MALHA);
 
   const selecionados = malha.features.filter((f: any) =>

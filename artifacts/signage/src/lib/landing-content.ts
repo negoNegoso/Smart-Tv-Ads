@@ -67,7 +67,6 @@ export const LANDING = {
     regionLabel: '24 cidades do Vale do Ribeira',
     cityLabel: 'estabelecimentos parceiros',
     listLabel: 'Cidades com telas',
-    mapLabel: 'Mapa do Vale do Ribeira',
     cta: 'Quero anunciar aqui',
     ctaMessage: 'Olá! Quero anunciar nas telas da Smart Vale TV em',
   },
