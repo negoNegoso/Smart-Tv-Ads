@@ -567,7 +567,9 @@ function aneis(geometry: any): number[][][] {
 }
 
 async function main() {
-  const porCodigo = new Map(VALE_DO_RIBEIRA.map((m) => [m.ibge, m.nome]));
+  // Map anotado: VALE_DO_RIBEIRA é `as const`, então sem a anotação a chave
+  // vira a união dos 24 literais e `has(String(...))` não aceita `string`.
+  const porCodigo = new Map<string, string>(VALE_DO_RIBEIRA.map((m) => [m.ibge, m.nome]));
   const malha = await baixarJson(MALHA);
 
   const selecionados = malha.features.filter((f: any) =>
@@ -732,7 +734,9 @@ describe('Cobertura', () => {
       ],
     });
     renderSecao();
-    expect(await screen.findByText('Registro')).toBeInTheDocument();
+    // Consulta por papel, não por texto solto: o nome da cidade ativa aparece
+    // no painel e no botão da lista, e um getByText casaria os dois.
+    expect(await screen.findByRole('heading', { name: 'Registro', level: 3 })).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
   });
 
@@ -746,14 +750,14 @@ describe('Cobertura', () => {
     });
     renderSecao();
     await userEvent.click(await screen.findByRole('button', { name: /Miracatu/ }));
-    expect(screen.getByText('Miracatu')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Miracatu', level: 3 })).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('não deixa clicar em cidade sem parceiro', async () => {
     stubStats({ ...BASE, cities: [{ ibge: '3542602', companies: 9 }] });
     renderSecao();
-    await screen.findByText('Registro');
+    await screen.findByRole('heading', { name: 'Registro', level: 3 });
     expect(screen.queryByRole('button', { name: /Tapiraí/ })).not.toBeInTheDocument();
   });
 
@@ -820,7 +824,6 @@ Em `artifacts/signage/src/lib/landing-content.ts`, dentro de `LANDING`, logo dep
     regionLabel: '24 cidades do Vale do Ribeira',
     cityLabel: 'estabelecimentos parceiros',
     listLabel: 'Cidades com telas',
-    mapLabel: 'Mapa do Vale do Ribeira',
     cta: 'Quero anunciar aqui',
     ctaMessage: 'Olá! Quero anunciar nas telas da Smart Vale TV em',
   },
@@ -892,7 +895,7 @@ export function Cobertura() {
 
           {municipioAtivo && (
             <div className="mt-8">
-              <p className="text-xl font-semibold text-zinc-900">{municipioAtivo.nome}</p>
+              <h3 className="text-xl font-semibold text-zinc-900">{municipioAtivo.nome}</h3>
               <p className="text-3xl font-semibold tracking-tight text-primary">
                 {format.format(parceiros)}
               </p>
