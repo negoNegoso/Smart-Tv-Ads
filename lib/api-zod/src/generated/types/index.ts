@@ -54,6 +54,7 @@ export * from './portalCampaign';
 export * from './portalClient';
 export * from './portalDevice';
 export * from './publicStats';
+export * from './publicStatsCitiesItem';
 export * from './publishPanelResponse';
 export * from './publishPanelResponseStatus';
 export * from './reorderInput';

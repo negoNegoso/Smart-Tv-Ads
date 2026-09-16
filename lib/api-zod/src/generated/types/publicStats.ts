@@ -5,10 +5,12 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { PublicStatsCitiesItem } from './publicStatsCitiesItem';
 
 export interface PublicStats {
   plays30d: number;
   activeScreens: number;
   clients: number;
   segments: number;
+  cities: PublicStatsCitiesItem[];
 }
