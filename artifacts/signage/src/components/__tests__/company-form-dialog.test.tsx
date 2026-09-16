@@ -9,8 +9,24 @@ const PAULISTA = {
   state: 'SP', cityIbge: '3550308', lat: -23.56, lng: -46.65,
 };
 
+const IPIRANGA = {
+  cep: '04263000', street: 'Avenida do Cursino', district: 'Ipiranga', city: 'São Paulo',
+  state: 'SP', cityIbge: '3550308', lat: -23.58, lng: -46.60,
+};
+
 function json(status: number, body: unknown) {
   return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+}
+
+/** Promise controlável de fora: resolve/rejeita só quando o teste mandar. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 /** Responde por trecho de URL; o que não casar vira 404. */
@@ -66,6 +82,39 @@ describe('CompanyFormDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvar empresa' }));
     expect(await screen.findByText('Marque cliente e/ou anunciante.')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('api/companies'), expect.anything());
+  });
+
+  it('mantém o endereço do segundo CEP mesmo que a resposta do primeiro chegue depois', async () => {
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    const fetchMock = vi.fn((url: string) => {
+      const u = String(url);
+      if (u.includes('/segments')) return json(200, []);
+      if (u.includes('/cep/01310100')) return first.promise;
+      if (u.includes('/cep/04263000')) return second.promise;
+      return json(404, { error: 'não mockado' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderDialog();
+    const cepInput = screen.getByLabelText('CEP');
+
+    await userEvent.type(cepInput, '01310100');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/cep/01310100'), expect.anything()));
+
+    await userEvent.clear(cepInput);
+    await userEvent.type(cepInput, '04263000');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/cep/04263000'), expect.anything()));
+
+    // A resposta do segundo CEP (o correto, digitado por último) chega primeiro.
+    second.resolve(await json(200, IPIRANGA));
+    await waitFor(() => expect(screen.getByLabelText('Rua')).toHaveValue('Avenida do Cursino'));
+
+    // A resposta do primeiro CEP, mais lenta, chega depois e não pode sobrescrever.
+    first.resolve(await json(200, PAULISTA));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByLabelText('Rua')).toHaveValue('Avenida do Cursino');
+    expect(screen.getByLabelText('Bairro')).toHaveValue('Ipiranga');
+    expect(screen.getByLabelText('Cidade')).toHaveValue('São Paulo');
   });
 
   it('envia o cadastro com papéis, endereço e coordenadas', async () => {

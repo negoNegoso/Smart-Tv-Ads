@@ -103,10 +103,15 @@ export function CompanyFormDialog({
     const digits = form.cep.replace(/\D/g, '');
     if (digits.length !== 8 || digits === lastCep.current) return;
     lastCep.current = digits;
+    // Corrigir o CEP rápido demais pode fazer a resposta do CEP anterior
+    // chegar depois da deste — comparar com `lastCep.current` no retorno
+    // garante que só o resultado do ÚLTIMO CEP pedido é aplicado ao formulário.
+    const requestedCep = digits;
     setCepLoading(true);
     setCepMessage(null);
     lookupCep(digits)
-      .then((r) =>
+      .then((r) => {
+        if (lastCep.current !== requestedCep) return;
         setForm((f) => ({
           ...f,
           street: r.street ?? '',
@@ -116,14 +121,17 @@ export function CompanyFormDialog({
           cityIbge: r.cityIbge ?? '',
           lat: r.lat,
           lng: r.lng,
-        })),
-      )
+        }));
+      })
       .catch((err) => {
+        if (lastCep.current !== requestedCep) return;
         // Sem resposta confiável, coordenadas antigas não valem para o CEP novo.
         setForm((f) => ({ ...f, lat: null, lng: null, cityIbge: '' }));
         setCepMessage(err instanceof ApiError ? err.message : 'Serviço de CEP indisponível. Preencha o endereço manualmente.');
       })
-      .finally(() => setCepLoading(false));
+      .finally(() => {
+        if (lastCep.current === requestedCep) setCepLoading(false);
+      });
   }, [form.cep]);
 
   async function handleSubmit(event: FormEvent) {

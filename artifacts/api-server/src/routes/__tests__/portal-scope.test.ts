@@ -116,4 +116,26 @@ describe("escopo dos portais", () => {
     expect(res.status).toBe(403);
     expect(clientsOf).not.toHaveBeenCalled();
   });
+
+  it("admin do banco com loja vinculada vê a própria loja no portal (não escopo vazio)", async () => {
+    loadAuthContext.mockResolvedValue({ ...advCtx, isAdmin: true, clientIds: [7], advertiserIds: [] });
+    clientsOf.mockResolvedValue([{ id: 7, name: "Padaria Central" }]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "7");
+    const res = await request(app).get("/portal/client/clients").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(200);
+    expect(clientsOf).toHaveBeenCalledWith([7]);
+  });
+
+  it("admin do env (sem usuário no banco) continua com escopo vazio no portal", async () => {
+    clientsOf.mockResolvedValue([]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const token = createSession(SECRET, "admin");
+    const res = await request(app).get("/portal/client/clients").set("Cookie", `sid=${token}`);
+    expect(res.status).toBe(200);
+    expect(clientsOf).toHaveBeenCalledWith([]);
+    expect(res.body).toEqual([]);
+  });
 });
