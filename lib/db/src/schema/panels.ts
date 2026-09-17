@@ -36,6 +36,8 @@ export const panelsTable = pgTable(
     accentColor: text("accent_color"),
     // "price" | "percent". Nulo vale "price". Só o template de promoção lê.
     promoStyle: text("promo_style"),
+    // Enquadramento vertical da foto da promoção, 0 a 100 (0 = topo, 100 = rodapé). Nulo vale 50 (centro).
+    photoOffset: integer("photo_offset"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

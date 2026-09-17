@@ -30,4 +30,9 @@ export interface UpdatePanelRequest {
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   accentColor?: string | null;
   promoStyle?: UpdatePanelRequestPromoStyle;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  photoOffset?: number | null;
 }

@@ -69,7 +69,10 @@ export async function createPanel(input: {
 export async function updatePanel(
   id: number,
   patch: Partial<
-    Pick<Panel, "name" | "template" | "duration" | "headline" | "body" | "accentColor" | "promoStyle">
+    Pick<
+      Panel,
+      "name" | "template" | "duration" | "headline" | "body" | "accentColor" | "promoStyle" | "photoOffset"
+    >
   >,
 ): Promise<Panel | null> {
   const [panel] = await db

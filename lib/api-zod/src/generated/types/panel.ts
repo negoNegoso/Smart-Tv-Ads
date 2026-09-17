@@ -23,6 +23,11 @@ export interface Panel {
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   accentColor?: string | null;
   promoStyle?: PanelPromoStyle;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  photoOffset?: number | null;
   publishedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

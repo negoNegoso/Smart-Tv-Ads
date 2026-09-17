@@ -49,6 +49,7 @@ const patchBody = z.object({
     .nullable()
     .optional(),
   promoStyle: z.enum(PROMO_STYLES).nullable().optional(),
+  photoOffset: z.number().int().min(0).max(100).nullable().optional(),
 });
 
 const itemsBody = z.object({
