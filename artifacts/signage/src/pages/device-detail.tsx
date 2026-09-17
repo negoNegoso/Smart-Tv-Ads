@@ -81,7 +81,9 @@ type PlaylistItem = {
   displayOrder: number;
   isActive: boolean;
   title: string;
-  imageUrl: string;
+  // Peça de vídeo/YouTube entra sem poster: o nulo é estado normal, e o render
+  // abaixo já trata. O tipo mentia e o contrato mentia junto.
+  imageUrl: string | null;
   duration: number;
 };
 

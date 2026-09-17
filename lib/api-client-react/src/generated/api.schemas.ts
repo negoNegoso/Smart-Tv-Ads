@@ -266,7 +266,7 @@ export interface PlaylistItem {
   displayOrder: number;
   isActive: boolean;
   title: string;
-  imageUrl: string;
+  imageUrl: string | null;
   duration: number;
 }
 
