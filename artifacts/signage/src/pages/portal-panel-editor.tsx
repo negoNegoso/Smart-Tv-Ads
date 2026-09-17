@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowLeft, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import {
@@ -24,9 +24,11 @@ import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
 import {
   DEFAULT_ACCENT_COLOR,
+  PROMO_PHOTO_LEFT,
   PROMO_PHOTO_HEIGHT,
   PROMO_PHOTO_WIDTH,
   normalizeAccentColor,
+  normalizePhotoOffset,
   resolvePromoStyle,
 } from '@/lib/promo-visual';
 
@@ -120,6 +122,18 @@ export function parsePriceToCents(raw: string): PriceParseResult {
 function parsePriceOrZero(raw: string): number {
   const result = parsePriceToCents(raw);
   return result.ok ? result.cents : 0;
+}
+
+/**
+ * Converte o arrasto vertical na prévia (Anexo 2026-09-17) em porcentagem de
+ * enquadramento: o deslocamento em pixels desde o mousedown vira porcentagem
+ * pela altura da prévia, somado ao valor de partida e preso entre 0 e 100.
+ * Altura zero (prévia ainda não medida) não desloca nada, só prende o valor
+ * de partida ao intervalo.
+ */
+export function photoOffsetFromDrag(startOffset: number, deltaY: number, previewHeight: number): number {
+  const deltaPercent = previewHeight > 0 ? (deltaY / previewHeight) * 100 : 0;
+  return Math.min(100, Math.max(0, startOffset + deltaPercent));
 }
 
 function itemToDraft(item: PanelItem): ItemDraft {
@@ -332,6 +346,9 @@ export default function PortalPanelEditor({
   const [accentColor, setAccentColor] = useState('');
   const [accentText, setAccentText] = useState('');
   const [promoStyle, setPromoStyle] = useState<'price' | 'percent'>('price');
+  const [photoOffset, setPhotoOffset] = useState(50);
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
+  const photoDragRef = useRef<{ startY: number; startOffset: number; height: number } | null>(null);
 
   // Carrega o estado local do formulário a partir do painel vindo do servidor
   // uma única vez por painel — depois disso o formulário é a fonte da
@@ -346,6 +363,7 @@ export default function PortalPanelEditor({
       setAccentColor(panel.accentColor ?? '');
       setAccentText(panel.accentColor ?? '');
       setPromoStyle(panel.promoStyle === 'percent' ? 'percent' : 'price');
+      setPhotoOffset(normalizePhotoOffset(panel.photoOffset));
       const drafts = panel.items.map(itemToDraft);
       setItems(panel.kind === 'promo' && drafts.length === 0 ? [emptyDraft()] : drafts);
       setLoadedId(panel.id);
@@ -468,6 +486,7 @@ export default function PortalPanelEditor({
           body: body.trim() === '' ? null : body,
           accentColor: accentColor === '' ? null : accentColor,
           promoStyle,
+          photoOffset,
         },
       });
     } catch {
@@ -546,6 +565,38 @@ export default function PortalPanelEditor({
     } finally {
       setIsUploadingImage(false);
     }
+  }
+
+  /**
+   * Arrasto vertical na prévia (Anexo 2026-09-17): pointerdown guarda a
+   * posição e o enquadramento de partida, pointermove converte o
+   * deslocamento em porcentagem pela altura da prévia (`photoOffsetFromDrag`).
+   * `setPointerCapture` mantém os eventos de move/up presos ao overlay mesmo
+   * que o ponteiro saia da área durante o arrasto.
+   */
+  function handlePhotoPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    photoDragRef.current = {
+      startY: e.clientY,
+      startOffset: photoOffset,
+      height: e.currentTarget.getBoundingClientRect().height,
+    };
+    setIsDraggingPhoto(true);
+  }
+
+  function handlePhotoPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const drag = photoDragRef.current;
+    if (!drag) return;
+    const deltaY = e.clientY - drag.startY;
+    setPhotoOffset(photoOffsetFromDrag(drag.startOffset, deltaY, drag.height));
+  }
+
+  function handlePhotoPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (photoDragRef.current && e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    photoDragRef.current = null;
+    setIsDraggingPhoto(false);
   }
 
   if (panelQuery.isLoading) {
@@ -916,15 +967,57 @@ export default function PortalPanelEditor({
         </div>
 
         <div>
-          <PanelPreview
-            kind={kind}
-            headline={headline.trim() === '' ? null : headline}
-            body={body.trim() === '' ? null : body}
-            items={previewItems}
-            page={previewPage + 1}
-            accentColor={accentColor === '' ? null : accentColor}
-            promoStyle={promoStyle}
-          />
+          <div className="relative">
+            <PanelPreview
+              kind={kind}
+              headline={headline.trim() === '' ? null : headline}
+              body={body.trim() === '' ? null : body}
+              items={previewItems}
+              page={previewPage + 1}
+              accentColor={accentColor === '' ? null : accentColor}
+              promoStyle={promoStyle}
+              photoOffset={photoOffset}
+            />
+            {/* Arrasto vertical (Anexo 2026-09-17): overlay transparente só sobre a
+                área da foto, para não interferir no resto da prévia nem acoplar o
+                componente reutilizável `PanelPreview` ao estado do editor. */}
+            {kind === 'promo' && items[0]?.imageUrl ? (
+              <div
+                role="presentation"
+                aria-hidden="true"
+                className="absolute inset-y-0"
+                style={{
+                  left: `${(PROMO_PHOTO_LEFT / 1920) * 100}%`,
+                  right: 0,
+                  cursor: isDraggingPhoto ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                onPointerDown={handlePhotoPointerDown}
+                onPointerMove={handlePhotoPointerMove}
+                onPointerUp={handlePhotoPointerUp}
+                onPointerCancel={handlePhotoPointerUp}
+              />
+            ) : null}
+          </div>
+          {kind === 'promo' && items[0]?.imageUrl ? (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="photo-offset">Enquadramento vertical da foto</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPhotoOffset(50)}>
+                  Centralizar
+                </Button>
+              </div>
+              <input
+                id="photo-offset"
+                type="range"
+                min={0}
+                max={100}
+                value={photoOffset}
+                onChange={(e) => setPhotoOffset(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          ) : null}
           {kind === 'menu' && menuPages.length > 1 ? (
             <div className="mt-3 flex items-center justify-center gap-3">
               <Button

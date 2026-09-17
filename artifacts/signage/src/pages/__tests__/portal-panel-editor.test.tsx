@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortalPanelEditor, { parsePriceToCents } from '../portal-panel-editor';
+import PortalPanelEditor, { parsePriceToCents, photoOffsetFromDrag } from '../portal-panel-editor';
 
 const panel = {
   id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços', template: 'menu-basico',
@@ -141,6 +141,72 @@ describe('PortalPanelEditor', () => {
       expect(patch).toBeDefined();
       expect(JSON.parse((patch![1] as RequestInit).body as string).accentColor).toBeNull();
     });
+  });
+
+  const promoPanelComFoto = {
+    ...promoPanel,
+    photoOffset: null,
+    items: [{ ...promoPanel.items[0], imageUrl: 'https://example.com/foto.jpg' }],
+  };
+
+  function stubPromoFetchComFoto() {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(promoPanelComFoto), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('campo de enquadramento muda o valor e o salvar envia photoOffset', async () => {
+    const fetchMock = stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const range = screen.getByLabelText(/enquadramento vertical da foto/i);
+    fireEvent.change(range, { target: { value: '80' } });
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string).photoOffset).toBe(80);
+    });
+  });
+
+  it('botão Centralizar volta o enquadramento para 50', async () => {
+    stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const range = screen.getByLabelText(/enquadramento vertical da foto/i) as HTMLInputElement;
+    fireEvent.change(range, { target: { value: '10' } });
+    expect(range.value).toBe('10');
+    await userEvent.click(screen.getByRole('button', { name: /centralizar/i }));
+    expect(range.value).toBe('50');
+  });
+
+  it('sem foto não mostra o controle de enquadramento', async () => {
+    stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    expect(screen.queryByLabelText(/enquadramento vertical da foto/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('photoOffsetFromDrag', () => {
+  it('desloca o valor inicial pela porcentagem de altura percorrida', () => {
+    expect(photoOffsetFromDrag(50, 108, 1080)).toBe(60);
+  });
+
+  it('presa no mínimo 0', () => {
+    expect(photoOffsetFromDrag(10, -1000, 1080)).toBe(0);
+  });
+
+  it('presa no máximo 100', () => {
+    expect(photoOffsetFromDrag(90, 1000, 1080)).toBe(100);
+  });
+
+  it('altura zero devolve o valor inicial preso ao intervalo', () => {
+    expect(photoOffsetFromDrag(50, 500, 0)).toBe(50);
+    expect(photoOffsetFromDrag(150, 0, 0)).toBe(100);
   });
 });
 

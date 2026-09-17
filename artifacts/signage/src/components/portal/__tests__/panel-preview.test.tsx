@@ -87,6 +87,50 @@ describe('PanelPreview', () => {
     expect(screen.getByText('1.000.000,00').style.fontSize).toBe(`${(75 / 1920) * 100}cqw`);
   });
 
+  it('enquadramento vertical da foto reflete no objectPosition', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffset={0}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ objectPosition: '50% 0%' });
+  });
+
+  it('enquadramento vertical 100 reflete no objectPosition', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffset={100}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ objectPosition: '50% 100%' });
+  });
+
+  it('sem photoOffset o objectPosition fica no centro', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ objectPosition: '50% 50%' });
+  });
+
   it('aviso mostra headline e corpo, sem preço', () => {
     render(<PanelPreview kind="notice" headline="Aceitamos Pix" body="Chave no balcão" items={[]} page={1} />);
     expect(screen.getByText('Aceitamos Pix')).toBeInTheDocument();

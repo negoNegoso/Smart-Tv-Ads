@@ -6,6 +6,7 @@ import {
   PROMO_PHOTO_LEFT,
   PROMO_SPLIT_BOTTOM,
   discountPercent,
+  normalizePhotoOffset,
   promoBackgroundSvg,
   promoBadgeMetrics,
   promoBadgeSvg,
@@ -47,6 +48,7 @@ export interface PanelPreviewProps {
   page: number;
   accentColor?: string | null;
   promoStyle?: string | null;
+  photoOffset?: number | null;
 }
 
 /**
@@ -120,12 +122,14 @@ function PromoPreview({
   item,
   accentColor,
   promoStyle,
+  photoOffset,
 }: {
   headline: string | null;
   body: string | null;
   item: PanelPreviewItem | undefined;
   accentColor: string | null;
   promoStyle: string | null;
+  photoOffset: number | null;
 }) {
   // Mesmas posições e tamanhos de `promoNode` em templates.ts, convertidos por px().
   const palette = promoPalette(accentColor);
@@ -147,7 +151,11 @@ function PromoPreview({
           src={photo}
           alt=""
           className="absolute top-0 h-full object-cover"
-          style={{ left: px(PROMO_PHOTO_LEFT), width: px(1920 - PROMO_PHOTO_LEFT) }}
+          style={{
+            left: px(PROMO_PHOTO_LEFT),
+            width: px(1920 - PROMO_PHOTO_LEFT),
+            objectPosition: `50% ${normalizePhotoOffset(photoOffset)}%`,
+          }}
         />
       ) : null}
       <img
@@ -243,6 +251,7 @@ export function PanelPreview({
   page,
   accentColor = null,
   promoStyle = null,
+  photoOffset = null,
 }: PanelPreviewProps) {
   return (
     <div
@@ -255,7 +264,14 @@ export function PanelPreview({
     >
       {kind === 'menu' ? <MenuPreview items={items} page={page} /> : null}
       {kind === 'promo' ? (
-        <PromoPreview headline={headline} body={body} item={items[0]} accentColor={accentColor} promoStyle={promoStyle} />
+        <PromoPreview
+          headline={headline}
+          body={body}
+          item={items[0]}
+          accentColor={accentColor}
+          promoStyle={promoStyle}
+          photoOffset={photoOffset}
+        />
       ) : null}
       {kind === 'notice' ? <NoticePreview headline={headline} body={body} /> : null}
     </div>
