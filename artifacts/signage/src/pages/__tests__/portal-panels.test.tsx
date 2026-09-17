@@ -6,7 +6,7 @@ import PortalPanels from '../portal-panels';
 import { Toaster } from '@/components/ui/toaster';
 
 const panels = [
-  { id: 1, clientId: 7, kind: 'menu', name: 'Cardápio da semana', template: 'menu-basico', status: 'published', duration: 10, headline: null, body: null, publishedAt: '2026-09-01T12:00:00Z', items: [] },
+  { id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços da semana', template: 'menu-basico', status: 'published', duration: 10, headline: null, body: null, publishedAt: '2026-09-01T12:00:00Z', items: [] },
   { id: 2, clientId: 7, kind: 'promo', name: 'Pizza em dobro', template: 'promo-foto', status: 'draft', duration: 10, headline: null, body: null, publishedAt: null, items: [] },
 ];
 
@@ -48,7 +48,7 @@ describe('PortalPanels', () => {
 
   it('mostra cada painel com o estado', async () => {
     renderPage();
-    expect(await screen.findByText('Cardápio da semana')).toBeInTheDocument();
+    expect(await screen.findByText('Tabela de preços da semana')).toBeInTheDocument();
     expect(screen.getByText('Pizza em dobro')).toBeInTheDocument();
     expect(screen.getByText(/No ar/i)).toBeInTheDocument();
     expect(screen.getByText(/Rascunho/i)).toBeInTheDocument();
@@ -128,11 +128,11 @@ describe('PortalPanels', () => {
     );
 
     renderPage();
-    await screen.findByText('Cardápio da semana');
+    await screen.findByText('Tabela de preços da semana');
 
     // Sem loja escolhida o botão não deixa criar: o servidor recusaria, e um
     // 400 depois do clique é pior que um botão que se explica antes.
-    const criar = await screen.findByRole('button', { name: 'Novo cardápio' });
+    const criar = await screen.findByRole('button', { name: 'Nova tabela de preços' });
     expect(criar).toBeDisabled();
 
     await userEvent.selectOptions(screen.getByRole('combobox'), '12');
@@ -168,7 +168,7 @@ describe('PortalPanels', () => {
     );
 
     renderPage();
-    const criar = await screen.findByRole('button', { name: 'Novo cardápio' });
+    const criar = await screen.findByRole('button', { name: 'Nova tabela de preços' });
     await waitFor(() => expect(criar).toBeEnabled());
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 

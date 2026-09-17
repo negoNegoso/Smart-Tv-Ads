@@ -103,7 +103,7 @@ function isForeignKeyViolation(err: unknown): boolean {
 
 /**
  * Carrega o painel do path e autoriza. Sem isto, trocar o id na URL alcança o
- * cardápio de outro cliente. Painel inexistente é 404 — 403 aqui contaria a
+ * tabela de preços de outro cliente. Painel inexistente é 404 — 403 aqui contaria a
  * quem tentou que o id existe.
  */
 async function requirePanelAccess(req: Request, res: Response, next: NextFunction): Promise<void> {

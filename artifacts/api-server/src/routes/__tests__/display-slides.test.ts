@@ -130,7 +130,7 @@ const CAMPAIGN_ROW = {
 const PANEL_ROW = {
   announcementId: 303,
   campaignId: null,
-  title: "Cardápio do dia",
+  title: "Tabela de preços do dia",
   displayText: null,
   showText: false,
   imageUrl: "/api/uploads/painel.png",

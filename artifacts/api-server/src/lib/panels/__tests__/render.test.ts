@@ -17,7 +17,7 @@ const item = (name: string, priceCents: number) => ({
 });
 
 describe("renderPanelPage", () => {
-  it("cardápio vira PNG 1920x1080", async () => {
+  it("tabela de preços vira PNG 1920x1080", async () => {
     const png = await renderPanelPage(
       { kind: "menu", headline: null, body: null },
       { category: "Lanches", items: [item("Coxinha", 750), item("Pastel", 900)] },
@@ -49,7 +49,7 @@ describe("renderPanelPage", () => {
     expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   });
 
-  it("smoke: cardápio com uma página cheia de itens descritos renderiza sem lançar", async () => {
+  it("smoke: tabela de preços com uma página cheia de itens descritos renderiza sem lançar", async () => {
     // Isto NÃO é uma guarda de overflow: satori recebe width/height fixos e o
     // resvg rasteriza com fitTo de largura fixa, então o PNG sai 1920x1080
     // mesmo que o conteúdo estoure o quadro. Este teste só garante que o

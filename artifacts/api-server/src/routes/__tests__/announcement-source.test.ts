@@ -51,7 +51,7 @@ async function buildApp(): Promise<Express> {
 
 const panelRow = {
   id: 1,
-  title: "Cardápio do dia",
+  title: "Tabela de preços do dia",
   displayText: null,
   showText: false,
   imageUrl: "/api/uploads/painel.png",

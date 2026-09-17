@@ -60,7 +60,7 @@ type PanelSlideRow = {
  *
  * O vínculo é cliente→TVs, não device_playlist: uma linha por device
  * congelaria quais TVs o cliente tinha no dia da publicação, e a TV comprada
- * depois ficaria sem cardápio.
+ * depois ficaria sem tabela de preços.
  */
 export function buildPanelSlidesQuery(clientId: number) {
   return db

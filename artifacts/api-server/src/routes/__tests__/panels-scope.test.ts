@@ -177,12 +177,12 @@ describe("escopo das rotas de painéis", () => {
     const res = await request(app)
       .post("/portal/client/panels")
       .set("Cookie", cookie)
-      .send({ kind: "menu", name: "Cardápio", template: "menu-basico" });
+      .send({ kind: "menu", name: "Tabela de preços", template: "menu-basico" });
     expect(res.status).toBe(201);
     expect(createPanel).toHaveBeenCalledWith({
       clientId: 7,
       kind: "menu",
-      name: "Cardápio",
+      name: "Tabela de preços",
       template: "menu-basico",
     });
   });
@@ -191,12 +191,12 @@ describe("escopo das rotas de painéis", () => {
   // contrato (Panel no openapi.yaml) exige `items` em toda resposta desse
   // formato. Sem isto, o cliente gerado promete um array que não existe.
   it("resposta da criação sempre carrega items, mesmo vazio", async () => {
-    createPanel.mockResolvedValue({ id: 1, name: "Cardápio" });
+    createPanel.mockResolvedValue({ id: 1, name: "Tabela de preços" });
     const { request, app, cookie } = await agent();
     const res = await request(app)
       .post("/portal/client/panels")
       .set("Cookie", cookie)
-      .send({ kind: "menu", name: "Cardápio", template: "menu-basico" });
+      .send({ kind: "menu", name: "Tabela de preços", template: "menu-basico" });
     expect(res.status).toBe(201);
     expect(res.body.items).toEqual([]);
   });
@@ -276,7 +276,7 @@ describe("escopo das rotas de painéis", () => {
     const res = await request(app)
       .post("/portal/client/panels")
       .set("Cookie", cookie)
-      .send({ kind: "menu", name: "Cardápio", template: "menu-basico", clientId: 999 });
+      .send({ kind: "menu", name: "Tabela de preços", template: "menu-basico", clientId: 999 });
     expect(res.status).toBe(400);
   });
 
