@@ -111,6 +111,14 @@ export const PROMO_SPLIT_BOTTOM = 960;
 /** Onde a foto começa: um pouco antes da diagonal, para ela passar por trás. */
 export const PROMO_PHOTO_LEFT = 860;
 
+/**
+ * Tamanho que a foto ocupa no slide. Abaixo disto a TV mostra a imagem
+ * esticada, então o editor avisa — sem bloquear, porque quem manda no
+ * recorte é o `objectFit: cover` do renderizador, não a resolução.
+ */
+export const PROMO_PHOTO_WIDTH = WIDTH - PROMO_PHOTO_LEFT;
+export const PROMO_PHOTO_HEIGHT = HEIGHT;
+
 const BADGE_MAX_WIDTH = 800;
 const BADGE_HORIZONTAL_PADDING = 112;
 /** Largura média de um caractere maiúsculo da Fredoka Bold, em frações da fonte. */

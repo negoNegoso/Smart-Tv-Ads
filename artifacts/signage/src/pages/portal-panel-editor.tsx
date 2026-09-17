@@ -21,8 +21,14 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-preview';
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
-import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
-import { DEFAULT_ACCENT_COLOR, normalizeAccentColor, resolvePromoStyle } from '@/lib/promo-visual';
+import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
+import {
+  DEFAULT_ACCENT_COLOR,
+  PROMO_PHOTO_HEIGHT,
+  PROMO_PHOTO_WIDTH,
+  normalizeAccentColor,
+  resolvePromoStyle,
+} from '@/lib/promo-visual';
 
 /**
  * Espelha o orçamento vertical de `artifacts/api-server/src/lib/panels/`
@@ -520,6 +526,15 @@ export default function PortalPanelEditor({
         toast({ title: message, variant: 'destructive' });
         return;
       }
+      // Aviso, não bloqueio: a foto pequena ainda vai ao ar (o renderizador
+      // estica), e medir depende do navegador saber decodificar o arquivo.
+      const dimensoes = await dimensoesDaImagem(arquivo);
+      if (dimensoes && (dimensoes.largura < PROMO_PHOTO_WIDTH || dimensoes.altura < PROMO_PHOTO_HEIGHT)) {
+        toast({
+          title: `Foto pequena para a TV (${dimensoes.largura}×${dimensoes.altura}). O ideal é pelo menos ${PROMO_PHOTO_WIDTH}×${PROMO_PHOTO_HEIGHT} pixels.`,
+        });
+      }
+
       const { imageUrl } = (await res.json()) as { imageUrl: string };
       if (items.length === 0) {
         setItems([{ ...emptyDraft(), imageUrl }]);
@@ -788,7 +803,10 @@ export default function PortalPanelEditor({
                       className="flex h-9 w-full rounded-md border border-input bg-transparent text-sm file:mr-3 file:h-full file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Tamanho máximo: {formatUploadLimit(maxUploadBytes)}.
+                      Use imagem quadrada ou em pé, com pelo menos {PROMO_PHOTO_WIDTH}×{PROMO_PHOTO_HEIGHT}{' '}
+                      pixels. O produto aparece à direita do slide e o lado esquerdo da foto fica atrás do
+                      painel colorido, então deixe folga nas bordas. Tamanho máximo do arquivo:{' '}
+                      {formatUploadLimit(maxUploadBytes)}.
                     </p>
                     {items[0]?.imageUrl ? (
                       <img

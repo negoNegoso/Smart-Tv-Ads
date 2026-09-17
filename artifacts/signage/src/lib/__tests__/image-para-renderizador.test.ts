@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { prepararImagemParaUpload } from '../image-para-renderizador';
+import { dimensoesDaImagem, prepararImagemParaUpload } from '../image-para-renderizador';
 
 /**
  * O jsdom não desenha nada: não tem canvas de verdade nem decodifica imagem.
@@ -80,5 +80,26 @@ describe('prepararImagemParaUpload', () => {
       }
     });
     await expect(prepararImagemParaUpload(webp())).rejects.toThrow(/não foi possível ler a imagem/i);
+  });
+});
+
+describe('dimensoesDaImagem', () => {
+  it('devolve a largura e a altura que o navegador leu', async () => {
+    const png = new File([new Uint8Array([1])], 'a.png', { type: 'image/png' });
+    expect(await dimensoesDaImagem(png)).toEqual({ largura: 100, altura: 80 });
+  });
+
+  it('arquivo que o navegador não decodifica devolve null em vez de lançar', async () => {
+    vi.stubGlobal('Image', class {
+      naturalWidth = 0;
+      naturalHeight = 0;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onerror?.());
+      }
+    });
+    const quebrado = new File([new Uint8Array([1])], 'a.png', { type: 'image/png' });
+    expect(await dimensoesDaImagem(quebrado)).toBeNull();
   });
 });
