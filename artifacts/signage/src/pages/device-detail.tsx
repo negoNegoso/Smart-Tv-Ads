@@ -41,6 +41,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { mediaUrl } from '@/lib/media-url';
+import { mensagemDeErro } from '@/lib/api-error';
 
 async function copyToClipboard(text: string): Promise<boolean> {
   if (navigator.clipboard?.writeText) {
@@ -171,7 +172,14 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
         refreshPlaylist();
         setAddOpen(false);
       },
-      onError: () => toast({ title: 'Já está na playlist ou falhou', variant: 'destructive' }),
+      // Só acusa duplicata quando o servidor a nomeia. Antes, qualquer falha
+      // — inclusive 500 — virava "já está na playlist", e quem lia procurava o
+      // problema no lugar errado.
+      onError: (err) =>
+        toast({
+          title: mensagemDeErro(err, 'Não foi possível adicionar à playlist.'),
+          variant: 'destructive',
+        }),
     },
   });
 
