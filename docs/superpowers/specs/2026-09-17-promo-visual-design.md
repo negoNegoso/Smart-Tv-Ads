@@ -95,15 +95,24 @@ Função pura `promoPalette(accentColor)` → `{ panel, text, price, ornament }`
 
 De cima para baixo, alinhado à esquerda:
 
-1. Selo: `headline ?? "PROMOÇÃO"` em maiúsculas, Fredoka Bold (96px até 10
-   caracteres, 64px até 16, 44px acima), dentro de cápsula com borda pontilhada.
+1. Selo: `headline ?? "PROMOÇÃO"` em maiúsculas, cortado em 40 caracteres
+   (`MAX_HEADLINE`), Fredoka Bold, dentro de cápsula com borda pontilhada.
    A cápsula é um SVG próprio (`promoBadgeSvg`) do tamanho do selo — o satori
    não mede texto nem desenha borda pontilhada, então a largura é estimada
-   por `caracteres × 0,6 × fonte + 112`, com teto de 800px.
-2. Nome do produto: Fredoka Bold ~52px, maiúsculas, `text`.
-3. `DE 14,99 POR` — Bold ~36px/~52px, só se houver `oldPriceCents`.
-4. `R$ 8,99` — `R$` ~52px, valor ~170px, cor `price`.
-5. `body` — Fredoka Bold ~40px, até 2 linhas, cor `price`.
+   por `caracteres × 0,7 × fonte + 112`, com teto de 800px.
+   Como a altura do selo é fixa (`fonte × 1,9`), uma estimativa maior que o
+   teto faria o satori quebrar o texto em duas linhas e a segunda sairia por
+   cima da borda. Por isso os degraus de fonte descem o bastante para a
+   estimativa caber em 800px até os 40 caracteres: 96px até 10 caracteres,
+   64px até 15, 46px até 21, 34px até 28, 24px acima disso.
+2. Nome do produto: Fredoka Bold ~52px, maiúsculas, cortado em 24 caracteres
+   (`MAX_PROMO_NAME`), `text`.
+3. `DE 14,99 POR` — Bold ~36px/~52px, só se `oldPriceCents` for **maior** que
+   o preço atual (preço antigo ausente, zerado ou ≤ atual não vira DE/POR).
+4. `R$ 8,99` — `R$` ~52px, valor ~170px (130px acima de 6 dígitos e 100px acima
+   de 9, para `1.000.000,00` não invadir a foto), cor `price`.
+5. `body` — Fredoka Bold ~38px, cortado em 160 caracteres (`MAX_BODY`), até 2
+   linhas, cor `price`.
 
 ### Conteúdo — estilo `percent`
 
@@ -144,24 +153,34 @@ em `assets.ts` junto das Inter (família `"Fredoka"`). `build.mjs` ganha loader
   Paleta, porcentagem e SVG de fundo são funções puras sem dependência de
   Node — copiadas para `src/lib/promo-visual.ts` (a prévia já espelha cores do
   servidor por cópia; manter o padrão). Fredoka carregada via Google Fonts
-  só para a prévia.
+  só para a prévia. Os cortes de texto do servidor (`MAX_HEADLINE` 40,
+  `MAX_PROMO_NAME` 24, `MAX_BODY` 160) são exportados de `promo-visual.ts` e
+  aplicados também na prévia — só o `truncate`/`line-clamp` do CSS esconderia
+  na prévia um corte que o PNG mostra com reticências.
 - `portal-panel-editor.tsx` (quando `kind === "promo"`):
   - Cor: `<input type="color">` + campo texto hex sincronizados.
   - Estilo: seletor segmentado "Preço" / "Porcentagem".
-  - Aviso inline quando "Porcentagem" está escolhida e o item não tem preço
-    antigo maior que o atual: "Sem preço antigo maior, o slide mostra o preço normal."
+  - Aviso inline quando "Porcentagem" está escolhida e `resolvePromoStyle` cai
+    para `price` (sem preço antigo, preço antigo ≤ atual, preço atual zerado ou
+    desconto que arredonda para 0%): "Sem desconto válido, o slide mostra o
+    preço normal."
 
 ## 4. Testes
 
 - `promo-palette.test.ts`: contraste escolhe branco em cor escura e escuro em
   cor clara; `discountPercent` (1499→899 = 40); `resolvePromoStyle` cai para
   `price` sem preço antigo, com preço antigo ≤ atual e com 0%.
-- `promo-background.test.ts`: SVG contém a cor; sem foto gera retângulo cheio.
+- `promo-background.test.ts`: SVG contém a cor; sem foto gera retângulo cheio;
+  de 1 a 40 caracteres a largura estimada do texto cabe dentro do selo.
 - `render.test.ts`: renderiza promo `price` e `percent`, com e sem foto, sem
   lançar e com PNG 1920×1080.
 - Rota: `PATCH` aceita `accentColor` válido, recusa `#abc`/`red` com 400,
   aceita `promoStyle` e recusa valor fora do enum.
-- `panel-preview.test.tsx`: mostra `40%` no estilo percent e `DE`/`POR` no price.
+- `panel-preview.test.tsx`: mostra `40%` no estilo percent e `DE`/`POR` no price;
+  corta manchete, nome e corpo nos mesmos limites do servidor; preço de sete
+  dígitos usa a fonte de 100px.
+- `promo-visual.test.ts` (signage): repete os valores do servidor (paleta,
+  medidas do selo, limites de texto) para acusar deriva entre as duas cópias.
 - `portal-panel-editor.test.tsx`: mudar cor/estilo envia os campos; aviso aparece
   sem preço antigo.
 

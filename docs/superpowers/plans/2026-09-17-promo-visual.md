@@ -1657,3 +1657,32 @@ Subir api + signage (skill `run` ou scripts `dev`), entrar no portal com um clie
 - [ ] **Step 4: Relatar**
 
 Resumo ao usuário com os PNGs gerados (caminhos no scratchpad), o que passou e qualquer desvio da spec.
+
+## Desvios durante a implementação
+
+Os blocos de código acima ficaram como foram planejados; o que mudou na
+implementação (e está valendo no código) é isto:
+
+- **Largura estimada do selo**: `BADGE_CHAR_WIDTH` passou de `0.6` para `0.7` —
+  a Fredoka Bold em maiúsculas é mais larga que o chute inicial. Com isso
+  `promoBadgeMetrics("PROMOÇÃO")` dá `width: 650` (não 573) e os testes do plano
+  que citam 573 usam 650.
+- **Degraus de fonte do selo**: em vez de `96 / 64 / 44`, ficou
+  `96 (≤10) / 64 (≤15) / 46 (≤21) / 34 (≤28) / 24 (acima)`. A altura do selo é
+  fixa (`fonte × 1,9`); com os degraus antigos um texto perto dos 40 caracteres
+  (`MAX_HEADLINE`) ficava mais largo que a cápsula, o satori quebrava em duas
+  linhas e a segunda saía por cima da borda pontilhada.
+- **Corte do nome do produto**: `MAX_PROMO_NAME` é 24 (não 28), para caber em
+  800px a 52px de Fredoka Bold. A prévia do portal aplica o mesmo `truncate`
+  em vez de confiar só no `truncate` do CSS.
+- **Fonte do preço**: ganhou um terceiro degrau — `amount.length > 9 ? 100 :
+  amount.length > 6 ? 130 : 170` — porque a API aceita até 100.000.000 centavos
+  e `1.000.000,00` a 130px invadia a foto.
+- **DE/POR**: só aparece quando o preço antigo é **maior** que o atual (a API
+  não compara os dois), no servidor e na prévia.
+- **Aviso do editor**: o texto é "Sem desconto válido, o slide mostra o preço
+  normal." — o aviso também aparece com preço zerado ou desconto que arredonda
+  para 0%, casos em que falar de "preço antigo maior" seria impreciso.
+- **Cortes espelhados na prévia**: `MAX_HEADLINE`, `MAX_PROMO_NAME` e `MAX_BODY`
+  são exportados de `artifacts/signage/src/lib/promo-visual.ts` e testados
+  contra os valores do servidor em `promo-visual.test.ts`.
