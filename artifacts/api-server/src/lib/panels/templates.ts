@@ -246,7 +246,8 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
           }),
         ]
       : [
-          oldPriceCents !== null
+          // Preço antigo zerado ou sem desconto (a API não compara com o preço) não vira DE/POR.
+          oldPriceCents !== null && oldPriceCents > priceCents
             ? node("div", {
                 style: { display: "flex", alignItems: "baseline", marginTop: 24 },
                 children: [

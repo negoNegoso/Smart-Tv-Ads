@@ -70,6 +70,20 @@ describe("promoNode", () => {
     expect(t).not.toContain("DE");
   });
 
+  it.each([
+    ["zero", 0],
+    ["igual ao preço", 899],
+  ])("preço antigo %s não mostra DE/POR", (_caso, oldPriceCents) => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: "price" },
+      page({ ...cheesecake, oldPriceCents }),
+    );
+    const t = texts(tree);
+    expect(t).toContain("8,99");
+    expect(t).not.toContain("DE");
+    expect(t).not.toContain("POR");
+  });
+
   it("usa a cor escolhida no fundo e desenha a diagonal com foto", () => {
     const tree = panelPageNode(
       { kind: "promo", headline: "Oferta", body: null, accentColor: "#2563eb", promoStyle: null },
