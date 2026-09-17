@@ -59,6 +59,15 @@ describe('PanelPreview', () => {
     expect(decodeURIComponent(bg!.getAttribute('src')!)).toContain('fill="#2563EB"');
   });
 
+  it('promoção corta o selo em 40 caracteres, igual ao servidor', () => {
+    const headline = 'Promoção imperdível de fim de semana para clientes vip hojex';
+    render(
+      <PanelPreview kind="promo" headline={headline} body={null} items={[item('Pizza', 4990)]} page={1} />,
+    );
+    expect(screen.getByText('PROMOÇÃO IMPERDÍVEL DE FIM DE SEMANA PA…')).toBeInTheDocument();
+    expect(screen.queryByText(headline.toUpperCase())).not.toBeInTheDocument();
+  });
+
   it('aviso mostra headline e corpo, sem preço', () => {
     render(<PanelPreview kind="notice" headline="Aceitamos Pix" body="Chave no balcão" items={[]} page={1} />);
     expect(screen.getByText('Aceitamos Pix')).toBeInTheDocument();

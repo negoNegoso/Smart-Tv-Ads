@@ -6,6 +6,23 @@
  * deriva. Quem decide o visual de verdade é o PNG do servidor.
  */
 
+/** Mesmo limite de `MAX_HEADLINE` em `artifacts/api-server/src/lib/panels/templates.ts`. */
+export const MAX_HEADLINE = 40;
+
+/**
+ * Corta texto que não cabe no quadro, mesma regra de
+ * `artifacts/api-server/src/lib/panels/format.ts`: o selo da promoção usa
+ * `MAX_HEADLINE` para não estourar a cápsula.
+ */
+export function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  // slice(0, max - 1) com max <= 0 cria um índice negativo, fazendo JavaScript
+  // contar a partir do fim da string. Isto violaria o contrato: nunca exceder max.
+  if (max <= 0) return '';
+  const cut = text.slice(0, max - 1).trimEnd();
+  return `${cut}…`;
+}
+
 export const DEFAULT_ACCENT_COLOR = '#D63A6A';
 const LIGHT_TEXT = '#FFFFFF';
 const DARK_TEXT = '#1F1B2E';

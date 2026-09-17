@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import {
+  MAX_HEADLINE,
   PROMO_PHOTO_LEFT,
   PROMO_SPLIT_BOTTOM,
   discountPercent,
@@ -8,6 +9,7 @@ import {
   promoBadgeSvg,
   promoPalette,
   resolvePromoStyle,
+  truncate,
 } from '@/lib/promo-visual';
 
 /**
@@ -127,7 +129,7 @@ function PromoPreview({
   const palette = promoPalette(accentColor);
   const style = resolvePromoStyle(promoStyle, item);
   const photo = item?.imageUrl ?? null;
-  const badgeText = (headline ?? 'PROMOÇÃO').toUpperCase();
+  const badgeText = truncate(headline ?? 'PROMOÇÃO', MAX_HEADLINE).toUpperCase();
   const badge = promoBadgeMetrics(badgeText);
   const priceCents = item?.priceCents ?? 0;
   const oldPriceCents = item?.oldPriceCents ?? null;
