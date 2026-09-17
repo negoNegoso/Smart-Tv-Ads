@@ -89,7 +89,7 @@ export function paginateMenuItems<T extends PaginateItem>(
   items: T[],
   contentHeight: number = MENU_CONTENT_HEIGHT,
 ): PanelPage<T>[] {
-  // Configuração inválida não deve tirar o cardápio do ar: usar o padrão em vez de travar.
+  // Configuração inválida não deve tirar a tabela de preços do ar: usar o padrão em vez de travar.
   if (!Number.isFinite(contentHeight) || contentHeight < 1) {
     contentHeight = MENU_CONTENT_HEIGHT;
   }

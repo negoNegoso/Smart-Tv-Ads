@@ -54,7 +54,7 @@ function frame(children: unknown[]) {
 }
 
 /*
- * Orçamento vertical do cardápio.
+ * Orçamento vertical da tabela de preços.
  *
  * As alturas abaixo NÃO são estimadas por fórmula: são medidas do satori
  * renderizando este mesmo template (`__tests__/menu-layout.test.ts` mede de
@@ -70,7 +70,7 @@ function frame(children: unknown[]) {
 const FRAME_HEIGHT = 1080; // mesmo valor de PANEL_HEIGHT (render.ts); duplicado aqui para não
 // criar import circular (render.ts importa templates.ts, não o contrário).
 
-/** Altura útil do quadro do cardápio, já descontado o padding do frame. */
+/** Altura útil do quadro da tabela de preços, já descontado o padding do frame. */
 export const MENU_CONTENT_HEIGHT = FRAME_HEIGHT - 2 * FRAME_PADDING_VERTICAL;
 
 const MENU_ROW_NAME_FONT_SIZE = 40;

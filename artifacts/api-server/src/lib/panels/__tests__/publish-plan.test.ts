@@ -56,14 +56,14 @@ describe("panelPages", () => {
     expect(pages[0].items.map((i) => i.name)).toEqual(["Pizza"]);
   });
 
-  it("cardápio grande vira várias páginas", () => {
+  it("tabela de preços grande vira várias páginas", () => {
     const items = Array.from({ length: 17 }, (_, i) => item(`Item ${i}`, i));
     const pages = panelPages({ ...base, kind: "menu", items });
     expect(pages.length).toBeGreaterThan(1);
     expect(pages.flatMap((p) => p.items)).toHaveLength(17);
   });
 
-  it("linha com descrição é mais alta, então o mesmo cardápio rende mais páginas", () => {
+  it("linha com descrição é mais alta, então a mesma tabela de preços rende mais páginas", () => {
     // O corte é por altura: descrever os itens engorda cada linha e o mesmo
     // número de itens deixa de caber nas mesmas telas.
     const items = Array.from({ length: 17 }, (_, i) => item(`Item ${i}`, i));
@@ -73,7 +73,7 @@ describe("panelPages", () => {
     );
   });
 
-  it("cardápio sem item ativo não rende página nenhuma", () => {
+  it("tabela de preços sem item ativo não rende página nenhuma", () => {
     const items = [{ ...item("Fora", 1), isActive: false }];
     expect(panelPages({ ...base, kind: "menu", items })).toEqual([]);
   });

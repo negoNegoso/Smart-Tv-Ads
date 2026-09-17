@@ -12,7 +12,7 @@ export function canAccessPanel(auth: PanelAuth, panelClientId: number): boolean 
 /**
  * Cliente dono do painel que está sendo criado, ou null quando a intenção é
  * ambígua ou proibida. Devolver null em vez de escolher um vínculo qualquer
- * evita criar o cardápio na loja errada de quem opera duas.
+ * evita criar a tabela de preços na loja errada de quem opera duas.
  */
 export function resolveOwnerClientId(auth: PanelAuth, requested: number | undefined): number | null {
   if (requested !== undefined) {

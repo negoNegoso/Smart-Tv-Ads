@@ -45,13 +45,13 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 const KIND_LABEL: Record<Panel['kind'], string> = {
-  menu: 'Cardápio',
+  menu: 'Tabela de preços',
   promo: 'Promoção',
   notice: 'Aviso',
 };
 
 const NEW_PANEL_OPTIONS = [
-  { kind: 'menu' as const, template: 'menu-basico', label: 'Novo cardápio' },
+  { kind: 'menu' as const, template: 'menu-basico', label: 'Nova tabela de preços' },
   { kind: 'promo' as const, template: 'promo-foto', label: 'Nova promoção' },
   { kind: 'notice' as const, template: 'aviso-simples', label: 'Novo aviso' },
 ];
@@ -117,7 +117,7 @@ function PanelCard({
           <p className="mt-1 text-sm text-muted-foreground">
             {KIND_LABEL[panel.kind]}
             {/* Só aparece para quem opera mais de uma loja: sem isto, dois
-                cardápios de lojas diferentes ficam indistinguíveis na lista. */}
+                tabelas de preços de lojas diferentes ficam indistinguíveis na lista. */}
             {clientName ? ` · ${clientName}` : ''}
           </p>
         </div>
@@ -191,7 +191,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
 
   // Quem opera uma loja só nunca vê o seletor: o id vai junto do pedido de
   // qualquer jeito. Com duas ou mais, o servidor se recusa a adivinhar — e faz
-  // bem, criar o cardápio na loja errada é pior que um erro na tela.
+  // bem, criar a tabela de preços na loja errada é pior que um erro na tela.
   const clients = clientsQuery.data ?? [];
   const needsClientChoice = clients.length > 1;
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -336,7 +336,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
           <EmptyHeader>
             <EmptyTitle>Você ainda não tem nenhum painel</EmptyTitle>
             <EmptyDescription>
-              Crie um cardápio, uma promoção ou um aviso para começar a exibir nas suas TVs.
+              Crie uma tabela de preços, uma promoção ou um aviso para começar a exibir nas suas TVs.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

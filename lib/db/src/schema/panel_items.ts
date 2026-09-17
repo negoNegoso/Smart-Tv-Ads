@@ -17,9 +17,9 @@ export const panelItemsTable = pgTable(
     priceCents: integer("price_cents").notNull().default(0),
     // O "de" do "de/por". Nulo quando não há preço antigo.
     oldPriceCents: integer("old_price_cents"),
-    // Agrupa no cardápio. Nulo cai num grupo sem título.
+    // Agrupa na tabela de preços. Nulo cai num grupo sem título.
     category: text("category"),
-    // Só a promoção usa foto; o cardápio é tipográfico.
+    // Só a promoção usa foto; a tabela de preços é tipográfica.
     imageUrl: text("image_url"),
     displayOrder: integer("display_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),

@@ -297,13 +297,13 @@ scripts/            scripts auxiliares do workspace
 - Scans são apresentados junto das exibições em números brutos e visitantes únicos, mais a taxa `scans / exibições`. A métrica mede resposta, não alcance: um scan não é atribuível a uma exibição ou TV específica.
 - Visitantes únicos são contados por `fingerprint` (hash de IP + user-agent com `SCAN_SALT`); não há cookie de rastreamento. Reabrir o mesmo link soma no bruto e não soma no único. Duas pessoas atrás do mesmo IP com o mesmo navegador contam como uma.
 - Uploads são persistidos no App Storage; o banco guarda somente o caminho do objeto e os metadados.
-- **Painéis do cliente** são cardápios, promoções e avisos que o próprio
+- **Painéis do cliente** são tabelas de preços, promoções e avisos que o próprio
   lojista cadastra no portal. Publicar renderiza cada página no servidor
   (satori + resvg-wasm) como PNG 1920×1080, grava no App Storage e materializa
   uma peça com `source='panel'`. Os painéis publicados entram automaticamente
   em todas as TVs daquele cliente — o vínculo é `panels.client_id` =
   `devices.client_id` (uma consulta feita a cada carga do display), não
-  `device_playlist`, para que uma TV nova já nasça com o cardápio no ar.
+  `device_playlist`, para que uma TV nova já nasça com a tabela de preços no ar.
 - Peças com `source='panel'` não são editáveis, ocultáveis nem apagáveis no
   painel de gestão: essas ações voltam 409, porque a fonte da verdade é o
   cadastro do painel — para tirar do ar, despublique o painel. Reordenar a

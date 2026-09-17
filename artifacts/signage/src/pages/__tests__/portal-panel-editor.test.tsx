@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PortalPanelEditor, { parsePriceToCents } from '../portal-panel-editor';
 
 const panel = {
-  id: 1, clientId: 7, kind: 'menu', name: 'Cardápio', template: 'menu-basico',
+  id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços', template: 'menu-basico',
   status: 'draft', duration: 10, headline: null, body: null, publishedAt: null,
   items: [
     { id: 1, panelId: 1, name: 'Coxinha', description: null, priceCents: 750, oldPriceCents: null, category: 'Lanches', imageUrl: null, displayOrder: 0, isActive: true },

@@ -61,7 +61,7 @@ async function withResolvedImage(
  *
  * A ordem importa: tudo é renderizado e enviado ao MediaStore **antes** de
  * abrir a transação. Se a renderização falhar, a publicação anterior segue
- * intacta no ar — melhor cardápio velho que TV vazia.
+ * intacta no ar — melhor tabela de preços velha que TV vazia.
  */
 export async function publishPanel(panelId: number): Promise<{ pages: number }> {
   const panel = await getPanel(panelId);

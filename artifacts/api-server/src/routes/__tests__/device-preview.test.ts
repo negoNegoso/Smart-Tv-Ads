@@ -123,7 +123,7 @@ const CAMPAIGN_ROW = {
 const PANEL_ROW = {
   ...SLIDE_BASE,
   announcementId: 303,
-  title: "Cardápio do dia",
+  title: "Tabela de preços do dia",
   imageUrl: "/api/uploads/painel.png",
 };
 

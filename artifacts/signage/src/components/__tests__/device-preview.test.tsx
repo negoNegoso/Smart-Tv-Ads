@@ -22,7 +22,7 @@ const slide = (overrides: Partial<DevicePreviewSlide>): DevicePreviewSlide => ({
 
 const ROTATION: DevicePreviewSlide[] = [
   slide({ announcementId: 1, title: 'Pizzaria X', source: 'campaign', campaignId: 5, duration: 10 }),
-  slide({ announcementId: 2, title: 'Cardápio p.1', source: 'panel', duration: 15 }),
+  slide({ announcementId: 2, title: 'Tabela de preços p.1', source: 'panel', duration: 15 }),
   slide({ announcementId: 3, title: 'Aviso feriado', source: 'playlist', duration: 8 }),
 ];
 
@@ -57,7 +57,7 @@ describe('DevicePreview', () => {
       vi.advanceTimersByTime(200);
     });
     expect(screen.getByText('2/3')).toBeInTheDocument();
-    expect(onStage('Cardápio p.1')).toBeInTheDocument();
+    expect(onStage('Tabela de preços p.1')).toBeInTheDocument();
   });
 
   it('volta ao primeiro depois do último', () => {

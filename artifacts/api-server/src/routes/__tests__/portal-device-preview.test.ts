@@ -70,7 +70,7 @@ const lojistaCtx = {
   advertiserIds: [],
 };
 
-const SLIDES = [{ announcementId: 1, title: "Cardápio", source: "panel" }];
+const SLIDES = [{ announcementId: 1, title: "Tabela de preços", source: "panel" }];
 
 async function getPreview(deviceId: number | string) {
   const app = await buildApp();
