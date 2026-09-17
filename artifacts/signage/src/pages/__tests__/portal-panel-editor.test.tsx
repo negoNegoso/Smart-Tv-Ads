@@ -192,16 +192,19 @@ describe('PortalPanelEditor', () => {
 });
 
 describe('photoOffsetFromDrag', () => {
-  it('desloca o valor inicial pela porcentagem de altura percorrida', () => {
-    expect(photoOffsetFromDrag(50, 108, 1080)).toBe(60);
+  // Arrastar para baixo (deltaY positivo) empurra o conteúdo da foto para
+  // baixo dentro do quadro — o que aparece é mais o TOPO dela, um offset
+  // menor (0 = topo). Por isso o deslocamento é subtraído, não somado.
+  it('arrastar para baixo diminui o enquadramento', () => {
+    expect(photoOffsetFromDrag(50, 108, 1080)).toBe(40);
   });
 
-  it('presa no mínimo 0', () => {
-    expect(photoOffsetFromDrag(10, -1000, 1080)).toBe(0);
+  it('arrastar para baixo até o fim presa no mínimo 0', () => {
+    expect(photoOffsetFromDrag(10, 1000, 1080)).toBe(0);
   });
 
-  it('presa no máximo 100', () => {
-    expect(photoOffsetFromDrag(90, 1000, 1080)).toBe(100);
+  it('arrastar para cima até o fim presa no máximo 100', () => {
+    expect(photoOffsetFromDrag(90, -1000, 1080)).toBe(100);
   });
 
   it('altura zero devolve o valor inicial preso ao intervalo', () => {

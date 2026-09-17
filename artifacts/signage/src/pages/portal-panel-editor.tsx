@@ -127,13 +127,20 @@ function parsePriceOrZero(raw: string): number {
 /**
  * Converte o arrasto vertical na prévia (Anexo 2026-09-17) em porcentagem de
  * enquadramento: o deslocamento em pixels desde o mousedown vira porcentagem
- * pela altura da prévia, somado ao valor de partida e preso entre 0 e 100.
+ * pela altura da prévia, subtraído do valor de partida e preso entre 0 e 100.
+ *
+ * A subtração (em vez de soma) é o que faz o arrasto se comportar como
+ * "segurar a foto": arrastar para baixo empurra o conteúdo da foto para
+ * baixo dentro do quadro, então o que aparece é mais o TOPO dela — um
+ * `object-position` Y menor, na convenção 0 = topo, 100 = rodapé. Arrastar
+ * para cima é o oposto: revela mais o rodapé, offset maior.
+ *
  * Altura zero (prévia ainda não medida) não desloca nada, só prende o valor
  * de partida ao intervalo.
  */
 export function photoOffsetFromDrag(startOffset: number, deltaY: number, previewHeight: number): number {
   const deltaPercent = previewHeight > 0 ? (deltaY / previewHeight) * 100 : 0;
-  return Math.min(100, Math.max(0, startOffset + deltaPercent));
+  return Math.min(100, Math.max(0, startOffset - deltaPercent));
 }
 
 function itemToDraft(item: PanelItem): ItemDraft {
@@ -987,7 +994,7 @@ export default function PortalPanelEditor({
                 aria-hidden="true"
                 className="absolute inset-y-0"
                 style={{
-                  left: `${(PROMO_PHOTO_LEFT / 1920) * 100}%`,
+                  left: `${(PROMO_PHOTO_LEFT / (PROMO_PHOTO_LEFT + PROMO_PHOTO_WIDTH)) * 100}%`,
                   right: 0,
                   cursor: isDraggingPhoto ? 'grabbing' : 'grab',
                   touchAction: 'none',
