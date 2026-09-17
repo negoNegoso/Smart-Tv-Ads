@@ -27,13 +27,25 @@ describe("promoBadgeMetrics", () => {
   });
 
   it("texto médio reduz a fonte", () => {
-    expect(promoBadgeMetrics("OFERTA DA SEMANA").fontSize).toBe(64);
+    expect(promoBadgeMetrics("OFERTA DA SEMANA").fontSize).toBe(46);
+    expect(promoBadgeMetrics("OFERTA DA SEM").fontSize).toBe(64);
   });
 
   it("texto longo nunca passa de 800px", () => {
     const m = promoBadgeMetrics("X".repeat(40));
-    expect(m.fontSize).toBe(44);
-    expect(m.width).toBe(800);
+    expect(m.fontSize).toBe(24);
+    expect(m.width).toBe(784);
+  });
+
+  // O satori quebra linha quando o texto é mais largo que a caixa, mas a altura
+  // do selo é fixa: se a estimativa passar da largura, o texto sai da cápsula.
+  it("de 1 a 40 caracteres o texto estimado cabe na cápsula", () => {
+    for (let length = 1; length <= 40; length += 1) {
+      const m = promoBadgeMetrics("X".repeat(length));
+      const estimated = Math.round(length * 0.7 * m.fontSize) + 112;
+      expect(estimated, `${length} caracteres`).toBeLessThanOrEqual(m.width);
+      expect(m.width, `${length} caracteres`).toBeLessThanOrEqual(800);
+    }
   });
 });
 

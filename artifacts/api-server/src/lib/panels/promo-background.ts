@@ -48,10 +48,17 @@ export function promoBackgroundSvg(opts: { color: string; ornament: string; hasI
 /**
  * Tamanho do selo. O satori não mede texto antes de desenhar, então a largura
  * é estimada pela contagem de caracteres; o teto evita invadir a foto.
+ *
+ * Os degraus de fonte descem o suficiente para a estimativa
+ * `length × BADGE_CHAR_WIDTH × fontSize + BADGE_HORIZONTAL_PADDING` caber em
+ * BADGE_MAX_WIDTH até o limite de 40 caracteres (`MAX_HEADLINE`). Sem isso o
+ * satori quebraria o texto em duas linhas dentro de um selo de altura fixa e a
+ * segunda linha sairia por cima da borda pontilhada.
  */
 export function promoBadgeMetrics(text: string): { fontSize: number; width: number; height: number } {
   const length = text.length;
-  const fontSize = length <= 10 ? 96 : length <= 16 ? 64 : 44;
+  const fontSize =
+    length <= 10 ? 96 : length <= 15 ? 64 : length <= 21 ? 46 : length <= 28 ? 34 : 24;
   const width = Math.min(
     BADGE_MAX_WIDTH,
     Math.round(length * BADGE_CHAR_WIDTH * fontSize) + BADGE_HORIZONTAL_PADDING,

@@ -123,9 +123,9 @@ describe('PortalPanelEditor', () => {
     stubPromoFetch();
     renderEditor();
     await screen.findByDisplayValue('Cheesecake');
-    expect(screen.queryByText(/sem preço antigo maior/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sem desconto válido/i)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /porcentagem/i }));
-    expect(screen.getByText('Sem preço antigo maior, o slide mostra o preço normal.')).toBeInTheDocument();
+    expect(screen.getByText('Sem desconto válido, o slide mostra o preço normal.')).toBeInTheDocument();
   });
 
   it('código de cor inválido não é enviado', async () => {

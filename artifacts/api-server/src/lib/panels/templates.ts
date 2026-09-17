@@ -264,9 +264,14 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
             style: { display: "flex", alignItems: "baseline", color: palette.price },
             children: [
               node("div", { style: { ...bold, fontSize: 52, marginRight: 12 }, children: currency }),
-              // "1.299,99" em 170px invadiria a foto.
+              // "1.299,99" em 170px invadiria a foto; "1.000.000,00" (a API
+              // aceita até 100.000.000 centavos) ainda estouraria em 130px.
               node("div", {
-                style: { ...bold, fontSize: amount.length > 6 ? 130 : 170, lineHeight: 1 },
+                style: {
+                  ...bold,
+                  fontSize: amount.length > 9 ? 100 : amount.length > 6 ? 130 : 170,
+                  lineHeight: 1,
+                },
                 children: amount,
               }),
             ],

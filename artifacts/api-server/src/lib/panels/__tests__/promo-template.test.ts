@@ -28,6 +28,22 @@ function decodedSvgs(node: unknown): string[] {
     .map((src) => Buffer.from(src.split(",")[1]!, "base64").toString("utf8"));
 }
 
+/** Tamanho de fonte do nó cujo texto é exatamente `text`. */
+function fontSizeOf(node: unknown, text: string): number | undefined {
+  if (!node || typeof node !== "object") return undefined;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = fontSizeOf(child, text);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (!("props" in node)) return undefined;
+  const n = node as SatoriNode;
+  if (n.props.children === text) return n.props.style?.fontSize as number | undefined;
+  return fontSizeOf(n.props.children, text);
+}
+
 const cheesecake: RenderItem = {
   name: "Cheesecake de morango",
   description: null,
@@ -82,6 +98,19 @@ describe("promoNode", () => {
     expect(t).toContain("8,99");
     expect(t).not.toContain("DE");
     expect(t).not.toContain("POR");
+  });
+
+  // A API aceita até 100.000.000 centavos; "1.000.000,00" em 130px invadiria a foto.
+  it.each([
+    ["8,99", 899, 170],
+    ["1.299,99", 129999, 130],
+    ["1.000.000,00", 100000000, 100],
+  ])("preço %s usa fonte %s", (amount, priceCents, fontSize) => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null },
+      page({ ...cheesecake, priceCents, oldPriceCents: null }),
+    );
+    expect(fontSizeOf(tree, amount as string)).toBe(fontSize);
   });
 
   it("usa a cor escolhida no fundo e desenha a diagonal com foto", () => {

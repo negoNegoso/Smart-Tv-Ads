@@ -722,7 +722,7 @@ export default function PortalPanelEditor({
                     {promoStyle === 'percent' &&
                     resolvePromoStyle('percent', items[0] ? draftToPreviewItem(items[0]) : undefined) === 'price' ? (
                       <p className="text-xs text-muted-foreground">
-                        Sem preço antigo maior, o slide mostra o preço normal.
+                        Sem desconto válido, o slide mostra o preço normal.
                       </p>
                     ) : null}
                   </div>

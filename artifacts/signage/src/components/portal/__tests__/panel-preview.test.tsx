@@ -68,6 +68,25 @@ describe('PanelPreview', () => {
     expect(screen.queryByText(headline.toUpperCase())).not.toBeInTheDocument();
   });
 
+  it('promoção corta o nome do item em 24 caracteres, igual ao servidor', () => {
+    const name = 'Cheesecake de morango com calda quente';
+    render(<PanelPreview kind="promo" headline={null} body={null} items={[item(name, 4990)]} page={1} />);
+    expect(screen.getByText('CHEESECAKE DE MORANGO C…')).toBeInTheDocument();
+    expect(screen.queryByText(name.toUpperCase())).not.toBeInTheDocument();
+  });
+
+  it('promoção corta o corpo em 160 caracteres, igual ao servidor', () => {
+    const body = 'a'.repeat(200);
+    render(<PanelPreview kind="promo" headline={null} body={body} items={[item('Pizza', 4990)]} page={1} />);
+    expect(screen.getByText(`${'a'.repeat(159)}…`)).toBeInTheDocument();
+    expect(screen.queryByText(body)).not.toBeInTheDocument();
+  });
+
+  it('promoção com preço de sete dígitos usa a fonte menor, igual ao servidor', () => {
+    render(<PanelPreview kind="promo" headline={null} body={null} items={[item('Carro', 100000000)]} page={1} />);
+    expect(screen.getByText('1.000.000,00').style.fontSize).toBe(`${(100 / 1920) * 100}cqw`);
+  });
+
   it('aviso mostra headline e corpo, sem preço', () => {
     render(<PanelPreview kind="notice" headline="Aceitamos Pix" body="Chave no balcão" items={[]} page={1} />);
     expect(screen.getByText('Aceitamos Pix')).toBeInTheDocument();

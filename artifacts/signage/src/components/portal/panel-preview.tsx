@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
 import {
+  MAX_BODY,
   MAX_HEADLINE,
+  MAX_PROMO_NAME,
   PROMO_PHOTO_LEFT,
   PROMO_SPLIT_BOTTOM,
   discountPercent,
@@ -169,8 +171,9 @@ function PromoPreview({
           />
           <span style={{ fontSize: px(badge.fontSize) }}>{badgeText}</span>
         </div>
+        {/* Corte igual ao do servidor: o `truncate` do CSS esconderia no PNG o que a prévia mostra inteiro. */}
         <div className="truncate" style={{ fontSize: px(52), marginTop: px(24) }}>
-          {(item?.name ?? '').toUpperCase()}
+          {truncate((item?.name ?? '').toUpperCase(), MAX_PROMO_NAME)}
         </div>
         {style === 'percent' && oldPriceCents !== null ? (
           <>
@@ -196,13 +199,17 @@ function PromoPreview({
             ) : null}
             <div className="flex items-baseline" style={{ color: palette.price }}>
               <span style={{ fontSize: px(52), marginRight: px(12) }}>{currency}</span>
-              <span style={{ fontSize: px(amount.length > 6 ? 130 : 170), lineHeight: 1 }}>{amount}</span>
+              <span
+                style={{ fontSize: px(amount.length > 9 ? 100 : amount.length > 6 ? 130 : 170), lineHeight: 1 }}
+              >
+                {amount}
+              </span>
             </div>
           </>
         )}
         {body ? (
           <div className="line-clamp-2" style={{ fontSize: px(38), lineHeight: 1.2, marginTop: px(16), color: palette.price }}>
-            {body}
+            {truncate(body, MAX_BODY)}
           </div>
         ) : null}
       </div>
