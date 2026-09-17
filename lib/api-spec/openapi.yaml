@@ -1275,7 +1275,10 @@ components:
         displayOrder: { type: integer }
         isActive: { type: boolean }
         title: { type: string }
-        imageUrl: { type: string }
+        # Nulo é estado normal da peça: nasce sem imagem quando não há upload, e
+        # o poster é zerado ao trocar para YouTube. Proibir nulo aqui derrubava
+        # as três rotas de playlist depois que a linha já estava no banco.
+        imageUrl: { type: string, nullable: true }
         duration: { type: integer }
 
     PlaylistItemInput:

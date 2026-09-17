@@ -637,7 +637,7 @@ export const GetDevicePlaylistResponseItem = zod.object({
   "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "title": zod.string(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullable(),
   "duration": zod.number()
 })
 export const GetDevicePlaylistResponse = zod.array(GetDevicePlaylistResponseItem)
@@ -689,7 +689,7 @@ export const AddToDevicePlaylistResponse = zod.object({
   "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "title": zod.string(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullable(),
   "duration": zod.number()
 })
 
@@ -734,7 +734,7 @@ export const TogglePlaylistItemResponse = zod.object({
   "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "title": zod.string(),
-  "imageUrl": zod.string(),
+  "imageUrl": zod.string().nullable(),
   "duration": zod.number()
 })
 
