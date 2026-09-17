@@ -1,11 +1,22 @@
 import { cn } from '@/lib/utils';
+import {
+  PROMO_PHOTO_LEFT,
+  PROMO_SPLIT_BOTTOM,
+  discountPercent,
+  promoBackgroundSvg,
+  promoBadgeMetrics,
+  promoBadgeSvg,
+  promoPalette,
+  resolvePromoStyle,
+} from '@/lib/promo-visual';
 
 /**
  * Segunda implementação do visual do quadro — não é o que vai ao ar. O
  * servidor (`artifacts/api-server/src/lib/panels/templates.ts`) desenha o
  * PNG de verdade com satori; esta prévia só ajuda o lojista a ver, antes de
- * publicar, se o texto cabe e onde a paginação corta. As cores abaixo
- * espelham `COLORS` de lá; o layout é aproximado, não pixel a pixel.
+ * publicar, se o texto cabe e onde a paginação corta. A promoção agora
+ * espelha `promoNode` por `px()` (quase pixel a pixel, cores incluídas);
+ * menu e aviso continuam aproximados, com as cores de `COLORS` abaixo.
  */
 const COLORS = {
   background: '#0B1120',
@@ -30,6 +41,8 @@ export interface PanelPreviewProps {
   body: string | null;
   items: PanelPreviewItem[];
   page: number;
+  accentColor?: string | null;
+  promoStyle?: string | null;
 }
 
 /**
@@ -86,53 +99,116 @@ function MenuPreview({ items, page }: { items: PanelPreviewItem[]; page: number 
   );
 }
 
+/** Pixel do quadro 1920×1080 em unidade do container: 1920px = 100cqw. */
+const px = (value: number) => `${(value / 1920) * 100}cqw`;
+
+const svgSrc = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+/** "R$ 8,99" → ["R$", "8,99"], mesma regra do servidor. */
+function splitCurrency(formatted: string): [string, string] {
+  const space = formatted.indexOf(' ');
+  return [formatted.slice(0, space), formatted.slice(space + 1)];
+}
+
 function PromoPreview({
   headline,
   body,
   item,
+  accentColor,
+  promoStyle,
 }: {
   headline: string | null;
   body: string | null;
   item: PanelPreviewItem | undefined;
+  accentColor: string | null;
+  promoStyle: string | null;
 }) {
+  // Mesmas posições e tamanhos de `promoNode` em templates.ts, convertidos por px().
+  const palette = promoPalette(accentColor);
+  const style = resolvePromoStyle(promoStyle, item);
+  const photo = item?.imageUrl ?? null;
+  const badgeText = (headline ?? 'PROMOÇÃO').toUpperCase();
+  const badge = promoBadgeMetrics(badgeText);
+  const priceCents = item?.priceCents ?? 0;
+  const oldPriceCents = item?.oldPriceCents ?? null;
+  const [currency, amount] = splitCurrency(formatPriceBRL(priceCents));
+
   return (
-    <div className="flex h-full w-full flex-col">
+    <div
+      className="relative h-full w-full overflow-hidden font-bold"
+      style={{ backgroundColor: '#F1F1F3', color: palette.text, fontFamily: 'Fredoka, sans-serif' }}
+    >
+      {photo ? (
+        <img
+          src={photo}
+          alt=""
+          className="absolute top-0 h-full object-cover"
+          style={{ left: px(PROMO_PHOTO_LEFT), width: px(1920 - PROMO_PHOTO_LEFT) }}
+        />
+      ) : null}
+      <img
+        data-promo-background
+        src={svgSrc(promoBackgroundSvg({ color: palette.panel, ornament: palette.text, hasImage: Boolean(photo) }))}
+        alt=""
+        className="absolute inset-0 h-full w-full"
+      />
       <div
-        className="shrink-0 text-[3cqw] uppercase tracking-[0.2em]"
-        style={{ color: COLORS.accent }}
+        className="absolute flex flex-col"
+        style={{ left: px(80), top: px(310), width: px(photo ? PROMO_SPLIT_BOTTOM - 160 : 1400) }}
       >
-        {headline ?? 'PROMOÇÃO'}
-      </div>
-      <div className="flex min-h-0 flex-1 items-center justify-between gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="truncate text-[6cqw] font-bold leading-tight">{item?.name ?? ''}</div>
-          {body ? (
-            <div className="line-clamp-2 text-[2.5cqw]" style={{ color: COLORS.muted }}>
-              {body}
-            </div>
-          ) : null}
-          <div className="flex items-baseline gap-4">
-            {item?.oldPriceCents ? (
-              <span
-                className="line-through text-[3.2cqw]"
-                style={{ color: COLORS.muted }}
-              >
-                {formatPriceBRL(item.oldPriceCents)}
-              </span>
-            ) : null}
-            <span className="text-[8cqw] font-bold" style={{ color: COLORS.accent }}>
-              {formatPriceBRL(item?.priceCents ?? 0)}
-            </span>
-          </div>
-        </div>
-        {item?.imageUrl ? (
+        <div
+          className="relative flex items-center justify-center"
+          style={{ width: px(badge.width), height: px(badge.height) }}
+        >
           <img
-            src={item.imageUrl}
+            src={svgSrc(promoBadgeSvg({ width: badge.width, height: badge.height, stroke: palette.text }))}
             alt=""
-            className="aspect-square w-[35%] shrink-0 rounded-2xl object-cover"
+            className="absolute inset-0 h-full w-full"
           />
+          <span style={{ fontSize: px(badge.fontSize) }}>{badgeText}</span>
+        </div>
+        <div className="truncate" style={{ fontSize: px(52), marginTop: px(24) }}>
+          {(item?.name ?? '').toUpperCase()}
+        </div>
+        {style === 'percent' && oldPriceCents !== null ? (
+          <>
+            <div className="flex items-baseline" style={{ color: palette.price, marginTop: px(8) }}>
+              <span style={{ fontSize: px(200), lineHeight: 1 }}>{`${discountPercent(oldPriceCents, priceCents)}%`}</span>
+              <span style={{ fontSize: px(72), marginLeft: px(16) }}>OFF</span>
+            </div>
+            <div style={{ fontSize: px(40) }}>
+              {`DE ${formatPriceBRL(oldPriceCents)} POR ${formatPriceBRL(priceCents)}`}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Preço antigo zerado ou sem desconto de verdade não vira DE/POR, mesma regra do servidor. */}
+            {oldPriceCents !== null && oldPriceCents > priceCents ? (
+              <div className="flex items-baseline" style={{ marginTop: px(24) }}>
+                <span style={{ fontSize: px(36) }}>DE</span>
+                <span style={{ fontSize: px(52), margin: `0 ${px(16)}` }}>
+                  {splitCurrency(formatPriceBRL(oldPriceCents))[1]}
+                </span>
+                <span style={{ fontSize: px(36) }}>POR</span>
+              </div>
+            ) : null}
+            <div className="flex items-baseline" style={{ color: palette.price }}>
+              <span style={{ fontSize: px(52), marginRight: px(12) }}>{currency}</span>
+              <span style={{ fontSize: px(amount.length > 6 ? 130 : 170), lineHeight: 1 }}>{amount}</span>
+            </div>
+          </>
+        )}
+        {body ? (
+          <div className="line-clamp-2" style={{ fontSize: px(38), lineHeight: 1.2, marginTop: px(16), color: palette.price }}>
+            {body}
+          </div>
         ) : null}
       </div>
+      {photo ? (
+        <div className="absolute" style={{ right: px(80), bottom: px(40), fontSize: px(32), color: '#3A2A4A' }}>
+          *imagens meramente ilustrativas
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -150,10 +226,18 @@ function NoticePreview({ headline, body }: { headline: string | null; body: stri
   );
 }
 
-export function PanelPreview({ kind, headline, body, items, page }: PanelPreviewProps) {
+export function PanelPreview({
+  kind,
+  headline,
+  body,
+  items,
+  page,
+  accentColor = null,
+  promoStyle = null,
+}: PanelPreviewProps) {
   return (
     <div
-      className={cn('aspect-[16/9] w-full overflow-hidden rounded-lg p-[4%]')}
+      className={cn('aspect-[16/9] w-full overflow-hidden rounded-lg', kind === 'promo' ? null : 'p-[4%]')}
       style={{
         backgroundColor: COLORS.background,
         color: COLORS.text,
@@ -161,7 +245,9 @@ export function PanelPreview({ kind, headline, body, items, page }: PanelPreview
       }}
     >
       {kind === 'menu' ? <MenuPreview items={items} page={page} /> : null}
-      {kind === 'promo' ? <PromoPreview headline={headline} body={body} item={items[0]} /> : null}
+      {kind === 'promo' ? (
+        <PromoPreview headline={headline} body={body} item={items[0]} accentColor={accentColor} promoStyle={promoStyle} />
+      ) : null}
       {kind === 'notice' ? <NoticePreview headline={headline} body={body} /> : null}
     </div>
   );
