@@ -176,8 +176,8 @@ const PROMO_CONTENT_WIDTH_FULL = 1400;
 /** Aparece só se a foto não cobrir a área dela. */
 const PROMO_PHOTO_BACKDROP = "#F1F1F3";
 const PROMO_DISCLAIMER_COLOR = "#3A2A4A";
-/** 52px de Fredoka Bold em maiúsculas: ~32px por caractere, 24 cabem em 800px sem quebrar linha. */
-const MAX_PROMO_NAME = 24;
+/** 52px de Fredoka Bold em maiúsculas: ~32px por caractere, 20 cabem em 670px sem quebrar linha. */
+const MAX_PROMO_NAME = 20;
 
 function svgDataUri(svg: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
@@ -264,12 +264,13 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
             style: { display: "flex", alignItems: "baseline", color: palette.price },
             children: [
               node("div", { style: { ...bold, fontSize: 52, marginRight: 12 }, children: currency }),
-              // "1.299,99" em 170px invadiria a foto; "1.000.000,00" (a API
-              // aceita até 100.000.000 centavos) ainda estouraria em 130px.
+              // Coluna de conteúdo com foto tem 670px: "999,99" em 150px cabe;
+              // "1.299,99" precisa de 100px; "1.000.000,00" (a API aceita até
+              // 100.000.000 centavos) só cabe em 75px.
               node("div", {
                 style: {
                   ...bold,
-                  fontSize: amount.length > 9 ? 100 : amount.length > 6 ? 130 : 170,
+                  fontSize: amount.length > 9 ? 75 : amount.length > 6 ? 100 : 150,
                   lineHeight: 1,
                 },
                 children: amount,

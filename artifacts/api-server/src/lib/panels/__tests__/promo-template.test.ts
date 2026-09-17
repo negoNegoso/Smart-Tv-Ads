@@ -62,7 +62,7 @@ describe("promoNode", () => {
     );
     const t = texts(tree);
     expect(t).toEqual(
-      expect.arrayContaining(["PROMOÇÃO", "CHEESECAKE DE MORANGO", "DE", "14,99", "POR", "R$", "8,99", "Só hoje", "*imagens meramente ilustrativas"]),
+      expect.arrayContaining(["PROMOÇÃO", "CHEESECAKE DE MORAN…", "DE", "14,99", "POR", "R$", "8,99", "Só hoje", "*imagens meramente ilustrativas"]),
     );
     expect(t.some((s) => s.includes("%"))).toBe(false);
   });
@@ -100,11 +100,11 @@ describe("promoNode", () => {
     expect(t).not.toContain("POR");
   });
 
-  // A API aceita até 100.000.000 centavos; "1.000.000,00" em 130px invadiria a foto.
+  // A API aceita até 100.000.000 centavos; "1.000.000,00" em 100px invadiria a foto.
   it.each([
-    ["8,99", 899, 170],
-    ["1.299,99", 129999, 130],
-    ["1.000.000,00", 100000000, 100],
+    ["8,99", 899, 150],
+    ["1.299,99", 129999, 100],
+    ["1.000.000,00", 100000000, 75],
   ])("preço %s usa fonte %s", (amount, priceCents, fontSize) => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null },

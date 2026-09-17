@@ -4,7 +4,7 @@ import { promoBackgroundSvg, promoBadgeMetrics, promoBadgeSvg } from "../promo-b
 describe("promoBackgroundSvg", () => {
   it("com foto desenha a diagonal na cor escolhida", () => {
     const svg = promoBackgroundSvg({ color: "#D63A6A", ornament: "#FFFFFF", hasImage: true });
-    expect(svg).toContain('<polygon points="0,0 1120,0 960,1080 0,1080" fill="#D63A6A"/>');
+    expect(svg).toContain('<polygon points="0,0 980,0 830,1080 0,1080" fill="#D63A6A"/>');
     expect(svg).not.toContain("<rect");
   });
 
@@ -23,18 +23,18 @@ describe("promoBackgroundSvg", () => {
 
 describe("promoBadgeMetrics", () => {
   it("PROMOÇÃO cabe em fonte grande", () => {
-    expect(promoBadgeMetrics("PROMOÇÃO")).toEqual({ fontSize: 96, width: 650, height: 182 });
+    expect(promoBadgeMetrics("PROMOÇÃO")).toEqual({ fontSize: 79, width: 554, height: 150 });
   });
 
   it("texto médio reduz a fonte", () => {
-    expect(promoBadgeMetrics("OFERTA DA SEMANA").fontSize).toBe(46);
-    expect(promoBadgeMetrics("OFERTA DA SEM").fontSize).toBe(64);
+    expect(promoBadgeMetrics("OFERTA DA SEMANA").fontSize).toBe(37);
+    expect(promoBadgeMetrics("OFERTA DA SEM").fontSize).toBe(53);
   });
 
-  it("texto longo nunca passa de 800px", () => {
+  it("texto longo nunca passa de 670px", () => {
     const m = promoBadgeMetrics("X".repeat(40));
-    expect(m.fontSize).toBe(24);
-    expect(m.width).toBe(784);
+    expect(m.fontSize).toBe(19);
+    expect(m.width).toBe(644);
   });
 
   // O satori quebra linha quando o texto é mais largo que a caixa, mas a altura
@@ -44,7 +44,7 @@ describe("promoBadgeMetrics", () => {
       const m = promoBadgeMetrics("X".repeat(length));
       const estimated = Math.round(length * 0.7 * m.fontSize) + 112;
       expect(estimated, `${length} caracteres`).toBeLessThanOrEqual(m.width);
-      expect(m.width, `${length} caracteres`).toBeLessThanOrEqual(800);
+      expect(m.width, `${length} caracteres`).toBeLessThanOrEqual(670);
     }
   });
 });

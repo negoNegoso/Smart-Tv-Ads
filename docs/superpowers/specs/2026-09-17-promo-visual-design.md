@@ -67,15 +67,18 @@ Arredondamento para 0% (desconto < 0,5%) também cai para `price`.
 ### Camadas
 
 1. Foto (`item.imageUrl` já resolvida para `data:` URI) em `objectFit: cover`,
-   absoluta, ocupando a metade direita inteira (`x` de 860 a 1920), atrás de tudo.
+   absoluta, ocupando a área à direita da diagonal (`x` de 730 a 1920), atrás de tudo.
    Fundo claro `#F1F1F3` atrás da foto caso ela não cubra.
 2. SVG de fundo 1920×1080: polígono na cor escolhida com vértices
-   `(0,0) (1120,0) (960,1080) (0,1080)` — ~58% no topo, ~50% na base.
+   `(0,0) (980,0) (830,1080) (0,1080)` — ~51% no topo, ~43% na base (painel mais
+   estreito que a primeira versão, para dar mais espaço à foto do produto).
    Enfeites no canto superior esquerdo do painel: onda, traço, círculo cheio,
-   círculo vazado, dois "+", zigue-zague. Cor dos enfeites = cor do texto do
-   painel com opacidade ~0,85.
+   círculo vazado, dois "+", zigue-zague — o "+" e o zigue-zague próximos da
+   borda direita (originalmente perto de x=880-960) foram deslocados 140px para
+   a esquerda (x=740-820) para manter a mesma folga em relação à diagonal mais
+   estreita. Cor dos enfeites = cor do texto do painel com opacidade ~0,85.
 3. Conteúdo em flex, a partir de `y = 310` (abaixo dos enfeites), `x = 80`,
-   largura útil 800px (até a diagonal na base, menos 80px de cada lado).
+   largura útil 670px (até a diagonal na base, menos 80px de cada lado).
 
 Sem foto: polígono vira retângulo cheio (1920×1080), sem rodapé de aviso,
 conteúdo continua à esquerda com largura útil maior (até 1400px).
@@ -99,17 +102,18 @@ De cima para baixo, alinhado à esquerda:
    (`MAX_HEADLINE`), Fredoka Bold, dentro de cápsula com borda pontilhada.
    A cápsula é um SVG próprio (`promoBadgeSvg`) do tamanho do selo — o satori
    não mede texto nem desenha borda pontilhada, então a largura é estimada
-   por `caracteres × 0,7 × fonte + 112`, com teto de 800px.
+   por `caracteres × 0,7 × fonte + 112`, com teto de 670px (a largura da coluna
+   de conteúdo com foto).
    Como a altura do selo é fixa (`fonte × 1,9`), uma estimativa maior que o
    teto faria o satori quebrar o texto em duas linhas e a segunda sairia por
    cima da borda. Por isso os degraus de fonte descem o bastante para a
-   estimativa caber em 800px até os 40 caracteres: 96px até 10 caracteres,
-   64px até 15, 46px até 21, 34px até 28, 24px acima disso.
-2. Nome do produto: Fredoka Bold ~52px, maiúsculas, cortado em 24 caracteres
+   estimativa caber em 670px até os 40 caracteres: 79px até 10 caracteres,
+   53px até 15, 37px até 21, 28px até 28, 19px acima disso.
+2. Nome do produto: Fredoka Bold ~52px, maiúsculas, cortado em 20 caracteres
    (`MAX_PROMO_NAME`), `text`.
 3. `DE 14,99 POR` — Bold ~36px/~52px, só se `oldPriceCents` for **maior** que
    o preço atual (preço antigo ausente, zerado ou ≤ atual não vira DE/POR).
-4. `R$ 8,99` — `R$` ~52px, valor ~170px (130px acima de 6 dígitos e 100px acima
+4. `R$ 8,99` — `R$` ~52px, valor ~150px (100px acima de 6 dígitos e 75px acima
    de 9, para `1.000.000,00` não invadir a foto), cor `price`.
 5. `body` — Fredoka Bold ~38px, cortado em 160 caracteres (`MAX_BODY`), até 2
    linhas, cor `price`.
@@ -154,7 +158,7 @@ em `assets.ts` junto das Inter (família `"Fredoka"`). `build.mjs` ganha loader
   Node — copiadas para `src/lib/promo-visual.ts` (a prévia já espelha cores do
   servidor por cópia; manter o padrão). Fredoka carregada via Google Fonts
   só para a prévia. Os cortes de texto do servidor (`MAX_HEADLINE` 40,
-  `MAX_PROMO_NAME` 24, `MAX_BODY` 160) são exportados de `promo-visual.ts` e
+  `MAX_PROMO_NAME` 20, `MAX_BODY` 160) são exportados de `promo-visual.ts` e
   aplicados também na prévia — só o `truncate`/`line-clamp` do CSS esconderia
   na prévia um corte que o PNG mostra com reticências.
 - `portal-panel-editor.tsx` (quando `kind === "promo"`):

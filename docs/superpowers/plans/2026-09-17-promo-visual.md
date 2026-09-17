@@ -1686,3 +1686,38 @@ implementação (e está valendo no código) é isto:
 - **Cortes espelhados na prévia**: `MAX_HEADLINE`, `MAX_PROMO_NAME` e `MAX_BODY`
   são exportados de `artifacts/signage/src/lib/promo-visual.ts` e testados
   contra os valores do servidor em `promo-visual.test.ts`.
+
+## Painel mais estreito (pedido do lojista, 2026-09-17)
+
+Pedido: dar mais espaço à foto do produto, estreitando o painel colorido.
+`PROMO_SPLIT_TOP`/`PROMO_SPLIT_BOTTOM` foram deslocados 140/130px para a
+esquerda (mantendo a mesma inclinação da diagonal) e todo o resto que dependia
+da largura da coluna foi recalculado:
+
+- **Geometria**: `PROMO_SPLIT_TOP` 1120→980 (~58%→~51% da largura),
+  `PROMO_SPLIT_BOTTOM` 960→830 (~50%→~43%), `PROMO_PHOTO_LEFT` 860→730 (mesma
+  folga de 100px antes da diagonal na base).
+- **Enfeites**: o "+" e o zigue-zague perto da borda direita (x=880-960)
+  foram deslocados 140px para a esquerda (x=740-820) — com a diagonal mais
+  estreita eles ficariam quase colados nela.
+- **Selo (`BADGE_MAX_WIDTH`)**: 800→670 (= `PROMO_SPLIT_BOTTOM - 160`, a nova
+  largura da coluna de conteúdo com foto). Degraus de fonte recalculados para
+  a estimativa (`caracteres × 0,7 × fonte + 112`) caber em 670px até 40
+  caracteres: `96/64/46/34/24` → `79/53/37/28/19` (mesmos limiares de
+  caracteres: 10/15/21/28).
+- **Nome do produto (`MAX_PROMO_NAME`)**: 24→20 — a 52px de Fredoka Bold
+  (~32px/caractere), 24 caracteres precisavam de ~768px, que não cabem mais em
+  670px.
+- **Fonte do preço**: degraus 170/130/100 → 150/100/75 (mesmos limiares de
+  `amount.length`: ≤6/7-9/>9), usando a estimativa `caracteres × 0,62 × fonte`
+  mais a largura de "R$" a 52px e a margem de 12px, para `1.000.000,00` (12
+  dígitos) continuar sem invadir a foto.
+- **Verificação visual**: renderizados (e conferidos com o Read de imagem)
+  price, percent, sem foto, manchete de 39 caracteres, nome de 24 caracteres
+  (corta em "CHEESECAKE DE MORAN…") e preço de R$ 1.000.000,00 — nada cruza a
+  diagonal, sobrepõe o selo pontilhado ou é cortado pela borda do quadro.
+- **Achado não corrigido**: a linha `DE R$ ... POR R$ ...` do estilo percent
+  já estourava a coluna de conteúdo antes desta mudança quando os dois preços
+  têm muitos dígitos (ex.: `DE R$ 1.000.000,00 POR R$ 999.999,99`, ~893px a
+  40px de fonte, tanto nos 800px antigos quanto nos 670px novos). Não é uma
+  regressão desta mudança; fica registrado para uma correção futura.

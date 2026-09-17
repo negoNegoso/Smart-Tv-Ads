@@ -8,8 +8,8 @@
 
 /** Mesmo limite de `MAX_HEADLINE` em `artifacts/api-server/src/lib/panels/templates.ts`. */
 export const MAX_HEADLINE = 40;
-/** Mesmo limite de `MAX_PROMO_NAME`: 52px de Fredoka Bold, 24 maiúsculas cabem em 800px. */
-export const MAX_PROMO_NAME = 24;
+/** Mesmo limite de `MAX_PROMO_NAME`: 52px de Fredoka Bold, 20 maiúsculas cabem em 670px. */
+export const MAX_PROMO_NAME = 20;
 /** Mesmo limite de `MAX_BODY`. */
 export const MAX_BODY = 160;
 
@@ -106,10 +106,10 @@ const WIDTH = 1920;
 const HEIGHT = 1080;
 
 /** x da diagonal no topo e na base do quadro. */
-export const PROMO_SPLIT_TOP = 1120;
-export const PROMO_SPLIT_BOTTOM = 960;
+export const PROMO_SPLIT_TOP = 980;
+export const PROMO_SPLIT_BOTTOM = 830;
 /** Onde a foto começa: um pouco antes da diagonal, para ela passar por trás. */
-export const PROMO_PHOTO_LEFT = 860;
+export const PROMO_PHOTO_LEFT = 730;
 
 /**
  * Tamanho que a foto ocupa no slide. Abaixo disto a TV mostra a imagem
@@ -119,7 +119,8 @@ export const PROMO_PHOTO_LEFT = 860;
 export const PROMO_PHOTO_WIDTH = WIDTH - PROMO_PHOTO_LEFT;
 export const PROMO_PHOTO_HEIGHT = HEIGHT;
 
-const BADGE_MAX_WIDTH = 800;
+/** Cabe exatamente na coluna de conteúdo com foto (`PROMO_SPLIT_BOTTOM - 160` em `panel-preview.tsx`). */
+const BADGE_MAX_WIDTH = 670;
 const BADGE_HORIZONTAL_PADDING = 112;
 /** Largura média de um caractere maiúsculo da Fredoka Bold, em frações da fonte. */
 const BADGE_CHAR_WIDTH = 0.7;
@@ -138,13 +139,13 @@ export function promoBackgroundSvg(opts: { color: string; ornament: string; hasI
     `<path d="M360 150 h90" stroke-width="12"/>` +
     `<circle cx="430" cy="245" r="34" stroke-width="8"/>` +
     `<path d="M490 245 h30 M505 230 v30" stroke-width="5"/>` +
-    `<path d="M880 50 l20 20 l-20 20 l20 20 l-20 20" stroke-width="7"/>` +
-    `<path d="M930 110 h30 M945 95 v30" stroke-width="5"/>` +
+    `<path d="M740 50 l20 20 l-20 20 l20 20 l-20 20" stroke-width="7"/>` +
+    `<path d="M790 110 h30 M805 95 v30" stroke-width="5"/>` +
     `</g>`;
   const dots =
     `<g fill="${ornament}" opacity="0.85">` +
     `<circle cx="530" cy="165" r="26"/>` +
-    `<circle cx="890" cy="160" r="9"/>` +
+    `<circle cx="750" cy="160" r="9"/>` +
     `</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">${shape}${strokes}${dots}</svg>`;
 }
@@ -162,7 +163,7 @@ export function promoBackgroundSvg(opts: { color: string; ornament: string; hasI
 export function promoBadgeMetrics(text: string): { fontSize: number; width: number; height: number } {
   const length = text.length;
   const fontSize =
-    length <= 10 ? 96 : length <= 15 ? 64 : length <= 21 ? 46 : length <= 28 ? 34 : 24;
+    length <= 10 ? 79 : length <= 15 ? 53 : length <= 21 ? 37 : length <= 28 ? 28 : 19;
   const width = Math.min(
     BADGE_MAX_WIDTH,
     Math.round(length * BADGE_CHAR_WIDTH * fontSize) + BADGE_HORIZONTAL_PADDING,

@@ -200,7 +200,7 @@ function PromoPreview({
             <div className="flex items-baseline" style={{ color: palette.price }}>
               <span style={{ fontSize: px(52), marginRight: px(12) }}>{currency}</span>
               <span
-                style={{ fontSize: px(amount.length > 9 ? 100 : amount.length > 6 ? 130 : 170), lineHeight: 1 }}
+                style={{ fontSize: px(amount.length > 9 ? 75 : amount.length > 6 ? 100 : 150), lineHeight: 1 }}
               >
                 {amount}
               </span>

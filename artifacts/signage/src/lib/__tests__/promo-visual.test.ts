@@ -14,11 +14,11 @@ describe('promo-visual (cópia do servidor)', () => {
   });
 
   it('medidas do selo iguais às do servidor', () => {
-    expect(promoBadgeMetrics('PROMOÇÃO')).toEqual({ fontSize: 96, width: 650, height: 182 });
+    expect(promoBadgeMetrics('PROMOÇÃO')).toEqual({ fontSize: 79, width: 554, height: 150 });
   });
 
   it('selo longo encolhe a fonte como no servidor', () => {
-    expect(promoBadgeMetrics('X'.repeat(40))).toEqual({ fontSize: 24, width: 784, height: 46 });
+    expect(promoBadgeMetrics('X'.repeat(40))).toEqual({ fontSize: 19, width: 644, height: 36 });
   });
 
   it('de 1 a 40 caracteres o texto estimado cabe na cápsula', () => {
@@ -29,7 +29,7 @@ describe('promo-visual (cópia do servidor)', () => {
   });
 
   it('limites de texto iguais aos do servidor', () => {
-    expect([MAX_HEADLINE, MAX_PROMO_NAME, MAX_BODY]).toEqual([40, 24, 160]);
+    expect([MAX_HEADLINE, MAX_PROMO_NAME, MAX_BODY]).toEqual([40, 20, 160]);
   });
 
   it('percent sem preço antigo cai para price', () => {

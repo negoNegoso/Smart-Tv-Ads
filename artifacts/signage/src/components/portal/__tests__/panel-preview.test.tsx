@@ -68,10 +68,10 @@ describe('PanelPreview', () => {
     expect(screen.queryByText(headline.toUpperCase())).not.toBeInTheDocument();
   });
 
-  it('promoção corta o nome do item em 24 caracteres, igual ao servidor', () => {
+  it('promoção corta o nome do item em 20 caracteres, igual ao servidor', () => {
     const name = 'Cheesecake de morango com calda quente';
     render(<PanelPreview kind="promo" headline={null} body={null} items={[item(name, 4990)]} page={1} />);
-    expect(screen.getByText('CHEESECAKE DE MORANGO C…')).toBeInTheDocument();
+    expect(screen.getByText('CHEESECAKE DE MORAN…')).toBeInTheDocument();
     expect(screen.queryByText(name.toUpperCase())).not.toBeInTheDocument();
   });
 
@@ -84,7 +84,7 @@ describe('PanelPreview', () => {
 
   it('promoção com preço de sete dígitos usa a fonte menor, igual ao servidor', () => {
     render(<PanelPreview kind="promo" headline={null} body={null} items={[item('Carro', 100000000)]} page={1} />);
-    expect(screen.getByText('1.000.000,00').style.fontSize).toBe(`${(100 / 1920) * 100}cqw`);
+    expect(screen.getByText('1.000.000,00').style.fontSize).toBe(`${(75 / 1920) * 100}cqw`);
   });
 
   it('aviso mostra headline e corpo, sem preço', () => {
