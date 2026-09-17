@@ -669,7 +669,7 @@ export default function PortalPanelEditor({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="panel-accent-text">Cor do painel</Label>
+                    <Label htmlFor="panel-accent-text">Código da cor</Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
@@ -684,7 +684,6 @@ export default function PortalPanelEditor({
                       />
                       <Input
                         id="panel-accent-text"
-                        aria-label="Código da cor"
                         placeholder={DEFAULT_ACCENT_COLOR}
                         value={accentText}
                         maxLength={7}
@@ -702,7 +701,7 @@ export default function PortalPanelEditor({
                   </div>
                   <div className="space-y-1.5">
                     <Label>Mostrar desconto como</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" role="group" aria-label="Mostrar desconto como">
                       <Button
                         type="button"
                         variant={promoStyle === 'price' ? 'default' : 'outline'}

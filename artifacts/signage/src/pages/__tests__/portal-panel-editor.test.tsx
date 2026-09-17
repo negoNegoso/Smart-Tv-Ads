@@ -104,6 +104,7 @@ describe('PortalPanelEditor', () => {
     const fetchMock = stubPromoFetch();
     renderEditor();
     await screen.findByDisplayValue('Cheesecake');
+    expect(screen.getByRole('group', { name: /mostrar desconto como/i })).toBeInTheDocument();
     const hex = screen.getByLabelText(/código da cor/i);
     await userEvent.clear(hex);
     await userEvent.type(hex, '#112233');
