@@ -63,15 +63,21 @@ export async function panelFonts(): Promise<
     style: "normal";
   }>
 > {
-  const [regular, bold] = await Promise.all([
+  const [interRegular, interBold, fredokaRegular, fredokaBold] = await Promise.all([
     bytes(() => import("../../../assets/fonts/Inter-Regular.ttf") as never, "fonts/Inter-Regular.ttf"),
     bytes(() => import("../../../assets/fonts/Inter-Bold.ttf") as never, "fonts/Inter-Bold.ttf"),
+    // Fredoka só no slide de promoção. woff estático: o Google Fonts publica a
+    // Fredoka só como fonte variável, e o satori não instancia peso de variável.
+    bytes(() => import("../../../assets/fonts/Fredoka-Regular.woff") as never, "fonts/Fredoka-Regular.woff"),
+    bytes(() => import("../../../assets/fonts/Fredoka-Bold.woff") as never, "fonts/Fredoka-Bold.woff"),
   ]);
   const toArrayBuffer = (b: Buffer): ArrayBuffer =>
     b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
   return [
-    { name: "Inter", data: toArrayBuffer(regular), weight: 400, style: "normal" },
-    { name: "Inter", data: toArrayBuffer(bold), weight: 700, style: "normal" },
+    { name: "Inter", data: toArrayBuffer(interRegular), weight: 400, style: "normal" },
+    { name: "Inter", data: toArrayBuffer(interBold), weight: 700, style: "normal" },
+    { name: "Fredoka", data: toArrayBuffer(fredokaRegular), weight: 400, style: "normal" },
+    { name: "Fredoka", data: toArrayBuffer(fredokaBold), weight: 700, style: "normal" },
   ];
 }
 
