@@ -23,6 +23,7 @@ const base = {
   body: null,
   accentColor: null,
   promoStyle: null,
+  photoOffset: null,
   publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),

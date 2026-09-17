@@ -3,6 +3,7 @@ import {
   DEFAULT_ACCENT_COLOR,
   discountPercent,
   normalizeAccentColor,
+  normalizePhotoOffset,
   promoPalette,
   resolvePromoStyle,
 } from "../promo-palette";
@@ -69,5 +70,18 @@ describe("resolvePromoStyle", () => {
 
   it("valor desconhecido vale price", () => {
     expect(resolvePromoStyle("bogo", item(899, 1499))).toBe("price");
+  });
+});
+
+describe("normalizePhotoOffset", () => {
+  it.each([null, undefined, -1, 101, 50.5, "" as unknown as number])(
+    "%s vira 50 (centro)",
+    (value) => {
+      expect(normalizePhotoOffset(value)).toBe(50);
+    },
+  );
+
+  it.each([0, 50, 100, 37])("%s passa direto", (value) => {
+    expect(normalizePhotoOffset(value)).toBe(value);
   });
 });

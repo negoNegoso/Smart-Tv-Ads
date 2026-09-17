@@ -28,6 +28,23 @@ function decodedSvgs(node: unknown): string[] {
     .map((src) => Buffer.from(src.split(",")[1]!, "base64").toString("utf8"));
 }
 
+/** Estilo do primeiro `img` (nó satori) encontrado na árvore. */
+function firstImgStyle(node: unknown): Record<string, unknown> | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = firstImgStyle(child);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (!node || typeof node !== "object" || !("props" in node)) return undefined;
+  const n = node as SatoriNode;
+  if (n.type === "img" && n.props.src && !n.props.src.startsWith("data:image/svg+xml")) {
+    return n.props.style;
+  }
+  return firstImgStyle(n.props.children);
+}
+
 /** Tamanho de fonte do nó cujo texto é exatamente `text`. */
 function fontSizeOf(node: unknown, text: string): number | undefined {
   if (!node || typeof node !== "object") return undefined;
@@ -130,5 +147,24 @@ describe("promoNode", () => {
     );
     expect(decodedSvgs(tree).some((s) => s.includes('<rect width="1920" height="1080"'))).toBe(true);
     expect(texts(tree)).not.toContain("*imagens meramente ilustrativas");
+  });
+
+  it.each([
+    [0, "50% 0%"],
+    [100, "50% 100%"],
+  ])("photoOffset %s vira objectPosition %s", (photoOffset, objectPosition) => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.objectPosition).toBe(objectPosition);
+  });
+
+  it("photoOffset nulo centraliza a foto (50%)", () => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset: null },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.objectPosition).toBe("50% 50%");
   });
 });

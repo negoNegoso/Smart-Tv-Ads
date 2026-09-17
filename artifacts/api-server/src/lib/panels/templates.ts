@@ -1,5 +1,5 @@
 import { formatPriceBRL, truncate } from "./format";
-import { discountPercent, promoPalette, resolvePromoStyle } from "./promo-palette";
+import { discountPercent, normalizePhotoOffset, promoPalette, resolvePromoStyle } from "./promo-palette";
 import {
   PROMO_PHOTO_LEFT,
   PROMO_SPLIT_BOTTOM,
@@ -24,6 +24,8 @@ export interface RenderPanel {
   accentColor?: string | null;
   /** "price" | "percent". Só a promoção lê. */
   promoStyle?: string | null;
+  /** Enquadramento vertical da foto, 0 a 100. Ausente ou inválido centraliza. Só a promoção lê. */
+  photoOffset?: number | null;
 }
 
 /** Limites de caractere por campo. Além disso, o texto some do quadro. */
@@ -303,7 +305,13 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
             src: photo,
             width: FRAME_WIDTH - PROMO_PHOTO_LEFT,
             height: FRAME_HEIGHT,
-            style: { position: "absolute", left: PROMO_PHOTO_LEFT, top: 0, objectFit: "cover" },
+            style: {
+              position: "absolute",
+              left: PROMO_PHOTO_LEFT,
+              top: 0,
+              objectFit: "cover",
+              objectPosition: `50% ${normalizePhotoOffset(panel.photoOffset)}%`,
+            },
           })
         : null,
       node("img", {

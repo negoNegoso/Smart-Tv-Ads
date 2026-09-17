@@ -78,3 +78,20 @@ export function resolvePromoStyle(
   if (oldPriceCents === null || priceCents <= 0 || oldPriceCents <= priceCents) return "price";
   return discountPercent(oldPriceCents, priceCents) >= 1 ? "percent" : "price";
 }
+
+/** Centro da foto: o que o slide fazia antes de existir enquadramento. */
+const DEFAULT_PHOTO_OFFSET = 50;
+
+/**
+ * Enquadramento vertical da foto da promoção, em porcentagem (0 = topo da
+ * foto, 100 = rodapé). Nulo, fora do intervalo [0, 100] ou não inteiro vira
+ * o centro em vez de lançar — mesma filosofia de `normalizeAccentColor`.
+ * O portal (arrastar na prévia) copia esta função, então ela fica
+ * autocontida, sem depender de nada deste módulo além do que está aqui.
+ */
+export function normalizePhotoOffset(value: number | null | undefined): number {
+  if (value === null || value === undefined) return DEFAULT_PHOTO_OFFSET;
+  if (!Number.isInteger(value)) return DEFAULT_PHOTO_OFFSET;
+  if (value < 0 || value > 100) return DEFAULT_PHOTO_OFFSET;
+  return value;
+}
