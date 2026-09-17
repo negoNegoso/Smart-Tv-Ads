@@ -80,6 +80,67 @@ describe('PortalPanelEditor', () => {
       ),
     ).toBe(false);
   });
+
+  const promoPanel = {
+    ...panel,
+    kind: 'promo',
+    accentColor: null,
+    promoStyle: null,
+    items: [
+      { id: 2, panelId: 1, name: 'Cheesecake', description: null, priceCents: 899, oldPriceCents: null, category: null, imageUrl: null, displayOrder: 0, isActive: true },
+    ],
+  };
+
+  function stubPromoFetch() {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(promoPanel), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('promoção envia cor e estilo escolhidos no salvar', async () => {
+    const fetchMock = stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const hex = screen.getByLabelText(/código da cor/i);
+    await userEvent.clear(hex);
+    await userEvent.type(hex, '#112233');
+    await userEvent.click(screen.getByRole('button', { name: /porcentagem/i }));
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      const sent = JSON.parse((patch![1] as RequestInit).body as string);
+      expect(sent.accentColor).toBe('#112233');
+      expect(sent.promoStyle).toBe('percent');
+    });
+  });
+
+  it('porcentagem sem preço antigo maior mostra aviso', async () => {
+    stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    expect(screen.queryByText(/sem preço antigo maior/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /porcentagem/i }));
+    expect(screen.getByText('Sem preço antigo maior, o slide mostra o preço normal.')).toBeInTheDocument();
+  });
+
+  it('código de cor inválido não é enviado', async () => {
+    const fetchMock = stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const hex = screen.getByLabelText(/código da cor/i);
+    await userEvent.clear(hex);
+    await userEvent.type(hex, '#12');
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string).accentColor).toBeNull();
+    });
+  });
 });
 
 describe('parsePriceToCents', () => {

@@ -22,6 +22,7 @@ import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-p
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
+import { DEFAULT_ACCENT_COLOR, normalizeAccentColor, resolvePromoStyle } from '@/lib/promo-visual';
 
 /**
  * Espelha o orçamento vertical de `artifacts/api-server/src/lib/panels/`
@@ -320,6 +321,11 @@ export default function PortalPanelEditor({
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [previewPage, setPreviewPage] = useState(0);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // accentColor guarda só cor válida ('' = padrão); accentText é o que o
+  // lojista está digitando, que pode estar pela metade.
+  const [accentColor, setAccentColor] = useState('');
+  const [accentText, setAccentText] = useState('');
+  const [promoStyle, setPromoStyle] = useState<'price' | 'percent'>('price');
 
   // Carrega o estado local do formulário a partir do painel vindo do servidor
   // uma única vez por painel — depois disso o formulário é a fonte da
@@ -331,6 +337,9 @@ export default function PortalPanelEditor({
       setDuration(panel.duration);
       setHeadline(panel.headline ?? '');
       setBody(panel.body ?? '');
+      setAccentColor(panel.accentColor ?? '');
+      setAccentText(panel.accentColor ?? '');
+      setPromoStyle(panel.promoStyle === 'percent' ? 'percent' : 'price');
       const drafts = panel.items.map(itemToDraft);
       setItems(panel.kind === 'promo' && drafts.length === 0 ? [emptyDraft()] : drafts);
       setLoadedId(panel.id);
@@ -451,6 +460,8 @@ export default function PortalPanelEditor({
           duration,
           headline: headline.trim() === '' ? null : headline,
           body: body.trim() === '' ? null : body,
+          accentColor: accentColor === '' ? null : accentColor,
+          promoStyle,
         },
       });
     } catch {
@@ -658,6 +669,65 @@ export default function PortalPanelEditor({
                     />
                   </div>
                   <div className="space-y-1.5">
+                    <Label htmlFor="panel-accent-text">Cor do painel</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        aria-label="Escolher cor"
+                        value={normalizeAccentColor(accentColor).toLowerCase()}
+                        onChange={(e) => {
+                          const color = e.target.value.toUpperCase();
+                          setAccentColor(color);
+                          setAccentText(color);
+                        }}
+                        className="h-9 w-12 cursor-pointer rounded-md border border-input bg-transparent p-1"
+                      />
+                      <Input
+                        id="panel-accent-text"
+                        aria-label="Código da cor"
+                        placeholder={DEFAULT_ACCENT_COLOR}
+                        value={accentText}
+                        maxLength={7}
+                        onChange={(e) => {
+                          const text = e.target.value;
+                          setAccentText(text);
+                          // Só vira cor quando está completa; pela metade, o
+                          // slide segue com a última cor válida (ou a padrão).
+                          if (text === '') setAccentColor('');
+                          else if (/^#[0-9A-Fa-f]{6}$/.test(text)) setAccentColor(text.toUpperCase());
+                        }}
+                        className="w-32 font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Mostrar desconto como</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={promoStyle === 'price' ? 'default' : 'outline'}
+                        aria-pressed={promoStyle === 'price'}
+                        onClick={() => setPromoStyle('price')}
+                      >
+                        Preço
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={promoStyle === 'percent' ? 'default' : 'outline'}
+                        aria-pressed={promoStyle === 'percent'}
+                        onClick={() => setPromoStyle('percent')}
+                      >
+                        Porcentagem
+                      </Button>
+                    </div>
+                    {promoStyle === 'percent' &&
+                    resolvePromoStyle('percent', items[0] ? draftToPreviewItem(items[0]) : undefined) === 'price' ? (
+                      <p className="text-xs text-muted-foreground">
+                        Sem preço antigo maior, o slide mostra o preço normal.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5">
                     <Label htmlFor="item-name-0">Nome</Label>
                     <Input
                       id="item-name-0"
@@ -835,6 +905,8 @@ export default function PortalPanelEditor({
             body={body.trim() === '' ? null : body}
             items={previewItems}
             page={previewPage + 1}
+            accentColor={accentColor === '' ? null : accentColor}
+            promoStyle={promoStyle}
           />
           {kind === 'menu' && menuPages.length > 1 ? (
             <div className="mt-3 flex items-center justify-center gap-3">
