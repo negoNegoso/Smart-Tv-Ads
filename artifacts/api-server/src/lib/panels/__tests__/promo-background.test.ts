@@ -23,7 +23,7 @@ describe("promoBackgroundSvg", () => {
 
 describe("promoBadgeMetrics", () => {
   it("PROMOÇÃO cabe em fonte grande", () => {
-    expect(promoBadgeMetrics("PROMOÇÃO")).toEqual({ fontSize: 96, width: 573, height: 182 });
+    expect(promoBadgeMetrics("PROMOÇÃO")).toEqual({ fontSize: 96, width: 650, height: 182 });
   });
 
   it("texto médio reduz a fonte", () => {

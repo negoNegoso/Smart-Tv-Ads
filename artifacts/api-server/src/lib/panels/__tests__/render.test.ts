@@ -33,6 +33,22 @@ describe("renderPanelPage", () => {
     expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   });
 
+  const PIXEL_PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  it.each([
+    ["price com foto", "price", PIXEL_PNG],
+    ["percent com foto", "percent", PIXEL_PNG],
+    ["price sem foto", "price", null],
+    ["percent sem foto", "percent", null],
+  ])("promoção %s vira PNG 1920x1080", async (_caso, promoStyle, imageUrl) => {
+    const png = await renderPanelPage(
+      { kind: "promo", headline: null, body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", accentColor: "#D63A6A", promoStyle },
+      { category: null, items: [{ ...item("Cheesecake", 899), oldPriceCents: 1499, imageUrl }] },
+    );
+    expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  });
+
   it("aviso sem item nenhum vira PNG 1920x1080", async () => {
     const png = await renderPanelPage(
       { kind: "notice", headline: "Aceitamos Pix", body: "Chave: o telefone da loja" },

@@ -18,7 +18,7 @@ export const PROMO_PHOTO_LEFT = 860;
 const BADGE_MAX_WIDTH = 800;
 const BADGE_HORIZONTAL_PADDING = 112;
 /** Largura média de um caractere maiúsculo da Fredoka Bold, em frações da fonte. */
-const BADGE_CHAR_WIDTH = 0.6;
+const BADGE_CHAR_WIDTH = 0.7;
 const BADGE_HEIGHT_RATIO = 1.9;
 const BADGE_INSET = 6;
 
