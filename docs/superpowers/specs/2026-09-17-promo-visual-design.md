@@ -48,7 +48,7 @@ Os campos são guardados para qualquer `kind`, mas só o template de promoção 
   `promoStyle` (enum `price | percent`, nullable).
 - Regenera `lib/api-zod`.
 - `artifacts/api-server/src/routes/panels.ts` lê/grava os dois campos.
-  Hex fora do padrão → 400 pela validação zod gerada.
+  Hex fora do padrão → 400 pelo `patchBody` (zod) da rota.
 - `RenderPanel` (`templates.ts`) ganha `accentColor: string | null` e
   `promoStyle: "price" | "percent" | null`; `publish.ts` repassa.
 
@@ -74,7 +74,8 @@ Arredondamento para 0% (desconto < 0,5%) também cai para `price`.
    Enfeites no canto superior esquerdo do painel: onda, traço, círculo cheio,
    círculo vazado, dois "+", zigue-zague. Cor dos enfeites = cor do texto do
    painel com opacidade ~0,85.
-3. Conteúdo em flex, dentro da área do painel (largura útil ~880px, padding 80px).
+3. Conteúdo em flex, a partir de `y = 310` (abaixo dos enfeites), `x = 80`,
+   largura útil 800px (até a diagonal na base, menos 80px de cada lado).
 
 Sem foto: polígono vira retângulo cheio (1920×1080), sem rodapé de aviso,
 conteúdo continua à esquerda com largura útil maior (até 1400px).
@@ -85,18 +86,20 @@ Função pura `promoPalette(accentColor)` → `{ panel, text, price, ornament }`
 
 - `text`: branco `#FFFFFF` ou quase-preto `#1F1B2E`, o que tiver maior contraste
   WCAG contra `panel`.
-- `price`: se `text` é branco e a cor é clara o bastante, tom da própria cor
-  escurecido (~55% de luminância a menos, como o roxo da referência) — desde
-  que mantenha contraste ≥ 3:1 com o painel; senão usa `text`.
+- `price`: a cor misturada 85% com `#1F1B2E` (tom escuro da própria cor, como
+  o roxo da referência) — desde que mantenha contraste ≥ 3:1 com o painel;
+  senão usa `text`.
 - `ornament`: `text` com opacidade 0,85.
 
 ### Conteúdo — estilo `price`
 
 De cima para baixo, alinhado à esquerda:
 
-1. Selo: `headline ?? "PROMOÇÃO"` em maiúsculas, Fredoka Bold ~96px, dentro de
-   cápsula com borda pontilhada (desenhada no SVG, largura calculada pelo
-   comprimento do texto com teto de 820px; texto truncado em `MAX_HEADLINE`).
+1. Selo: `headline ?? "PROMOÇÃO"` em maiúsculas, Fredoka Bold (96px até 10
+   caracteres, 64px até 16, 44px acima), dentro de cápsula com borda pontilhada.
+   A cápsula é um SVG próprio (`promoBadgeSvg`) do tamanho do selo — o satori
+   não mede texto nem desenha borda pontilhada, então a largura é estimada
+   por `caracteres × 0,6 × fonte + 112`, com teto de 800px.
 2. Nome do produto: Fredoka Bold ~52px, maiúsculas, `text`.
 3. `DE 14,99 POR` — Bold ~36px/~52px, só se houver `oldPriceCents`.
 4. `R$ 8,99` — `R$` ~52px, valor ~170px, cor `price`.
@@ -117,9 +120,11 @@ sobre a foto, cor `#3A2A4A`. Só quando há foto.
 
 ### Fonte
 
-`artifacts/api-server/assets/fonts/Fredoka-Regular.ttf` e `Fredoka-Bold.ttf`,
-carregadas em `assets.ts` junto das Inter (família `"Fredoka"`). Licença OFL
-copiada para `assets/fonts/OFL-Fredoka.txt`.
+`artifacts/api-server/assets/fonts/Fredoka-Regular.woff` e `Fredoka-Bold.woff`
+(estáticos do `@fontsource/fredoka`, subset latin — o Google Fonts só publica
+Fredoka como fonte variável, que o satori não instancia por peso), carregadas
+em `assets.ts` junto das Inter (família `"Fredoka"`). `build.mjs` ganha loader
+`.woff: binary`. Licença OFL copiada para `assets/fonts/OFL-Fredoka.txt`.
 
 ## 3. Código
 
@@ -128,7 +133,8 @@ copiada para `assets/fonts/OFL-Fredoka.txt`.
 - `src/lib/panels/promo-palette.ts` (novo): `promoPalette`, `discountPercent`,
   `resolvePromoStyle(style, item)`. Funções puras.
 - `src/lib/panels/promo-background.ts` (novo): `promoBackgroundSvg({ color,
-  ornament, hasImage, badgeWidth })` → string SVG. Pura.
+  ornament, hasImage })` e `promoBadgeSvg({ width, height, stroke })` → string
+  SVG. Puras.
 - `templates.ts`: `promoNode` reescrito usando os dois módulos acima.
   `menuNode` e `noticeNode` intocados.
 
