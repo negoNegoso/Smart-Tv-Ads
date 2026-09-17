@@ -20,6 +20,9 @@ import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 
 const router: IRouter = Router();
 
+// Espelha PROMO_STYLES de @workspace/db; importar de lá puxa a conexão no teste.
+const PROMO_STYLES = ["price", "percent"] as const;
+
 const authOf = (req: Request): PanelAuth => ({
   isAdmin: req.auth?.isAdmin ?? false,
   clientIds: req.auth?.clientIds ?? [],
@@ -38,6 +41,14 @@ const patchBody = z.object({
   duration: z.number().int().min(5).max(60).optional(),
   headline: z.string().trim().max(80).nullable().optional(),
   body: z.string().trim().max(300).nullable().optional(),
+  // Maiúsculas no banco: a mesma cor digitada de dois jeitos não vira dois valores.
+  accentColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .transform((c) => c.toUpperCase())
+    .nullable()
+    .optional(),
+  promoStyle: z.enum(PROMO_STYLES).nullable().optional(),
 });
 
 const itemsBody = z.object({

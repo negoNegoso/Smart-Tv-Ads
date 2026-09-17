@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { UpdatePanelRequestPromoStyle } from './updatePanelRequestPromoStyle';
 
 export interface UpdatePanelRequest {
   /**
@@ -26,4 +27,7 @@ export interface UpdatePanelRequest {
   headline?: string | null;
   /** @maxLength 300 */
   body?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string | null;
+  promoStyle?: UpdatePanelRequestPromoStyle;
 }

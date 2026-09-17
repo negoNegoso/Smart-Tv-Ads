@@ -503,6 +503,14 @@ export const PanelStatus = {
   published: 'published',
 } as const;
 
+export type PanelPromoStyle = typeof PanelPromoStyle[keyof typeof PanelPromoStyle] | null;
+
+
+export const PanelPromoStyle = {
+  price: 'price',
+  percent: 'percent',
+} as const;
+
 export interface Panel {
   id: number;
   clientId: number;
@@ -513,6 +521,9 @@ export interface Panel {
   duration: number;
   headline?: string | null;
   body?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string | null;
+  promoStyle?: PanelPromoStyle;
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -543,6 +554,14 @@ export interface CreatePanelRequest {
   clientId?: number;
 }
 
+export type UpdatePanelRequestPromoStyle = typeof UpdatePanelRequestPromoStyle[keyof typeof UpdatePanelRequestPromoStyle] | null;
+
+
+export const UpdatePanelRequestPromoStyle = {
+  price: 'price',
+  percent: 'percent',
+} as const;
+
 export interface UpdatePanelRequest {
   /**
      * @minLength 1
@@ -563,6 +582,9 @@ export interface UpdatePanelRequest {
   headline?: string | null;
   /** @maxLength 300 */
   body?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string | null;
+  promoStyle?: UpdatePanelRequestPromoStyle;
 }
 
 export interface ReplacePanelItemsRequest {

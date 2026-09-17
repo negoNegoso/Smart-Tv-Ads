@@ -21,6 +21,8 @@ const base = {
   duration: 10,
   headline: null,
   body: null,
+  accentColor: null,
+  promoStyle: null,
   publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),

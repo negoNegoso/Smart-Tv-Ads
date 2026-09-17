@@ -392,4 +392,52 @@ describe("escopo das rotas de painéis", () => {
     expect(res.status).toBe(403);
     expect(put).not.toHaveBeenCalled();
   });
+
+  it("PATCH grava cor e estilo da promoção", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5 });
+    getPanel.mockResolvedValue({ id: 5, items: [] });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ accentColor: "#d63a6a", promoStyle: "percent" });
+    expect(res.status).toBe(200);
+    expect(updatePanel).toHaveBeenCalledWith(5, { accentColor: "#D63A6A", promoStyle: "percent" });
+  });
+
+  it("PATCH aceita null para voltar cor e estilo ao padrão", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5 });
+    getPanel.mockResolvedValue({ id: 5, items: [] });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ accentColor: null, promoStyle: null });
+    expect(res.status).toBe(200);
+    expect(updatePanel).toHaveBeenCalledWith(5, { accentColor: null, promoStyle: null });
+  });
+
+  it.each(["#abc", "red", "#GGGGGG", "D63A6A"])("PATCH recusa cor %s com 400", async (accentColor) => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ accentColor });
+    expect(res.status).toBe(400);
+    expect(updatePanel).not.toHaveBeenCalled();
+  });
+
+  it("PATCH recusa estilo fora do enum com 400", async () => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ promoStyle: "bogo" });
+    expect(res.status).toBe(400);
+    expect(updatePanel).not.toHaveBeenCalled();
+  });
 });

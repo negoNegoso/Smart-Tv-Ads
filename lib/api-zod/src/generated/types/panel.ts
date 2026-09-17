@@ -7,6 +7,7 @@
  */
 import type { PanelItem } from './panelItem';
 import type { PanelKind } from './panelKind';
+import type { PanelPromoStyle } from './panelPromoStyle';
 import type { PanelStatus } from './panelStatus';
 
 export interface Panel {
@@ -19,6 +20,9 @@ export interface Panel {
   duration: number;
   headline?: string | null;
   body?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string | null;
+  promoStyle?: PanelPromoStyle;
   publishedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
