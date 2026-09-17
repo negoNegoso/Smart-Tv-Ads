@@ -193,3 +193,47 @@ em `assets.ts` junto das Inter (família `"Fredoka"`). `build.mjs` ganha loader
 - Temas pré-definidos ou cores para menu/aviso.
 - Promoção de porcentagem sem produto (ex.: "loja toda 30% OFF").
 - Logo do lojista no slide.
+
+## Anexo (2026-09-17): enquadramento vertical da foto
+
+O lojista arrasta a foto na prévia para escolher que parte dela aparece no
+slide. Só na promoção; só na vertical (a área da foto é quase quadrada, a
+sobra é quase toda vertical).
+
+### Dados
+
+- `panels.photo_offset integer` — 0 a 100, nulo vale 50 (centro, o que o
+  slide faz hoje). Migração `0010`.
+- OpenAPI: `photoOffset` (integer, minimum 0, maximum 100, nullable) em
+  `Panel` e `UpdatePanelRequest`; regenera o cliente. Rota valida o
+  intervalo; fora dele é 400.
+- `RenderPanel` ganha `photoOffset?: number | null`; `publish.ts` repassa.
+
+### Renderizador
+
+A foto usa `objectPosition: "50% <offset>%"` (satori 0.33.4 suporta).
+0 mostra o topo da imagem, 100 o rodapé. Valor nulo ou fora do intervalo
+vira 50 — a normalização fica numa função pura junto das outras
+(`promo-palette.ts` ou módulo próprio), copiada para o portal como o resto.
+
+### Editor
+
+- Arrastar direto na prévia: mousedown/pointerdown sobre a foto, mover na
+  vertical, soltar. O deslocamento em pixels vira porcentagem pela altura
+  da prévia, preso entre 0 e 100. Cursor `grab`/`grabbing`,
+  `touch-action: none` para o celular.
+- Botão "Centralizar" volta para 50.
+- Campo numérico acessível por teclado (pode ser um `<input type="range">`
+  rotulado "Enquadramento vertical da foto"), porque arrastar sozinho não
+  é alcançável por teclado.
+- O valor entra no mesmo PATCH do nome, cor e estilo.
+
+### Testes
+
+- Normalização: nulo, fora do intervalo e não inteiro viram 50; valores
+  válidos passam.
+- Render: offsets 0, 50 e 100 geram PNGs diferentes entre si.
+- Rota: aceita 0 e 100, recusa -1, 101 e "meio" com 400.
+- Prévia: `objectPosition` reflete o valor.
+- Editor: arrastar muda o valor, o botão centraliza, o PATCH leva
+  `photoOffset`.
