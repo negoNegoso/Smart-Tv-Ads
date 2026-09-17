@@ -93,7 +93,22 @@ fi
 
 # --- Compila lib/db e aplica o schema ----------------------------------------
 log "Compilando lib/db e aplicando schema (drizzle-kit push)..."
-( cd lib/db && npx tsc --build && npx drizzle-kit push --config ./drizzle.config.ts )
+PUSH_LOG="$(mktemp -t dev-push)"
+set +e
+( cd lib/db && npx tsc --build && npx drizzle-kit push --config ./drizzle.config.ts ) 2>&1 | tee "$PUSH_LOG"
+PUSH_STATUS=${PIPESTATUS[0]}
+set -e
+
+# O drizzle-kit devolve 0 mesmo quando aborta — por exemplo ao pedir resolução
+# interativa de conflito de coluna e não achar TTY. Só o código de saída deixava
+# o script anunciar "Banco pronto" com o schema antigo no banco, e a API subia em
+# cima disso. Por isso o texto também conta como evidência.
+if [[ $PUSH_STATUS -ne 0 ]] || grep -qE '^Error:|Interactive prompts require a TTY' "$PUSH_LOG"; then
+  err "Falha ao aplicar o schema (drizzle-kit push). O banco NÃO está pronto."
+  err "Log completo em: $PUSH_LOG"
+  exit 1
+fi
+rm -f "$PUSH_LOG"
 
 # --- --db: encerra aqui ------------------------------------------------------
 if [[ "${1:-}" == "--db" ]]; then
