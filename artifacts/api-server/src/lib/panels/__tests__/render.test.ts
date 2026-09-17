@@ -1,3 +1,4 @@
+import zlib from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { PANEL_HEIGHT, PANEL_WIDTH, renderPanelPage } from "../render";
 
@@ -31,6 +32,75 @@ describe("renderPanelPage", () => {
       { category: null, items: [{ ...item("Pizza grande", 4990), oldPriceCents: 6990 }] },
     );
     expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  });
+
+  const PIXEL_PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  /**
+   * PNG 1x2 (vermelho em cima, azul embaixo): um pixel só não muda de
+   * aparência com objectPosition nenhum, então o teste de enquadramento
+   * precisa de uma imagem com o que recortar. Montada à mão porque o projeto
+   * não tem uma lib de PNG entre as dependências.
+   */
+  function twoPixelPng(): string {
+    function crc32(buf: Buffer): number {
+      let c = 0xffffffff;
+      for (const byte of buf) {
+        c ^= byte;
+        for (let i = 0; i < 8; i++) {
+          c = c & 1 ? (c >>> 1) ^ 0xedb88320 : c >>> 1;
+        }
+      }
+      return (c ^ 0xffffffff) >>> 0;
+    }
+    function chunk(type: string, data: Buffer): Buffer {
+      const typeBuf = Buffer.from(type, "ascii");
+      const len = Buffer.alloc(4);
+      len.writeUInt32BE(data.length);
+      const crcBuf = Buffer.alloc(4);
+      crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
+      return Buffer.concat([len, typeBuf, data, crcBuf]);
+    }
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0); // width
+    ihdr.writeUInt32BE(2, 4); // height
+    ihdr[8] = 8; // bit depth
+    ihdr[9] = 2; // color type: RGB
+    const raw = Buffer.concat([
+      Buffer.from([0, 255, 0, 0]), // filtro 0 + vermelho
+      Buffer.from([0, 0, 0, 255]), // filtro 0 + azul
+    ]);
+    const idat = zlib.deflateSync(raw);
+    const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    const png = Buffer.concat([signature, chunk("IHDR", ihdr), chunk("IDAT", idat), chunk("IEND", Buffer.alloc(0))]);
+    return `data:image/png;base64,${png.toString("base64")}`;
+  }
+
+  it.each([
+    ["price com foto", "price", PIXEL_PNG],
+    ["percent com foto", "percent", PIXEL_PNG],
+    ["price sem foto", "price", null],
+    ["percent sem foto", "percent", null],
+  ])("promoção %s vira PNG 1920x1080", async (_caso, promoStyle, imageUrl) => {
+    const png = await renderPanelPage(
+      { kind: "promo", headline: null, body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", accentColor: "#D63A6A", promoStyle },
+      { category: null, items: [{ ...item("Cheesecake", 899), oldPriceCents: 1499, imageUrl }] },
+    );
+    expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  });
+
+  it("photoOffset 0, 50 e 100 geram PNGs diferentes entre si", async () => {
+    const photo = twoPixelPng();
+    const renderWith = (photoOffset: number) =>
+      renderPanelPage(
+        { kind: "promo", headline: null, body: null, accentColor: "#D63A6A", promoStyle: "price", photoOffset },
+        { category: null, items: [{ ...item("Cheesecake", 899), oldPriceCents: null, imageUrl: photo }] },
+      );
+    const [top, center, bottom] = await Promise.all([renderWith(0), renderWith(50), renderWith(100)]);
+    expect(top.equals(center)).toBe(false);
+    expect(center.equals(bottom)).toBe(false);
+    expect(top.equals(bottom)).toBe(false);
   });
 
   it("aviso sem item nenhum vira PNG 1920x1080", async () => {

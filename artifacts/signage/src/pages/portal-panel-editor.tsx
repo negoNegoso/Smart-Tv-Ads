@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowLeft, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import {
@@ -21,7 +21,16 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-preview';
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
-import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
+import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
+import {
+  DEFAULT_ACCENT_COLOR,
+  PROMO_PHOTO_LEFT,
+  PROMO_PHOTO_HEIGHT,
+  PROMO_PHOTO_WIDTH,
+  normalizeAccentColor,
+  normalizePhotoOffset,
+  resolvePromoStyle,
+} from '@/lib/promo-visual';
 
 /**
  * Espelha o orçamento vertical de `artifacts/api-server/src/lib/panels/`
@@ -113,6 +122,25 @@ export function parsePriceToCents(raw: string): PriceParseResult {
 function parsePriceOrZero(raw: string): number {
   const result = parsePriceToCents(raw);
   return result.ok ? result.cents : 0;
+}
+
+/**
+ * Converte o arrasto vertical na prévia (Anexo 2026-09-17) em porcentagem de
+ * enquadramento: o deslocamento em pixels desde o mousedown vira porcentagem
+ * pela altura da prévia, subtraído do valor de partida e preso entre 0 e 100.
+ *
+ * A subtração (em vez de soma) é o que faz o arrasto se comportar como
+ * "segurar a foto": arrastar para baixo empurra o conteúdo da foto para
+ * baixo dentro do quadro, então o que aparece é mais o TOPO dela — um
+ * `object-position` Y menor, na convenção 0 = topo, 100 = rodapé. Arrastar
+ * para cima é o oposto: revela mais o rodapé, offset maior.
+ *
+ * Altura zero (prévia ainda não medida) não desloca nada, só prende o valor
+ * de partida ao intervalo.
+ */
+export function photoOffsetFromDrag(startOffset: number, deltaY: number, previewHeight: number): number {
+  const deltaPercent = previewHeight > 0 ? (deltaY / previewHeight) * 100 : 0;
+  return Math.min(100, Math.max(0, startOffset - deltaPercent));
 }
 
 function itemToDraft(item: PanelItem): ItemDraft {
@@ -320,6 +348,14 @@ export default function PortalPanelEditor({
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [previewPage, setPreviewPage] = useState(0);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // accentColor guarda só cor válida ('' = padrão); accentText é o que o
+  // lojista está digitando, que pode estar pela metade.
+  const [accentColor, setAccentColor] = useState('');
+  const [accentText, setAccentText] = useState('');
+  const [promoStyle, setPromoStyle] = useState<'price' | 'percent'>('price');
+  const [photoOffset, setPhotoOffset] = useState(50);
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
+  const photoDragRef = useRef<{ startY: number; startOffset: number; height: number } | null>(null);
 
   // Carrega o estado local do formulário a partir do painel vindo do servidor
   // uma única vez por painel — depois disso o formulário é a fonte da
@@ -331,6 +367,10 @@ export default function PortalPanelEditor({
       setDuration(panel.duration);
       setHeadline(panel.headline ?? '');
       setBody(panel.body ?? '');
+      setAccentColor(panel.accentColor ?? '');
+      setAccentText(panel.accentColor ?? '');
+      setPromoStyle(panel.promoStyle === 'percent' ? 'percent' : 'price');
+      setPhotoOffset(normalizePhotoOffset(panel.photoOffset));
       const drafts = panel.items.map(itemToDraft);
       setItems(panel.kind === 'promo' && drafts.length === 0 ? [emptyDraft()] : drafts);
       setLoadedId(panel.id);
@@ -451,6 +491,9 @@ export default function PortalPanelEditor({
           duration,
           headline: headline.trim() === '' ? null : headline,
           body: body.trim() === '' ? null : body,
+          accentColor: accentColor === '' ? null : accentColor,
+          promoStyle,
+          photoOffset,
         },
       });
     } catch {
@@ -509,6 +552,15 @@ export default function PortalPanelEditor({
         toast({ title: message, variant: 'destructive' });
         return;
       }
+      // Aviso, não bloqueio: a foto pequena ainda vai ao ar (o renderizador
+      // estica), e medir depende do navegador saber decodificar o arquivo.
+      const dimensoes = await dimensoesDaImagem(arquivo);
+      if (dimensoes && (dimensoes.largura < PROMO_PHOTO_WIDTH || dimensoes.altura < PROMO_PHOTO_HEIGHT)) {
+        toast({
+          title: `Foto pequena para a TV (${dimensoes.largura}×${dimensoes.altura}). O ideal é pelo menos ${PROMO_PHOTO_WIDTH}×${PROMO_PHOTO_HEIGHT} pixels.`,
+        });
+      }
+
       const { imageUrl } = (await res.json()) as { imageUrl: string };
       if (items.length === 0) {
         setItems([{ ...emptyDraft(), imageUrl }]);
@@ -520,6 +572,38 @@ export default function PortalPanelEditor({
     } finally {
       setIsUploadingImage(false);
     }
+  }
+
+  /**
+   * Arrasto vertical na prévia (Anexo 2026-09-17): pointerdown guarda a
+   * posição e o enquadramento de partida, pointermove converte o
+   * deslocamento em porcentagem pela altura da prévia (`photoOffsetFromDrag`).
+   * `setPointerCapture` mantém os eventos de move/up presos ao overlay mesmo
+   * que o ponteiro saia da área durante o arrasto.
+   */
+  function handlePhotoPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    photoDragRef.current = {
+      startY: e.clientY,
+      startOffset: photoOffset,
+      height: e.currentTarget.getBoundingClientRect().height,
+    };
+    setIsDraggingPhoto(true);
+  }
+
+  function handlePhotoPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const drag = photoDragRef.current;
+    if (!drag) return;
+    const deltaY = e.clientY - drag.startY;
+    setPhotoOffset(photoOffsetFromDrag(drag.startOffset, deltaY, drag.height));
+  }
+
+  function handlePhotoPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (photoDragRef.current && e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    photoDragRef.current = null;
+    setIsDraggingPhoto(false);
   }
 
   if (panelQuery.isLoading) {
@@ -658,6 +742,64 @@ export default function PortalPanelEditor({
                     />
                   </div>
                   <div className="space-y-1.5">
+                    <Label htmlFor="panel-accent-text">Código da cor</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        aria-label="Escolher cor"
+                        value={normalizeAccentColor(accentColor).toLowerCase()}
+                        onChange={(e) => {
+                          const color = e.target.value.toUpperCase();
+                          setAccentColor(color);
+                          setAccentText(color);
+                        }}
+                        className="h-9 w-12 cursor-pointer rounded-md border border-input bg-transparent p-1"
+                      />
+                      <Input
+                        id="panel-accent-text"
+                        placeholder={DEFAULT_ACCENT_COLOR}
+                        value={accentText}
+                        maxLength={7}
+                        onChange={(e) => {
+                          const text = e.target.value;
+                          setAccentText(text);
+                          // Só vira cor quando está completa; pela metade, o
+                          // slide segue com a última cor válida (ou a padrão).
+                          if (text === '') setAccentColor('');
+                          else if (/^#[0-9A-Fa-f]{6}$/.test(text)) setAccentColor(text.toUpperCase());
+                        }}
+                        className="w-32 font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Mostrar desconto como</Label>
+                    <div className="flex gap-2" role="group" aria-label="Mostrar desconto como">
+                      <Button
+                        type="button"
+                        variant={promoStyle === 'price' ? 'default' : 'outline'}
+                        aria-pressed={promoStyle === 'price'}
+                        onClick={() => setPromoStyle('price')}
+                      >
+                        Preço
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={promoStyle === 'percent' ? 'default' : 'outline'}
+                        aria-pressed={promoStyle === 'percent'}
+                        onClick={() => setPromoStyle('percent')}
+                      >
+                        Porcentagem
+                      </Button>
+                    </div>
+                    {promoStyle === 'percent' &&
+                    resolvePromoStyle('percent', items[0] ? draftToPreviewItem(items[0]) : undefined) === 'price' ? (
+                      <p className="text-xs text-muted-foreground">
+                        Sem desconto válido, o slide mostra o preço normal.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5">
                     <Label htmlFor="item-name-0">Nome</Label>
                     <Input
                       id="item-name-0"
@@ -719,7 +861,10 @@ export default function PortalPanelEditor({
                       className="flex h-9 w-full rounded-md border border-input bg-transparent text-sm file:mr-3 file:h-full file:border-0 file:bg-secondary file:px-3 file:text-sm file:font-medium"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Tamanho máximo: {formatUploadLimit(maxUploadBytes)}.
+                      Use imagem quadrada ou em pé, com pelo menos {PROMO_PHOTO_WIDTH}×{PROMO_PHOTO_HEIGHT}{' '}
+                      pixels. O produto aparece à direita do slide e o lado esquerdo da foto fica atrás do
+                      painel colorido, então deixe folga nas bordas. Tamanho máximo do arquivo:{' '}
+                      {formatUploadLimit(maxUploadBytes)}.
                     </p>
                     {items[0]?.imageUrl ? (
                       <img
@@ -829,13 +974,57 @@ export default function PortalPanelEditor({
         </div>
 
         <div>
-          <PanelPreview
-            kind={kind}
-            headline={headline.trim() === '' ? null : headline}
-            body={body.trim() === '' ? null : body}
-            items={previewItems}
-            page={previewPage + 1}
-          />
+          <div className="relative">
+            <PanelPreview
+              kind={kind}
+              headline={headline.trim() === '' ? null : headline}
+              body={body.trim() === '' ? null : body}
+              items={previewItems}
+              page={previewPage + 1}
+              accentColor={accentColor === '' ? null : accentColor}
+              promoStyle={promoStyle}
+              photoOffset={photoOffset}
+            />
+            {/* Arrasto vertical (Anexo 2026-09-17): overlay transparente só sobre a
+                área da foto, para não interferir no resto da prévia nem acoplar o
+                componente reutilizável `PanelPreview` ao estado do editor. */}
+            {kind === 'promo' && items[0]?.imageUrl ? (
+              <div
+                role="presentation"
+                aria-hidden="true"
+                className="absolute inset-y-0"
+                style={{
+                  left: `${(PROMO_PHOTO_LEFT / (PROMO_PHOTO_LEFT + PROMO_PHOTO_WIDTH)) * 100}%`,
+                  right: 0,
+                  cursor: isDraggingPhoto ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                onPointerDown={handlePhotoPointerDown}
+                onPointerMove={handlePhotoPointerMove}
+                onPointerUp={handlePhotoPointerUp}
+                onPointerCancel={handlePhotoPointerUp}
+              />
+            ) : null}
+          </div>
+          {kind === 'promo' && items[0]?.imageUrl ? (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="photo-offset">Enquadramento vertical da foto</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPhotoOffset(50)}>
+                  Centralizar
+                </Button>
+              </div>
+              <input
+                id="photo-offset"
+                type="range"
+                min={0}
+                max={100}
+                value={photoOffset}
+                onChange={(e) => setPhotoOffset(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          ) : null}
           {kind === 'menu' && menuPages.length > 1 ? (
             <div className="mt-3 flex items-center justify-center gap-3">
               <Button

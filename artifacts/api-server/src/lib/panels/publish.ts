@@ -78,7 +78,14 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
     for (const page of pages) {
       const renderPage = await withResolvedImage(panel.kind, page, store);
       const png = await renderPanelPage(
-        { kind: panel.kind as "menu" | "promo" | "notice", headline: panel.headline, body: panel.body },
+        {
+          kind: panel.kind as "menu" | "promo" | "notice",
+          headline: panel.headline,
+          body: panel.body,
+          accentColor: panel.accentColor,
+          promoStyle: panel.promoStyle,
+          photoOffset: panel.photoOffset,
+        },
         renderPage,
       );
       const imageUrl = await store.put(png, "image/png", `panel-${panel.id}-p${page.pageNo}.png`);

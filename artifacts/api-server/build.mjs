@@ -175,7 +175,7 @@ async function buildAll() {
     sourcemap: "linked",
     // As fontes e o resvg.wasm viram bytes dentro do bundle: a .func da Vercel
     // não tem sistema de arquivos além do próprio index.mjs.
-    loader: { ".ttf": "binary", ".wasm": "binary" },
+    loader: { ".ttf": "binary", ".woff": "binary", ".wasm": "binary" },
     plugins: isVercel
       ? [stubGoogleCloud]
       : [

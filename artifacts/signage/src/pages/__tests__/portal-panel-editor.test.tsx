@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortalPanelEditor, { parsePriceToCents } from '../portal-panel-editor';
+import PortalPanelEditor, { parsePriceToCents, photoOffsetFromDrag } from '../portal-panel-editor';
 
 const panel = {
   id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços', template: 'menu-basico',
@@ -79,6 +79,137 @@ describe('PortalPanelEditor', () => {
         ([, init]) => (init as RequestInit)?.method === 'PATCH' || (init as RequestInit)?.method === 'PUT',
       ),
     ).toBe(false);
+  });
+
+  const promoPanel = {
+    ...panel,
+    kind: 'promo',
+    accentColor: null,
+    promoStyle: null,
+    items: [
+      { id: 2, panelId: 1, name: 'Cheesecake', description: null, priceCents: 899, oldPriceCents: null, category: null, imageUrl: null, displayOrder: 0, isActive: true },
+    ],
+  };
+
+  function stubPromoFetch() {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(promoPanel), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('promoção envia cor e estilo escolhidos no salvar', async () => {
+    const fetchMock = stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    expect(screen.getByRole('group', { name: /mostrar desconto como/i })).toBeInTheDocument();
+    const hex = screen.getByLabelText(/código da cor/i);
+    await userEvent.clear(hex);
+    await userEvent.type(hex, '#112233');
+    await userEvent.click(screen.getByRole('button', { name: /porcentagem/i }));
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      const sent = JSON.parse((patch![1] as RequestInit).body as string);
+      expect(sent.accentColor).toBe('#112233');
+      expect(sent.promoStyle).toBe('percent');
+    });
+  });
+
+  it('porcentagem sem preço antigo maior mostra aviso', async () => {
+    stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    expect(screen.queryByText(/sem desconto válido/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /porcentagem/i }));
+    expect(screen.getByText('Sem desconto válido, o slide mostra o preço normal.')).toBeInTheDocument();
+  });
+
+  it('código de cor inválido não é enviado', async () => {
+    const fetchMock = stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const hex = screen.getByLabelText(/código da cor/i);
+    await userEvent.clear(hex);
+    await userEvent.type(hex, '#12');
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string).accentColor).toBeNull();
+    });
+  });
+
+  const promoPanelComFoto = {
+    ...promoPanel,
+    photoOffset: null,
+    items: [{ ...promoPanel.items[0], imageUrl: 'https://example.com/foto.jpg' }],
+  };
+
+  function stubPromoFetchComFoto() {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(promoPanelComFoto), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('campo de enquadramento muda o valor e o salvar envia photoOffset', async () => {
+    const fetchMock = stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const range = screen.getByLabelText(/enquadramento vertical da foto/i);
+    fireEvent.change(range, { target: { value: '80' } });
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string).photoOffset).toBe(80);
+    });
+  });
+
+  it('botão Centralizar volta o enquadramento para 50', async () => {
+    stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const range = screen.getByLabelText(/enquadramento vertical da foto/i) as HTMLInputElement;
+    fireEvent.change(range, { target: { value: '10' } });
+    expect(range.value).toBe('10');
+    await userEvent.click(screen.getByRole('button', { name: /centralizar/i }));
+    expect(range.value).toBe('50');
+  });
+
+  it('sem foto não mostra o controle de enquadramento', async () => {
+    stubPromoFetch();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    expect(screen.queryByLabelText(/enquadramento vertical da foto/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('photoOffsetFromDrag', () => {
+  // Arrastar para baixo (deltaY positivo) empurra o conteúdo da foto para
+  // baixo dentro do quadro — o que aparece é mais o TOPO dela, um offset
+  // menor (0 = topo). Por isso o deslocamento é subtraído, não somado.
+  it('arrastar para baixo diminui o enquadramento', () => {
+    expect(photoOffsetFromDrag(50, 108, 1080)).toBe(40);
+  });
+
+  it('arrastar para baixo até o fim presa no mínimo 0', () => {
+    expect(photoOffsetFromDrag(10, 1000, 1080)).toBe(0);
+  });
+
+  it('arrastar para cima até o fim presa no máximo 100', () => {
+    expect(photoOffsetFromDrag(90, -1000, 1080)).toBe(100);
+  });
+
+  it('altura zero devolve o valor inicial preso ao intervalo', () => {
+    expect(photoOffsetFromDrag(50, 500, 0)).toBe(50);
+    expect(photoOffsetFromDrag(150, 0, 0)).toBe(100);
   });
 });
 

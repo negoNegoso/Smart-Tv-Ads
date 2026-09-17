@@ -1,4 +1,12 @@
 import { formatPriceBRL, truncate } from "./format";
+import { discountPercent, normalizePhotoOffset, promoPalette, resolvePromoStyle } from "./promo-palette";
+import {
+  PROMO_PHOTO_LEFT,
+  PROMO_SPLIT_BOTTOM,
+  promoBackgroundSvg,
+  promoBadgeMetrics,
+  promoBadgeSvg,
+} from "./promo-background";
 
 export interface RenderItem {
   name: string;
@@ -12,6 +20,12 @@ export interface RenderPanel {
   kind: "menu" | "promo" | "notice";
   headline: string | null;
   body: string | null;
+  /** Só a promoção lê. Ausente ou inválida usa a cor padrão. */
+  accentColor?: string | null;
+  /** "price" | "percent". Só a promoção lê. */
+  promoStyle?: string | null;
+  /** Enquadramento vertical da foto, 0 a 100. Ausente ou inválido centraliza. Só a promoção lê. */
+  photoOffset?: number | null;
 }
 
 /** Limites de caractere por campo. Além disso, o texto some do quadro. */
@@ -69,6 +83,7 @@ function frame(children: unknown[]) {
 
 const FRAME_HEIGHT = 1080; // mesmo valor de PANEL_HEIGHT (render.ts); duplicado aqui para não
 // criar import circular (render.ts importa templates.ts, não o contrário).
+const FRAME_WIDTH = 1920; // mesmo valor de PANEL_WIDTH (render.ts); mesma razão do FRAME_HEIGHT.
 
 /** Altura útil do quadro da tabela de preços, já descontado o padding do frame. */
 export const MENU_CONTENT_HEIGHT = FRAME_HEIGHT - 2 * FRAME_PADDING_VERTICAL;
@@ -154,64 +169,176 @@ function menuNode(page: { category: string | null; items: RenderItem[] }) {
   ].filter(Boolean));
 }
 
+const PROMO_CONTENT_LEFT = 80;
+/** Abaixo dos enfeites, que vão até y≈290 (`promo-background.ts`). */
+const PROMO_CONTENT_TOP = 310;
+/** Com foto, o conteúdo vai até a diagonal na base, com a mesma margem dos dois lados. */
+const PROMO_CONTENT_WIDTH_WITH_PHOTO = PROMO_SPLIT_BOTTOM - 2 * PROMO_CONTENT_LEFT;
+const PROMO_CONTENT_WIDTH_FULL = 1400;
+/** Aparece só se a foto não cobrir a área dela. */
+const PROMO_PHOTO_BACKDROP = "#F1F1F3";
+const PROMO_DISCLAIMER_COLOR = "#3A2A4A";
+/** 52px de Fredoka Bold em maiúsculas: ~32px por caractere, 20 cabem em 670px sem quebrar linha. */
+const MAX_PROMO_NAME = 20;
+
+function svgDataUri(svg: string): string {
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+/** "R$ 8,99" → ["R$", "8,99"]. `formatPriceBRL` sempre separa com espaço comum. */
+function splitCurrency(formatted: string): [string, string] {
+  const space = formatted.indexOf(" ");
+  return [formatted.slice(0, space), formatted.slice(space + 1)];
+}
+
 function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
-  return frame([
-    node("div", {
-      style: { fontSize: 40, letterSpacing: "4px", color: COLORS.accent },
-      children: truncate(panel.headline ?? "PROMOÇÃO", MAX_HEADLINE).toUpperCase(),
-    }),
-    node("div", {
-      style: {
-        display: "flex",
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "64px",
-      },
-      children: [
-        node("div", {
-          style: { display: "flex", flexDirection: "column", gap: "24px", maxWidth: "900px" },
-          children: [
-            node("div", {
-              style: { fontSize: 92, fontWeight: 700, lineHeight: 1.05 },
-              children: truncate(item?.name ?? "", MAX_ITEM_NAME),
-            }),
-            panel.body
-              ? node("div", {
-                  style: { fontSize: 32, color: COLORS.muted },
-                  children: truncate(panel.body, MAX_BODY),
-                })
-              : null,
-            node("div", {
-              style: { display: "flex", alignItems: "baseline", gap: "24px" },
-              children: [
-                item?.oldPriceCents
-                  ? node("div", {
-                      style: {
-                        fontSize: 44,
-                        color: COLORS.muted,
-                        textDecoration: "line-through",
-                      },
-                      children: formatPriceBRL(item.oldPriceCents),
-                    })
-                  : null,
-                node("div", {
-                  style: { fontSize: 120, fontWeight: 700, color: COLORS.accent },
-                  children: formatPriceBRL(item?.priceCents ?? 0),
-                }),
-              ].filter(Boolean),
-            }),
-          ].filter(Boolean),
-        }),
-        item?.imageUrl
-          ? node("img", {
-              src: item.imageUrl,
-              style: { width: 640, height: 640, objectFit: "cover", borderRadius: "32px" },
-            })
-          : null,
-      ].filter(Boolean),
-    }),
-  ]);
+  const palette = promoPalette(panel.accentColor);
+  const style = resolvePromoStyle(panel.promoStyle, item);
+  const photo = item?.imageUrl ?? null;
+  const contentWidth = photo ? PROMO_CONTENT_WIDTH_WITH_PHOTO : PROMO_CONTENT_WIDTH_FULL;
+  const bold = { fontWeight: 700 };
+
+  const badgeText = truncate(panel.headline ?? "PROMOÇÃO", MAX_HEADLINE).toUpperCase();
+  const badge = promoBadgeMetrics(badgeText);
+  const badgeNode = node("div", {
+    style: {
+      display: "flex",
+      position: "relative",
+      width: badge.width,
+      height: badge.height,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    children: [
+      node("img", {
+        src: svgDataUri(promoBadgeSvg({ width: badge.width, height: badge.height, stroke: palette.text })),
+        width: badge.width,
+        height: badge.height,
+        style: { position: "absolute", left: 0, top: 0 },
+      }),
+      node("div", { style: { ...bold, fontSize: badge.fontSize }, children: badgeText }),
+    ],
+  });
+
+  const nameNode = node("div", {
+    style: { ...bold, fontSize: 52, marginTop: 24 },
+    children: truncate((item?.name ?? "").toUpperCase(), MAX_PROMO_NAME),
+  });
+
+  const priceCents = item?.priceCents ?? 0;
+  const oldPriceCents = item?.oldPriceCents ?? null;
+  const [currency, amount] = splitCurrency(formatPriceBRL(priceCents));
+
+  const priceNodes =
+    style === "percent" && oldPriceCents !== null
+      ? [
+          node("div", {
+            style: { display: "flex", alignItems: "baseline", color: palette.price, marginTop: 8 },
+            children: [
+              node("div", {
+                style: { ...bold, fontSize: 200, lineHeight: 1 },
+                children: `${discountPercent(oldPriceCents, priceCents)}%`,
+              }),
+              node("div", { style: { ...bold, fontSize: 72, marginLeft: 16 }, children: "OFF" }),
+            ],
+          }),
+          node("div", {
+            style: { ...bold, fontSize: 40 },
+            children: `DE ${formatPriceBRL(oldPriceCents)} POR ${formatPriceBRL(priceCents)}`,
+          }),
+        ]
+      : [
+          // Preço antigo zerado ou sem desconto (a API não compara com o preço) não vira DE/POR.
+          oldPriceCents !== null && oldPriceCents > priceCents
+            ? node("div", {
+                style: { display: "flex", alignItems: "baseline", marginTop: 24 },
+                children: [
+                  node("div", { style: { ...bold, fontSize: 36 }, children: "DE" }),
+                  node("div", {
+                    style: { ...bold, fontSize: 52, margin: "0 16px" },
+                    children: splitCurrency(formatPriceBRL(oldPriceCents))[1],
+                  }),
+                  node("div", { style: { ...bold, fontSize: 36 }, children: "POR" }),
+                ],
+              })
+            : null,
+          node("div", {
+            style: { display: "flex", alignItems: "baseline", color: palette.price },
+            children: [
+              node("div", { style: { ...bold, fontSize: 52, marginRight: 12 }, children: currency }),
+              // Coluna de conteúdo com foto tem 670px: "999,99" em 150px cabe;
+              // "1.299,99" precisa de 100px; "1.000.000,00" (a API aceita até
+              // 100.000.000 centavos) só cabe em 75px.
+              node("div", {
+                style: {
+                  ...bold,
+                  fontSize: amount.length > 9 ? 75 : amount.length > 6 ? 100 : 150,
+                  lineHeight: 1,
+                },
+                children: amount,
+              }),
+            ],
+          }),
+        ].filter(Boolean);
+
+  const bodyNode = panel.body
+    ? node("div", {
+        style: { ...bold, display: "block", fontSize: 38, lineHeight: 1.2, lineClamp: 2, marginTop: 16, color: palette.price },
+        children: truncate(panel.body, MAX_BODY),
+      })
+    : null;
+
+  return node("div", {
+    style: {
+      display: "flex",
+      position: "relative",
+      width: "100%",
+      height: "100%",
+      backgroundColor: PROMO_PHOTO_BACKDROP,
+      color: palette.text,
+      fontFamily: "Fredoka",
+      overflow: "hidden",
+    },
+    children: [
+      photo
+        ? node("img", {
+            src: photo,
+            width: FRAME_WIDTH - PROMO_PHOTO_LEFT,
+            height: FRAME_HEIGHT,
+            style: {
+              position: "absolute",
+              left: PROMO_PHOTO_LEFT,
+              top: 0,
+              objectFit: "cover",
+              objectPosition: `50% ${normalizePhotoOffset(panel.photoOffset)}%`,
+            },
+          })
+        : null,
+      node("img", {
+        src: svgDataUri(promoBackgroundSvg({ color: palette.panel, ornament: palette.text, hasImage: Boolean(photo) })),
+        width: FRAME_WIDTH,
+        height: FRAME_HEIGHT,
+        style: { position: "absolute", left: 0, top: 0 },
+      }),
+      node("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          position: "absolute",
+          left: PROMO_CONTENT_LEFT,
+          top: PROMO_CONTENT_TOP,
+          width: contentWidth,
+        },
+        children: [badgeNode, nameNode, ...priceNodes, bodyNode].filter(Boolean),
+      }),
+      photo
+        ? node("div", {
+            style: { ...bold, position: "absolute", right: 80, bottom: 40, fontSize: 32, color: PROMO_DISCLAIMER_COLOR },
+            children: "*imagens meramente ilustrativas",
+          })
+        : null,
+    ].filter(Boolean),
+  });
 }
 
 function noticeNode(panel: RenderPanel) {

@@ -1039,6 +1039,10 @@ export const ListPortalClientDevicesResponse = zod.array(ListPortalClientDevices
 /**
  * @summary List client portal panels
  */
+export const listClientPanelsResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const listClientPanelsResponsePhotoOffsetMin = 0;
+export const listClientPanelsResponsePhotoOffsetMax = 100;
+
 export const listClientPanelsResponseItemsItemPriceCentsMin = 0;
 
 export const listClientPanelsResponseItemsItemOldPriceCentsMin = 0;
@@ -1055,6 +1059,9 @@ export const ListClientPanelsResponseItem = zod.object({
   "duration": zod.number(),
   "headline": zod.string().nullish(),
   "body": zod.string().nullish(),
+  "accentColor": zod.string().regex(listClientPanelsResponseAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(listClientPanelsResponsePhotoOffsetMin).max(listClientPanelsResponsePhotoOffsetMax).nullish(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1090,6 +1097,10 @@ export const CreateClientPanelBody = zod.object({
   "clientId": zod.number().optional()
 })
 
+export const createClientPanelResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const createClientPanelResponsePhotoOffsetMin = 0;
+export const createClientPanelResponsePhotoOffsetMax = 100;
+
 export const createClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const createClientPanelResponseItemsItemOldPriceCentsMin = 0;
@@ -1106,6 +1117,9 @@ export const CreateClientPanelResponse = zod.object({
   "duration": zod.number(),
   "headline": zod.string().nullish(),
   "body": zod.string().nullish(),
+  "accentColor": zod.string().regex(createClientPanelResponseAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(createClientPanelResponsePhotoOffsetMin).max(createClientPanelResponsePhotoOffsetMax).nullish(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1131,6 +1145,10 @@ export const GetClientPanelParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getClientPanelResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getClientPanelResponsePhotoOffsetMin = 0;
+export const getClientPanelResponsePhotoOffsetMax = 100;
+
 export const getClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const getClientPanelResponseItemsItemOldPriceCentsMin = 0;
@@ -1147,6 +1165,9 @@ export const GetClientPanelResponse = zod.object({
   "duration": zod.number(),
   "headline": zod.string().nullish(),
   "body": zod.string().nullish(),
+  "accentColor": zod.string().regex(getClientPanelResponseAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(getClientPanelResponsePhotoOffsetMin).max(getClientPanelResponsePhotoOffsetMax).nullish(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1183,6 +1204,10 @@ export const updateClientPanelBodyHeadlineMax = 80;
 
 export const updateClientPanelBodyBodyMax = 300;
 
+export const updateClientPanelBodyAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateClientPanelBodyPhotoOffsetMin = 0;
+export const updateClientPanelBodyPhotoOffsetMax = 100;
+
 
 
 export const UpdateClientPanelBody = zod.object({
@@ -1190,8 +1215,15 @@ export const UpdateClientPanelBody = zod.object({
   "template": zod.string().min(1).max(updateClientPanelBodyTemplateMax).optional(),
   "duration": zod.number().min(updateClientPanelBodyDurationMin).max(updateClientPanelBodyDurationMax).optional(),
   "headline": zod.string().max(updateClientPanelBodyHeadlineMax).nullish(),
-  "body": zod.string().max(updateClientPanelBodyBodyMax).nullish()
+  "body": zod.string().max(updateClientPanelBodyBodyMax).nullish(),
+  "accentColor": zod.string().regex(updateClientPanelBodyAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(updateClientPanelBodyPhotoOffsetMin).max(updateClientPanelBodyPhotoOffsetMax).nullish()
 })
+
+export const updateClientPanelResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateClientPanelResponsePhotoOffsetMin = 0;
+export const updateClientPanelResponsePhotoOffsetMax = 100;
 
 export const updateClientPanelResponseItemsItemPriceCentsMin = 0;
 
@@ -1209,6 +1241,9 @@ export const UpdateClientPanelResponse = zod.object({
   "duration": zod.number(),
   "headline": zod.string().nullish(),
   "body": zod.string().nullish(),
+  "accentColor": zod.string().regex(updateClientPanelResponseAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(updateClientPanelResponsePhotoOffsetMin).max(updateClientPanelResponsePhotoOffsetMax).nullish(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),

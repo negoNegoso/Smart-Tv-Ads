@@ -10,6 +10,10 @@ export type PanelKind = (typeof PANEL_KINDS)[number];
 export const PANEL_STATUSES = ["draft", "published"] as const;
 export type PanelStatus = (typeof PANEL_STATUSES)[number];
 
+/** Como a promoção mostra o desconto: DE/POR ou porcentagem. */
+export const PROMO_STYLES = ["price", "percent"] as const;
+export type PromoStyle = (typeof PROMO_STYLES)[number];
+
 export const panelsTable = pgTable(
   "panels",
   {
@@ -28,6 +32,12 @@ export const panelsTable = pgTable(
     duration: integer("duration").notNull().default(10),
     headline: text("headline"),
     body: text("body"),
+    // Cor do painel da promoção, "#RRGGBB". Nulo usa a cor padrão do template.
+    accentColor: text("accent_color"),
+    // "price" | "percent". Nulo vale "price". Só o template de promoção lê.
+    promoStyle: text("promo_style"),
+    // Enquadramento vertical da foto da promoção, 0 a 100 (0 = topo, 100 = rodapé). Nulo vale 50 (centro).
+    photoOffset: integer("photo_offset"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

@@ -1557,6 +1557,9 @@ components:
         duration: { type: integer }
         headline: { type: string, nullable: true }
         body: { type: string, nullable: true }
+        accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }
+        promoStyle: { type: string, enum: [price, percent], nullable: true }
+        photoOffset: { type: integer, minimum: 0, maximum: 100, nullable: true }
         publishedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -1581,6 +1584,9 @@ components:
         duration: { type: integer, minimum: 5, maximum: 60 }
         headline: { type: string, maxLength: 80, nullable: true }
         body: { type: string, maxLength: 300, nullable: true }
+        accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }
+        promoStyle: { type: string, enum: [price, percent], nullable: true }
+        photoOffset: { type: integer, minimum: 0, maximum: 100, nullable: true }
 
     ReplacePanelItemsRequest:
       type: object

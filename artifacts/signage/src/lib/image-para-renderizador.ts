@@ -77,3 +77,18 @@ export async function prepararImagemParaUpload(
   if (!jpeg) throw new Error('Não foi possível converter a imagem neste navegador.');
   return new File([jpeg], `${semExtensao}.jpg`, { type: 'image/jpeg' });
 }
+
+/**
+ * Largura e altura em pixels, ou `null` se o navegador não souber ler o
+ * arquivo. Serve para avisar quando a foto é pequena demais para a TV; nunca
+ * lança, porque não saber medir não pode impedir o upload.
+ */
+export async function dimensoesDaImagem(file: File): Promise<{ largura: number; altura: number } | null> {
+  try {
+    const img = await carregarImagem(file);
+    if (!img.naturalWidth || !img.naturalHeight) return null;
+    return { largura: img.naturalWidth, altura: img.naturalHeight };
+  } catch {
+    return null;
+  }
+}
