@@ -85,6 +85,7 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
           accentColor: panel.accentColor,
           promoStyle: panel.promoStyle,
           photoOffset: panel.photoOffset,
+          photoOffsetX: panel.photoOffsetX,
         },
         renderPage,
       );

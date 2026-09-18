@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import PortalPanelEditor, { parsePriceToCents, photoOffsetFromDrag } from '../portal-panel-editor';
+import PortalPanelEditor, { parsePriceToCents, photoOffsetFromDrag, photoOffsetXFromDrag } from '../portal-panel-editor';
 
 const panel = {
   id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços', template: 'menu-basico',
@@ -146,6 +146,7 @@ describe('PortalPanelEditor', () => {
   const promoPanelComFoto = {
     ...promoPanel,
     photoOffset: null,
+    photoOffsetX: null,
     items: [{ ...promoPanel.items[0], imageUrl: 'https://example.com/foto.jpg' }],
   };
 
@@ -188,6 +189,36 @@ describe('PortalPanelEditor', () => {
     renderEditor();
     await screen.findByDisplayValue('Cheesecake');
     expect(screen.queryByLabelText(/enquadramento vertical da foto/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/enquadramento horizontal da foto/i)).not.toBeInTheDocument();
+  });
+
+  it('campo de enquadramento horizontal muda o valor e o salvar envia photoOffsetX', async () => {
+    const fetchMock = stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const range = screen.getByLabelText(/enquadramento horizontal da foto/i);
+    fireEvent.change(range, { target: { value: '30' } });
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH');
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch![1] as RequestInit).body as string).photoOffsetX).toBe(30);
+    });
+  });
+
+  it('botão Centralizar volta os dois eixos para 50', async () => {
+    stubPromoFetchComFoto();
+    renderEditor();
+    await screen.findByDisplayValue('Cheesecake');
+    const rangeY = screen.getByLabelText(/enquadramento vertical da foto/i) as HTMLInputElement;
+    const rangeX = screen.getByLabelText(/enquadramento horizontal da foto/i) as HTMLInputElement;
+    fireEvent.change(rangeY, { target: { value: '10' } });
+    fireEvent.change(rangeX, { target: { value: '90' } });
+    expect(rangeY.value).toBe('10');
+    expect(rangeX.value).toBe('90');
+    await userEvent.click(screen.getByRole('button', { name: /centralizar/i }));
+    expect(rangeY.value).toBe('50');
+    expect(rangeX.value).toBe('50');
   });
 });
 
@@ -210,6 +241,29 @@ describe('photoOffsetFromDrag', () => {
   it('altura zero devolve o valor inicial preso ao intervalo', () => {
     expect(photoOffsetFromDrag(50, 500, 0)).toBe(50);
     expect(photoOffsetFromDrag(150, 0, 0)).toBe(100);
+  });
+});
+
+describe('photoOffsetXFromDrag', () => {
+  // Mesma convenção de "segurar a foto" do eixo vertical: arrastar para a
+  // direita (deltaX positivo) empurra o conteúdo da foto para a direita
+  // dentro do quadro — o que aparece é mais o lado ESQUERDO dela, um offset
+  // menor (0 = esquerda). Por isso o deslocamento é subtraído, não somado.
+  it('arrastar para a direita diminui o enquadramento', () => {
+    expect(photoOffsetXFromDrag(50, 108, 1080)).toBe(40);
+  });
+
+  it('arrastar para a direita até o fim presa no mínimo 0', () => {
+    expect(photoOffsetXFromDrag(10, 1000, 1080)).toBe(0);
+  });
+
+  it('arrastar para a esquerda até o fim presa no máximo 100', () => {
+    expect(photoOffsetXFromDrag(90, -1000, 1080)).toBe(100);
+  });
+
+  it('largura zero devolve o valor inicial preso ao intervalo', () => {
+    expect(photoOffsetXFromDrag(50, 500, 0)).toBe(50);
+    expect(photoOffsetXFromDrag(150, 0, 0)).toBe(100);
   });
 });
 

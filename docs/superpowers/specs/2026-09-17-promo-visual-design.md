@@ -194,46 +194,56 @@ em `assets.ts` junto das Inter (família `"Fredoka"`). `build.mjs` ganha loader
 - Promoção de porcentagem sem produto (ex.: "loja toda 30% OFF").
 - Logo do lojista no slide.
 
-## Anexo (2026-09-17): enquadramento vertical da foto
+## Anexo (2026-09-17): enquadramento vertical e horizontal da foto
 
 O lojista arrasta a foto na prévia para escolher que parte dela aparece no
-slide. Só na promoção; só na vertical (a área da foto é quase quadrada, a
-sobra é quase toda vertical).
+slide. Só na promoção. O eixo vertical (`photoOffset`) veio primeiro; o
+horizontal (`photoOffsetX`) espelha exatamente a mesma ideia no outro eixo,
+e os dois se movem juntos no mesmo gesto de arrasto.
 
 ### Dados
 
 - `panels.photo_offset integer` — 0 a 100, nulo vale 50 (centro, o que o
   slide faz hoje). Migração `0010`.
-- OpenAPI: `photoOffset` (integer, minimum 0, maximum 100, nullable) em
-  `Panel` e `UpdatePanelRequest`; regenera o cliente. Rota valida o
-  intervalo; fora dele é 400.
-- `RenderPanel` ganha `photoOffset?: number | null`; `publish.ts` repassa.
+- `panels.photo_offset_x integer` — mesma faixa e mesmo default, eixo
+  horizontal. Migração `0011`.
+- OpenAPI: `photoOffset` e `photoOffsetX` (integer, minimum 0, maximum 100,
+  nullable) em `Panel` e `UpdatePanelRequest`; regenera o cliente. Rota
+  valida o intervalo de cada um; fora dele é 400.
+- `RenderPanel` ganha `photoOffset?: number | null` e
+  `photoOffsetX?: number | null`; `publish.ts` repassa os dois.
 
 ### Renderizador
 
-A foto usa `objectPosition: "50% <offset>%"` (satori 0.33.4 suporta).
-0 mostra o topo da imagem, 100 o rodapé. Valor nulo ou fora do intervalo
-vira 50 — a normalização fica numa função pura junto das outras
-(`promo-palette.ts` ou módulo próprio), copiada para o portal como o resto.
+A foto usa `objectPosition: "<offsetX>% <offset>%"` (satori 0.33.4
+suporta). No eixo vertical, 0 mostra o topo da imagem, 100 o rodapé; no
+horizontal, 0 mostra a esquerda, 100 a direita. Valor nulo ou fora do
+intervalo vira 50 em qualquer um dos dois eixos — a mesma função pura
+`normalizePhotoOffset` normaliza os dois, copiada para o portal como o
+resto.
 
 ### Editor
 
-- Arrastar direto na prévia: mousedown/pointerdown sobre a foto, mover na
-  vertical, soltar. O deslocamento em pixels vira porcentagem pela altura
-  da prévia, preso entre 0 e 100. Cursor `grab`/`grabbing`,
-  `touch-action: none` para o celular.
-- Botão "Centralizar" volta para 50.
-- Campo numérico acessível por teclado (pode ser um `<input type="range">`
-  rotulado "Enquadramento vertical da foto"), porque arrastar sozinho não
-  é alcançável por teclado.
-- O valor entra no mesmo PATCH do nome, cor e estilo.
+- Arrastar direto na prévia: mousedown/pointerdown sobre a foto, mover em
+  qualquer direção, soltar. Um gesto só move os dois eixos: o deslocamento
+  em pixels vira porcentagem pela altura (vertical) e pela largura
+  (horizontal) da prévia, cada um preso entre 0 e 100. Cursor
+  `grab`/`grabbing`, `touch-action: none` para o celular.
+- Botão "Centralizar" volta os dois eixos para 50.
+- Dois campos numéricos acessíveis por teclado (`<input type="range">`
+  rotulados "Enquadramento vertical da foto" e "Enquadramento horizontal
+  da foto"), porque arrastar sozinho não é alcançável por teclado.
+- Os dois valores entram no mesmo PATCH do nome, cor e estilo.
 
 ### Testes
 
 - Normalização: nulo, fora do intervalo e não inteiro viram 50; valores
-  válidos passam.
-- Render: offsets 0, 50 e 100 geram PNGs diferentes entre si.
-- Rota: aceita 0 e 100, recusa -1, 101 e "meio" com 400.
-- Prévia: `objectPosition` reflete o valor.
-- Editor: arrastar muda o valor, o botão centraliza, o PATCH leva
-  `photoOffset`.
+  válidos passam (mesma função, os dois eixos).
+- Render: offsets 0, 50 e 100 geram PNGs diferentes entre si em cada eixo.
+- Rota: aceita 0 e 100, recusa -1, 101 e "meio" com 400, para
+  `photoOffset` e `photoOffsetX`.
+- Prévia: `objectPosition` reflete os dois valores, inclusive combinados.
+- Editor: arrastar muda os dois valores, o botão centraliza os dois, o
+  PATCH leva `photoOffset` e `photoOffsetX`; a conversão do arrasto
+  horizontal tem testes de unidade próprios para o grampeamento (jsdom não
+  simula um arrasto de verdade).

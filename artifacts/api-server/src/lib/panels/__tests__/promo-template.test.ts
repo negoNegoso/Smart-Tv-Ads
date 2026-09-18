@@ -167,4 +167,31 @@ describe("promoNode", () => {
     );
     expect(firstImgStyle(tree)?.objectPosition).toBe("50% 50%");
   });
+
+  it.each([
+    [0, "0% 50%"],
+    [100, "100% 50%"],
+  ])("photoOffsetX %s vira objectPosition %s", (photoOffsetX, objectPosition) => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffsetX },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.objectPosition).toBe(objectPosition);
+  });
+
+  it("photoOffsetX nulo centraliza a foto (50%)", () => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffsetX: null },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.objectPosition).toBe("50% 50%");
+  });
+
+  it("photoOffset e photoOffsetX combinados viram objectPosition nos dois eixos", () => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset: 75, photoOffsetX: 25 },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.objectPosition).toBe("25% 75%");
+  });
 });

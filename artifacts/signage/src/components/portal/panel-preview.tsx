@@ -49,6 +49,7 @@ export interface PanelPreviewProps {
   accentColor?: string | null;
   promoStyle?: string | null;
   photoOffset?: number | null;
+  photoOffsetX?: number | null;
 }
 
 /**
@@ -123,6 +124,7 @@ function PromoPreview({
   accentColor,
   promoStyle,
   photoOffset,
+  photoOffsetX,
 }: {
   headline: string | null;
   body: string | null;
@@ -130,6 +132,7 @@ function PromoPreview({
   accentColor: string | null;
   promoStyle: string | null;
   photoOffset: number | null;
+  photoOffsetX: number | null;
 }) {
   // Mesmas posições e tamanhos de `promoNode` em templates.ts, convertidos por px().
   const palette = promoPalette(accentColor);
@@ -154,7 +157,7 @@ function PromoPreview({
           style={{
             left: px(PROMO_PHOTO_LEFT),
             width: px(1920 - PROMO_PHOTO_LEFT),
-            objectPosition: `50% ${normalizePhotoOffset(photoOffset)}%`,
+            objectPosition: `${normalizePhotoOffset(photoOffsetX)}% ${normalizePhotoOffset(photoOffset)}%`,
           }}
         />
       ) : null}
@@ -252,6 +255,7 @@ export function PanelPreview({
   accentColor = null,
   promoStyle = null,
   photoOffset = null,
+  photoOffsetX = null,
 }: PanelPreviewProps) {
   return (
     <div
@@ -271,6 +275,7 @@ export function PanelPreview({
           accentColor={accentColor}
           promoStyle={promoStyle}
           photoOffset={photoOffset}
+          photoOffsetX={photoOffsetX}
         />
       ) : null}
       {kind === 'notice' ? <NoticePreview headline={headline} body={body} /> : null}

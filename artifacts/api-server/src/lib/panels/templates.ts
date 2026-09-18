@@ -26,6 +26,8 @@ export interface RenderPanel {
   promoStyle?: string | null;
   /** Enquadramento vertical da foto, 0 a 100. Ausente ou inválido centraliza. Só a promoção lê. */
   photoOffset?: number | null;
+  /** Enquadramento horizontal da foto, 0 a 100. Ausente ou inválido centraliza. Só a promoção lê. */
+  photoOffsetX?: number | null;
 }
 
 /** Limites de caractere por campo. Além disso, o texto some do quadro. */
@@ -310,7 +312,7 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
               left: PROMO_PHOTO_LEFT,
               top: 0,
               objectFit: "cover",
-              objectPosition: `50% ${normalizePhotoOffset(panel.photoOffset)}%`,
+              objectPosition: `${normalizePhotoOffset(panel.photoOffsetX)}% ${normalizePhotoOffset(panel.photoOffset)}%`,
             },
           })
         : null,

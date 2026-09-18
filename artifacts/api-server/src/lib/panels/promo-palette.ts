@@ -83,11 +83,13 @@ export function resolvePromoStyle(
 const DEFAULT_PHOTO_OFFSET = 50;
 
 /**
- * Enquadramento vertical da foto da promoção, em porcentagem (0 = topo da
- * foto, 100 = rodapé). Nulo, fora do intervalo [0, 100] ou não inteiro vira
- * o centro em vez de lançar — mesma filosofia de `normalizeAccentColor`.
- * O portal (arrastar na prévia) copia esta função, então ela fica
- * autocontida, sem depender de nada deste módulo além do que está aqui.
+ * Enquadramento da foto da promoção num eixo, em porcentagem (0 = início do
+ * eixo — topo ou esquerda —, 100 = fim — rodapé ou direita). Nulo, fora do
+ * intervalo [0, 100] ou não inteiro vira o centro em vez de lançar — mesma
+ * filosofia de `normalizeAccentColor`. A mesma função normaliza os dois
+ * eixos (`photoOffset` vertical e `photoOffsetX` horizontal); o portal
+ * (arrastar na prévia) copia esta função, então ela fica autocontida, sem
+ * depender de nada deste módulo além do que está aqui.
  */
 export function normalizePhotoOffset(value: number | null | undefined): number {
   if (value === null || value === undefined) return DEFAULT_PHOTO_OFFSET;

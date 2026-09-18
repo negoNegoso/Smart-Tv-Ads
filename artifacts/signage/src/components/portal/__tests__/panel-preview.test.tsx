@@ -131,6 +131,22 @@ describe('PanelPreview', () => {
     expect(photo).toHaveStyle({ objectPosition: '50% 50%' });
   });
 
+  it('enquadramento horizontal e vertical combinados refletem no objectPosition', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffset={75}
+        photoOffsetX={25}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ objectPosition: '25% 75%' });
+  });
+
   it('aviso mostra headline e corpo, sem preço', () => {
     render(<PanelPreview kind="notice" headline="Aceitamos Pix" body="Chave no balcão" items={[]} page={1} />);
     expect(screen.getByText('Aceitamos Pix')).toBeInTheDocument();

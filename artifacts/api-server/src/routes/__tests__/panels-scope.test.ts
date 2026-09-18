@@ -477,4 +477,41 @@ describe("escopo das rotas de painéis", () => {
     expect(res.status).toBe(400);
     expect(updatePanel).not.toHaveBeenCalled();
   });
+
+  it.each([0, 100])("PATCH aceita photoOffsetX %s", async (photoOffsetX) => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5 });
+    getPanel.mockResolvedValue({ id: 5, items: [] });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ photoOffsetX });
+    expect(res.status).toBe(200);
+    expect(updatePanel).toHaveBeenCalledWith(5, { photoOffsetX });
+  });
+
+  it("PATCH aceita null em photoOffsetX para voltar ao centro", async () => {
+    panelClientId.mockResolvedValue(7);
+    updatePanel.mockResolvedValue({ id: 5 });
+    getPanel.mockResolvedValue({ id: 5, items: [] });
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ photoOffsetX: null });
+    expect(res.status).toBe(200);
+    expect(updatePanel).toHaveBeenCalledWith(5, { photoOffsetX: null });
+  });
+
+  it.each([-1, 101, "meio"])("PATCH recusa photoOffsetX %s com 400", async (photoOffsetX) => {
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .patch("/portal/client/panels/5")
+      .set("Cookie", cookie)
+      .send({ photoOffsetX });
+    expect(res.status).toBe(400);
+    expect(updatePanel).not.toHaveBeenCalled();
+  });
 });
