@@ -87,7 +87,9 @@ describe('PanelPreview', () => {
     expect(screen.getByText('1.000.000,00').style.fontSize).toBe(`${(75 / 1920) * 100}cqw`);
   });
 
-  it('enquadramento vertical da foto reflete no objectPosition', () => {
+  // Mesma área e mesma fórmula de `promoNode` (servidor), só que em cqw:
+  // px(v) = v / 1920 * 100. Área da foto: 1190px de largura, 1080px de altura.
+  it('enquadramento vertical da foto reflete no transform', () => {
     const { container } = render(
       <PanelPreview
         kind="promo"
@@ -99,10 +101,10 @@ describe('PanelPreview', () => {
       />,
     );
     const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
-    expect(photo).toHaveStyle({ objectPosition: '50% 0%' });
+    expect(photo).toHaveStyle({ transform: 'translate(0cqw, 28.125cqw)' });
   });
 
-  it('enquadramento vertical 100 reflete no objectPosition', () => {
+  it('enquadramento vertical 100 reflete no transform', () => {
     const { container } = render(
       <PanelPreview
         kind="promo"
@@ -114,10 +116,40 @@ describe('PanelPreview', () => {
       />,
     );
     const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
-    expect(photo).toHaveStyle({ objectPosition: '50% 100%' });
+    expect(photo).toHaveStyle({ transform: 'translate(0cqw, -28.125cqw)' });
   });
 
-  it('sem photoOffset o objectPosition fica no centro', () => {
+  it('enquadramento horizontal 0 reflete no transform', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffsetX={0}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ transform: 'translate(30.989583333333332cqw, 0cqw)' });
+  });
+
+  it('enquadramento horizontal 100 reflete no transform', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffsetX={100}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ transform: 'translate(-30.989583333333332cqw, 0cqw)' });
+  });
+
+  it('sem photoOffset o transform fica zerado (centro, igual ao visual de hoje)', () => {
     const { container } = render(
       <PanelPreview
         kind="promo"
@@ -128,7 +160,39 @@ describe('PanelPreview', () => {
       />,
     );
     const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
-    expect(photo).toHaveStyle({ objectPosition: '50% 50%' });
+    expect(photo).toHaveStyle({ transform: 'translate(0cqw, 0cqw)' });
+  });
+
+  it('photoOffset e photoOffsetX em 50/50 explícitos também não deslocam nada', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffset={50}
+        photoOffsetX={50}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ transform: 'translate(0cqw, 0cqw)' });
+  });
+
+  it('enquadramento horizontal e vertical combinados refletem no transform', () => {
+    const { container } = render(
+      <PanelPreview
+        kind="promo"
+        headline={null}
+        body={null}
+        photoOffset={75}
+        photoOffsetX={25}
+        items={[{ ...item('Pizza', 4990), imageUrl: 'https://example.com/foto.jpg' }]}
+        page={1}
+      />,
+    );
+    const photo = container.querySelector('img[alt=""]:not([data-promo-background])');
+    expect(photo).toHaveStyle({ transform: 'translate(15.494791666666666cqw, -14.0625cqw)' });
   });
 
   it('aviso mostra headline e corpo, sem preço', () => {

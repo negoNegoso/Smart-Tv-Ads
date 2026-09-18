@@ -28,6 +28,11 @@ export interface Panel {
      * @maximum 100
      */
   photoOffset?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  photoOffsetX?: number | null;
   publishedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

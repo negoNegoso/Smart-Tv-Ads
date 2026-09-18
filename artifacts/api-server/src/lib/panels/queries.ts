@@ -71,7 +71,15 @@ export async function updatePanel(
   patch: Partial<
     Pick<
       Panel,
-      "name" | "template" | "duration" | "headline" | "body" | "accentColor" | "promoStyle" | "photoOffset"
+      | "name"
+      | "template"
+      | "duration"
+      | "headline"
+      | "body"
+      | "accentColor"
+      | "promoStyle"
+      | "photoOffset"
+      | "photoOffsetX"
     >
   >,
 ): Promise<Panel | null> {

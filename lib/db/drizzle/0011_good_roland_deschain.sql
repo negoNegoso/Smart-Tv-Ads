@@ -1,0 +1,1 @@
+ALTER TABLE "panels" ADD COLUMN "photo_offset_x" integer;

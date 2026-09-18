@@ -38,6 +38,8 @@ export const panelsTable = pgTable(
     promoStyle: text("promo_style"),
     // Enquadramento vertical da foto da promoção, 0 a 100 (0 = topo, 100 = rodapé). Nulo vale 50 (centro).
     photoOffset: integer("photo_offset"),
+    // Enquadramento horizontal da foto da promoção, 0 a 100 (0 = esquerda, 100 = direita). Nulo vale 50 (centro).
+    photoOffsetX: integer("photo_offset_x"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
