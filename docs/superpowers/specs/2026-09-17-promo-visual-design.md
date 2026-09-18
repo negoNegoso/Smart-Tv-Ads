@@ -213,14 +213,43 @@ e os dois se movem juntos no mesmo gesto de arrasto.
 - `RenderPanel` ganha `photoOffset?: number | null` e
   `photoOffsetX?: number | null`; `publish.ts` repassa os dois.
 
-### Renderizador
+### Renderizador (revisão 2026-09-18: `translate` em vez de `object-position`)
 
-A foto usa `objectPosition: "<offsetX>% <offset>%"` (satori 0.33.4
-suporta). No eixo vertical, 0 mostra o topo da imagem, 100 o rodapé; no
-horizontal, 0 mostra a esquerda, 100 a direita. Valor nulo ou fora do
-intervalo vira 50 em qualquer um dos dois eixos — a mesma função pura
-`normalizePhotoOffset` normaliza os dois, copiada para o portal como o
-resto.
+A primeira versão usava `objectPosition: "<offsetX>% <offset>%"` com
+`objectFit: cover`. Isso quebrava sempre que um eixo não tinha sobra de
+`cover` para mover: uma foto quadrada ou vertical, numa área mais larga que
+alta, cobre exatamente a largura sem sobrar nada — o `object-position`
+horizontal não tinha o que arrastar, então a foto não respondia ao arrasto
+horizontal (o slider mudava e salvava, mas nada se movia na prévia nem no
+PNG).
+
+A correção troca `object-position` por uma translação de verdade dentro de
+um contêiner com `overflow: hidden`:
+
+- A área da foto (de `PROMO_PHOTO_LEFT` até a borda direita, altura cheia)
+  vira um contêiner com `overflow: hidden` e o fundo claro que já existia
+  atrás da foto (`#F1F1F3`, `PROMO_PHOTO_BACKDROP`).
+- Dentro dele, a foto mantém `objectFit: cover` no tamanho do contêiner —
+  mesmo enquadramento de largura/altura de hoje — e ganha
+  `transform: translate(dx, dy)`.
+- Os offsets continuam inteiros 0..100 com o mesmo significado (50 =
+  centro); a faixa inteira 0..100 desloca a foto em meia área do eixo, em
+  cada sentido:
+  `dx = (50 - normalizePhotoOffset(photoOffsetX)) / 100 * larguraDaÁrea`,
+  `dy = (50 - normalizePhotoOffset(photoOffset)) / 100 * alturaDaÁrea`.
+  Em 50/50 (padrão), `dx = dy = 0` — o visual de hoje não muda.
+- Sinal: arrastar a foto para a direita diminui `photoOffsetX` rumo a 0
+  (convenção de `photoOffsetXFromDrag`, `portal-panel-editor.tsx`) — e isso
+  precisa mover o CONTEÚDO da foto para a direita, revelando o lado
+  esquerdo dela. Com offset=0, `dx` é positivo (meia área): translação
+  positiva move para a direita. Confere. Mesma lógica no eixo vertical.
+- Arrastar além do que a foto cobre agora mostra o fundo claro naquela
+  faixa — é o comportamento aceito, não um bug: a translação sempre desloca
+  o quadro já enquadrado por `cover`, então passar da borda da foto expõe o
+  fundo em vez de esticar ou repetir a imagem.
+
+Satori 0.33.4 suporta `transform: translate(...)` (verificado no bundle
+instalado).
 
 ### Editor
 

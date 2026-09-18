@@ -149,49 +149,59 @@ describe("promoNode", () => {
     expect(texts(tree)).not.toContain("*imagens meramente ilustrativas");
   });
 
+  // Área da foto: x de 730 (PROMO_PHOTO_LEFT) a 1920 (FRAME_WIDTH) = 1190px de
+  // largura; 1080px (FRAME_HEIGHT) de altura. dx/dy = (50 - offset) / 100 * área.
   it.each([
-    [0, "50% 0%"],
-    [100, "50% 100%"],
-  ])("photoOffset %s vira objectPosition %s", (photoOffset, objectPosition) => {
+    [0, "translate(0px, 540px)"],
+    [100, "translate(0px, -540px)"],
+  ])("photoOffset %s vira translate %s no eixo vertical", (photoOffset, transform) => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset },
       page(cheesecake),
     );
-    expect(firstImgStyle(tree)?.objectPosition).toBe(objectPosition);
+    expect(firstImgStyle(tree)?.transform).toBe(transform);
   });
 
-  it("photoOffset nulo centraliza a foto (50%)", () => {
+  it("photoOffset nulo centraliza a foto (translate zero no eixo vertical)", () => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset: null },
       page(cheesecake),
     );
-    expect(firstImgStyle(tree)?.objectPosition).toBe("50% 50%");
+    expect(firstImgStyle(tree)?.transform).toBe("translate(0px, 0px)");
   });
 
   it.each([
-    [0, "0% 50%"],
-    [100, "100% 50%"],
-  ])("photoOffsetX %s vira objectPosition %s", (photoOffsetX, objectPosition) => {
+    [0, "translate(595px, 0px)"],
+    [100, "translate(-595px, 0px)"],
+  ])("photoOffsetX %s vira translate %s no eixo horizontal", (photoOffsetX, transform) => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffsetX },
       page(cheesecake),
     );
-    expect(firstImgStyle(tree)?.objectPosition).toBe(objectPosition);
+    expect(firstImgStyle(tree)?.transform).toBe(transform);
   });
 
-  it("photoOffsetX nulo centraliza a foto (50%)", () => {
+  it("photoOffsetX nulo centraliza a foto (translate zero no eixo horizontal)", () => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffsetX: null },
       page(cheesecake),
     );
-    expect(firstImgStyle(tree)?.objectPosition).toBe("50% 50%");
+    expect(firstImgStyle(tree)?.transform).toBe("translate(0px, 0px)");
   });
 
-  it("photoOffset e photoOffsetX combinados viram objectPosition nos dois eixos", () => {
+  it("photoOffset e photoOffsetX combinados viram translate nos dois eixos", () => {
     const tree = panelPageNode(
       { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset: 75, photoOffsetX: 25 },
       page(cheesecake),
     );
-    expect(firstImgStyle(tree)?.objectPosition).toBe("25% 75%");
+    expect(firstImgStyle(tree)?.transform).toBe("translate(297.5px, -270px)");
+  });
+
+  it("photoOffset e photoOffsetX em 50/50 (padrão) não deslocam nada: o visual de hoje fica igual", () => {
+    const tree = panelPageNode(
+      { kind: "promo", headline: null, body: null, accentColor: null, promoStyle: null, photoOffset: 50, photoOffsetX: 50 },
+      page(cheesecake),
+    );
+    expect(firstImgStyle(tree)?.transform).toBe("translate(0px, 0px)");
   });
 });

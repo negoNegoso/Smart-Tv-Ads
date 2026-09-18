@@ -187,6 +187,33 @@ function svgDataUri(svg: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
+/** Área da foto: da diagonal (`PROMO_PHOTO_LEFT`) até a borda direita, altura cheia. */
+const PROMO_PHOTO_AREA_WIDTH = FRAME_WIDTH - PROMO_PHOTO_LEFT;
+const PROMO_PHOTO_AREA_HEIGHT = FRAME_HEIGHT;
+
+/**
+ * Deslocamento (em px) que substitui `object-position`: a foto mantém
+ * `object-fit: cover` (o enquadramento de hoje) dentro de um contêiner com
+ * `overflow: hidden`, e é o contêiner que corta o que passar da área — não
+ * mais o `cover`. Isso resolve o eixo que o `cover` não deixava mover (foto
+ * quadrada/vertical no eixo horizontal): antes, sem sobra nesse eixo, o
+ * `object-position` não tinha o que arrastar; agora o `translate` sempre
+ * desloca, e o excesso vira fundo claro (`PROMO_PHOTO_BACKDROP`), que é o
+ * comportamento aceito, não um bug.
+ *
+ * offset 50 (centro, o padrão) não desloca nada — o visual de hoje fica
+ * igual. offset 0 ou 100 desloca meia área do eixo, em cada sentido.
+ *
+ * Sinal: arrastar a foto para a direita diminui `photoOffsetX` rumo a 0
+ * (convenção de `photoOffsetXFromDrag`, `portal-panel-editor.tsx`) — isso
+ * precisa mover o CONTEÚDO da foto para a direita (dx positivo), revelando o
+ * lado esquerdo dela e deixando o fundo claro à direita. Com offset=0,
+ * dx = (50-0)/100 × área = +metade da área: positivo. Confere.
+ */
+function photoTranslate(offset: number | null | undefined, area: number): number {
+  return ((50 - normalizePhotoOffset(offset)) / 100) * area;
+}
+
 /** "R$ 8,99" → ["R$", "8,99"]. `formatPriceBRL` sempre separa com espaço comum. */
 function splitCurrency(formatted: string): [string, string] {
   const space = formatted.indexOf(" ");
@@ -303,17 +330,28 @@ function promoNode(panel: RenderPanel, item: RenderItem | undefined) {
     },
     children: [
       photo
-        ? node("img", {
-            src: photo,
-            width: FRAME_WIDTH - PROMO_PHOTO_LEFT,
-            height: FRAME_HEIGHT,
+        ? node("div", {
             style: {
+              display: "flex",
               position: "absolute",
               left: PROMO_PHOTO_LEFT,
               top: 0,
-              objectFit: "cover",
-              objectPosition: `${normalizePhotoOffset(panel.photoOffsetX)}% ${normalizePhotoOffset(panel.photoOffset)}%`,
+              width: PROMO_PHOTO_AREA_WIDTH,
+              height: PROMO_PHOTO_AREA_HEIGHT,
+              overflow: "hidden",
+              backgroundColor: PROMO_PHOTO_BACKDROP,
             },
+            children: [
+              node("img", {
+                src: photo,
+                width: PROMO_PHOTO_AREA_WIDTH,
+                height: PROMO_PHOTO_AREA_HEIGHT,
+                style: {
+                  objectFit: "cover",
+                  transform: `translate(${photoTranslate(panel.photoOffsetX, PROMO_PHOTO_AREA_WIDTH)}px, ${photoTranslate(panel.photoOffset, PROMO_PHOTO_AREA_HEIGHT)}px)`,
+                },
+              }),
+            ],
           })
         : null,
       node("img", {

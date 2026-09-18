@@ -144,22 +144,31 @@ function PromoPreview({
   const oldPriceCents = item?.oldPriceCents ?? null;
   const [currency, amount] = splitCurrency(formatPriceBRL(priceCents));
 
+  // Mesma área e mesma fórmula de `photoTranslate` em `templates.ts` (servidor):
+  // offset 50 (centro) não desloca nada; 0 e 100 deslocam meia área do eixo.
+  // Sinal conferido lá: offset menor move o conteúdo da foto para a direita.
+  const photoAreaWidth = 1920 - PROMO_PHOTO_LEFT;
+  const photoAreaHeight = 1080;
+  const photoDx = ((50 - normalizePhotoOffset(photoOffsetX)) / 100) * photoAreaWidth;
+  const photoDy = ((50 - normalizePhotoOffset(photoOffset)) / 100) * photoAreaHeight;
+
   return (
     <div
       className="relative h-full w-full overflow-hidden font-bold"
       style={{ backgroundColor: '#F1F1F3', color: palette.text, fontFamily: 'Fredoka, sans-serif' }}
     >
       {photo ? (
-        <img
-          src={photo}
-          alt=""
-          className="absolute top-0 h-full object-cover"
-          style={{
-            left: px(PROMO_PHOTO_LEFT),
-            width: px(1920 - PROMO_PHOTO_LEFT),
-            objectPosition: `${normalizePhotoOffset(photoOffsetX)}% ${normalizePhotoOffset(photoOffset)}%`,
-          }}
-        />
+        <div
+          className="absolute top-0 h-full overflow-hidden"
+          style={{ left: px(PROMO_PHOTO_LEFT), width: px(photoAreaWidth), backgroundColor: '#F1F1F3' }}
+        >
+          <img
+            src={photo}
+            alt=""
+            className="h-full w-full object-cover"
+            style={{ transform: `translate(${px(photoDx)}, ${px(photoDy)})` }}
+          />
+        </div>
       ) : null}
       <img
         data-promo-background

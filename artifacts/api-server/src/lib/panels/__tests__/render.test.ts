@@ -153,6 +153,26 @@ describe("renderPanelPage", () => {
     expect(left.equals(right)).toBe(false);
   });
 
+  it.each([
+    ["0", 0],
+    ["100", 100],
+  ])(
+    "foto quadrada/vertical com photoOffsetX %s (sem sobra de cover no eixo X) ainda renderiza 1920x1080 sem lançar",
+    async (_caso, photoOffsetX) => {
+      // Imagem vertical (1x2): com object-fit cover numa área mais larga que
+      // alta, o cover escala pela largura e sobra altura — o eixo X não tem
+      // sobra nenhuma. Antes da translação, objectPosition nesse eixo não
+      // movia nada; é exatamente o caso que a troca por translate corrige,
+      // mesmo que o resultado passe a mostrar o fundo claro na faixa.
+      const photo = twoPixelPng();
+      const png = await renderPanelPage(
+        { kind: "promo", headline: null, body: null, accentColor: "#D63A6A", promoStyle: "price", photoOffsetX },
+        { category: null, items: [{ ...item("Cheesecake", 899), oldPriceCents: null, imageUrl: photo }] },
+      );
+      expect(pngSize(png)).toEqual({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+    },
+  );
+
   it("aviso sem item nenhum vira PNG 1920x1080", async () => {
     const png = await renderPanelPage(
       { kind: "notice", headline: "Aceitamos Pix", body: "Chave: o telefone da loja" },
