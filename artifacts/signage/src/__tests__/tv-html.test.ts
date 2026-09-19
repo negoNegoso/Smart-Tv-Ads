@@ -27,6 +27,10 @@ let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
 let gets: string[] = [];
+// Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
+// O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
+// teste troca isto para simular um 404 de outra origem (proxy, misroute).
+let corpoDeErro = '{"error":"Device not found"}';
 
 const slide = (announcementId: number, imageUrl: string) => ({
   announcementId,
@@ -115,6 +119,7 @@ beforeEach(() => {
   listaDeSlides = [];
   statusDaLista = 200;
   gets = [];
+  corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
     value: criarStorageFake(),
     configurable: true,
@@ -153,7 +158,13 @@ beforeEach(() => {
       gets.push(this.url);
       this.readyState = 4;
       this.status = statusDaLista;
-      this.responseText = statusDaLista === 200 ? JSON.stringify(listaDeSlides) : "";
+      if (statusDaLista === 200) {
+        this.responseText = JSON.stringify(listaDeSlides);
+      } else if (statusDaLista === 0) {
+        this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
+      } else {
+        this.responseText = corpoDeErro;
+      }
       this.onreadystatechange?.();
     }
   }
@@ -297,6 +308,14 @@ describe("tv.html: pareamento", () => {
     expect(window.localStorage.getItem("signage.deviceKey")).toBe("A1B2C3D4E5F6A7B8");
   });
 
+  it("key da URL com minúsculas e traços é normalizada antes da consulta", () => {
+    window.history.replaceState({}, "", "/tv.html?key=a1b2-c3d4-e5f6-a7b8");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+  });
+
   it("404 mostra QR, key em blocos e link", () => {
     semKeyNaUrl();
     window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
@@ -349,6 +368,16 @@ describe("tv.html: pareamento", () => {
     vi.advanceTimersByTime(5000);
 
     expect(pareando()).toBe(true);
+  });
+
+  it("404 com corpo diferente (proxy/misroute) não abre o pareamento", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    corpoDeErro = "Not Found";
+    carregarTv();
+
+    expect(pareando()).toBe(false);
+    expect(document.getElementById("empty-screen")!.className).toBe("visible");
   });
 
   it("erro de rede não abre o pareamento", () => {

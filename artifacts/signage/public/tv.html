@@ -274,10 +274,20 @@
         return out.toUpperCase();
       }
 
+      // Mesma normalização do servidor (lib/device-key.ts): maiúsculas, sem
+      // espaço nem traço. Uma TV aberta com a key em blocos ou minúscula
+      // (como o admin comparte) tem de bater com a key que o servidor guarda;
+      // senão pergunta pra sempre por um device que já existe. Key fora do
+      // formato de 16 hex é legado (ex.: id antigo) e fica como veio.
+      function normalizeUrlKey(raw) {
+        var normalizado = raw.replace(/[\s-]/g, '').toUpperCase();
+        return /^[0-9A-F]{16}$/.test(normalizado) ? normalizado : raw;
+      }
+
       // URL (TVs antigas, não gravada) → guardada → nova, gravada.
       function resolveKey() {
         var fromUrl = getKey();
-        if (fromUrl) { return fromUrl; }
+        if (fromUrl) { return normalizeUrlKey(fromUrl); }
         var stored = readStoredKey();
         if (stored) { return stored; }
         var fresh = generateKey();
@@ -305,7 +315,10 @@
       }
 
       // O status vai junto: 404 significa "TV sem device" (pareamento), que
-      // não pode ser confundido com rede fora do ar.
+      // não pode ser confundido com rede fora do ar. Em erro, o corpo também
+      // vai junto (5º argumento) porque nem todo 404 é o do device — um
+      // proxy/misroute pode devolver outro corpo, e só o corpo exato da API
+      // (GetDeviceSlides -> routes/display.ts) deve abrir o pareamento.
       function xhrGet(url, cb) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
@@ -315,7 +328,9 @@
             try { cb(null, JSON.parse(xhr.responseText), xhr.status); }
             catch (e) { cb(e, null, xhr.status); }
           } else {
-            cb(new Error('HTTP ' + xhr.status), null, xhr.status);
+            var body = null;
+            try { body = JSON.parse(xhr.responseText); } catch (e) {}
+            cb(new Error('HTTP ' + xhr.status), null, xhr.status, body);
           }
         };
         xhr.send();
@@ -748,14 +763,18 @@
 
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/slides';
-        xhrGet(url, function (err, data, status) {
-          if (status === 404) {
+        xhrGet(url, function (err, data, status, body) {
+          // Só o 404 exato do device (routes/display.ts) é "sem device ainda":
+          // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
+          // senão a TV abriria o pareamento por engano com um device que existe.
+          if (status === 404 && body && body.error === 'Device not found') {
             showPairing(key);
             return;
           }
-          // Rede caiu: segura o que já está no ar. Melhor a TV repetir a lista
-          // velha do que apagar por causa de um GET perdido. Na primeira carga
-          // não há lista para segurar, então mostra a tela de vazio.
+          // Rede caiu, ou outro erro/404 sem ser o do device: segura o que já
+          // está no ar. Melhor a TV repetir a lista velha do que apagar por
+          // causa de um GET perdido. Na primeira carga não há lista para
+          // segurar, então mostra a tela de vazio.
           if (err || !data) {
             if (!isRefresh) { emptyEl.className = 'visible'; }
             return;
