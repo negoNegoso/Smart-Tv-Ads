@@ -11,18 +11,18 @@ plugins {
 val prodTvUrl = "https://smart-tv-ads.vercel.app/tv"
 val tvUrl: String = providers.gradleProperty("tvUrl").orNull ?: prodTvUrl
 
-// Versão vem da tag no CI (-PversionName=1.2.3, sufixo -rc1 aceito). O
+// Versão vem da release no CI (-PversionName=1.2.3, sufixo -rc1 aceito). O
 // versionCode cresce junto para o Android aceitar instalar por cima:
-// major*10000 + minor*100 + patch (1.2.3 -> 10203).
+// major*1000000 + minor*1000 + patch (1.2.3 -> 1002003).
 val appVersionName: String = providers.gradleProperty("versionName").orNull ?: "1.0.0"
 val appVersionCode: Int = run {
     val m = Regex("""(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?""").matchEntire(appVersionName)
         ?: throw GradleException("versionName inválido: '$appVersionName' (use X.Y.Z ou X.Y.Z-sufixo)")
     val (major, minor, patch) = m.destructured.toList().take(3).map { it.toInt() }
-    if (minor > 99 || patch > 99) {
-        throw GradleException("versionName '$appVersionName': minor e patch vão até 99")
+    if (minor > 999 || patch > 999 || major > 2000) {
+        throw GradleException("versionName '$appVersionName': major até 2000, minor e patch até 999")
     }
-    major * 10000 + minor * 100 + patch
+    major * 1_000_000 + minor * 1_000 + patch
 }
 
 // Keystore de release fora do git (ver README). Perder o arquivo impede

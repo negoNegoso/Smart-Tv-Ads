@@ -53,22 +53,26 @@ export SIGNAGE_KEY_PASS=...
 ```
 
 `-PversionName=X.Y.Z` (sufixo como `-rc1` aceito) define a versão e o
-`versionCode` = major×10000 + minor×100 + patch; sem ele, `1.0.0`. Cada APK
-novo precisa de versão maior que a instalada para atualizar por cima.
+`versionCode` = major×1000000 + minor×1000 + patch; sem ele, `1.0.0`. Cada
+APK novo precisa de versão maior que a instalada para atualizar por cima.
 
-## Publicar nova versão (GitHub Actions)
+## Releases automáticas (GitHub Actions)
 
-A pipeline `.github/workflows/android-tv.yml` roda testes e build debug em
-todo push/PR que mexe no app. Uma tag `android-tv-vX.Y.Z` gera o APK assinado
-e cria um GitHub Release com ele:
+A pipeline `.github/workflows/release.yml` roda os testes do web e do app em
+todo PR. **Cada merge na `main` gera uma release `vX.Y.Z`** em Releases, com
+`signage-tv-X.Y.Z.apk` (assinado) e `signage-web-X.Y.Z.zip` (build do web)
+anexados — ninguém cria tag à mão. O técnico baixa o APK da release mais
+recente.
 
-```bash
-git tag android-tv-v1.0.1
-git push origin android-tv-v1.0.1
-# -> Releases: "Signage TV 1.0.1" com signage-tv-1.0.1.apk
-```
+A versão sobe a partir da última release conforme o título do PR mesclado:
 
-Tag com sufixo (`android-tv-v1.0.1-rc1`) sai como pre-release.
+| Título do PR | Sobe | Ex. a partir de 1.4.2 |
+|---|---|---|
+| `feat(...)` | minor | 1.5.0 |
+| `fix(...)`, `docs(...)`, `ci(...)` e demais | patch | 1.4.3 |
+| `feat!:` / `fix(x)!:` ou `BREAKING CHANGE` no corpo | major | 2.0.0 |
+
+Sem nenhuma release `vX.Y.Z` ainda, a base é `1.0.0`.
 
 **Configuração única — secrets do repositório** (Settings → Secrets and
 variables → Actions), a partir do keystore gerado acima:

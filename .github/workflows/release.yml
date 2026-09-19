@@ -1,0 +1,175 @@
+# Release a cada merge na main: testes do web e do app Android, depois uma
+# release vX.Y.Z com o APK assinado e o build do web anexados.
+# - PR: só os testes.
+# - Push na main: testes -> versão (título do PR) -> APK + zip web -> release.
+# O deploy de produção do web continua pela integração da Vercel.
+name: release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Uma release por vez, na ordem dos merges; em PR, a execução nova cancela a velha.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/android-tv
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Testes e build debug
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Relatório dos testes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: artifacts/android-tv/app/build/reports/tests/
+
+  test-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Testes do web
+        run: |
+          pnpm --filter @workspace/signage test
+          pnpm --filter @workspace/api-server test
+
+      - name: Testes do versionamento
+        run: node --test scripts/release/
+
+  release:
+    if: github.event_name == 'push'
+    needs: [test-android, test-web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Título do PR mesclado decide o que sobe; push direto usa a mensagem do commit.
+      - name: Versão
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] // empty')"
+          if [ -n "$PR_JSON" ]; then
+            PR_TITLE="$(jq -r .title <<<"$PR_JSON")"
+            PR_BODY="$(jq -r '.body // ""' <<<"$PR_JSON")"
+            PR_URL="$(jq -r .html_url <<<"$PR_JSON")"
+          else
+            PR_TITLE="$(git log -1 --format=%s)"
+            PR_BODY="$(git log -1 --format=%b)"
+            PR_URL=""
+          fi
+          TAGS="$(git tag -l 'v*')"
+          VERSION="$(PR_TITLE="$PR_TITLE" PR_BODY="$PR_BODY" TAGS="$TAGS" node scripts/release/next-version.mjs)"
+          echo "Versão $VERSION ← \"$PR_TITLE\""
+          {
+            echo "VERSION=$VERSION"
+            echo "PR_URL=$PR_URL"
+          } >> "$GITHUB_ENV"
+          printf '%s' "$PR_TITLE" > "$RUNNER_TEMP/pr-title.txt"
+
+      # O keystore só existe no disco do runner durante o job; nunca no log.
+      - name: Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNAGE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret SIGNAGE_KEYSTORE_BASE64 não configurado (ver artifacts/android-tv/README.md)."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signage-tv.jks"
+          echo "SIGNAGE_KEYSTORE=$RUNNER_TEMP/signage-tv.jks" >> "$GITHUB_ENV"
+
+      - name: APK release assinado
+        working-directory: artifacts/android-tv
+        env:
+          SIGNAGE_KEYSTORE_PASS: ${{ secrets.SIGNAGE_KEYSTORE_PASS }}
+          SIGNAGE_KEY_ALIAS: ${{ secrets.SIGNAGE_KEY_ALIAS }}
+          SIGNAGE_KEY_PASS: ${{ secrets.SIGNAGE_KEY_PASS }}
+        run: |
+          ./gradlew :app:assembleRelease -PversionName="$VERSION"
+          APK="app/build/outputs/apk/release/signage-tv-$VERSION.apk"
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BT/apksigner" verify "$APK"
+          "$BT/aapt" dump badging "$APK" | head -1
+          cp "$APK" "$RUNNER_TEMP/"
+
+      # Mesmo build da Vercel; sem banco no ambiente a migração é pulada.
+      - name: Build do web
+        env:
+          SITE_URL: https://smart-tv-ads.vercel.app
+        run: |
+          pnpm install --frozen-lockfile
+          node scripts/build-vercel.mjs
+          (cd .vercel/output && zip -qr "$RUNNER_TEMP/signage-web-$VERSION.zip" .)
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "**$(cat "$RUNNER_TEMP/pr-title.txt")**"
+            [ -n "$PR_URL" ] && echo "" && echo "PR: $PR_URL"
+            echo ""
+            echo "- \`signage-tv-$VERSION.apk\`: app Android para TV e TV box (instalação em artifacts/android-tv/README.md)."
+            echo "- \`signage-web-$VERSION.zip\`: build do web (saída da Vercel, Build Output API)."
+            echo "- Web em produção: https://smart-tv-ads.vercel.app"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" \
+            "$RUNNER_TEMP/signage-tv-$VERSION.apk" \
+            "$RUNNER_TEMP/signage-web-$VERSION.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Smart TV Ads $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes
+
+      - name: Apaga o keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signage-tv.jks"
