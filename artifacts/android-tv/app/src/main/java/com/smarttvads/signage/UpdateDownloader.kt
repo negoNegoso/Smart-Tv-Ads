@@ -11,16 +11,16 @@ import java.net.URL
  * main thread. Qualquer falha vira null — atualizar é sempre opcional e nunca
  * pode atrapalhar o painel.
  */
-class UpdateDownloader(private val baseUrl: String, private val dir: File) {
+class UpdateDownloader(private val baseUrl: String, private val dir: File) : UpdateController.Downloader {
 
-    fun fetchManifest(): UpdateManifest? = try {
+    override fun fetchManifest(): UpdateManifest? = try {
         UpdateManifest.parse(open(baseUrl + MANIFEST).use { it.readBytes().toString(Charsets.UTF_8) })
     } catch (e: IOException) {
         null
     }
 
     /** APK conferido pelo SHA-256, ou null. Reaproveita o já baixado se o hash bate. */
-    fun downloadApk(manifest: UpdateManifest): File? {
+    override fun downloadApk(manifest: UpdateManifest): File? {
         dir.mkdirs()
         val target = File(dir, manifest.apk)
         if (target.exists() && Sha256.hex(target) == manifest.sha256) return target

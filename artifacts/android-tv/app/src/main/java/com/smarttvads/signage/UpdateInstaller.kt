@@ -14,9 +14,9 @@ import java.io.File
  * UpdateStatusReceiver: no Android 10/11 sempre pede confirmação; no 12+
  * pode instalar sem perguntar quando o próprio app instalou a versão atual.
  */
-class UpdateInstaller(private val context: Context) {
+class UpdateInstaller(private val context: Context) : UpdateController.Installer {
 
-    fun prepare(apk: File, versionName: String) {
+    override fun prepare(apk: File, versionName: String) {
         val installer = context.packageManager.packageInstaller
         var sessionId: Int? = null
         try {
