@@ -106,7 +106,9 @@ describe("POST /devices com deviceKey", () => {
   });
 
   it("key que já existe é 409", async () => {
-    insertResult = Object.assign(new Error("duplicate key"), { code: "23505" });
+    // Forma real do drizzle-orm 0.45.2: o código do pg vem em err.cause.code,
+    // não em err.code (DrizzleQueryError embrulha o erro do driver).
+    insertResult = Object.assign(new Error("Failed query"), { cause: { code: "23505" } });
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app)

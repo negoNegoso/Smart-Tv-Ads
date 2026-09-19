@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import type { CompanyFields, CreateCompanyInput } from "./input";
 import type { CompanyDependencies, RolePlan } from "./roles";
+import { isUniqueViolation } from "../pg-errors";
 
 export type { CompanyDependencies } from "./roles";
 
@@ -25,8 +26,6 @@ export interface CompanyDetail extends CompanyRow {
 
 /** Corrida criando o mesmo perfil duas vezes: o UNIQUE(company_id) barra. */
 export class CompanyConflictError extends Error {}
-
-const PG_UNIQUE_VIOLATION = "23505";
 
 function rowQuery() {
   return db
@@ -85,10 +84,11 @@ export async function getCompany(id: number): Promise<CompanyDetail | null> {
 }
 
 function rethrowConflict(err: unknown): never {
-  // drizzle-orm@0.45.2's node-postgres driver (node_modules/drizzle-orm/node-postgres/session.js)
-  // does `catch (error) { throw error; }` around `client.query(...)`: it rethrows the raw `pg`
-  // error untouched, so `.code` (e.g. "23505") is still readable here.
-  if ((err as { code?: string })?.code === PG_UNIQUE_VIOLATION) {
+  // drizzle-orm@0.45.2 embrulha o erro do driver `pg` em `DrizzleQueryError`
+  // (node_modules/drizzle-orm/pg-core/session.js, `queryWithCache`): o código
+  // do pg (ex.: "23505") não sobrevive em `.code` do erro relançado, só em
+  // `.cause.code`. `isUniqueViolation` cobre os dois formatos.
+  if (isUniqueViolation(err)) {
     throw new CompanyConflictError("A empresa já tem esse papel.");
   }
   throw err;

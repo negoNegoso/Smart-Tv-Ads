@@ -36,8 +36,7 @@ import {
 } from "@workspace/api-zod";
 import { loadDeviceSlides } from "../lib/device-feed";
 import { normalizeDeviceKey, parseDeviceKey } from "../lib/device-key";
-
-const PG_UNIQUE_VIOLATION = "23505";
+import { isUniqueViolation } from "../lib/pg-errors";
 
 const router: IRouter = Router();
 
@@ -109,8 +108,7 @@ router.post("/devices", async (req, res): Promise<void> => {
       .values({ ...parsed.data, deviceKey })
       .returning();
   } catch (err) {
-    // O driver repassa o erro do pg intacto (ver lib/companies/store.ts).
-    if ((err as { code?: string })?.code === PG_UNIQUE_VIOLATION) {
+    if (isUniqueViolation(err)) {
       res.status(409).json({ error: "Esta TV já está vinculada." });
       return;
     }
