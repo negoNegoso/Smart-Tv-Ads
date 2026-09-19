@@ -56,5 +56,14 @@
         <receiver
             android:name=".UpdateStatusReceiver"
             android:exported="false" />
+
+        <!-- MY_PACKAGE_REPLACED é broadcast protegido do sistema. -->
+        <receiver
+            android:name=".UpdatedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
