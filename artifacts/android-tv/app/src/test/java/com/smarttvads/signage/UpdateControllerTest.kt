@@ -84,4 +84,22 @@ class UpdateControllerTest {
         c.check()
         assertEquals(2, fila.size)
     }
+
+    @Test
+    fun `executor que recusa libera a flag e proxima checagem roda`() {
+        var tentativas = 0
+        val d = FakeDownloader(nova, apk)
+        val executor = Executor {
+            tentativas++
+            if (tentativas == 1) {
+                throw java.util.concurrent.RejectedExecutionException("saturado")
+            }
+            it.run()
+        }
+        val c = UpdateController(instalada, d, installer, executor)
+        c.check()
+        c.check()
+        assertEquals(1, d.manifestos)
+        assertEquals(listOf(apk to "1.2.0"), preparados)
+    }
 }

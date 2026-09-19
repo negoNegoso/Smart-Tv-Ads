@@ -28,17 +28,23 @@ class UpdateController(
 
     fun check() {
         if (!running.compareAndSet(false, true)) return
-        executor.execute {
-            try {
-                val manifest = downloader.fetchManifest() ?: return@execute
-                if (!UpdatePolicy.shouldUpdate(manifest.versionCode, installedVersionCode)) return@execute
-                val apk = downloader.downloadApk(manifest) ?: return@execute
-                installer.prepare(apk, manifest.versionName)
-            } catch (e: Exception) {
-                // Sem rede, disco cheio, instalador recusou: tenta na próxima checagem.
-            } finally {
-                running.set(false)
+        try {
+            executor.execute {
+                try {
+                    val manifest = downloader.fetchManifest() ?: return@execute
+                    if (!UpdatePolicy.shouldUpdate(manifest.versionCode, installedVersionCode)) return@execute
+                    val apk = downloader.downloadApk(manifest) ?: return@execute
+                    installer.prepare(apk, manifest.versionName)
+                } catch (e: Exception) {
+                    // Sem rede, disco cheio, instalador recusou: tenta na próxima checagem.
+                } finally {
+                    running.set(false)
+                }
             }
+        } catch (e: Exception) {
+            // Executor recusou a tarefa (saturado, encerrado). Libera a flag para tentar
+            // na próxima checagem — atualizar é sempre opcional.
+            running.set(false)
         }
     }
 }
