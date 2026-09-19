@@ -64,7 +64,7 @@ jobs:
           pnpm --filter @workspace/api-server test
 
       - name: Testes do versionamento
-        run: node --test scripts/release/
+        run: node --test scripts/release/next-version.test.mjs
 
   release:
     if: github.event_name == 'push'
