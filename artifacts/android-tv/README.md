@@ -48,9 +48,41 @@ export SIGNAGE_KEYSTORE=/caminho/signage-tv.jks
 export SIGNAGE_KEYSTORE_PASS=...
 export SIGNAGE_KEY_ALIAS=signage
 export SIGNAGE_KEY_PASS=...
-./gradlew :app:assembleRelease
-# -> app/build/outputs/apk/release/signage-tv-<versão>.apk
+./gradlew :app:assembleRelease -PversionName=1.0.1
+# -> app/build/outputs/apk/release/signage-tv-1.0.1.apk
 ```
+
+`-PversionName=X.Y.Z` (sufixo como `-rc1` aceito) define a versão e o
+`versionCode` = major×10000 + minor×100 + patch; sem ele, `1.0.0`. Cada APK
+novo precisa de versão maior que a instalada para atualizar por cima.
+
+## Publicar nova versão (GitHub Actions)
+
+A pipeline `.github/workflows/android-tv.yml` roda testes e build debug em
+todo push/PR que mexe no app. Uma tag `android-tv-vX.Y.Z` gera o APK assinado
+e cria um GitHub Release com ele:
+
+```bash
+git tag android-tv-v1.0.1
+git push origin android-tv-v1.0.1
+# -> Releases: "Signage TV 1.0.1" com signage-tv-1.0.1.apk
+```
+
+Tag com sufixo (`android-tv-v1.0.1-rc1`) sai como pre-release.
+
+**Configuração única — secrets do repositório** (Settings → Secrets and
+variables → Actions), a partir do keystore gerado acima:
+
+```bash
+base64 -i signage-tv.jks | gh secret set SIGNAGE_KEYSTORE_BASE64
+gh secret set SIGNAGE_KEYSTORE_PASS   # pede a senha no terminal
+gh secret set SIGNAGE_KEY_ALIAS --body signage
+gh secret set SIGNAGE_KEY_PASS        # pede a senha no terminal
+```
+
+O repositório é público: o APK do Release fica baixável por qualquer um (ele
+só abre o domínio público). O keystore fica só nos secrets e é apagado do
+runner ao fim do job.
 
 ## Instalação na TV / TV box (técnico)
 
