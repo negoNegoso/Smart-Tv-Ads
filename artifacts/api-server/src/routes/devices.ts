@@ -16,6 +16,7 @@ import {
   CreateDeviceResponse,
   GetDeviceParams,
   GetDeviceResponse,
+  GetDeviceByKeyResponse,
   UpdateDeviceParams,
   UpdateDeviceBody,
   UpdateDeviceResponse,
@@ -34,6 +35,9 @@ import {
   TogglePlaylistItemResponse,
 } from "@workspace/api-zod";
 import { loadDeviceSlides } from "../lib/device-feed";
+import { normalizeDeviceKey, parseDeviceKey } from "../lib/device-key";
+
+const PG_UNIQUE_VIOLATION = "23505";
 
 const router: IRouter = Router();
 
@@ -86,20 +90,64 @@ router.get("/devices", async (req, res): Promise<void> => {
   res.json(ListDevicesResponse.parse(rows));
 });
 
-// Create device
+// Create device. A TV em pareamento manda a própria key; sem ela, gera aqui.
 router.post("/devices", async (req, res): Promise<void> => {
-  const parsed = CreateDeviceBody.safeParse(req.body);
+  const body =
+    typeof req.body?.deviceKey === "string"
+      ? { ...req.body, deviceKey: normalizeDeviceKey(req.body.deviceKey) }
+      : req.body;
+  const parsed = CreateDeviceBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const deviceKey = randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
-  const [row] = await db
-    .insert(devicesTable)
-    .values({ ...parsed.data, deviceKey })
-    .returning();
+  const deviceKey = parsed.data.deviceKey ?? randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+  let row: { id: number };
+  try {
+    [row] = await db
+      .insert(devicesTable)
+      .values({ ...parsed.data, deviceKey })
+      .returning();
+  } catch (err) {
+    // O driver repassa o erro do pg intacto (ver lib/companies/store.ts).
+    if ((err as { code?: string })?.code === PG_UNIQUE_VIOLATION) {
+      res.status(409).json({ error: "Esta TV já está vinculada." });
+      return;
+    }
+    throw err;
+  }
   const withClient = await getDeviceWithClient(row.id);
   res.status(201).json(CreateDeviceResponse.parse(withClient));
+});
+
+// Device dono da key. Precisa vir antes de /devices/:id, senão "by-key"
+// cai no parse numérico do id.
+router.get("/devices/by-key/:key", async (req, res): Promise<void> => {
+  const key = parseDeviceKey(req.params.key);
+  if (!key) {
+    res.status(400).json({ error: "Código de TV inválido." });
+    return;
+  }
+  const rows = await db
+    .select({
+      id: devicesTable.id,
+      clientId: devicesTable.clientId,
+      clientName: companiesTable.name,
+      name: devicesTable.name,
+      location: devicesTable.location,
+      deviceKey: devicesTable.deviceKey,
+      lastSeenAt: devicesTable.lastSeenAt,
+      createdAt: devicesTable.createdAt,
+    })
+    .from(devicesTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
+    .where(eq(devicesTable.deviceKey, key));
+  if (!rows[0]) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  res.json(GetDeviceByKeyResponse.parse(rows[0]));
 });
 
 // Get device

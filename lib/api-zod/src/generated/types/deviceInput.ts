@@ -11,4 +11,6 @@ export interface DeviceInput {
   /** @minLength 1 */
   name: string;
   location?: string;
+  /** @pattern ^[0-9A-F]{16}$ */
+  deviceKey?: string;
 }

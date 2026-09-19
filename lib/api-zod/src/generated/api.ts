@@ -556,15 +556,36 @@ export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
  * @summary Create a device linked to a client
  */
 
+export const createDeviceBodyDeviceKeyRegExp = new RegExp('^[0-9A-F]{16}$');
 
 
 export const CreateDeviceBody = zod.object({
   "clientId": zod.number(),
   "name": zod.string().min(1),
-  "location": zod.string().optional()
+  "location": zod.string().optional(),
+  "deviceKey": zod.string().regex(createDeviceBodyDeviceKeyRegExp).optional()
 })
 
 export const CreateDeviceResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "deviceKey": zod.string(),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Find the device that owns a device key (TV pairing)
+ */
+export const GetDeviceByKeyParams = zod.object({
+  "key": zod.coerce.string()
+})
+
+export const GetDeviceByKeyResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
   "clientName": zod.string(),

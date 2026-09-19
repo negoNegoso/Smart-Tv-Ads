@@ -1883,6 +1883,83 @@ export const useCreateDevice = <TError = ErrorType<void>,
       return useMutation(getCreateDeviceMutationOptions(options));
     }
 
+export const getGetDeviceByKeyUrl = (key: string,) => {
+
+
+
+
+  return `/api/devices/by-key/${key}`
+}
+
+/**
+ * @summary Find the device that owns a device key (TV pairing)
+ */
+export const getDeviceByKey = async (key: string, options?: RequestInit): Promise<Device> => {
+
+  return customFetch<Device>(getGetDeviceByKeyUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeviceByKeyQueryKey = (key: string,) => {
+    return [
+    `/api/devices/by-key/${key}`
+    ] as const;
+    }
+
+
+export const getGetDeviceByKeyQueryOptions = <TData = Awaited<ReturnType<typeof getDeviceByKey>>, TError = ErrorType<void>>(key: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeviceByKey>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeviceByKeyQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeviceByKey>>> = ({ signal }) => getDeviceByKey(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeviceByKey>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeviceByKeyQueryResult = NonNullable<Awaited<ReturnType<typeof getDeviceByKey>>>
+export type GetDeviceByKeyQueryError = ErrorType<void>
+
+
+/**
+ * @summary Find the device that owns a device key (TV pairing)
+ */
+
+export function useGetDeviceByKey<TData = Awaited<ReturnType<typeof getDeviceByKey>>, TError = ErrorType<void>>(
+ key: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeviceByKey>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeviceByKeyQueryOptions(key,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetDeviceUrl = (id: number,) => {
 
 

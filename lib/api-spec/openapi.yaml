@@ -405,6 +405,27 @@ paths:
                 $ref: "#/components/schemas/Device"
         "400":
           description: Bad request
+        "409":
+          description: Device key already linked
+
+  /devices/by-key/{key}:
+    get:
+      operationId: getDeviceByKey
+      tags: [devices]
+      summary: Find the device that owns a device key (TV pairing)
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "400":
+          description: Invalid key format
+        "404":
+          description: Not found
 
   /devices/{id}:
     get:
@@ -1257,6 +1278,7 @@ components:
         clientId: { type: integer }
         name: { type: string, minLength: 1 }
         location: { type: string }
+        deviceKey: { type: string, pattern: "^[0-9A-F]{16}$" }
 
     DeviceUpdate:
       type: object

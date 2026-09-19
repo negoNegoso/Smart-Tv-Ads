@@ -57,4 +57,11 @@ describe("porteiro de rotas", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toBe("image/png");
   });
+
+  it("protege /api/devices/by-key sem login", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/api/devices/by-key/A1B2C3D4E5F6A7B8");
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Não autenticado." });
+  });
 });
