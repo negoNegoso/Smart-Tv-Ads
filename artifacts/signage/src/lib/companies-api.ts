@@ -69,7 +69,7 @@ export class ApiError extends Error {
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(api(path), {
     ...init,
     headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,

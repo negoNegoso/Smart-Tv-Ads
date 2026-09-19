@@ -103,6 +103,23 @@
     }
     #empty-title { font-size: 28px; font-weight: 400; margin-bottom: 8px; }
     #empty-sub { font-size: 16px; }
+
+    /* TV sem device: QR para o admin vincular. Acima de tudo, como o aviso. */
+    #pair-screen {
+      display: none;
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 60;
+      background: #0b0f19;
+      color: #e5e7eb;
+      text-align: center;
+      padding-top: 6vh;
+    }
+    #pair-screen.visible { display: block; }
+    #pair-title { font-size: 34px; margin-bottom: 24px; }
+    #pair-qr { width: 42vh; height: 42vh; background: #fff; }
+    #pair-help { font-size: 20px; margin-top: 24px; }
+    #pair-key { font-size: 44px; letter-spacing: 6px; font-family: monospace; margin-top: 16px; }
+    #pair-url { font-size: 18px; margin-top: 12px; color: #9ca3af; }
     #qr-box {
       position: absolute;
       right: 3vh; bottom: 3vh;
@@ -159,6 +176,14 @@
   <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
 
   <div id="fs-hint">Pressione OK para tela cheia</div>
+
+  <div id="pair-screen">
+    <div id="pair-title">Vincular esta TV</div>
+    <img id="pair-qr" alt="" />
+    <div id="pair-help">Leia o QR code com o celular do administrador</div>
+    <div id="pair-key"></div>
+    <div id="pair-url"></div>
+  </div>
 
   <div id="empty-screen">
     <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -217,6 +242,61 @@
         return match ? decodeURIComponent(match[1]) : '';
       }
 
+      var STORAGE_KEY = 'signage.deviceKey';
+
+      function readStoredKey() {
+        try { return window.localStorage.getItem(STORAGE_KEY) || ''; }
+        catch (e) { return ''; }
+      }
+
+      function storeKey(key) {
+        try { window.localStorage.setItem(STORAGE_KEY, key); }
+        catch (e) {}
+      }
+
+      // Mesmo formato do servidor: 16 hex maiúsculos. TV antiga sem crypto cai
+      // no Math.random misturado ao relógio; a unicidade quem garante é o banco.
+      function generateKey() {
+        var out = '';
+        var c = window.crypto || window.msCrypto;
+        if (c && c.getRandomValues) {
+          var bytes = new Uint8Array(8);
+          c.getRandomValues(bytes);
+          for (var i = 0; i < bytes.length; i++) {
+            out += (bytes[i] < 16 ? '0' : '') + bytes[i].toString(16);
+          }
+        } else {
+          var seed = new Date().getTime();
+          while (out.length < 16) {
+            out += (((Math.random() * 16) ^ (seed >>> ((out.length % 8) * 4))) & 15).toString(16);
+          }
+        }
+        return out.toUpperCase();
+      }
+
+      // Mesma normalização do servidor (lib/device-key.ts): maiúsculas, sem
+      // espaço nem traço. Uma TV aberta com a key em blocos ou minúscula
+      // (como o admin comparte) tem de bater com a key que o servidor guarda;
+      // senão pergunta pra sempre por um device que já existe. Key fora do
+      // formato de 16 hex é legado (ex.: id antigo) e fica como veio.
+      function normalizeUrlKey(raw) {
+        var normalizado = raw.replace(/[\s-]/g, '').toUpperCase();
+        return /^[0-9A-F]{16}$/.test(normalizado) ? normalizado : raw;
+      }
+
+      // URL (TVs antigas, não gravada) → guardada → nova, gravada.
+      function resolveKey() {
+        var fromUrl = getKey();
+        if (fromUrl) { return normalizeUrlKey(fromUrl); }
+        var stored = readStoredKey();
+        if (stored) { return stored; }
+        var fresh = generateKey();
+        storeKey(fresh);
+        return fresh;
+      }
+
+      var deviceKey = resolveKey();
+
       function apiBase() {
         // Origin only — API is always at /api/
         return window.location.protocol + '//' + window.location.host;
@@ -234,16 +314,23 @@
         return apiBase() + '/api/uploads/' + filename;
       }
 
+      // O status vai junto: 404 significa "TV sem device" (pareamento), que
+      // não pode ser confundido com rede fora do ar. Em erro, o corpo também
+      // vai junto (5º argumento) porque nem todo 404 é o do device — um
+      // proxy/misroute pode devolver outro corpo, e só o corpo exato da API
+      // (GetDeviceSlides -> routes/display.ts) deve abrir o pareamento.
       function xhrGet(url, cb) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.onreadystatechange = function () {
           if (xhr.readyState !== 4) { return; }
           if (xhr.status >= 200 && xhr.status < 300) {
-            try { cb(null, JSON.parse(xhr.responseText)); }
-            catch (e) { cb(e); }
+            try { cb(null, JSON.parse(xhr.responseText), xhr.status); }
+            catch (e) { cb(e, null, xhr.status); }
           } else {
-            cb(new Error('HTTP ' + xhr.status));
+            var body = null;
+            try { body = JSON.parse(xhr.responseText); } catch (e) {}
+            cb(new Error('HTTP ' + xhr.status), null, xhr.status, body);
           }
         };
         xhr.send();
@@ -518,7 +605,7 @@
       function recordImpression(slide) {
         if (playSent) { return; }
         playSent = true;
-        var key = getKey();
+        var key = deviceKey;
         if (!key) { return; }
         xhrPost(apiBase() + '/api/telemetry/play', {
           deviceKey: key,
@@ -647,16 +734,52 @@
         emptyEl.className = 'visible';
       }
 
+      var PAIR_POLL_MS = 5000;
+      var pairEl = document.getElementById('pair-screen');
+      var pairTimer = null;
+
+      function formatKey(key) {
+        return key.match(/.{1,4}/g).join('-');
+      }
+
+      // Servidor não conhece a key: sem device ainda, ou device apagado. Tira
+      // tudo do ar, mostra o QR e pergunta de novo a cada 5 s.
+      function showPairing(key) {
+        showEmpty();
+        emptyEl.className = '';
+        document.getElementById('pair-qr').src = apiBase() + '/api/qr/pair/' + encodeURIComponent(key) + '.png';
+        document.getElementById('pair-key').textContent = formatKey(key);
+        document.getElementById('pair-url').textContent = apiBase() + '/parear/' + key;
+        pairEl.className = 'visible';
+        if (!pairTimer) {
+          pairTimer = setInterval(function () { fetchAndStart(key, true); }, PAIR_POLL_MS);
+        }
+      }
+
+      function hidePairing() {
+        pairEl.className = '';
+        if (pairTimer) { clearInterval(pairTimer); pairTimer = null; }
+      }
+
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/slides';
-        xhrGet(url, function (err, data) {
-          // Rede caiu: segura o que já está no ar. Melhor a TV repetir a lista
-          // velha do que apagar por causa de um GET perdido. Na primeira carga
-          // não há lista para segurar, então mostra a tela de vazio.
+        xhrGet(url, function (err, data, status, body) {
+          // Só o 404 exato do device (routes/display.ts) é "sem device ainda":
+          // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
+          // senão a TV abriria o pareamento por engano com um device que existe.
+          if (status === 404 && body && body.error === 'Device not found') {
+            showPairing(key);
+            return;
+          }
+          // Rede caiu, ou outro erro/404 sem ser o do device: segura o que já
+          // está no ar. Melhor a TV repetir a lista velha do que apagar por
+          // causa de um GET perdido. Na primeira carga não há lista para
+          // segurar, então mostra a tela de vazio.
           if (err || !data) {
             if (!isRefresh) { emptyEl.className = 'visible'; }
             return;
           }
+          hidePairing();
 
           // Lista vazia é resposta boa do servidor, não falha: a TV tem de
           // parar. Antes isso caía no mesmo return do erro e a campanha
@@ -734,19 +857,11 @@
 
       // ─── Init ─────────────────────────────────────────────────────────────
       function init() {
-        var key = getKey();
-        if (!key) {
-          emptyEl.className = 'visible';
-          document.getElementById('empty-title').textContent = 'Dispositivo não configurado';
-          document.getElementById('empty-sub').textContent = 'Abra o painel admin para obter a URL de exibição deste dispositivo.';
-          return;
-        }
-
-        fetchAndStart(key, false);
+        fetchAndStart(deviceKey, false);
 
         // Refresh slide list every 60 s without interrupting current slide
         refreshTimer = setInterval(function () {
-          fetchAndStart(key, true);
+          fetchAndStart(deviceKey, true);
         }, 60000);
       }
 

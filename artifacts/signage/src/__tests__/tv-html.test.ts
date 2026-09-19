@@ -25,6 +25,12 @@ interface FakeImage {
 let imagens: FakeImage[] = [];
 let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
 let listaDeSlides: unknown[] = [];
+let statusDaLista = 200;
+let gets: string[] = [];
+// Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
+// O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
+// teste troca isto para simular um 404 de outra origem (proxy, misroute).
+let corpoDeErro = '{"error":"Device not found"}';
 
 const slide = (announcementId: number, imageUrl: string) => ({
   announcementId,
@@ -40,6 +46,32 @@ const slide = (announcementId: number, imageUrl: string) => ({
   playbackMode: "capped",
   audioMode: "muted",
 });
+
+/**
+ * `window.localStorage` de verdade (jsdom) some sob Node 25 com Web Storage
+ * nativo habilitado: o global do Node vence o do jsdom e fica sem
+ * getItem/setItem/clear. Um fake em memória tira o teste dessa dependência de
+ * ambiente — instalado de novo a cada teste, então já nasce limpo.
+ */
+function criarStorageFake(): Storage {
+  const dados = new Map<string, string>();
+  return {
+    getItem: (chave: string) => (dados.has(chave) ? dados.get(chave)! : null),
+    setItem: (chave: string, valor: string) => {
+      dados.set(chave, String(valor));
+    },
+    removeItem: (chave: string) => {
+      dados.delete(chave);
+    },
+    clear: () => {
+      dados.clear();
+    },
+    key: (indice: number) => Array.from(dados.keys())[indice] ?? null,
+    get length() {
+      return dados.size;
+    },
+  } as Storage;
+}
 
 /**
  * Resolve as artes pendentes de `url`: sucesso ou falha, como o navegador da TV
@@ -85,6 +117,14 @@ beforeEach(() => {
   imagens = [];
   posts = [];
   listaDeSlides = [];
+  statusDaLista = 200;
+  gets = [];
+  corpoDeErro = '{"error":"Device not found"}';
+  Object.defineProperty(window, "localStorage", {
+    value: criarStorageFake(),
+    configurable: true,
+    writable: true,
+  });
 
   window.history.replaceState({}, "", "/tv.html?key=CHAVE");
 
@@ -115,9 +155,16 @@ beforeEach(() => {
         posts.push({ url: this.url, payload: JSON.parse(body ?? "{}") });
         return;
       }
+      gets.push(this.url);
       this.readyState = 4;
-      this.status = 200;
-      this.responseText = JSON.stringify(listaDeSlides);
+      this.status = statusDaLista;
+      if (statusDaLista === 200) {
+        this.responseText = JSON.stringify(listaDeSlides);
+      } else if (statusDaLista === 0) {
+        this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
+      } else {
+        this.responseText = corpoDeErro;
+      }
       this.onreadystatechange?.();
     }
   }
@@ -226,5 +273,144 @@ describe("tv.html: tela cheia em TV box", () => {
     delete (document.documentElement as { requestFullscreen?: unknown }).requestFullscreen;
     carregarTv();
     expect(aviso().style.display).toBe("none");
+  });
+});
+
+describe("tv.html: pareamento", () => {
+  const pareando = () => document.getElementById("pair-screen")!.className === "visible";
+  const semKeyNaUrl = () => window.history.replaceState({}, "", "/tv");
+
+  it("sem key na URL gera uma, guarda e usa", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+
+    const key = window.localStorage.getItem("signage.deviceKey");
+    expect(key).toMatch(/^[0-9A-F]{16}$/);
+    expect(gets[0]).toContain(`/api/display/${key}/slides`);
+  });
+
+  it("reusa a key guardada", () => {
+    semKeyNaUrl();
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+  });
+
+  it("key da URL vence a guardada e não é gravada", () => {
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/CHAVE/slides");
+    expect(window.localStorage.getItem("signage.deviceKey")).toBe("A1B2C3D4E5F6A7B8");
+  });
+
+  it("key da URL com minúsculas e traços é normalizada antes da consulta", () => {
+    window.history.replaceState({}, "", "/tv.html?key=a1b2-c3d4-e5f6-a7b8");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+  });
+
+  it("404 mostra QR, key em blocos e link", () => {
+    semKeyNaUrl();
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(pareando()).toBe(true);
+    expect((document.getElementById("pair-qr") as HTMLImageElement).src).toContain(
+      "/api/qr/pair/A1B2C3D4E5F6A7B8.png",
+    );
+    expect(document.getElementById("pair-key")!.textContent).toBe("A1B2-C3D4-E5F6-A7B8");
+    expect(document.getElementById("pair-url")!.textContent).toContain("/parear/A1B2C3D4E5F6A7B8");
+    expect(document.getElementById("empty-screen")!.className).toBe("");
+  });
+
+  it("consulta a cada 5 s e sai do pareamento quando vinculada", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+    expect(pareando()).toBe(true);
+
+    statusDaLista = 200;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    vi.advanceTimersByTime(5000);
+    responder("https://blob/a.png", true);
+
+    expect(pareando()).toBe(false);
+    expect(noAr()).toBe("https://blob/a.png");
+  });
+
+  it("device apagado: 404 no refresh volta ao pareamento", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+
+    statusDaLista = 404;
+    vi.advanceTimersByTime(60000);
+
+    expect(pareando()).toBe(true);
+    expect(noAr()).toBeNull();
+  });
+
+  it("rede caindo durante o pareamento mantém o QR", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+    expect(pareando()).toBe(true);
+
+    statusDaLista = 0;
+    vi.advanceTimersByTime(5000);
+
+    expect(pareando()).toBe(true);
+  });
+
+  it("404 com corpo diferente (proxy/misroute) não abre o pareamento", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    corpoDeErro = "Not Found";
+    carregarTv();
+
+    expect(pareando()).toBe(false);
+    expect(document.getElementById("empty-screen")!.className).toBe("visible");
+  });
+
+  it("erro de rede não abre o pareamento", () => {
+    semKeyNaUrl();
+    statusDaLista = 0;
+    carregarTv();
+
+    expect(pareando()).toBe(false);
+    expect(document.getElementById("empty-screen")!.className).toBe("visible");
+  });
+
+  it("localStorage que lança exceção não quebra a TV", () => {
+    semKeyNaUrl();
+    Object.defineProperty(window, "localStorage", {
+      value: {
+        getItem: () => {
+          throw new Error("bloqueado");
+        },
+        setItem: () => {
+          throw new Error("bloqueado");
+        },
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        length: 0,
+      } as Storage,
+      configurable: true,
+      writable: true,
+    });
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(pareando()).toBe(true);
+    expect(gets[0]).toMatch(/\/api\/display\/[0-9A-F]{16}\/slides/);
   });
 });
