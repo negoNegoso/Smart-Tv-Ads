@@ -1,8 +1,10 @@
 package com.smarttvads.signage
 
 import android.graphics.Bitmap
+import android.net.http.SslError
 import android.os.Build
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -28,8 +30,12 @@ class TvWebViewClient(private val listener: Listener) : WebViewClient() {
 
     private var failed = false
 
+    /** URL da página principal que está carregando agora (para o erro de SSL). */
+    private var loadingUrl: String? = null
+
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
         failed = false
+        loadingUrl = url
     }
 
     override fun onPageFinished(view: WebView, url: String?) {
@@ -61,9 +67,22 @@ class TvWebViewClient(private val listener: Listener) : WebViewClient() {
         return true
     }
 
+    // TV box sem RTC sobe com a data errada e a validação do certificado
+    // falha até o NTP sincronizar. Nunca confia num certificado inválido —
+    // handler.cancel() sempre, nunca handler.proceed().
+    override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+        handler.cancel()
+        onSslErrorUrl(error.url)
+    }
+
     internal fun onLoadResult(isMainFrame: Boolean, httpStatus: Int?) {
         if (failed || !ConnectivityGuard.isOfflineError(isMainFrame, httpStatus)) return
         failed = true
         listener.onMainFrameFailed()
+    }
+
+    /** Só entra no retry se o erro de SSL for da página principal sendo carregada. */
+    internal fun onSslErrorUrl(errorUrl: String?) {
+        if (errorUrl != null && errorUrl == loadingUrl) onLoadResult(isMainFrame = true, httpStatus = null)
     }
 }

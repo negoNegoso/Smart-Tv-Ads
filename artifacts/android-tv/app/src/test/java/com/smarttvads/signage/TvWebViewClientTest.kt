@@ -81,6 +81,23 @@ class TvWebViewClientTest {
     }
 
     @Test
+    fun `erro de SSL na pagina principal entra no retry`() {
+        // TV box sem relógio (RTC): sobe com a data errada e a validação do
+        // certificado falha até o NTP sincronizar. Precisa entrar no retry
+        // para tentar de novo quando o relógio ajustar.
+        client.onPageStarted(webView, "https://x/tv", null)
+        client.onSslErrorUrl("https://x/tv")
+        assertEquals(1, eventos.falhas)
+    }
+
+    @Test
+    fun `erro de SSL em sub-recurso nao entra no retry`() {
+        client.onPageStarted(webView, "https://x/tv", null)
+        client.onSslErrorUrl("https://x/outro-recurso")
+        assertEquals(0, eventos.falhas)
+    }
+
+    @Test
     fun `nova carga depois de falha pode dar certo`() {
         client.onPageStarted(webView, "https://x/tv", null)
         client.onLoadResult(isMainFrame = true, httpStatus = null)
