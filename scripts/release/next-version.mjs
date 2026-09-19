@@ -3,7 +3,7 @@
  * e do título do PR mesclado, que segue o padrão de commits do repo:
  *
  *   feat(...)            -> minor
- *   tipo! / BREAKING     -> major
+ *   tipo! / linha "BREAKING CHANGE:" no corpo -> major
  *   qualquer outro       -> patch
  *
  * Uso no CI: PR_TITLE, PR_BODY e TAGS (uma por linha) no ambiente; imprime a
@@ -15,7 +15,9 @@ const SEMVER_TAG = /^v(\d+)\.(\d+)\.(\d+)$/;
 
 export function bumpFor(title, body) {
   const head = /^(\w+)(\([^)]*\))?(!)?:/.exec(title.trim());
-  if (head?.[3] || /BREAKING[ -]CHANGE/.test(body ?? "")) return "major";
+  // Rodapé de commit convencional: só vale no início da linha. Texto que cita
+  // a regra no meio da descrição não é quebra de compatibilidade.
+  if (head?.[3] || /^BREAKING[ -]CHANGE:/m.test(body ?? "")) return "major";
   if (head?.[1] === "feat") return "minor";
   return "patch";
 }

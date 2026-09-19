@@ -19,6 +19,16 @@ test("! depois do tipo ou BREAKING CHANGE no corpo sobem major", () => {
   assert.equal(bumpFor("fix(db): troca coluna", "BREAKING CHANGE: key muda"), "major");
 });
 
+test("BREAKING CHANGE só conta como rodapé no início da linha", () => {
+  assert.equal(bumpFor("feat(api): nova rota", "Resumo.\n\nBREAKING-CHANGE: rota antiga sai"), "major");
+  // Descrição que só cita a regra (caso do PR #25, que gerou v2.0.0 por engano).
+  assert.equal(
+    bumpFor("ci(release): pipeline", "- `feat` → minor, `!`/`BREAKING CHANGE` → major, demais → patch"),
+    "patch",
+  );
+  assert.equal(bumpFor("fix(x): y", "sem BREAKING CHANGE: aqui no meio"), "patch");
+});
+
 test("nextVersion zera as posições abaixo da que sobe", () => {
   assert.equal(nextVersion("1.4.2", "patch"), "1.4.3");
   assert.equal(nextVersion("1.4.2", "minor"), "1.5.0");
