@@ -11,6 +11,20 @@ plugins {
 val prodTvUrl = "https://smart-tv-ads.vercel.app/tv"
 val tvUrl: String = providers.gradleProperty("tvUrl").orNull ?: prodTvUrl
 
+// Versão vem da tag no CI (-PversionName=1.2.3, sufixo -rc1 aceito). O
+// versionCode cresce junto para o Android aceitar instalar por cima:
+// major*10000 + minor*100 + patch (1.2.3 -> 10203).
+val appVersionName: String = providers.gradleProperty("versionName").orNull ?: "1.0.0"
+val appVersionCode: Int = run {
+    val m = Regex("""(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?""").matchEntire(appVersionName)
+        ?: throw GradleException("versionName inválido: '$appVersionName' (use X.Y.Z ou X.Y.Z-sufixo)")
+    val (major, minor, patch) = m.destructured.toList().take(3).map { it.toInt() }
+    if (minor > 99 || patch > 99) {
+        throw GradleException("versionName '$appVersionName': minor e patch vão até 99")
+    }
+    major * 10000 + minor * 100 + patch
+}
+
 // Keystore de release fora do git (ver README). Perder o arquivo impede
 // atualizar o APK por cima nas TVs já instaladas.
 val releaseKeystore: String? = System.getenv("SIGNAGE_KEYSTORE")
@@ -23,8 +37,8 @@ android {
         applicationId = "com.smarttvads.signage"
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
