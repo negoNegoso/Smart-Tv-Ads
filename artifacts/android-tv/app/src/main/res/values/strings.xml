@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Signage TV</string>
+    <string name="offline_message">Sem conexão. Tentando novamente…</string>
+    <string name="webview_missing">Atualize o Android System WebView nas configurações do aparelho.</string>
+</resources>
