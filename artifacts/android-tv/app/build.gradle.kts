@@ -5,11 +5,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Endereço que a TV abre. Produção fixa no APK; debug aponta para o Vite do
-// dev.sh visto de dentro do emulador (10.0.2.2 = localhost da máquina).
+// Endereço que a TV abre: produção em debug e release. Para testar contra o
+// dev.sh no emulador, passe -PtvUrl=http://10.0.2.2:21153/tv (10.0.2.2 =
+// localhost da máquina visto de dentro do emulador).
 val prodTvUrl = "https://smart-tv-ads.vercel.app/tv"
-val devTvUrl = "http://10.0.2.2:21153/tv"
-val tvUrlOverride: String? = providers.gradleProperty("tvUrl").orNull
+val tvUrl: String = providers.gradleProperty("tvUrl").orNull ?: prodTvUrl
 
 // Keystore de release fora do git (ver README). Perder o arquivo impede
 // atualizar o APK por cima nas TVs já instaladas.
@@ -41,12 +41,13 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "TV_URL", "\"${tvUrlOverride ?: devTvUrl}\"")
+            buildConfigField("String", "TV_URL", "\"$tvUrl\"")
+            // Cleartext só no debug, para o -PtvUrl=http://... do dev.sh.
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "TV_URL", "\"${tvUrlOverride ?: prodTvUrl}\"")
+            buildConfigField("String", "TV_URL", "\"$tvUrl\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"
             signingConfig = signingConfigs.findByName("release")
         }

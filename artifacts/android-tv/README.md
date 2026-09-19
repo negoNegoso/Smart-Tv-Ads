@@ -21,11 +21,13 @@ as TVs pegam no próximo deploy — sem APK novo.
 ```bash
 cd artifacts/android-tv
 ./gradlew :app:testDebugUnitTest      # testes JVM
-./gradlew :app:assembleDebug          # aponta para http://10.0.2.2:21153/tv (dev.sh + emulador)
+./gradlew :app:assembleDebug          # aponta para produção
 ./gradlew :app:assembleRelease        # aponta para produção; exige keystore
 ```
 
-Outro servidor: `./gradlew :app:assembleRelease -PtvUrl=https://outro-dominio/tv`.
+Outro servidor: `-PtvUrl=https://outro-dominio/tv`. Para testar contra o
+`dev.sh` no emulador: `./gradlew :app:installDebug -PtvUrl=http://10.0.2.2:21153/tv`
+(o teste instrumentado também precisa desse `-PtvUrl`).
 
 ### Keystore de release
 

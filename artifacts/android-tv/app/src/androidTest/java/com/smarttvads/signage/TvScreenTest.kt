@@ -13,7 +13,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Roda contra o dev.sh (Vite em :21153 visto como 10.0.2.2 pelo emulador).
+ * Roda contra o dev.sh (Vite em :21153 visto como 10.0.2.2 pelo emulador):
+ * `./gradlew :app:connectedDebugAndroidTest -PtvUrl=http://10.0.2.2:21153/tv`.
+ * Sem o -PtvUrl o app abre produção e criaria keys lá.
  * O app é desinstalado ao fim de `connectedDebugAndroidTest`, então cada
  * execução começa sem key e sem device.
  */

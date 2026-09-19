@@ -69,7 +69,7 @@ Vercel. Gradle wrapper commitado.
 | `OfflineOverlay` | View nativa sobre a WebView: "Sem conexão. Tentando novamente…". Aparece só em falha da carga do frame principal. |
 | `WatchdogReload` | `onRenderProcessGone` → destrói e recria a WebView e recarrega a URL, sem derrubar o app. Reload preventivo diário às 04:00 (horário local) contra vazamento de memória. |
 | `BootReceiver` | `BOOT_COMPLETED` → inicia `MainActivity` com `FLAG_ACTIVITY_NEW_TASK`. Ignora outras actions. |
-| `BuildConfig.TV_URL` | `release`: `https://smart-tv-ads.vercel.app/tv`. `debug`: `http://10.0.2.2:21153/tv` (Vite local visto pelo emulador; `usesCleartextTraffic` só no debug). Sobrescrevível pela propriedade Gradle `-PtvUrl=`. |
+| `BuildConfig.TV_URL` | `https://smart-tv-ads.vercel.app/tv` em debug e release. Sobrescrevível pela propriedade Gradle `-PtvUrl=` (ex.: `http://10.0.2.2:21153/tv` para o Vite local visto pelo emulador; `usesCleartextTraffic` só no debug). |
 
 ### Fluxo ao abrir
 
@@ -148,7 +148,7 @@ rota.
   action não dispara.
 - `MainActivity`: tecla Voltar consumida; `onRenderProcessGone` recria a
   WebView sem crash.
-- `TV_URL` do variant debug aponta para `10.0.2.2:21153`.
+- `TV_URL` do variant debug aponta para produção.
 
 **Instrumentado (emulador Android TV API 29, Espresso-Web)**, contra o servidor
 local do `dev.sh`:

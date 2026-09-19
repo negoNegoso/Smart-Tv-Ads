@@ -38,8 +38,8 @@ class ManifestTest {
     }
 
     @Test
-    fun `debug aponta para o Vite local visto pelo emulador`() {
-        assertEquals("http://10.0.2.2:21153/tv", BuildConfig.TV_URL)
+    fun `debug tambem aponta para producao`() {
+        assertEquals("https://smart-tv-ads.vercel.app/tv", BuildConfig.TV_URL)
     }
 
     @Test
