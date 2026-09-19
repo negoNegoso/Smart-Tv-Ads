@@ -70,7 +70,7 @@ A versão sobe a partir da última release conforme o título do PR mesclado:
 |---|---|---|
 | `feat(...)` | minor | 1.5.0 |
 | `fix(...)`, `docs(...)`, `ci(...)` e demais | patch | 1.4.3 |
-| `feat!:` / `fix(x)!:` ou `BREAKING CHANGE` no corpo | major | 2.0.0 |
+| `feat!:` / `fix(x)!:` ou linha `BREAKING CHANGE:` no corpo | major | 2.0.0 |
 
 Sem nenhuma release `vX.Y.Z` ainda, a base é `1.0.0`.
 

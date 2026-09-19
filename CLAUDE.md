@@ -28,7 +28,11 @@ tipo pelo efeito para quem usa o sistema:
 |---|---|---|
 | `feat(...)` — funcionalidade nova | minor | 1.5.0 |
 | `fix`, `docs`, `test`, `refactor`, `ci`, `build`, `perf`, `chore`, ou título fora do padrão | patch | 1.4.3 |
-| `!` depois do tipo/escopo (`feat(api)!: ...`) ou `BREAKING CHANGE` no corpo do PR — quebra compatibilidade (TVs instaladas, API pública, formato de dados) | major | 2.0.0 |
+| `!` depois do tipo/escopo (`feat(api)!: ...`) ou uma linha começando com `BREAKING CHANGE:` no corpo do PR — quebra compatibilidade (TVs instaladas, API pública, formato de dados) | major | 2.0.0 |
+
+Só uma linha que **começa** com `BREAKING CHANGE:` conta; citar o termo no meio
+de um texto não sobe major. Evite escrever essa expressão no início de linha
+da descrição do PR sem querer um major.
 
 Um PR com vários commits: o título do PR resume o todo e usa o tipo de maior
 efeito (tem `feat` dentro → PR é `feat`).
