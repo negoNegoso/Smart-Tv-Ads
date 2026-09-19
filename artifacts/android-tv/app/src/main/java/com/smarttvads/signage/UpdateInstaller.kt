@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import java.io.File
 
 /**
@@ -16,24 +18,42 @@ class UpdateInstaller(private val context: Context) {
 
     fun prepare(apk: File, versionName: String) {
         val installer = context.packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-        params.setAppPackageName(context.packageName)
-        if (Build.VERSION.SDK_INT >= 31) {
-            params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
-        }
-        val sessionId = installer.createSession(params)
-        installer.openSession(sessionId).use { session ->
-            session.openWrite("base.apk", 0, apk.length()).use { out ->
-                apk.inputStream().use { it.copyTo(out) }
-                session.fsync(out)
+        var sessionId: Int? = null
+        try {
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            params.setAppPackageName(context.packageName)
+            if (Build.VERSION.SDK_INT >= 31) {
+                params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
-            val status = Intent(context, UpdateStatusReceiver::class.java)
-                .putExtra(UpdateStatusReceiver.EXTRA_VERSION, versionName)
-            // O sistema preenche o status no Intent: no Android 12+ precisa ser mutável.
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
-            val pending = PendingIntent.getBroadcast(context, sessionId, status, flags)
-            session.commit(pending.intentSender)
+            sessionId = installer.createSession(params)
+            installer.openSession(sessionId).use { session ->
+                session.openWrite("base.apk", 0, apk.length()).use { out ->
+                    apk.inputStream().use { it.copyTo(out) }
+                    session.fsync(out)
+                }
+                val status = Intent(context, UpdateStatusReceiver::class.java)
+                    .putExtra(UpdateStatusReceiver.EXTRA_VERSION, versionName)
+                // O sistema preenche o status no Intent: no Android 12+ precisa ser mutável.
+                val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
+                val pending = PendingIntent.getBroadcast(context, sessionId, status, flags)
+                session.commit(pending.intentSender)
+            }
+        } catch (e: Exception) {
+            // Qualquer falha antes do commit (E/S, disco cheio, arquivo sumiu, sessão
+            // recusada): descarta a sessão, senão os bytes já gravados ficam órfãos no
+            // disco até o sistema recolher, e tentativas seguintes acumulam sessões.
+            sessionId?.let { id ->
+                try {
+                    installer.abandonSession(id)
+                } catch (abandonError: Exception) {
+                    // Sessão pode já ter sido descartada pelo sistema; ignora.
+                }
+            }
+            // Sem commit, o sistema nunca manda status pro UpdateStatusReceiver, então
+            // ninguém avisaria a falha. prepare() roda numa thread de fundo, mas
+            // UpdateState só pode ser tocado na main thread — posta o aviso lá.
+            Handler(Looper.getMainLooper()).post { UpdateState.failed(aborted = false) }
         }
     }
 }

@@ -2,7 +2,9 @@ package com.smarttvads.signage
 
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -10,6 +12,7 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class UpdateStatusReceiverTest {
@@ -79,5 +82,16 @@ class UpdateStatusReceiverTest {
         val confirmacao = Intent("x")
         UpdateState.ready("1.2.0", confirmacao)
         assertSame(confirmacao, UpdateState.pendingConfirmation)
+    }
+
+    @Test
+    fun `falha ao preparar a instalacao nao lanca e avisa falha`() {
+        UpdateState.listener = ouvinte
+        // Arquivo inexistente: a leitura falha antes do commit, então o sistema
+        // nunca manda status pro receiver — o próprio prepare() tem que avisar.
+        UpdateInstaller(ApplicationProvider.getApplicationContext()).prepare(File("nao-existe.apk"), "1.2.0")
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull(UpdateState.pendingConfirmation)
+        assertEquals(listOf("falhou aborted=false"), eventos)
     }
 }
