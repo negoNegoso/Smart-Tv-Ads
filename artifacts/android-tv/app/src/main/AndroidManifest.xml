@@ -30,7 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <!-- Tela inicial: no Android 10+ é o que garante abrir no boot. -->
+            <!-- Tela inicial: no Android 10+ é o que permite abrir no boot em
+                 TV box com Android comum (AOSP), depois de escolhida como
+                 padrão. Em Android TV / Google TV certificado o launcher da
+                 Google (com.google.android.tvlauncher) fica na frente mesmo
+                 com esse papel — ver README, seção "Android TV certificado". -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />

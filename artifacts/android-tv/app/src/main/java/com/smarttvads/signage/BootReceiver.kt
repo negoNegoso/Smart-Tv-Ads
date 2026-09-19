@@ -6,8 +6,11 @@ import android.content.Intent
 
 /**
  * Abre a TV quando o aparelho liga. Até o Android 9 isso basta; do 10 em
- * diante o sistema bloqueia abrir Activity daqui e quem garante é o app ser a
- * tela inicial (ver README).
+ * diante o sistema bloqueia abrir Activity daqui em segundo plano — em TV
+ * box com Android comum (AOSP) quem garante é o app ser a tela inicial (ver
+ * README). Em Android TV / Google TV certificado, ser a tela inicial não
+ * basta: o launcher da Google fica na frente mesmo assim (ver README, seção
+ * "Android TV certificado").
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

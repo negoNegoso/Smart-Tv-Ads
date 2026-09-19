@@ -59,8 +59,10 @@ export SIGNAGE_KEY_PASS=...
 3. Abra o APK pelo gerenciador de arquivos e instale.
 4. Abra **Signage TV**. Aparece o QR code.
 5. Aperte **Home** no controle. Quando o Android perguntar qual tela inicial
-   usar, escolha **Signage TV → Sempre**. É isso que faz o app abrir sozinho
-   quando a box liga (Android 10+ não permite de outro jeito).
+   usar, escolha **Signage TV → Sempre**. Em TV box com Android comum
+   (AOSP) é isso que faz o app abrir sozinho quando a box liga (Android
+   10+ não permite de outro jeito). Em Android TV / Google TV certificado
+   não basta — veja a seção abaixo.
 6. Leia o QR com o celular do administrador e vincule a TV a uma empresa. Em
    alguns segundos a TV começa a exibir.
 
@@ -68,8 +70,42 @@ Se a box não perguntar a tela inicial: Configurações → Apps → Apps padrã
 Tela inicial → Signage TV.
 
 **Para mexer na box depois:** Configurações do sistema (a tecla Voltar não
-sai do painel). Para devolver o launcher original, troque a tela inicial
-padrão.
+sai do painel). Chegar lá com o app em primeiro plano:
+
+- Tecla de configurações/engrenagem do controle remoto, se houver;
+- Teclado ou mouse USB (o Android aceita normalmente);
+- Ou, com um PC na mesma rede e depuração USB/rede ligada:
+  `adb shell am start -a android.settings.SETTINGS`.
+
+Para devolver o launcher original, troque a tela inicial padrão de volta.
+
+### Android TV / Google TV certificado
+
+Em aparelhos com o Android TV certificado pela Google (a maioria das smart
+TVs e boxes "Google TV"), o launcher da Google
+(`com.google.android.tvlauncher`, ou `com.google.android.apps.tv.launcherx`
+no Google TV) fica na frente depois do boot e depois da tecla Home, mesmo
+com o Signage TV escolhido como tela inicial — não é peculiaridade de
+emulador, é o comportamento do launcher certificado. Para o app ser
+realmente a única tela inicial:
+
+1. Ligue as opções de desenvolvedor (Configurações → Sobre → toque 7x em
+   "Compilação") e a depuração por rede ou USB.
+2. Pelo `adb` (rede: `adb connect <ip-da-tv>:5555`):
+   ```bash
+   adb shell pm disable-user --user 0 com.google.android.tvlauncher
+   # Google TV: adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+   ```
+3. Reinicie a box. O Signage TV passa a abrir sozinho.
+
+Riscos: precisa de `adb`; uma atualização OTA do sistema pode reativar o
+launcher da Google, exigindo repetir o passo 2. É reversível:
+`adb shell pm enable com.google.android.tvlauncher`.
+
+Nessas TVs, desligue também a economia de energia que apaga a tela sozinha
+(Configurações → Preferências do dispositivo → Energia → "Desligar tela
+após", escolha nunca/o maior valor): `FLAG_KEEP_SCREEN_ON` não bloqueia esse
+temporizador do sistema, só o de suspensão geral.
 
 ## Atualizar o app
 
@@ -99,4 +135,6 @@ vinculada. Conteúdo e comportamento de exibição chegam pelo deploy web.
 - [ ] Sem rede no boot → aviso → volta sozinho ao reconectar.
 - [ ] Peça com YouTube toca com som sem clique.
 - [ ] Apagar a TV no painel → volta ao QR.
-- [ ] Voltar no controle não sai do painel; Home volta ao painel.
+- [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
+      com Android comum (em Android TV / Google TV certificado, só depois
+      do procedimento da seção "Android TV certificado").
