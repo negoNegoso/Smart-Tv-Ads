@@ -274,6 +274,38 @@ describe("tv.html: tela cheia em TV box", () => {
     carregarTv();
     expect(aviso().style.display).toBe("none");
   });
+
+  describe("dentro do app Android", () => {
+    let adicionar: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      Object.defineProperty(window.navigator, "userAgent", {
+        configurable: true,
+        get: () =>
+          "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/74.0 Safari/537.36 SignageApp/1.0.0",
+      });
+      adicionar = vi.spyOn(document, "addEventListener");
+    });
+
+    afterEach(() => {
+      adicionar.mockRestore();
+      delete (window.navigator as { userAgent?: unknown }).userAgent;
+    });
+
+    it("não mostra o aviso de tela cheia", () => {
+      carregarTv();
+      expect(aviso().style.display).toBe("none");
+    });
+
+    // Espia o registro em vez de disparar tecla: listeners de testes
+    // anteriores continuam no `document` e pediriam a tela cheia.
+    it("não registra o gatilho de tela cheia", () => {
+      carregarTv();
+      const tipos = adicionar.mock.calls.map((c) => c[0]);
+      expect(tipos).not.toContain("keydown");
+      expect(tipos).not.toContain("click");
+    });
+  });
 });
 
 describe("tv.html: pareamento", () => {
