@@ -44,6 +44,32 @@ const slide = (announcementId: number, imageUrl: string) => ({
 });
 
 /**
+ * `window.localStorage` de verdade (jsdom) some sob Node 25 com Web Storage
+ * nativo habilitado: o global do Node vence o do jsdom e fica sem
+ * getItem/setItem/clear. Um fake em memória tira o teste dessa dependência de
+ * ambiente — instalado de novo a cada teste, então já nasce limpo.
+ */
+function criarStorageFake(): Storage {
+  const dados = new Map<string, string>();
+  return {
+    getItem: (chave: string) => (dados.has(chave) ? dados.get(chave)! : null),
+    setItem: (chave: string, valor: string) => {
+      dados.set(chave, String(valor));
+    },
+    removeItem: (chave: string) => {
+      dados.delete(chave);
+    },
+    clear: () => {
+      dados.clear();
+    },
+    key: (indice: number) => Array.from(dados.keys())[indice] ?? null,
+    get length() {
+      return dados.size;
+    },
+  } as Storage;
+}
+
+/**
  * Resolve as artes pendentes de `url`: sucesso ou falha, como o navegador da TV
  * faria. Uma falha faz a página pedir a mesma arte de novo furando cache, então
  * o helper responde também esse novo pedido — daí o laço.
@@ -89,7 +115,11 @@ beforeEach(() => {
   listaDeSlides = [];
   statusDaLista = 200;
   gets = [];
-  window.localStorage.clear();
+  Object.defineProperty(window, "localStorage", {
+    value: criarStorageFake(),
+    configurable: true,
+    writable: true,
+  });
 
   window.history.replaceState({}, "", "/tv.html?key=CHAVE");
 
@@ -133,7 +163,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  vi.restoreAllMocks();
 });
 
 describe("tv.html: arte que não carrega", () => {
@@ -333,11 +362,21 @@ describe("tv.html: pareamento", () => {
 
   it("localStorage que lança exceção não quebra a TV", () => {
     semKeyNaUrl();
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("bloqueado");
-    });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("bloqueado");
+    Object.defineProperty(window, "localStorage", {
+      value: {
+        getItem: () => {
+          throw new Error("bloqueado");
+        },
+        setItem: () => {
+          throw new Error("bloqueado");
+        },
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        length: 0,
+      } as Storage,
+      configurable: true,
+      writable: true,
     });
     statusDaLista = 404;
     carregarTv();
