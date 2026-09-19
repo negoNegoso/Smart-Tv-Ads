@@ -3,6 +3,7 @@ package com.smarttvads.signage
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -54,5 +55,19 @@ class ManifestTest {
             "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/",
             BuildConfig.UPDATE_BASE_URL,
         )
+    }
+
+    @Test
+    fun `pode instalar a propria atualizacao`() {
+        val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        assertTrue(info.requestedPermissions!!.contains("android.permission.REQUEST_INSTALL_PACKAGES"))
+    }
+
+    @Test
+    fun `receiver do instalador registrado e nao exportado`() {
+        val info = context.packageManager.getReceiverInfo(
+            android.content.ComponentName(context, UpdateStatusReceiver::class.java), 0,
+        )
+        assertEquals(false, info.exported)
     }
 }
