@@ -847,13 +847,20 @@
         } catch (e) {}
       }
 
-      document.addEventListener('keydown', enterFullscreen, false);
-      document.addEventListener('click', enterFullscreen, false);
-      var fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
-      for (var fi = 0; fi < fsEvents.length; fi++) {
-        document.addEventListener(fsEvents[fi], updateFsHint, false);
+      // Dentro do app Android (artifacts/android-tv) a tela já é cheia: sem
+      // aviso e sem gatilho. O app marca o user agent com "SignageApp/<versão>".
+      var inAndroidApp = /SignageApp\//.test(navigator.userAgent || '');
+      if (inAndroidApp) {
+        fsHint.style.display = 'none';
+      } else {
+        document.addEventListener('keydown', enterFullscreen, false);
+        document.addEventListener('click', enterFullscreen, false);
+        var fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+        for (var fi = 0; fi < fsEvents.length; fi++) {
+          document.addEventListener(fsEvents[fi], updateFsHint, false);
+        }
+        updateFsHint();
       }
-      updateFsHint();
 
       // ─── Init ─────────────────────────────────────────────────────────────
       function init() {

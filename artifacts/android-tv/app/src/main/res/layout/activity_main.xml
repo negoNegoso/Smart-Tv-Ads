@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <!-- A WebView entra aqui por código: dá para recriá-la sem refazer a tela. -->
+    <FrameLayout
+        android:id="@+id/web_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Cobre a página de erro do Chromium enquanto a carga de /tv falha. -->
+    <TextView
+        android:id="@+id/offline_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:gravity="center"
+        android:text="@string/offline_message"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/webview_missing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:gravity="center"
+        android:padding="48dp"
+        android:text="@string/webview_missing"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:visibility="gone" />
+</FrameLayout>
