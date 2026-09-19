@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, sql, and } from "drizzle-orm";
+import { eq, asc, sql, and, type SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import {
   db,
@@ -41,7 +41,7 @@ const PG_UNIQUE_VIOLATION = "23505";
 
 const router: IRouter = Router();
 
-async function getDeviceWithClient(id: number) {
+async function getDeviceWithClient(where: SQL) {
   const rows = await db
     .select({
       id: devicesTable.id,
@@ -56,7 +56,7 @@ async function getDeviceWithClient(id: number) {
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
     .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
-    .where(eq(devicesTable.id, id));
+    .where(where);
   return rows[0] ?? null;
 }
 
@@ -116,7 +116,7 @@ router.post("/devices", async (req, res): Promise<void> => {
     }
     throw err;
   }
-  const withClient = await getDeviceWithClient(row.id);
+  const withClient = await getDeviceWithClient(eq(devicesTable.id, row.id));
   res.status(201).json(CreateDeviceResponse.parse(withClient));
 });
 
@@ -128,26 +128,12 @@ router.get("/devices/by-key/:key", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Código de TV inválido." });
     return;
   }
-  const rows = await db
-    .select({
-      id: devicesTable.id,
-      clientId: devicesTable.clientId,
-      clientName: companiesTable.name,
-      name: devicesTable.name,
-      location: devicesTable.location,
-      deviceKey: devicesTable.deviceKey,
-      lastSeenAt: devicesTable.lastSeenAt,
-      createdAt: devicesTable.createdAt,
-    })
-    .from(devicesTable)
-    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
-    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId))
-    .where(eq(devicesTable.deviceKey, key));
-  if (!rows[0]) {
+  const row = await getDeviceWithClient(eq(devicesTable.deviceKey, key));
+  if (!row) {
     res.status(404).json({ error: "Device not found" });
     return;
   }
-  res.json(GetDeviceByKeyResponse.parse(rows[0]));
+  res.json(GetDeviceByKeyResponse.parse(row));
 });
 
 // Get device
@@ -157,7 +143,7 @@ router.get("/devices/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const row = await getDeviceWithClient(params.data.id);
+  const row = await getDeviceWithClient(eq(devicesTable.id, params.data.id));
   if (!row) {
     res.status(404).json({ error: "Device not found" });
     return;
@@ -186,7 +172,7 @@ router.patch("/devices/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Device not found" });
     return;
   }
-  const withClient = await getDeviceWithClient(updated.id);
+  const withClient = await getDeviceWithClient(eq(devicesTable.id, updated.id));
   res.json(UpdateDeviceResponse.parse(withClient));
 });
 
