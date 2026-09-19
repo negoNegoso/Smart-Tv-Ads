@@ -63,9 +63,11 @@ class MainActivityUpdateTest {
     @Test
     fun `checa 2 min depois de abrir e depois a cada 6 h`() {
         abrir()
-        passar(MainActivity.UPDATE_FIRST_CHECK_MS - 1)
+        // Margem de 100 ms: o setup() do Robolectric consome alguns ms do
+        // relógio simulado depois que o onCreate agenda a checagem.
+        passar(MainActivity.UPDATE_FIRST_CHECK_MS - 100)
         assertEquals(0, checagens)
-        passar(1)
+        passar(100)
         assertEquals(1, checagens)
         passar(MainActivity.UPDATE_INTERVAL_MS)
         assertEquals(2, checagens)
