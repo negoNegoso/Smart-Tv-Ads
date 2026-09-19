@@ -120,6 +120,20 @@ class MainActivityTest {
     }
 
     @Test
+    fun `renderer morto durante pausa recria a WebView ja pausada`() {
+        // Se a WebView nova ficar sem onPause() com a Activity em segundo
+        // plano, o JS do tv.html continua rodando escondido (mesmo problema
+        // de telemetria em dobro do achado I-1).
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val a = controller.get()
+        controller.pause()
+        a.onRendererGone()
+        passar(0)
+        assertNotNull(a.webView)
+        assertTrue(shadowOf(a.webView!!).wasOnPauseCalled())
+    }
+
+    @Test
     fun `sem WebView no sistema mostra aviso em vez de fechar`() {
         MainActivity.webViewFactory = { throw RuntimeException("MissingWebViewPackageException") }
         val a = abrir()

@@ -30,6 +30,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
     internal var webView: WebView? = null
         private set
 
+    /** Usado ao recriar a WebView depois de onRendererGone(). */
+    private var resumed = false
+
     /** Quantas vezes `/tv` foi pedido. Existe para os testes medirem o retry. */
     internal var loadAttempts = 0
         private set
@@ -69,10 +72,12 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         webView?.onResume()
     }
 
     override fun onPause() {
+        resumed = false
         webView?.onPause()
         super.onPause()
     }
@@ -108,7 +113,13 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
         // Fora do callback da WebView que está morrendo.
         handler.post {
             destroyWebView()
-            if (createWebView()) loadTv()
+            if (createWebView()) {
+                loadTv()
+                // Se a Activity estava em segundo plano, a WebView nova
+                // nasce sem pausar sozinha; sem isso o JS do tv.html
+                // continua rodando escondido até o próximo onResume().
+                if (!resumed) webView?.onPause()
+            }
         }
     }
 
