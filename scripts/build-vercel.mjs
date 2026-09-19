@@ -104,6 +104,8 @@ await writeFile(
       routes: [
         { src: "/api/(.*)", dest: "/api" },
         { src: "/r/(.*)", dest: "/api" },
+        // Link curto que o instalador digita no navegador da TV.
+        { src: "/tv", dest: "/tv.html" },
         { handle: "filesystem" },
         { src: "/(.*)", dest: "/index.html" },
       ],

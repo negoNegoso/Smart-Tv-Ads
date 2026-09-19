@@ -74,6 +74,21 @@ function socialMetaTags(basePath: string): Plugin {
   };
 }
 
+/** `/tv` no dev, igual à rota da Vercel em scripts/build-vercel.mjs. */
+function tvShortLink(): Plugin {
+  return {
+    name: 'signage-tv-short-link',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        if (req.url === '/tv' || req.url?.startsWith('/tv?')) {
+          req.url = `/tv.html${req.url.slice(3)}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(async ({ command }) => {
   const port = command === 'serve' ? resolveServerPort() : 0;
   // `||`, not `??`: an exported-but-empty BASE_PATH would otherwise yield
@@ -88,6 +103,7 @@ export default defineConfig(async ({ command }) => {
       tailwindcss(),
       runtimeErrorOverlay(),
       socialMetaTags(basePath),
+      tvShortLink(),
       ...(process.env.NODE_ENV !== 'production' &&
       process.env.REPL_ID !== undefined
         ? [

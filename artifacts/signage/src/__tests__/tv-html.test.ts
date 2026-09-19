@@ -25,6 +25,8 @@ interface FakeImage {
 let imagens: FakeImage[] = [];
 let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
 let listaDeSlides: unknown[] = [];
+let statusDaLista = 200;
+let gets: string[] = [];
 
 const slide = (announcementId: number, imageUrl: string) => ({
   announcementId,
@@ -85,6 +87,9 @@ beforeEach(() => {
   imagens = [];
   posts = [];
   listaDeSlides = [];
+  statusDaLista = 200;
+  gets = [];
+  window.localStorage.clear();
 
   window.history.replaceState({}, "", "/tv.html?key=CHAVE");
 
@@ -115,9 +120,10 @@ beforeEach(() => {
         posts.push({ url: this.url, payload: JSON.parse(body ?? "{}") });
         return;
       }
+      gets.push(this.url);
       this.readyState = 4;
-      this.status = 200;
-      this.responseText = JSON.stringify(listaDeSlides);
+      this.status = statusDaLista;
+      this.responseText = statusDaLista === 200 ? JSON.stringify(listaDeSlides) : "";
       this.onreadystatechange?.();
     }
   }
@@ -127,6 +133,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("tv.html: arte que não carrega", () => {
@@ -226,5 +233,116 @@ describe("tv.html: tela cheia em TV box", () => {
     delete (document.documentElement as { requestFullscreen?: unknown }).requestFullscreen;
     carregarTv();
     expect(aviso().style.display).toBe("none");
+  });
+});
+
+describe("tv.html: pareamento", () => {
+  const pareando = () => document.getElementById("pair-screen")!.className === "visible";
+  const semKeyNaUrl = () => window.history.replaceState({}, "", "/tv");
+
+  it("sem key na URL gera uma, guarda e usa", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+
+    const key = window.localStorage.getItem("signage.deviceKey");
+    expect(key).toMatch(/^[0-9A-F]{16}$/);
+    expect(gets[0]).toContain(`/api/display/${key}/slides`);
+  });
+
+  it("reusa a key guardada", () => {
+    semKeyNaUrl();
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+  });
+
+  it("key da URL vence a guardada e não é gravada", () => {
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+
+    expect(gets[0]).toContain("/api/display/CHAVE/slides");
+    expect(window.localStorage.getItem("signage.deviceKey")).toBe("A1B2C3D4E5F6A7B8");
+  });
+
+  it("404 mostra QR, key em blocos e link", () => {
+    semKeyNaUrl();
+    window.localStorage.setItem("signage.deviceKey", "A1B2C3D4E5F6A7B8");
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(pareando()).toBe(true);
+    expect((document.getElementById("pair-qr") as HTMLImageElement).src).toContain(
+      "/api/qr/pair/A1B2C3D4E5F6A7B8.png",
+    );
+    expect(document.getElementById("pair-key")!.textContent).toBe("A1B2-C3D4-E5F6-A7B8");
+    expect(document.getElementById("pair-url")!.textContent).toContain("/parear/A1B2C3D4E5F6A7B8");
+    expect(document.getElementById("empty-screen")!.className).toBe("");
+  });
+
+  it("consulta a cada 5 s e sai do pareamento quando vinculada", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+    expect(pareando()).toBe(true);
+
+    statusDaLista = 200;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    vi.advanceTimersByTime(5000);
+    responder("https://blob/a.png", true);
+
+    expect(pareando()).toBe(false);
+    expect(noAr()).toBe("https://blob/a.png");
+  });
+
+  it("device apagado: 404 no refresh volta ao pareamento", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+
+    statusDaLista = 404;
+    vi.advanceTimersByTime(60000);
+
+    expect(pareando()).toBe(true);
+    expect(noAr()).toBeNull();
+  });
+
+  it("rede caindo durante o pareamento mantém o QR", () => {
+    semKeyNaUrl();
+    statusDaLista = 404;
+    carregarTv();
+    expect(pareando()).toBe(true);
+
+    statusDaLista = 0;
+    vi.advanceTimersByTime(5000);
+
+    expect(pareando()).toBe(true);
+  });
+
+  it("erro de rede não abre o pareamento", () => {
+    semKeyNaUrl();
+    statusDaLista = 0;
+    carregarTv();
+
+    expect(pareando()).toBe(false);
+    expect(document.getElementById("empty-screen")!.className).toBe("visible");
+  });
+
+  it("localStorage que lança exceção não quebra a TV", () => {
+    semKeyNaUrl();
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("bloqueado");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("bloqueado");
+    });
+    statusDaLista = 404;
+    carregarTv();
+
+    expect(pareando()).toBe(true);
+    expect(gets[0]).toMatch(/\/api\/display\/[0-9A-F]{16}\/slides/);
   });
 });
