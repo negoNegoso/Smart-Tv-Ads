@@ -104,6 +104,8 @@ O frontend possui as principais rotas:
 - `/analytics` — métricas
 - `/r/CODE` — redirect público do QR code (servido pela API, registra o scan)
 - `/tv.html?key=DEVICE_KEY` — página compatível com Smart TVs
+- `/tv` — link curto para abrir na TV nova: ela gera a própria key e mostra um QR de pareamento
+- `/parear/KEY` — tela (admin) aberta pelo QR da TV para vinculá-la a uma empresa
 
 ## Banco de dados
 

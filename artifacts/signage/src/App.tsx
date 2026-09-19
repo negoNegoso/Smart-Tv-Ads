@@ -20,6 +20,7 @@ import Companies from './pages/companies';
 import CompanyDetailPage from './pages/company-detail';
 import LegacyRedirect from './pages/legacy-redirect';
 import DeviceDetail from './pages/device-detail';
+import ParearPage from './pages/parear';
 import Analytics from './pages/analytics';
 import CampaignDetail from './pages/campaign-detail';
 import Users from './pages/users';
@@ -88,6 +89,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/devices/:id">
         <Layout><DeviceDetail /></Layout>
+      </Route>
+      <Route path="/parear/:key">
+        <Layout><ParearPage /></Layout>
       </Route>
       <Route path="/admin">
         <Layout><Admin /></Layout>
