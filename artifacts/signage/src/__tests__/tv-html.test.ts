@@ -175,3 +175,56 @@ describe("tv.html: arte que não carrega", () => {
     expect(imagens.length).toBeLessThanOrEqual(4);
   });
 });
+
+describe("tv.html: tela cheia em TV box", () => {
+  let noFullscreen: Element | null = null;
+  let pedir: ReturnType<typeof vi.fn>;
+  const aviso = () => document.getElementById("fs-hint")!;
+
+  beforeEach(() => {
+    noFullscreen = null;
+    pedir = vi.fn(() => Promise.resolve());
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => noFullscreen,
+    });
+    Object.defineProperty(document.documentElement, "requestFullscreen", {
+      configurable: true,
+      value: pedir,
+    });
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+  });
+
+  afterEach(() => {
+    delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+    delete (document.documentElement as { requestFullscreen?: unknown }).requestFullscreen;
+  });
+
+  it("mostra o aviso fora da tela cheia", () => {
+    carregarTv();
+    expect(aviso().style.display).toBe("block");
+  });
+
+  it("uma tecla do controle pede a tela cheia", () => {
+    carregarTv();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(pedir).toHaveBeenCalled();
+  });
+
+  it("some em tela cheia e volta ao sair", () => {
+    carregarTv();
+    noFullscreen = document.documentElement;
+    document.dispatchEvent(new Event("fullscreenchange"));
+    expect(aviso().style.display).toBe("none");
+
+    noFullscreen = null;
+    document.dispatchEvent(new Event("fullscreenchange"));
+    expect(aviso().style.display).toBe("block");
+  });
+
+  it("sem suporte a tela cheia não mostra aviso", () => {
+    delete (document.documentElement as { requestFullscreen?: unknown }).requestFullscreen;
+    carregarTv();
+    expect(aviso().style.display).toBe("none");
+  });
+});

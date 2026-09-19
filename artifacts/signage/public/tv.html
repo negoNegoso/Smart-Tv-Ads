@@ -126,6 +126,21 @@
       color: #000;
     }
     #qr-img { display: block; width: 12vh; height: 12vh; }
+    /* Espelha `src/components/fullscreen-hint.tsx` — mudou aqui, mude la.
+       Acima do #empty-screen para o operador ver o aviso mesmo sem slides. */
+    #fs-hint {
+      display: none;
+      position: absolute;
+      top: 3vh; right: 3vh;
+      z-index: 11;
+      padding: 1vh 1.6vh;
+      border-radius: 1vh;
+      background: #000;                 /* fallback para WebKit sem rgba */
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 1.8vh;
+      line-height: 2.4vh;
+    }
   </style>
 </head>
 <body>
@@ -142,6 +157,8 @@
   </div>
 
   <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
+
+  <div id="fs-hint">Pressione OK para tela cheia</div>
 
   <div id="empty-screen">
     <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -672,6 +689,48 @@
           }
         });
       }
+
+      // ─── Tela cheia ───────────────────────────────────────────────────────
+      // O navegador só entra em tela cheia depois de um gesto do usuário, então
+      // a primeira tecla do controle (ou clique) pede a tela cheia. O aviso
+      // some enquanto ela estiver ativa para não cobrir as peças.
+      var fsRoot = document.documentElement;
+      var fsHint = document.getElementById('fs-hint');
+
+      function fsActive() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+          document.mozFullScreenElement || document.msFullscreenElement);
+      }
+
+      function fsRequestFn() {
+        if (document.fullscreenEnabled === false) return null;
+        return fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen ||
+          fsRoot.webkitRequestFullScreen || fsRoot.mozRequestFullScreen ||
+          fsRoot.msRequestFullscreen || null;
+      }
+
+      function updateFsHint() {
+        fsHint.style.display = fsRequestFn() && !fsActive() ? 'block' : 'none';
+      }
+
+      function enterFullscreen() {
+        if (fsActive()) return;
+        var request = fsRequestFn();
+        if (!request) return;
+        try {
+          var result = request.call(fsRoot);
+          // Navegador que recusa rejeita a Promise; o player segue igual.
+          if (result && typeof result.then === 'function') result.then(null, function () {});
+        } catch (e) {}
+      }
+
+      document.addEventListener('keydown', enterFullscreen, false);
+      document.addEventListener('click', enterFullscreen, false);
+      var fsEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+      for (var fi = 0; fi < fsEvents.length; fi++) {
+        document.addEventListener(fsEvents[fi], updateFsHint, false);
+      }
+      updateFsHint();
 
       // ─── Init ─────────────────────────────────────────────────────────────
       function init() {

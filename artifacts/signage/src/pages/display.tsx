@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { mediaUrl } from '@/lib/media-url';
 import { SlideCaption } from '@/components/slide-caption';
 import { YouTubeSlide } from '@/components/youtube-slide';
+import { FullscreenHint } from '@/components/fullscreen-hint';
 
 export default function Display() {
   const [, params] = useRoute('/display/:deviceKey');
@@ -140,7 +141,11 @@ export default function Display() {
   }
 
   if (isLoading) {
-    return <div className="h-[100dvh] w-screen bg-black" />;
+    return (
+      <div className="relative h-[100dvh] w-screen bg-black">
+        <FullscreenHint />
+      </div>
+    );
   }
 
   if (isError || slides.length === 0) {
@@ -242,6 +247,8 @@ export default function Display() {
         </div>
       )}
 
+      <FullscreenHint />
+
       <div className="absolute bottom-0 left-0 h-1 w-full bg-white/10 z-20">
         <div
           className="h-full bg-primary transition-all duration-75 ease-linear"
@@ -254,7 +261,8 @@ export default function Display() {
 
 function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex h-[100dvh] w-screen flex-col items-center justify-center bg-black text-white">
+    <div className="relative flex h-[100dvh] w-screen flex-col items-center justify-center bg-black text-white">
+      <FullscreenHint />
       <div className="text-center">
         <div className="mx-auto mb-6 h-24 w-24 rounded-full bg-white/5 p-6 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
           <svg className="h-full w-full text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
