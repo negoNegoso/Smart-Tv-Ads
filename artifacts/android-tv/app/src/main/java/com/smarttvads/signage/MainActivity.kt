@@ -14,21 +14,25 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebView
 import android.widget.FrameLayout
+import java.io.File
 import java.lang.ref.WeakReference
 import java.util.Calendar
+import java.util.concurrent.Executors
 
 /**
  * Casca da TV: tela cheia nativa com a WebView em `/tv`. Quem decide entre a
  * tela de vínculo (QR) e o painel é o tv.html; aqui só cuidamos de manter a
  * página no ar — sem rede no boot, renderer morto, vazamento de memória.
  */
-class MainActivity : Activity(), TvWebViewClient.Listener {
+class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener {
 
     private val handler = Handler(Looper.getMainLooper())
     private val guard = ConnectivityGuard()
     private lateinit var container: FrameLayout
     private lateinit var offlineOverlay: View
     private lateinit var webViewMissing: View
+    private lateinit var updateBanner: android.widget.TextView
+    private lateinit var updateController: UpdateController
 
     internal var webView: WebView? = null
         private set
@@ -46,6 +50,15 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
         scheduleDailyReload()
     }
 
+    // Não refaz a sessão enquanto já há uma atualização esperando o OK.
+    private val updateCheck = object : Runnable {
+        override fun run() {
+            if (UpdateState.pendingConfirmation == null) updateController.check()
+            handler.postDelayed(this, UPDATE_INTERVAL_MS)
+        }
+    }
+    private val hideUpdateBanner = Runnable { updateBanner.visibility = View.GONE }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 9+ não junta a tarefa do launcher com a da tela inicial
@@ -59,6 +72,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
         container = findViewById(R.id.web_container)
         offlineOverlay = findViewById(R.id.offline_overlay)
         webViewMissing = findViewById(R.id.webview_missing)
+        updateBanner = findViewById(R.id.update_banner)
+        updateController = updateControllerFactory(this)
+        UpdateState.listener = this
+        UpdateState.pendingVersion?.let { onUpdateReady(it) }
+        handler.postDelayed(updateCheck, UPDATE_FIRST_CHECK_MS)
         hideSystemBars()
 
         if (createWebView()) {
@@ -87,6 +105,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
 
     override fun onDestroy() {
         if (live?.get() === this) live = null
+        if (UpdateState.listener === this) UpdateState.listener = null
         handler.removeCallbacksAndMessages(null)
         destroyWebView()
         super.onDestroy()
@@ -99,6 +118,10 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
      * Interceptado aqui, antes da WebView, que tem o foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (isOkKey(event.keyCode) && UpdateState.pendingConfirmation != null) {
+            if (event.action == KeyEvent.ACTION_UP) openUpdateConfirmation()
+            return true
+        }
         if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_UP &&
             event.eventTime - event.downTime >= BACK_HOLD_TO_SETTINGS_MS
@@ -114,6 +137,40 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
         } catch (e: ActivityNotFoundException) {
             // Box sem tela de Configurações: segue no painel.
         }
+    }
+
+    private fun isOkKey(keyCode: Int) = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+        keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+
+    private fun openUpdateConfirmation() {
+        val confirmation = UpdateState.pendingConfirmation ?: return
+        // A sessão só vale uma vez: se a pessoa cancelar, chega ABORTED e a
+        // checagem refaz a sessão com o APK já baixado.
+        UpdateState.clear()
+        updateBanner.visibility = View.GONE
+        try {
+            startActivity(confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            onUpdateFailed(aborted = false)
+        }
+    }
+
+    override fun onUpdateReady(versionName: String) {
+        handler.removeCallbacks(hideUpdateBanner)
+        updateBanner.text = getString(R.string.update_ready, versionName)
+        updateBanner.visibility = View.VISIBLE
+    }
+
+    override fun onUpdateFailed(aborted: Boolean) {
+        handler.removeCallbacks(hideUpdateBanner)
+        if (aborted) {
+            updateBanner.visibility = View.GONE
+            updateController.check()
+            return
+        }
+        updateBanner.text = getString(R.string.update_failed)
+        updateBanner.visibility = View.VISIBLE
+        handler.postDelayed(hideUpdateBanner, UPDATE_FAILED_VISIBLE_MS)
     }
 
     // Voltar não sai do painel nem navega o histórico da WebView.
@@ -203,6 +260,22 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
     companion object {
         /** Quanto tempo segurar Voltar para abrir as Configurações da TV. */
         const val BACK_HOLD_TO_SETTINGS_MS = 5_000L
+
+        const val UPDATE_FIRST_CHECK_MS = 120_000L
+        const val UPDATE_INTERVAL_MS = 21_600_000L
+        const val UPDATE_FAILED_VISIBLE_MS = 10_000L
+
+        internal val defaultUpdateControllerFactory: (MainActivity) -> UpdateController = { a ->
+            UpdateController(
+                installedVersionCode = BuildConfig.VERSION_CODE,
+                downloader = UpdateDownloader(BuildConfig.UPDATE_BASE_URL, File(a.cacheDir, "updates")),
+                installer = UpdateInstaller(a.applicationContext),
+                executor = Executors.newSingleThreadExecutor(),
+            )
+        }
+
+        /** Os testes trocam para não ir à rede. */
+        internal var updateControllerFactory: (MainActivity) -> UpdateController = defaultUpdateControllerFactory
 
         /** Os testes trocam para simular aparelho sem WebView. */
         internal var webViewFactory: (Context) -> WebView = { WebView(it) }
