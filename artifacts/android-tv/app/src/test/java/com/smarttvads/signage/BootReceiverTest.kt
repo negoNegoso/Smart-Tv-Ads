@@ -8,6 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
@@ -21,6 +22,19 @@ class BootReceiverTest {
         val aberta = shadowOf(app).nextStartedActivity
         assertEquals(MainActivity::class.java.name, aberta.component?.className)
         assertTrue(aberta.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+    }
+
+    @Test
+    fun `boot nao abre outra instancia quando ja existe uma viva`() {
+        // Evita a segunda instância que dobraria a telemetria (ver MainActivityTest).
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        try {
+            BootReceiver().onReceive(app, Intent(Intent.ACTION_BOOT_COMPLETED))
+            assertNull(shadowOf(app).nextStartedActivity)
+        } finally {
+            // Destrói para não vazar a instância viva para os outros testes da classe.
+            controller.destroy()
+        }
     }
 
     @Test

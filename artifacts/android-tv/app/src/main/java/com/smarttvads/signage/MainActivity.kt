@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebView
 import android.widget.FrameLayout
+import java.lang.ref.WeakReference
 import java.util.Calendar
 
 /**
@@ -41,6 +42,12 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android 9+ não junta a tarefa do launcher com a da tela inicial
+        // (HOME): sem isso ficam duas instâncias vivas, cada uma repetindo a
+        // telemetria de exibição. A escondida some da tela mas o WebView
+        // continua rodando (onPause não para os timers de JS).
+        live?.get()?.let { outra -> if (outra !== this) outra.finish() }
+        live = WeakReference(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_main)
         container = findViewById(R.id.web_container)
@@ -71,6 +78,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
     }
 
     override fun onDestroy() {
+        if (live?.get() === this) live = null
         handler.removeCallbacksAndMessages(null)
         destroyWebView()
         super.onDestroy()
@@ -157,5 +165,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
     companion object {
         /** Os testes trocam para simular aparelho sem WebView. */
         internal var webViewFactory: (Context) -> WebView = { WebView(it) }
+
+        private var live: WeakReference<MainActivity>? = null
+
+        /** Existe uma instância viva da tela da TV (usado pelo BootReceiver). */
+        internal val hasLiveInstance: Boolean
+            get() = live?.get() != null
     }
 }

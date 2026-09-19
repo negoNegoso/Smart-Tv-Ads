@@ -107,6 +107,19 @@ class MainActivityTest {
     }
 
     @Test
+    fun `segunda instancia da tela da TV fecha a primeira`() {
+        // Android 9+ mantém tarefas separadas para o launcher e para a tela
+        // inicial (HOME); sem isso as duas ficam vivas e cada uma repete a
+        // telemetria de exibição.
+        val primeira = abrir()
+        assertFalse(primeira.isFinishing)
+
+        val segunda = abrir()
+        assertTrue(primeira.isFinishing)
+        assertFalse(segunda.isFinishing)
+    }
+
+    @Test
     fun `sem WebView no sistema mostra aviso em vez de fechar`() {
         MainActivity.webViewFactory = { throw RuntimeException("MissingWebViewPackageException") }
         val a = abrir()
