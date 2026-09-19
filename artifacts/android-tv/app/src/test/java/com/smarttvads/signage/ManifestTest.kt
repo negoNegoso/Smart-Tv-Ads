@@ -47,4 +47,12 @@ class ManifestTest {
         val flags = context.applicationInfo.flags
         assertEquals(0, flags and ApplicationInfo.FLAG_ALLOW_BACKUP)
     }
+
+    @Test
+    fun `atualizacao vem da ultima release do GitHub`() {
+        assertEquals(
+            "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/",
+            BuildConfig.UPDATE_BASE_URL,
+        )
+    }
 }
