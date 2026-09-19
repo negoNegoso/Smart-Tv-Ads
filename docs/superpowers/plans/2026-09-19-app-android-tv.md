@@ -28,7 +28,7 @@
 - Textos para o usuário em português. Comentários no estilo do repo: português, explicam o porquê.
 - `allowBackup="false"`: um backup restaurado noutra box clonaria a key da TV (`localStorage` da WebView).
 
-**Desvio registrado da spec:** a spec pede teste instrumentado em emulador Android TV API 29. Neste Mac (Apple Silicon) a imagem de TV API 29 só existe em x86 e não roda. O teste instrumentado usa `system-images;android-31;android-tv;arm64-v8a` (a mais próxima); comportamento específico do Android 10 (boot/tela inicial) fica no checklist manual da TV box real. O teste instrumentado usa `evaluateJavascript` em vez de Espresso-Web: a tela de QR aparece de forma assíncrona e um laço de espera com JS é mais simples e sem dependência extra.
+**Desvio registrado da spec:** a spec pede teste instrumentado em emulador Android TV API 29. Neste Mac (Apple Silicon) a imagem de TV API 29 só existe em x86 e não roda. O teste instrumentado usa `system-images;android-31;android-tv;arm64-v8a` (a mais próxima); comportamento específico do Android 10 (boot/tela inicial) fica no checklist manual da TV box real. O teste instrumentado usa `evaluateJavascript` em vez de Espresso-Web: a tela de QR aparece de forma assíncrona e um laço de espera com JS é mais simples e sem dependência extra. O caso "device criado pela API com a key lida da página → painel aparece em até 10 s" da spec não está em `TvScreenTest` — criar um device exige autenticação de admin, que o teste instrumentado não tem; ele é coberto pelo E2E manual do Step 5 da Task 9 (device inserido no banco de dev local, vinculado pela tela `/parear/<KEY>` como admin).
 
 **Comandos base** (todas as tarefas Android rodam de `artifacts/android-tv/`):
 
