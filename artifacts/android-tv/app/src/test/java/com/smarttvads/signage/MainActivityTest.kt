@@ -1,6 +1,7 @@
 package com.smarttvads.signage
 
 import android.os.Looper
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -59,6 +60,29 @@ class MainActivityTest {
         val a = abrir()
         val consumiu = a.onKeyDown(KeyEvent.KEYCODE_BACK, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
         assertTrue(consumiu)
+        assertFalse(a.isFinishing)
+    }
+
+    private fun MainActivity.segurarVoltar(ms: Long) {
+        val inicio = 1_000L
+        dispatchKeyEvent(KeyEvent(inicio, inicio, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0))
+        dispatchKeyEvent(KeyEvent(inicio, inicio + ms, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0))
+    }
+
+    @Test
+    fun `segurar voltar por 5 s abre as configuracoes da TV`() {
+        val a = abrir()
+        a.segurarVoltar(5_000)
+        val aberta = shadowOf(a).nextStartedActivity
+        assertEquals(Settings.ACTION_SETTINGS, aberta?.action)
+        assertFalse(a.isFinishing)
+    }
+
+    @Test
+    fun `voltar curto nao abre as configuracoes`() {
+        val a = abrir()
+        a.segurarVoltar(4_999)
+        assertNull(shadowOf(a).nextStartedActivity)
         assertFalse(a.isFinishing)
     }
 

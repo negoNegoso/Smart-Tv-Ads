@@ -1,10 +1,13 @@
 package com.smarttvads.signage
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -87,6 +90,30 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
         handler.removeCallbacksAndMessages(null)
         destroyWebView()
         super.onDestroy()
+    }
+
+    /**
+     * Saída do técnico: segurar Voltar por 5 s e soltar abre as Configurações
+     * da TV, de onde se chega ao menu nativo e à troca da tela inicial. Mede
+     * do aperto ao soltar porque nem todo controle IR repete a tecla segurada.
+     * Interceptado aqui, antes da WebView, que tem o foco.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+        if (event.action == KeyEvent.ACTION_UP &&
+            event.eventTime - event.downTime >= BACK_HOLD_TO_SETTINGS_MS
+        ) {
+            openSystemSettings()
+        }
+        return true
+    }
+
+    private fun openSystemSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            // Box sem tela de Configurações: segue no painel.
+        }
     }
 
     // Voltar não sai do painel nem navega o histórico da WebView.
@@ -174,6 +201,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener {
     }
 
     companion object {
+        /** Quanto tempo segurar Voltar para abrir as Configurações da TV. */
+        const val BACK_HOLD_TO_SETTINGS_MS = 5_000L
+
         /** Os testes trocam para simular aparelho sem WebView. */
         internal var webViewFactory: (Context) -> WebView = { WebView(it) }
 

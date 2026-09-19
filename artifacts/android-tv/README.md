@@ -71,9 +71,11 @@ export SIGNAGE_KEY_PASS=...
 Se a box não perguntar a tela inicial: Configurações → Apps → Apps padrão →
 Tela inicial → Signage TV.
 
-**Para mexer na box depois:** Configurações do sistema (a tecla Voltar não
-sai do painel). Chegar lá com o app em primeiro plano:
+**Para mexer na box depois:** Configurações do sistema (um toque em Voltar
+não sai do painel). Chegar lá com o app em primeiro plano:
 
+- **Segure Voltar por 5 segundos e solte**: abre as Configurações da TV. De
+  lá dá para abrir outros apps e trocar a tela inicial;
 - Tecla de configurações/engrenagem do controle remoto, se houver;
 - Teclado ou mouse USB (o Android aceita normalmente);
 - Ou, com um PC na mesma rede e depuração USB/rede ligada:
@@ -137,6 +139,7 @@ vinculada. Conteúdo e comportamento de exibição chegam pelo deploy web.
 - [ ] Sem rede no boot → aviso → volta sozinho ao reconectar.
 - [ ] Peça com YouTube toca com som sem clique.
 - [ ] Apagar a TV no painel → volta ao QR.
+- [ ] Segurar Voltar por 5 s e soltar abre as Configurações da TV.
 - [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
       com Android comum (em Android TV / Google TV certificado, só depois
       do procedimento da seção "Android TV certificado").
