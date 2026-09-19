@@ -74,14 +74,19 @@ function socialMetaTags(basePath: string): Plugin {
   };
 }
 
-/** `/tv` no dev, igual à rota da Vercel em scripts/build-vercel.mjs. */
+/**
+ * `/tv` no dev, igual à rota da Vercel em scripts/build-vercel.mjs. Aceita a
+ * barra final (`/tv/`, `/tv/?key=...`) pelo mesmo motivo: fácil de digitar
+ * sem querer no controle remoto da TV.
+ */
 function tvShortLink(): Plugin {
   return {
     name: 'signage-tv-short-link',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        if (req.url === '/tv' || req.url?.startsWith('/tv?')) {
-          req.url = `/tv.html${req.url.slice(3)}`;
+        const match = req.url?.match(/^\/tv\/?(\?.*)?$/);
+        if (match) {
+          req.url = `/tv.html${match[1] ?? ''}`;
         }
         next();
       });
