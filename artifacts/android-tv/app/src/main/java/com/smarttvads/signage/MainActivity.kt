@@ -59,6 +59,15 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     }
     private val hideUpdateBanner = Runnable { updateBanner.visibility = View.GONE }
 
+    /**
+     * Freio do retry após cancelamento (I-4): sem isso, um ABORTED vindo do
+     * sistema (sessão abandonada, pouco espaço) vira laço quente de checagem +
+     * sessão nova a cada volta. Só a primeira ABORTED de uma sequência refaz a
+     * checagem na hora; as seguintes esperam a checagem periódica normal.
+     * Reseta quando uma atualização fica pronta de novo (a checagem funcionou).
+     */
+    private var retryImediatoUsado = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 9+ não junta a tarefa do launcher com a da tela inicial
@@ -156,6 +165,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     }
 
     override fun onUpdateReady(versionName: String) {
+        retryImediatoUsado = false
         handler.removeCallbacks(hideUpdateBanner)
         updateBanner.text = getString(R.string.update_ready, versionName)
         updateBanner.visibility = View.VISIBLE
@@ -165,7 +175,10 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         handler.removeCallbacks(hideUpdateBanner)
         if (aborted) {
             updateBanner.visibility = View.GONE
-            updateController.check()
+            if (!retryImediatoUsado) {
+                retryImediatoUsado = true
+                updateController.check()
+            }
             return
         }
         updateBanner.text = getString(R.string.update_failed)

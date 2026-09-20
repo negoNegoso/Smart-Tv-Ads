@@ -115,6 +115,17 @@ class MainActivityUpdateTest {
     }
 
     @Test
+    fun `dois ABORTED seguidos nao geram duas checagens imediatas`() {
+        // Um ABORTED vindo do sistema (sessão abandonada, ex.: I-2) não pode
+        // virar laço quente de checagem + sessão nova a cada volta.
+        val a = abrir()
+        val antes = checagens
+        a.onUpdateFailed(aborted = true)
+        a.onUpdateFailed(aborted = true)
+        assertEquals(antes + 1, checagens)
+    }
+
+    @Test
     fun `falha mostra aviso por 10 s`() {
         val a = abrir()
         a.onUpdateFailed(aborted = false)
