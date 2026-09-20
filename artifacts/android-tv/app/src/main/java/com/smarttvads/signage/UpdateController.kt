@@ -1,5 +1,6 @@
 package com.smarttvads.signage
 
+import android.util.Log
 import java.io.File
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,6 +38,8 @@ class UpdateController(
                     installer.prepare(apk, manifest.versionName)
                 } catch (e: Exception) {
                     // Sem rede, disco cheio, instalador recusou: tenta na próxima checagem.
+                    // É frota sem ninguém olhando; sem o log um atualizador quebrado é invisível.
+                    Log.w(TAG, "Falha ao checar atualização", e)
                 } finally {
                     running.set(false)
                 }
@@ -44,7 +47,12 @@ class UpdateController(
         } catch (e: Exception) {
             // Executor recusou a tarefa (saturado, encerrado). Libera a flag para tentar
             // na próxima checagem — atualizar é sempre opcional.
+            Log.w(TAG, "Executor recusou a checagem de atualização", e)
             running.set(false)
         }
+    }
+
+    companion object {
+        const val TAG = "SignageTvUpdate"
     }
 }

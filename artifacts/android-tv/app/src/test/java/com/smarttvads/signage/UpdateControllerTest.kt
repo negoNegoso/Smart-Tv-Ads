@@ -3,8 +3,13 @@ package com.smarttvads.signage
 import java.io.File
 import java.util.concurrent.Executor
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 
+@RunWith(RobolectricTestRunner::class)
 class UpdateControllerTest {
     private val instalada = 1_000_001
     private val nova = UpdateManifest("1.2.0", 1_002_000, "signage-tv-1.2.0.apk", "a".repeat(64))
@@ -83,6 +88,24 @@ class UpdateControllerTest {
         fila.single().run()
         c.check()
         assertEquals(2, fila.size)
+    }
+
+    @Test
+    fun `erro inesperado loga um aviso`() {
+        // Frota sem ninguém olhando: hoje um atualizador quebrado é invisível.
+        ShadowLog.clear()
+        val d = FakeDownloader(nova, apk, erro = IllegalStateException("boom"))
+        UpdateController(instalada, d, installer, imediato).check()
+        assertTrue(ShadowLog.getLogs().any { it.type == android.util.Log.WARN && it.tag == UpdateController.TAG })
+    }
+
+    @Test
+    fun `executor que recusa loga um aviso`() {
+        ShadowLog.clear()
+        val d = FakeDownloader(nova, apk)
+        val executor = Executor { throw java.util.concurrent.RejectedExecutionException("saturado") }
+        UpdateController(instalada, d, installer, executor).check()
+        assertTrue(ShadowLog.getLogs().any { it.type == android.util.Log.WARN && it.tag == UpdateController.TAG })
     }
 
     @Test

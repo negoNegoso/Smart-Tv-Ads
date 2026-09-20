@@ -139,4 +139,16 @@ class MainActivityUpdateTest {
     fun `aviso nao recebe foco`() {
         assertFalse(abrir().aviso().isFocusable)
     }
+
+    @Test
+    fun `executor da checagem de atualizacao e encerrado ao destruir a Activity`() {
+        // newSingleThreadExecutor() por onCreate sem shutdown: com LAUNCHER +
+        // HOME (duas instâncias) sobrava thread viva a cada troca.
+        MainActivity.updateControllerFactory = MainActivity.defaultUpdateControllerFactory
+        val c = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val a = c.get()
+        val executor = a.updateExecutor
+        c.pause().stop().destroy()
+        assertTrue(executor.isShutdown)
+    }
 }

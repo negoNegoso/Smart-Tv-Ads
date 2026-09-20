@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.Calendar
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
@@ -33,6 +34,13 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     private lateinit var webViewMissing: View
     private lateinit var updateBanner: android.widget.TextView
     private lateinit var updateController: UpdateController
+
+    /**
+     * Executor da checagem de atualização, um por instância. Sem shutdown no
+     * onDestroy ele vazava: com LAUNCHER + HOME (duas instâncias) sobrava
+     * thread viva a cada troca.
+     */
+    internal val updateExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     internal var webView: WebView? = null
         private set
@@ -116,6 +124,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         if (live?.get() === this) live = null
         if (UpdateState.listener === this) UpdateState.listener = null
         handler.removeCallbacksAndMessages(null)
+        updateExecutor.shutdown()
         destroyWebView()
         super.onDestroy()
     }
@@ -283,7 +292,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
                 installedVersionCode = BuildConfig.VERSION_CODE,
                 downloader = UpdateDownloader(BuildConfig.UPDATE_BASE_URL, File(a.cacheDir, "updates")),
                 installer = UpdateInstaller(a.applicationContext),
-                executor = Executors.newSingleThreadExecutor(),
+                executor = a.updateExecutor,
             )
         }
 

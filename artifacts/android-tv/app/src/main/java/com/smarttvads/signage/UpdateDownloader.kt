@@ -11,7 +11,14 @@ import java.net.URL
  * main thread. Qualquer falha vira null — atualizar é sempre opcional e nunca
  * pode atrapalhar o painel.
  */
-class UpdateDownloader(private val baseUrl: String, private val dir: File) : UpdateController.Downloader {
+class UpdateDownloader(
+    private val baseUrl: String,
+    private val dir: File,
+    // usesCleartextTraffic="false" do manifesto só vale de API 23 em diante e
+    // o minSdk é 21: sem essa recusa no código, um build de release aceitaria
+    // qualquer esquema em API < 23. Testável sem depender de BuildConfig.
+    private val allowCleartext: Boolean = BuildConfig.DEBUG,
+) : UpdateController.Downloader {
 
     override fun fetchManifest(): UpdateManifest? = try {
         UpdateManifest.parse(open(baseUrl + MANIFEST).use { it.readBytes().toString(Charsets.UTF_8) })
@@ -44,6 +51,9 @@ class UpdateDownloader(private val baseUrl: String, private val dir: File) : Upd
 
     // Segue redirecionamento no mesmo protocolo (o GitHub manda de https para https).
     private fun open(url: String): InputStream {
+        if (!allowCleartext && !url.startsWith("https://")) {
+            throw IOException("HTTP recusado fora de debug: $url")
+        }
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = CONNECT_TIMEOUT_MS
         conn.readTimeout = READ_TIMEOUT_MS

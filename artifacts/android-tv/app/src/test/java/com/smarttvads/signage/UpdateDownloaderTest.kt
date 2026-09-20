@@ -92,4 +92,15 @@ class UpdateDownloaderTest {
         assertNull(downloader.downloadApk(UpdateManifest.parse(manifesto())!!))
         assertTrue(dir.list().isNullOrEmpty())
     }
+
+    @Test
+    fun `recusa http fora de debug sem nem tentar`() {
+        // usesCleartextTraffic=false só vale de API 23 em diante e o minSdk é
+        // 21: sem essa recusa no código, um build de release aceitaria
+        // qualquer esquema.
+        server.put("update.json", manifesto().toByteArray())
+        val semCleartext = UpdateDownloader(server.baseUrl, dir, allowCleartext = false)
+        assertNull(semCleartext.fetchManifest())
+        assertTrue(server.pedidos.isEmpty())
+    }
 }
