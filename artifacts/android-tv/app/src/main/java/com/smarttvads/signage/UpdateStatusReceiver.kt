@@ -22,7 +22,7 @@ class UpdateStatusReceiver : BroadcastReceiver() {
                 // Guarda sem abrir: o diálogo cobriria o painel até alguém responder.
                 else UpdateState.ready(version, confirmation)
             }
-            PackageInstaller.STATUS_SUCCESS -> UpdateState.clear()
+            PackageInstaller.STATUS_SUCCESS -> UpdateState.installed()
             PackageInstaller.STATUS_FAILURE_ABORTED -> UpdateState.failed(aborted = true)
             else -> UpdateState.failed(aborted = false)
         }

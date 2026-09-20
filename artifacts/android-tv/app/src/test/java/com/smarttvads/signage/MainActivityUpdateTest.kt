@@ -45,7 +45,7 @@ class MainActivityUpdateTest {
     @After
     fun limpa() {
         controllers.forEach { it.pause().stop().destroy() }
-        UpdateState.clear()
+        UpdateState.installed() // reseta pendingConfirmation/pendingVersion e activeSessionId
         UpdateState.listener = null
         MainActivity.updateControllerFactory = MainActivity.defaultUpdateControllerFactory
     }
@@ -133,6 +133,24 @@ class MainActivityUpdateTest {
         assertEquals(a.getString(R.string.update_failed), a.aviso().text.toString())
         passar(MainActivity.UPDATE_FAILED_VISIBLE_MS)
         assertEquals(View.GONE, a.aviso().visibility)
+    }
+
+    @Test
+    fun `nao checa enquanto ha sessao ativa mesmo sem confirmacao pendente`() {
+        // Regressão do I-3: a pessoa apertou OK, pendingConfirmation já foi
+        // limpo, mas o diálogo do sistema segue na tela com a sessão em
+        // curso. Uma checagem nesse meio-tempo chamaria prepare() de novo, e
+        // a varredura de sessões velhas mataria a que está sendo confirmada.
+        abrir()
+        UpdateState.sessionStarted(1)
+        passar(MainActivity.UPDATE_FIRST_CHECK_MS)
+        assertEquals(0, checagens)
+
+        // Status final chega (sucesso ou falha): activeSessionId volta a
+        // null e a checagem periódica passa a rodar de novo.
+        UpdateState.installed()
+        passar(MainActivity.UPDATE_INTERVAL_MS)
+        assertEquals(1, checagens)
     }
 
     @Test

@@ -23,9 +23,13 @@ class UpdateInstaller(private val context: Context) : UpdateController.Installer
             // Sessão comitada e não confirmada nunca é limpa sozinha, e o guard em
             // memória da Activity some a cada reinício de processo (frequente numa
             // box 24/7): sem isso, cada checagem empilha sessão + cópia do APK em
-            // /data. Abandona todas as sessões deste pacote antes de abrir a nova.
+            // /data. Abandona as sessões deste pacote antes de abrir a nova, exceto
+            // a sessão ativa: se a pessoa apertou OK, o diálogo do sistema está com
+            // ela na tela nesse momento (pendingConfirmation já foi limpo, mas o
+            // status final ainda não chegou) — abandoná-la mataria em silêncio a
+            // instalação que a pessoa está confirmando.
             installer.mySessions
-                .filter { it.appPackageName == context.packageName }
+                .filter { it.appPackageName == context.packageName && it.sessionId != UpdateState.activeSessionId }
                 .forEach { info ->
                     try {
                         installer.abandonSession(info.sessionId)

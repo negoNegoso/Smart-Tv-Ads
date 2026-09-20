@@ -1,10 +1,13 @@
 package com.smarttvads.signage
 
 import android.content.Context
+import android.content.pm.PackageInstaller
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -25,7 +28,7 @@ class UpdateInstallerTest {
 
     @After
     fun limpa() {
-        UpdateState.clear()
+        UpdateState.installed() // reseta pendingConfirmation/pendingVersion e activeSessionId
         UpdateState.listener = null
     }
 
@@ -41,5 +44,28 @@ class UpdateInstallerTest {
         // Sem a limpeza, cada prepare() empilharia mais uma sessão comitada com
         // uma cópia do APK, sem que nada as recolhesse numa box 24/7.
         assertEquals(1, packageInstaller.mySessions.size)
+    }
+
+    @Test
+    fun `prepare nao abandona a sessao ativa, so as outras`() {
+        // Regressão do I-3: a pessoa apertou OK, o diálogo do sistema está com
+        // a sessão dela na tela (pendingConfirmation já foi limpo, mas o
+        // status final ainda não chegou). Uma checagem redundante não pode
+        // matar essa sessão em silêncio.
+        val apk = File(tmp.root, "signage-tv-1.2.0.apk").apply { writeBytes("apk".toByteArray()) }
+        val installer = UpdateInstaller(context)
+        val packageInstaller = context.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            .apply { setAppPackageName(context.packageName) }
+
+        val sessaoVelha = packageInstaller.createSession(params)
+        val sessaoEmConfirmacao = packageInstaller.createSession(params)
+        UpdateState.sessionStarted(sessaoEmConfirmacao)
+
+        installer.prepare(apk, "1.2.0")
+
+        val ids = packageInstaller.mySessions.map { it.sessionId }
+        assertTrue("sessão em confirmação não pode ser abandonada", sessaoEmConfirmacao in ids)
+        assertFalse("sessão velha (não ativa) deve ser abandonada", sessaoVelha in ids)
     }
 }

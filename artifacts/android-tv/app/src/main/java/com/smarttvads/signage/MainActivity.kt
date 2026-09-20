@@ -58,10 +58,17 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         scheduleDailyReload()
     }
 
-    // Não refaz a sessão enquanto já há uma atualização esperando o OK.
+    // Não refaz a sessão enquanto já há uma atualização esperando o OK nem
+    // enquanto uma sessão já comitada está em andamento (ex.: a pessoa apertou
+    // OK e o diálogo do sistema está na tela; pendingConfirmation já foi
+    // limpo, mas o status final ainda não chegou) — senão a checagem chamaria
+    // prepare() de novo e a varredura de sessões velhas mataria a que está
+    // sendo confirmada.
     private val updateCheck = object : Runnable {
         override fun run() {
-            if (UpdateState.pendingConfirmation == null) updateController.check()
+            if (UpdateState.pendingConfirmation == null && UpdateState.activeSessionId == null) {
+                updateController.check()
+            }
             handler.postDelayed(this, UPDATE_INTERVAL_MS)
         }
     }

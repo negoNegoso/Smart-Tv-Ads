@@ -25,7 +25,7 @@ class UpdateStatusReceiverTest {
 
     @After
     fun limpa() {
-        UpdateState.clear()
+        UpdateState.installed() // reseta pendingConfirmation/pendingVersion e activeSessionId
         UpdateState.listener = null
     }
 
