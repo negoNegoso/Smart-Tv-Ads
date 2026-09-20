@@ -113,6 +113,11 @@ Tela inicial → Signage TV.
 **Para mexer na box depois:** Configurações do sistema (um toque em Voltar
 não sai do painel). Chegar lá com o app em primeiro plano:
 
+- **Botão "Sair da tela cheia"**: qualquer tecla do controle faz o botão
+  aparecer no canto inferior esquerdo por 8 segundos; com ele em foco, aperte
+  OK. As barras do sistema voltam e a TV vai para o menu. Numa box onde o
+  Signage TV é a tela inicial, o sistema traz o painel de volta na hora — ali
+  use a saída abaixo;
 - **Segure Voltar por 5 segundos e solte**: abre as Configurações da TV. De
   lá dá para abrir outros apps e trocar a tela inicial;
 - Tecla de configurações/engrenagem do controle remoto, se houver;
@@ -182,6 +187,9 @@ deploy web.
   devolver erro (ex.: 503) na abertura, a tela fica no erro até o reload das
   04:00 ou reiniciar o aparelho. Erro de rede é tratado normalmente.
 - Rede cai com o painel no ar: o painel segue com a última lista.
+- Mexeu no controle: o botão "Sair da tela cheia" aparece no canto inferior
+  esquerdo por 8 s e some sozinho, sem cobrir os anúncios. Com ele em foco, o
+  OK sai do painel; sem ele na tela, o OK volta a servir à atualização.
 - Motor da WebView trava: o app recria a WebView sozinho.
 - Todo dia às 04:00 a página é recarregada.
 - Aparelho sem Android System WebView: aviso na tela pedindo para atualizar.
@@ -201,6 +209,8 @@ deploy web.
 - [ ] Peça com YouTube toca com som sem clique.
 - [ ] Apagar a TV no painel → volta ao QR.
 - [ ] Segurar Voltar por 5 s e soltar abre as Configurações da TV.
+- [ ] Uma tecla do controle mostra "Sair da tela cheia"; OK com ele em foco
+      devolve as barras e leva ao menu da TV; sem mexer, o botão some em 8 s.
 - [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
       com Android comum (em Android TV / Google TV certificado, só depois
       do procedimento da seção "Android TV certificado").

@@ -33,6 +33,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     private lateinit var offlineOverlay: View
     private lateinit var webViewMissing: View
     private lateinit var updateBanner: android.widget.TextView
+    private lateinit var exitButton: android.widget.Button
+
+    /** Saiu para o menu da TV. Existe para os testes conferirem a saída. */
+    internal var movedToBack = false
+        private set
     private lateinit var updateController: UpdateController
 
     /**
@@ -73,6 +78,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         }
     }
     private val hideUpdateBanner = Runnable { updateBanner.visibility = View.GONE }
+    private val hideExitButton = Runnable {
+        exitButton.visibility = View.GONE
+        // Sem o botão, o foco volta para a página.
+        webView?.requestFocus()
+    }
 
     /**
      * Freio do retry após cancelamento (I-4): sem isso, um ABORTED vindo do
@@ -97,6 +107,8 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         offlineOverlay = findViewById(R.id.offline_overlay)
         webViewMissing = findViewById(R.id.webview_missing)
         updateBanner = findViewById(R.id.update_banner)
+        exitButton = findViewById(R.id.exit_fullscreen)
+        exitButton.setOnClickListener { exitFullscreen() }
         updateController = updateControllerFactory(this)
         UpdateState.listener = this
         UpdateState.pendingVersion?.let { onUpdateReady(it) }
@@ -143,9 +155,19 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
      * Interceptado aqui, antes da WebView, que tem o foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Com o botão de sair em foco, o OK é dele; a atualização espera o
+        // botão sumir para voltar a responder ao OK.
+        if (isOkKey(event.keyCode) && exitButton.visibility == View.VISIBLE) {
+            if (event.action == KeyEvent.ACTION_UP) exitFullscreen()
+            return true
+        }
         if (isOkKey(event.keyCode) && UpdateState.pendingConfirmation != null) {
             if (event.action == KeyEvent.ACTION_UP) openUpdateConfirmation()
             return true
+        }
+        // Qualquer outra tecla do controle traz o botão de sair de volta.
+        if (event.action == KeyEvent.ACTION_UP && event.keyCode != KeyEvent.KEYCODE_BACK) {
+            showExitButton()
         }
         if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_UP &&
@@ -166,6 +188,27 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
 
     private fun isOkKey(keyCode: Int) = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
         keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+
+    private fun showExitButton() {
+        handler.removeCallbacks(hideExitButton)
+        exitButton.visibility = View.VISIBLE
+        exitButton.requestFocus()
+        handler.postDelayed(hideExitButton, EXIT_BUTTON_VISIBLE_MS)
+    }
+
+    /**
+     * Devolve as barras do sistema e manda o painel para segundo plano, para
+     * a pessoa chegar ao menu da TV. Numa box onde o Signage TV é a tela
+     * inicial, o sistema traz o painel de volta na hora: ali o caminho é
+     * segurar Voltar por 5 s (ver README).
+     */
+    private fun exitFullscreen() {
+        handler.removeCallbacks(hideExitButton)
+        exitButton.visibility = View.GONE
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        movedToBack = moveTaskToBack(true)
+    }
 
     private fun openUpdateConfirmation() {
         val confirmation = UpdateState.pendingConfirmation ?: return
@@ -289,6 +332,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     companion object {
         /** Quanto tempo segurar Voltar para abrir as Configurações da TV. */
         const val BACK_HOLD_TO_SETTINGS_MS = 5_000L
+
+        /** Quanto o botão de sair fica na tela sem ninguém usar. */
+        const val EXIT_BUTTON_VISIBLE_MS = 8_000L
 
         const val UPDATE_FIRST_CHECK_MS = 120_000L
         const val UPDATE_INTERVAL_MS = 21_600_000L

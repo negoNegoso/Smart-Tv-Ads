@@ -5,4 +5,5 @@
     <string name="webview_missing">Atualize o Android System WebView nas configurações do aparelho.</string>
     <string name="update_ready">Atualização %1$s pronta — aperte OK para instalar</string>
     <string name="update_failed">Falha ao atualizar</string>
+    <string name="exit_fullscreen">Sair da tela cheia</string>
 </resources>
