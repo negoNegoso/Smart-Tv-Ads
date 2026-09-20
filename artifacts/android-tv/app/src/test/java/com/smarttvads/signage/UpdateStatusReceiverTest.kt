@@ -29,13 +29,17 @@ class UpdateStatusReceiverTest {
         UpdateState.listener = null
     }
 
-    private fun status(codigo: Int, confirmacao: Intent? = null) =
+    private fun status(codigo: Int, confirmacao: Intent? = null, sessionId: Int = 1) =
         Intent().putExtra(UpdateStatusReceiver.EXTRA_VERSION, "1.2.0")
             .putExtra(PackageInstaller.EXTRA_STATUS, codigo)
+            .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
             .apply { confirmacao?.let { putExtra(Intent.EXTRA_INTENT, it) } }
 
-    private fun recebe(intent: Intent) {
+    // A sessão do intent bate com a sessão ativa por padrão: o teste foca no
+    // status, não na correlação (que tem teste dedicado abaixo).
+    private fun recebe(intent: Intent, sessionId: Int = 1) {
         UpdateState.listener = ouvinte
+        UpdateState.sessionStarted(sessionId)
         UpdateStatusReceiver().onReceive(ApplicationProvider.getApplicationContext(), intent)
     }
 
@@ -75,6 +79,25 @@ class UpdateStatusReceiverTest {
         recebe(status(PackageInstaller.STATUS_PENDING_USER_ACTION))
         assertNull(UpdateState.pendingConfirmation)
         assertEquals(listOf("falhou aborted=false"), eventos)
+    }
+
+    @Test
+    fun `status de sessao antiga nao mexe na confirmacao da sessao atual`() {
+        // Reinício de processo perde o pendingConfirmation (UpdateState é
+        // memória): a checagem de 2 min cria uma sessão nova (2) para o mesmo
+        // APK. O ABORTED da sessão velha (1), abandonada pelo sistema, chega
+        // depois e não pode apagar a confirmação válida da sessão atual.
+        UpdateState.listener = ouvinte
+        UpdateState.sessionStarted(2)
+        UpdateState.ready("1.2.0", Intent("confirmar"))
+        eventos.clear()
+        UpdateStatusReceiver().onReceive(
+            ApplicationProvider.getApplicationContext(),
+            status(PackageInstaller.STATUS_FAILURE_ABORTED, sessionId = 1),
+        )
+        assertEquals("1.2.0", UpdateState.pendingVersion)
+        assertEquals("confirmar", UpdateState.pendingConfirmation?.action)
+        assertEquals(emptyList<String>(), eventos)
     }
 
     @Test

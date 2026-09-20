@@ -25,8 +25,13 @@ class UpdateInstaller(private val context: Context) : UpdateController.Installer
             if (Build.VERSION.SDK_INT >= 31) {
                 params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
-            sessionId = installer.createSession(params)
-            installer.openSession(sessionId).use { session ->
+            val newSessionId = installer.createSession(params)
+            sessionId = newSessionId
+            // Guarda a sessão ativa antes do commit: o UpdateStatusReceiver usa isso
+            // pra ignorar status de uma sessão velha (posta pois UpdateState só pode
+            // ser tocado na main thread e prepare() roda no executor de fundo).
+            Handler(Looper.getMainLooper()).post { UpdateState.sessionStarted(newSessionId) }
+            installer.openSession(newSessionId).use { session ->
                 session.openWrite("base.apk", 0, apk.length()).use { out ->
                     apk.inputStream().use { it.copyTo(out) }
                     session.fsync(out)
@@ -36,7 +41,7 @@ class UpdateInstaller(private val context: Context) : UpdateController.Installer
                 // O sistema preenche o status no Intent: no Android 12+ precisa ser mutável.
                 val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
-                val pending = PendingIntent.getBroadcast(context, sessionId, status, flags)
+                val pending = PendingIntent.getBroadcast(context, newSessionId, status, flags)
                 session.commit(pending.intentSender)
             }
         } catch (e: Exception) {

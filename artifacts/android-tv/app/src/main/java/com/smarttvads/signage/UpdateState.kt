@@ -19,7 +19,21 @@ object UpdateState {
         private set
     var pendingVersion: String? = null
         private set
+
+    /**
+     * Sessão do PackageInstaller que este processo criou por último. O
+     * UpdateStatusReceiver usa isso para ignorar status de uma sessão antiga:
+     * sem isso, o ABORTED de uma sessão abandonada pelo sistema (ex.: depois de
+     * um reinício de processo, que perde pendingConfirmation e faz a checagem
+     * criar uma sessão nova) apaga a confirmação válida da sessão atual.
+     */
+    var activeSessionId: Int? = null
+        private set
     var listener: Listener? = null
+
+    fun sessionStarted(sessionId: Int) {
+        activeSessionId = sessionId
+    }
 
     fun ready(versionName: String, confirmation: Intent) {
         pendingVersion = versionName

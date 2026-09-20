@@ -9,6 +9,11 @@ import android.content.pm.PackageInstaller
 class UpdateStatusReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val version = intent.getStringExtra(EXTRA_VERSION) ?: return
+        val sessionId = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+        // Sessão que não é mais a atual (já superada por uma checagem nova):
+        // ignora. Sem isso um status tardio de uma sessão abandonada (ex.:
+        // ABORTED) apaga o estado válido da sessão em curso.
+        if (sessionId != UpdateState.activeSessionId) return
         when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION")
