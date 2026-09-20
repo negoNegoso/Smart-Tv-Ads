@@ -304,7 +304,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
 
         private var live: WeakReference<MainActivity>? = null
 
-        /** Existe uma instância viva da tela da TV (usado pelo BootReceiver). */
+        /**
+         * Existe uma instância viva da tela da TV. Usado pelo [BootReceiver]
+         * (não relança se o painel já está na tela) e pelo [UpdatedReceiver]
+         * (não tenta reabrir depois de atualizar se já há uma instância viva).
+         */
         internal val hasLiveInstance: Boolean
             get() = live?.get() != null
     }

@@ -158,7 +158,13 @@ O app se atualiza sozinho a partir das releases do GitHub:
 - Achou versão nova: baixa, confere o SHA-256 e mostra no canto
   "Atualização X pronta — aperte OK para instalar". O painel segue normal.
 - Alguém aperta **OK** no controle → o Android pergunta "Atualizar?" →
-  confirmar. O painel volta sozinho, com a mesma key (TV continua vinculada).
+  confirmar. O app é reinstalado e reiniciado, com a mesma key (TV continua
+  vinculada). Em TV box com Android comum onde o Signage TV é a tela inicial,
+  o sistema traz o painel de volta sozinho. Em Android TV / Google TV
+  certificado, e no Android 10+ em geral, essa reabertura automática pode ser
+  bloqueada pelo sistema — a TV fica no launcher até alguém apertar Home ou
+  abrir o app (não é defeito; ver a seção "Android TV / Google TV
+  certificado").
 - Android 10/11 sempre pede essa confirmação. No Android 12+, a partir da
   segunda atualização feita pelo próprio app, instala sem perguntar.
 - Cancelou o diálogo: o aviso volta; OK tenta de novo.
@@ -202,6 +208,8 @@ deploy web.
       2 minutos depois de abrir.
 - [ ] OK abre a confirmação do sistema; confirmar instala e o painel volta com
       a mesma key.
-- [ ] Depois de atualizar, o painel volta sozinho (em Android TV / Google TV
-      certificado pode ficar no launcher do sistema — ver a seção do launcher
-      certificado).
+- [ ] Com o Signage TV como tela inicial numa TV box com Android comum, o
+      painel volta sozinho depois de atualizar.
+- [ ] Se a TV ficar no launcher do sistema depois de atualizar (comum em
+      Android TV / Google TV certificado), não é defeito — ver a seção
+      "Android TV / Google TV certificado".

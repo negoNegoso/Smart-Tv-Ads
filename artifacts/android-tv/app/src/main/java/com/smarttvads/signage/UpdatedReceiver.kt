@@ -7,14 +7,18 @@ import java.io.File
 
 /**
  * Depois que o Android instala a versão nova, o processo antigo morre. Apaga
- * os APKs baixados e reforça a reabertura do painel.
+ * os APKs baixados e tenta reabrir o painel.
  *
- * **Ressalva**: o sistema costuma reabrir a tela inicial automaticamente depois
- * da troca de pacote. Este `startActivity` é um reforço que pode ser bloqueado
- * pelo sistema (Android 10+) quando quer evitar abertura de Activities em
- * segundo plano; em Android TV ou Google TV certificado, o launcher da Google
- * pode ficar na frente mesmo com o app como tela inicial. A limpeza dos APKs
- * acontece de qualquer forma. Ver também [BootReceiver].
+ * **Ressalva**: o `startActivity` aqui é só uma tentativa, não uma garantia. O
+ * E2E mostrou o sistema recusando com "Abort background activity starts" em
+ * Android 12 — este processo está em estado RECEIVER, sem janela visível, e
+ * o Android 10+ pode bloquear `startActivity` nessa condição de forma geral
+ * (não é peculiaridade de launcher certificado). O único caminho confiável de
+ * volta é o Signage TV estar configurado como tela inicial (HOME): aí quem
+ * traz o painel de volta é o próprio sistema relançando o HOME, não este
+ * receiver. Em Android TV ou Google TV certificado, o launcher da Google fica
+ * na frente mesmo assim (ver README). A limpeza dos APKs acontece de qualquer
+ * forma. Ver também [BootReceiver].
  */
 class UpdatedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
