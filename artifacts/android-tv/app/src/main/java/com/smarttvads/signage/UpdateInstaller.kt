@@ -20,6 +20,19 @@ class UpdateInstaller(private val context: Context) : UpdateController.Installer
         val installer = context.packageManager.packageInstaller
         var sessionId: Int? = null
         try {
+            // Sessão comitada e não confirmada nunca é limpa sozinha, e o guard em
+            // memória da Activity some a cada reinício de processo (frequente numa
+            // box 24/7): sem isso, cada checagem empilha sessão + cópia do APK em
+            // /data. Abandona todas as sessões deste pacote antes de abrir a nova.
+            installer.mySessions
+                .filter { it.appPackageName == context.packageName }
+                .forEach { info ->
+                    try {
+                        installer.abandonSession(info.sessionId)
+                    } catch (abandonError: Exception) {
+                        // Sessão pode já ter sido descartada pelo sistema; ignora.
+                    }
+                }
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
             params.setAppPackageName(context.packageName)
             if (Build.VERSION.SDK_INT >= 31) {
