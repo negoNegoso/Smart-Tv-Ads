@@ -140,6 +140,12 @@ jobs:
           "$BT/apksigner" verify "$APK"
           "$BT/aapt" dump badging "$APK" | head -1
           cp "$APK" "$RUNNER_TEMP/"
+          # update.json: o app compara o versionCode e confere o APK pelo hash.
+          CODE="$("$BT/aapt" dump badging "$APK" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)"
+          SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
+          jq -n --arg v "$VERSION" --argjson c "$CODE" --arg a "signage-tv-$VERSION.apk" --arg s "$SHA" \
+            '{versionName: $v, versionCode: $c, apk: $a, sha256: $s}' > "$RUNNER_TEMP/update.json"
+          cat "$RUNNER_TEMP/update.json"
 
       # Mesmo build da Vercel; sem banco no ambiente a migração é pulada.
       - name: Build do web
@@ -160,15 +166,29 @@ jobs:
             echo ""
             echo "- \`signage-tv-$VERSION.apk\`: app Android para TV e TV box (instalação em artifacts/android-tv/README.md)."
             echo "- \`signage-web-$VERSION.zip\`: build do web (saída da Vercel, Build Output API)."
+            echo "- \`update.json\`: versão e SHA-256 do APK, lido pelo app para se atualizar."
             echo "- Web em produção: https://smart-tv-ads.vercel.app"
           } > "$RUNNER_TEMP/notes.md"
           gh release create "v$VERSION" \
             "$RUNNER_TEMP/signage-tv-$VERSION.apk" \
             "$RUNNER_TEMP/signage-web-$VERSION.zip" \
+            "$RUNNER_TEMP/update.json" \
             --target "$GITHUB_SHA" \
             --title "Smart TV Ads $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --generate-notes
+
+      # O que o app baixa precisa bater com o que foi publicado.
+      - name: Confere update.json publicado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/check"
+          gh release download "v$VERSION" -D "$RUNNER_TEMP/check" -p update.json -p "signage-tv-$VERSION.apk"
+          cd "$RUNNER_TEMP/check"
+          test "$(sha256sum "signage-tv-$VERSION.apk" | cut -d' ' -f1)" = "$(jq -r .sha256 update.json)"
+          test "$(jq -r .apk update.json)" = "signage-tv-$VERSION.apk"
+          echo "update.json confere com o APK publicado"
 
       - name: Apaga o keystore
         if: always()

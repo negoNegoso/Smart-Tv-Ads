@@ -25,6 +25,11 @@ val appVersionCode: Int = run {
     major * 1_000_000 + minor * 1_000 + patch
 }
 
+// Onde o app procura versão nova: update.json e APK da última release. O
+// GitHub redireciona `latest/download/` para a release mais recente.
+val updateBaseUrl: String = providers.gradleProperty("updateBaseUrl").orNull
+    ?: "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/"
+
 // Keystore de release fora do git (ver README). Perder o arquivo impede
 // atualizar o APK por cima nas TVs já instaladas.
 val releaseKeystore: String? = System.getenv("SIGNAGE_KEYSTORE")
@@ -40,6 +45,7 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "UPDATE_BASE_URL", "\"$updateBaseUrl\"")
     }
 
     signingConfigs {

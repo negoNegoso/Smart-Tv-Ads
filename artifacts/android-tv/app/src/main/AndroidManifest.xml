@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- O app baixa e instala a própria versão nova (ver UpdateInstaller). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Roda em Android TV e em TV box com Android comum (sem leanback nem toque). -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -47,6 +49,20 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Só o PendingIntent do próprio app chega aqui. -->
+        <receiver
+            android:name=".UpdateStatusReceiver"
+            android:exported="false" />
+
+        <!-- MY_PACKAGE_REPLACED é broadcast protegido do sistema. -->
+        <receiver
+            android:name=".UpdatedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
     </application>

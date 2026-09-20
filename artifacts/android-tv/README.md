@@ -95,13 +95,16 @@ runner ao fim do job.
    Segurança; em Android 8+ a permissão é por app, ex.: o gerenciador de
    arquivos).
 3. Abra o APK pelo gerenciador de arquivos e instale.
-4. Abra **Signage TV**. Aparece o QR code.
-5. Aperte **Home** no controle. Quando o Android perguntar qual tela inicial
+4. Libere **Instalar apps desconhecidos** para o **Signage TV** (Configurações
+   → Apps → Acesso especial / Segurança; em Android 8+ é por app). É o que
+   permite o app instalar as próprias atualizações.
+5. Abra **Signage TV**. Aparece o QR code.
+6. Aperte **Home** no controle. Quando o Android perguntar qual tela inicial
    usar, escolha **Signage TV → Sempre**. Em TV box com Android comum
    (AOSP) é isso que faz o app abrir sozinho quando a box liga (Android
    10+ não permite de outro jeito). Em Android TV / Google TV certificado
    não basta — veja a seção abaixo.
-6. Leia o QR com o celular do administrador e vincule a TV a uma empresa. Em
+7. Leia o QR com o celular do administrador e vincule a TV a uma empresa. Em
    alguns segundos a TV começa a exibir.
 
 Se a box não perguntar a tela inicial: Configurações → Apps → Apps padrão →
@@ -110,6 +113,11 @@ Tela inicial → Signage TV.
 **Para mexer na box depois:** Configurações do sistema (um toque em Voltar
 não sai do painel). Chegar lá com o app em primeiro plano:
 
+- **Botão "Sair da tela cheia"**: qualquer tecla do controle faz o botão
+  aparecer no canto inferior esquerdo por 8 segundos; com ele em foco, aperte
+  OK. As barras do sistema voltam e a TV vai para o menu. Numa box onde o
+  Signage TV é a tela inicial, o sistema traz o painel de volta na hora — ali
+  use a saída abaixo;
 - **Segure Voltar por 5 segundos e solte**: abre as Configurações da TV. De
   lá dá para abrir outros apps e trocar a tela inicial;
 - Tecla de configurações/engrenagem do controle remoto, se houver;
@@ -149,8 +157,27 @@ temporizador do sistema, só o de suspensão geral.
 
 ## Atualizar o app
 
-Instale o APK novo por cima (mesmo keystore). Os dados ficam — a TV continua
-vinculada. Conteúdo e comportamento de exibição chegam pelo deploy web.
+O app se atualiza sozinho a partir das releases do GitHub:
+
+- Checa 2 minutos depois de abrir e depois a cada 6 horas.
+- Achou versão nova: baixa, confere o SHA-256 e mostra no canto
+  "Atualização X pronta — aperte OK para instalar". O painel segue normal.
+- Alguém aperta **OK** no controle → o Android pergunta "Atualizar?" →
+  confirmar. O app é reinstalado e reiniciado, com a mesma key (TV continua
+  vinculada). Em TV box com Android comum onde o Signage TV é a tela inicial,
+  o sistema traz o painel de volta sozinho. Em Android TV / Google TV
+  certificado, e no Android 10+ em geral, essa reabertura automática pode ser
+  bloqueada pelo sistema — a TV fica no launcher até alguém apertar Home ou
+  abrir o app (não é defeito; ver a seção "Android TV / Google TV
+  certificado").
+- Android 10/11 sempre pede essa confirmação. No Android 12+, a partir da
+  segunda atualização feita pelo próprio app, instala sem perguntar.
+- Cancelou o diálogo: o aviso volta; OK tenta de novo.
+
+TVs com a versão **1.0.1** ainda não têm o atualizador: instale uma vez à mão
+o APK da release mais recente (mesmo keystore, por cima). Dali em diante é
+automático. Conteúdo e comportamento de exibição continuam chegando pelo
+deploy web.
 
 ## Comportamento
 
@@ -160,11 +187,17 @@ vinculada. Conteúdo e comportamento de exibição chegam pelo deploy web.
   devolver erro (ex.: 503) na abertura, a tela fica no erro até o reload das
   04:00 ou reiniciar o aparelho. Erro de rede é tratado normalmente.
 - Rede cai com o painel no ar: o painel segue com a última lista.
+- Mexeu no controle: o botão "Sair da tela cheia" aparece no canto inferior
+  esquerdo por 8 s e some sozinho, sem cobrir os anúncios. Com ele em foco, o
+  OK sai do painel; sem ele na tela, o OK volta a servir à atualização.
 - Motor da WebView trava: o app recria a WebView sozinho.
 - Todo dia às 04:00 a página é recarregada.
 - Aparelho sem Android System WebView: aviso na tela pedindo para atualizar.
 - TV apagada no painel admin: volta ao QR com a mesma key.
 - "Limpar dados" do app: key nova, QR novo — precisa vincular de novo.
+- Falha ao baixar ou instalar atualização: nada muda no painel; aviso
+  "Falha ao atualizar" por 10 s quando a instalação falha; tenta de novo na
+  próxima checagem.
 
 ## Checklist de teste manual
 
@@ -176,6 +209,17 @@ vinculada. Conteúdo e comportamento de exibição chegam pelo deploy web.
 - [ ] Peça com YouTube toca com som sem clique.
 - [ ] Apagar a TV no painel → volta ao QR.
 - [ ] Segurar Voltar por 5 s e soltar abre as Configurações da TV.
+- [ ] Uma tecla do controle mostra "Sair da tela cheia"; OK com ele em foco
+      devolve as barras e leva ao menu da TV; sem mexer, o botão some em 8 s.
 - [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
       com Android comum (em Android TV / Google TV certificado, só depois
       do procedimento da seção "Android TV certificado").
+- [ ] Com versão nova na última release, o aviso aparece no canto em até
+      2 minutos depois de abrir.
+- [ ] OK abre a confirmação do sistema; confirmar instala e o painel volta com
+      a mesma key.
+- [ ] Com o Signage TV como tela inicial numa TV box com Android comum, o
+      painel volta sozinho depois de atualizar.
+- [ ] Se a TV ficar no launcher do sistema depois de atualizar (comum em
+      Android TV / Google TV certificado), não é defeito — ver a seção
+      "Android TV / Google TV certificado".
