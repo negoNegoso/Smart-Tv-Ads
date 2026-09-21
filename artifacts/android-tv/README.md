@@ -90,7 +90,13 @@ runner ao fim do job.
 
 ## Instalação na TV / TV box (técnico)
 
-1. Copie `signage-tv-<versão>.apk` para um pendrive (ou baixe na box).
+O caminho mais curto na box é abrir o navegador dela e digitar
+**smart-tv-ads.vercel.app/apk**: a página mostra a versão, dispara o download
+do APK da última release e explica os passos seguintes. A rota lê o
+`update.json` da release, então sempre entrega o APK mais novo.
+
+1. Copie `signage-tv-<versão>.apk` para um pendrive (ou baixe na box pelo
+   link acima).
 2. Na box, permita instalar apps de fontes desconhecidas (Configurações →
    Segurança; em Android 8+ a permissão é por app, ex.: o gerenciador de
    arquivos).

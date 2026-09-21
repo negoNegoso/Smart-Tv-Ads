@@ -107,6 +107,9 @@ await writeFile(
         // Link curto que o instalador digita no navegador da TV. Aceita a
         // barra final (`/tv/`) porque é fácil de digitar sem querer.
         { src: "^/tv/?$", dest: "/tv.html" },
+        // Link que o instalador digita para baixar o APK na TV box. Mesma
+        // tolerância com a barra final que o /tv.
+        { src: "^/apk/?$", dest: "/apk.html" },
         { handle: "filesystem" },
         { src: "/(.*)", dest: "/index.html" },
       ],

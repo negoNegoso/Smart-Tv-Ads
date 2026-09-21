@@ -14,6 +14,7 @@ import analyticsRouter from "./analytics";
 import advertisersRouter from "./advertisers";
 import storageRouter from "./storage";
 import qrRouter from "./qr";
+import tvAppRouter from "./tv-app";
 import usersRouter from "./users";
 import portalRouter from "./portal";
 import { loadSession, requireAdmin, requireUser } from "../lib/auth/middleware";
@@ -26,6 +27,7 @@ router.use(publicStatsRouter);
 router.use(displayRouter);
 router.use(telemetryRouter);
 router.use(qrRouter);
+router.use(tvAppRouter);
 router.use(storageRouter);
 
 // A partir daqui, resolve identidade (admin ou usuário) para as rotas abaixo.
