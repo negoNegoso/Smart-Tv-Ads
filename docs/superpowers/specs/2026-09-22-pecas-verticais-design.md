@@ -139,9 +139,11 @@ estado vazio — fica dentro de um `#stage`.
 
 - `portrait_left`: igual, com `rotate(-90deg)`.
 
-A classe `.is-portrait` no `#stage` troca as medidas internas que usam `vh`
-(legenda, QR, rótulo "SAIBA +") para `vw`, que dentro do palco girado
-correspondem à altura visível. Sem duplicar estilo por sentido de giro.
+As medidas internas em `vh` (legenda, QR, rótulo "SAIBA +") **não mudam**: numa
+tela física deitada, `1vh` é sempre 1% do lado curto, e com o palco girado o
+lado curto passa a ser a largura visível. Legenda e QR continuam proporcionais
+ao lado curto nas duas orientações, sem classe extra. As prévias do admin usam
+`cqmin` pelo mesmo motivo.
 
 O iframe do YouTube gira junto; um Short 9:16 num palco 9:16 ocupa a tela.
 
@@ -156,11 +158,13 @@ tem.
 A cada refresh (60s), se `screen.orientation` mudou, o player aplica a classe
 nova e recomeça do primeiro slide.
 
-### Fallback
+### Troca de endpoint
 
-`tv.html` chama `/feed`; se receber 404 (servidor antigo durante o deploy), cai
-para `/slides` e fica sem rotação. `display.tsx` troca `useGetDeviceSlides`
-pelo hook gerado de `getDisplayFeed`.
+`tv.html` passa a chamar `/feed`, e `display.tsx` troca `useGetDeviceSlides`
+pelo hook gerado de `getDisplayFeed`. Não há fallback para `/slides`: web e API
+saem no mesmo deploy da Vercel, então o player novo nunca fala com servidor
+antigo. O 404 de key desconhecida no `/feed` tem o mesmo corpo do `/slides`
+(`{"error":"Device not found"}`), que é o que abre o pareamento.
 
 ## 5. Telas do admin
 
@@ -208,8 +212,8 @@ Vitest, nos `__tests__` existentes.
 - `playlist/add`: 400 em orientação diferente.
 - Validação do enum em `PATCH /devices/:id` e `POST/PATCH /announcements`.
 - `tv-html.test.ts` (jsdom): `portrait_right`/`portrait_left` aplicam classe e
-  transform; troca de orientação no refresh; fallback 404 → `/slides`.
-- `display.tsx`: classe de palco conforme o feed.
+  transform; troca de orientação no refresh; o que fica dentro e fora do palco.
+- `stageStyle` (helper do palco do `display.tsx`): estilo por orientação.
 - `piece-preview` e formulário (RTL): moldura por orientação, toggle, detecção
   de imagem, estado "detectando formato…".
 
