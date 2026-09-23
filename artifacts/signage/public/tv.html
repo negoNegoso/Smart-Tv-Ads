@@ -246,6 +246,8 @@
       var ytApiUnavailable = false;   // API do YouTube desistiu de carregar
       var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
       var ytInitTimer   = null;
+      var ytEndWatch    = null;   // vigia do fim do vídeo (Shorts não dão ENDED)
+      var YT_END_WATCH_MS = 500;
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
@@ -436,6 +438,7 @@
       function teardownYt() {
         ytActive = false;
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
+        if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
         if (ytPlayer) {
           try { ytPlayer.destroy(); } catch (e) {}
           ytPlayer = null;
@@ -465,6 +468,31 @@
             playlistCursor[slide.announcementId] = (cur + 1) % ids.length;
           }
         }
+      }
+
+      // O player do YouTube repete Shorts em laço: no fim o tempo volta a 0 e o
+      // estado vai PLAYING -> BUFFERING -> PLAYING, sem nunca emitir ENDED. Sem
+      // isto, peça em modo natural ficava presa no mesmo Short para sempre.
+      // Olha a posição de tempos em tempos: se estava perto do fim e voltou
+      // para trás, o vídeo acabou. A folga de 2 s cobre o intervalo da vigia
+      // (e o setInterval mais lento de aba/TV em segundo plano).
+      function vigiarFim(player, onEnded) {
+        if (ytEndWatch) { clearInterval(ytEndWatch); }
+        var anterior = 0;
+        ytEndWatch = setInterval(function () {
+          var agora, duracao;
+          try {
+            agora = player.getCurrentTime();
+            duracao = player.getDuration();
+          } catch (e) { return; }
+          if (!(duracao > 0) || typeof agora !== 'number') { return; }
+          if (agora + 1 < anterior && anterior >= duracao - 2) {
+            clearInterval(ytEndWatch); ytEndWatch = null;
+            onEnded();
+            return;
+          }
+          anterior = agora;
+        }, YT_END_WATCH_MS);
       }
 
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
@@ -503,6 +531,7 @@
                   try { e.target.seekTo(saved, true); } catch (err) {}
                 }
                 e.target.playVideo();
+                vigiarFim(e.target, onEnded);
               },
               onStateChange: function (e) {
                 if (e.data === window.YT.PlayerState.ENDED) {

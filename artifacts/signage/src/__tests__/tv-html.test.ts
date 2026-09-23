@@ -512,3 +512,97 @@ describe("tv.html: TV em retrato", () => {
     expect(HTML).toMatch(/#stage\.portrait-left\s*\{[^}]*-webkit-transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(-90deg\)/);
   });
 });
+
+describe("tv.html: vídeo do YouTube em modo natural", () => {
+  /**
+   * Player fake do YouTube IFrame API. O teste controla o tempo do vídeo
+   * (`tempo`) e dispara os eventos à mão, como o iframe faria.
+   */
+  interface PlayerFake {
+    videoId: string;
+    tempo: number;
+    duracao: number;
+    destruido: boolean;
+    eventos: {
+      onReady: (e: { target: PlayerFake }) => void;
+      onStateChange: (e: { data: number; target: PlayerFake }) => void;
+    };
+  }
+  let players: PlayerFake[] = [];
+
+  const video = (announcementId: number, youtubeId: string) => ({
+    ...slide(announcementId, ""),
+    imageUrl: null,
+    mediaKind: "youtube_video",
+    youtubeId,
+    playbackMode: "natural",
+  });
+
+  beforeEach(() => {
+    players = [];
+    class PlayerStub {
+      videoId: string;
+      tempo = 0;
+      duracao = 0;
+      destruido = false;
+      eventos: PlayerFake["eventos"];
+      constructor(_holder: unknown, opts: { videoId: string; events: PlayerFake["eventos"] }) {
+        this.videoId = opts.videoId;
+        this.eventos = opts.events;
+        players.push(this as unknown as PlayerFake);
+      }
+      playVideo() {}
+      unMute() {}
+      setVolume() {}
+      seekTo() {}
+      getCurrentTime() { return this.tempo; }
+      getDuration() { return this.duracao; }
+      destroy() { this.destruido = true; }
+    }
+    vi.stubGlobal("YT", {
+      Player: PlayerStub,
+      PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3 },
+    });
+  });
+
+  const ultimo = () => players[players.length - 1];
+
+  it("ENDED passa para a próxima peça", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 30;
+    p.eventos.onReady({ target: p });
+
+    p.eventos.onStateChange({ data: 0, target: p });
+
+    expect(ultimo().videoId).toBe("BBBBBBBBBBB");
+  });
+
+  it("Short que recomeça sozinho (sem ENDED) passa para a próxima peça", () => {
+    // O player do YouTube repete Shorts em laço: no fim o tempo volta a 0 e o
+    // estado vai PLAYING -> BUFFERING -> PLAYING, sem nunca emitir ENDED
+    // (visto no navegador com um Short de 77,7 s).
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 77.741;
+    p.eventos.onReady({ target: p });
+    p.eventos.onStateChange({ data: 1, target: p });
+
+    for (let t = 0; t <= 77.5; t += 0.5) {
+      p.tempo = t;
+      vi.advanceTimersByTime(500);
+    }
+    expect(ultimo().videoId).toBe("AAAAAAAAAAA");
+
+    // Laço do YouTube: volta ao começo sem ENDED.
+    p.tempo = 0.08;
+    p.eventos.onStateChange({ data: 3, target: p });
+    p.eventos.onStateChange({ data: 1, target: p });
+    vi.advanceTimersByTime(1000);
+
+    expect(ultimo().videoId).toBe("BBBBBBBBBBB");
+    expect(p.destruido).toBe(true);
+  });
+});
