@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GetDeviceSlidesResponse } from "@workspace/api-zod";
+import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 
 /**
  * /display/:deviceKey/slides é o endpoint que toda TV da frota consulta a
@@ -215,5 +215,43 @@ describe("GET /display/:deviceKey/slides", () => {
     expect((res.body as Array<{ announcementId: number }>).map((s) => s.announcementId)).toEqual([
       PLAYLIST_ROW.announcementId,
     ]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    selectResults = [];
+    selectCallIndex = 0;
+  });
+
+  it("devolve a orientação da TV junto com a rotação filtrada", async () => {
+    const vertical = { ...PLAYLIST_ROW, announcementId: 111, orientation: "portrait" };
+    selectResults = [[{ ...DEVICE_ROW, orientation: "portrait_right" }], [PLAYLIST_ROW, vertical], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.screen).toEqual({ orientation: "portrait_right" });
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([111]);
+    expect(res.body.slides[0]).not.toHaveProperty("source");
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+    // Como o /slides: a TV que pergunta está no ar.
+    expect(dbUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("404 com o mesmo corpo do /slides quando a key não existe", async () => {
+    selectResults = [[]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/nao-existe/feed");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Device not found" });
   });
 });
