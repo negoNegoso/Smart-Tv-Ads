@@ -26,6 +26,7 @@ let imagens: FakeImage[] = [];
 let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
+let orientacao = "landscape";
 let gets: string[] = [];
 // Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
 // O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
@@ -118,6 +119,7 @@ beforeEach(() => {
   posts = [];
   listaDeSlides = [];
   statusDaLista = 200;
+  orientacao = "landscape";
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
@@ -159,7 +161,10 @@ beforeEach(() => {
       this.readyState = 4;
       this.status = statusDaLista;
       if (statusDaLista === 200) {
-        this.responseText = JSON.stringify(listaDeSlides);
+        // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
+        this.responseText = this.url.indexOf("/feed") >= 0
+          ? JSON.stringify({ screen: { orientation: orientacao }, slides: listaDeSlides })
+          : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
       } else {
@@ -319,7 +324,7 @@ describe("tv.html: pareamento", () => {
 
     const key = window.localStorage.getItem("signage.deviceKey");
     expect(key).toMatch(/^[0-9A-F]{16}$/);
-    expect(gets[0]).toContain(`/api/display/${key}/slides`);
+    expect(gets[0]).toContain(`/api/display/${key}/feed`);
   });
 
   it("reusa a key guardada", () => {
@@ -328,7 +333,7 @@ describe("tv.html: pareamento", () => {
     statusDaLista = 404;
     carregarTv();
 
-    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/feed");
   });
 
   it("key da URL vence a guardada e não é gravada", () => {
@@ -336,7 +341,7 @@ describe("tv.html: pareamento", () => {
     listaDeSlides = [slide(1, "https://blob/a.png")];
     carregarTv();
 
-    expect(gets[0]).toContain("/api/display/CHAVE/slides");
+    expect(gets[0]).toContain("/api/display/CHAVE/feed");
     expect(window.localStorage.getItem("signage.deviceKey")).toBe("A1B2C3D4E5F6A7B8");
   });
 
@@ -345,7 +350,7 @@ describe("tv.html: pareamento", () => {
     listaDeSlides = [slide(1, "https://blob/a.png")];
     carregarTv();
 
-    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/slides");
+    expect(gets[0]).toContain("/api/display/A1B2C3D4E5F6A7B8/feed");
   });
 
   it("404 mostra QR, key em blocos e link", () => {
@@ -443,6 +448,67 @@ describe("tv.html: pareamento", () => {
     carregarTv();
 
     expect(pareando()).toBe(true);
-    expect(gets[0]).toMatch(/\/api\/display\/[0-9A-F]{16}\/slides/);
+    expect(gets[0]).toMatch(/\/api\/display\/[0-9A-F]{16}\/feed/);
+  });
+});
+
+describe("tv.html: TV em retrato", () => {
+  const palco = () => document.getElementById("stage")!;
+
+  it("TV deitada não gira", () => {
+    listaDeSlides = [slide(1, "/api/uploads/a.png")];
+    carregarTv();
+    expect(palco().className).toBe("");
+  });
+
+  it("portrait_right gira o palco para a direita", () => {
+    orientacao = "portrait_right";
+    listaDeSlides = [slide(1, "/api/uploads/a.png")];
+    carregarTv();
+    expect(palco().className).toBe("portrait-right");
+  });
+
+  it("portrait_left gira para a esquerda", () => {
+    orientacao = "portrait_left";
+    listaDeSlides = [slide(1, "/api/uploads/a.png")];
+    carregarTv();
+    expect(palco().className).toBe("portrait-left");
+  });
+
+  it("slides, legenda, QR, progresso e tela vazia ficam dentro do palco; pareamento fica fora", () => {
+    carregarTv();
+    for (const id of ["slot-a", "slot-b", "yt-slot", "overlay", "progress-track", "qr-box", "empty-screen"]) {
+      expect(palco().contains(document.getElementById(id))).toBe(true);
+    }
+    expect(palco().contains(document.getElementById("pair-screen"))).toBe(false);
+  });
+
+  it("troca de orientação no refresh gira o palco e recomeça do primeiro slide", () => {
+    // URL absoluta (padrão dos testes vizinhos): o helper `responder` casa
+    // pelo início de `img.src`, e uma URL relativa (/api/uploads/...) sai
+    // resolvida com o apiBase() na frente, então não bateria mais no índice 0.
+    listaDeSlides = [slide(1, "https://blob/a.png"), slide(2, "https://blob/b.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+    // Duração de 5 s com tick de 80 ms: 5000 não é múltiplo de 80, então
+    // avançar exatos 5000 ms para antes do tick que cruza o limiar (a barra
+    // fica em 99,2%). +80 garante o tick que dispara o goNext.
+    vi.advanceTimersByTime(5080);
+    responder("https://blob/b.png", true);
+    expect(noAr()).toContain("b.png");
+
+    orientacao = "portrait_right";
+    // Completa os 60 s desde o início (relógio já em 5080ms) para cair
+    // exatamente no refresh de 60 s sem deixar o timer do slide 2 disparar de
+    // novo antes disso.
+    vi.advanceTimersByTime(60000 - 5080);
+    expect(palco().className).toBe("portrait-right");
+    responder("https://blob/a.png", true);
+    expect(noAr()).toContain("a.png");
+  });
+
+  it("o CSS gira com prefixo -webkit- para os WebViews antigos", () => {
+    expect(HTML).toMatch(/#stage\.portrait-right\s*\{[^}]*-webkit-transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(90deg\)/);
+    expect(HTML).toMatch(/#stage\.portrait-left\s*\{[^}]*-webkit-transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(-90deg\)/);
   });
 });
