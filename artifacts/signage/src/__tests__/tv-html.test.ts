@@ -739,3 +739,140 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
     expect(p.mudo).toBe(false);
   });
 });
+
+describe("tv.html: fila de exibições", () => {
+  const CHAVE = "signage_play_queue";
+  const DIA = 24 * 60 * 60 * 1000;
+  const filaGuardada = (): unknown[][] => JSON.parse(window.localStorage.getItem(CHAVE) ?? "[]");
+  const semear = (itens: unknown) => window.localStorage.setItem(CHAVE, JSON.stringify(itens));
+  const idsEnviados = () => exibicoes().map((e) => e.playId);
+
+  it("sem rede guarda a exibição e reenvia quando a rede volta", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes()).toEqual([]);
+    const [primeiro] = filaGuardada();
+    expect(primeiro).toEqual([expect.any(String), 1, null, 5, expect.any(Number)]);
+    expect((primeiro[0] as string).length).toBe(12);
+
+    statusDoPost = 200;
+    vi.advanceTimersByTime(60000);
+    expect(idsEnviados()).toContain(primeiro[0]);
+    expect(filaGuardada()).toEqual([]);
+  });
+
+  it("manda a idade da exibição, não a data", () => {
+    semear([["seedaaaa0001", 1, 3, 5, Date.now() - 3600 * 1000]]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(exibicoes()).toEqual([
+      { playId: "seedaaaa0001", announcementId: 1, campaignId: 3, durationSeconds: 5, ageSeconds: 3600 },
+    ]);
+    expect(posts[posts.length - 1].payload.deviceKey).toBe("CHAVE");
+  });
+
+  it("fila sobrevive a recarregar a página", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    const id = filaGuardada()[0][0];
+
+    statusDoPost = 200;
+    carregarTv();
+    expect(idsEnviados()).toContain(id);
+  });
+
+  it("TV desconhecida (404) esvazia a fila", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 404;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toEqual([]);
+    // Sem isto o teste passa com a fila nem existindo: o lote tem de ter ido.
+    expect(posts.some((p) => p.url.indexOf("/api/telemetry/plays") !== -1 && p.status === 404)).toBe(true);
+  });
+
+  it("lote recusado (400) é descartado e não trava a fila", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 400;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toEqual([]);
+    // Sem isto o teste passa com a fila nem existindo: o lote tem de ter ido.
+    expect(posts.some((p) => p.url.indexOf("/api/telemetry/plays") !== -1 && p.status === 400)).toBe(true);
+  });
+
+  it("exibição com mais de 7 dias sai da fila sem ser enviada", () => {
+    semear([
+      ["seedvelho001", 1, null, 5, Date.now() - 8 * DIA],
+      ["seednovo0001", 1, null, 5, Date.now() - 60 * 1000],
+    ]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(idsEnviados()).toEqual(["seednovo0001"]);
+  });
+
+  it("relógio da TV que voltou no tempo não gera idade negativa", () => {
+    semear([["seedfutur001", 1, null, 5, Date.now() + 3600 * 1000]]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(exibicoes()).toEqual([expect.objectContaining({ playId: "seedfutur001", ageSeconds: 0 })]);
+  });
+
+  it("fila corrompida não quebra a TV e o que é válido segue", () => {
+    window.localStorage.setItem(
+      CHAVE,
+      JSON.stringify([["curto", 1, null, 5, Date.now()], "lixo", ["seedvalid001", 1, null, 5, Date.now()]]),
+    );
+    listaDeSlides = [];
+    carregarTv();
+    expect(idsEnviados()).toEqual(["seedvalid001"]);
+
+    window.localStorage.setItem(CHAVE, "{lixo");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    expect(() => carregarTv()).not.toThrow();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes().some((e) => e.announcementId === 1 && e.durationSeconds === 5)).toBe(true);
+  });
+
+  it("envia em lotes de até 200", () => {
+    semear(Array.from({ length: 450 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [];
+    carregarTv();
+    const lotes = posts.filter((p) => p.url.indexOf("/api/telemetry/plays") !== -1).map((p) => (p.payload.plays as unknown[]).length);
+    expect(lotes).toEqual([200, 200, 50]);
+    expect(filaGuardada()).toEqual([]);
+  });
+
+  it("fila grande grava no máximo a cada 30 s", () => {
+    semear(Array.from({ length: 600 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toHaveLength(600); // exibição nova só na memória
+    vi.advanceTimersByTime(30000);
+    expect(filaGuardada().length).toBeGreaterThan(600);
+  });
+
+  it("passa de 70 mil itens: saem os mais antigos", () => {
+    semear(Array.from({ length: 70000 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(35080); // exibições + janela de 30 s da gravação
+    const fila = filaGuardada();
+    expect(fila).toHaveLength(70000);
+    expect(fila[0][0]).not.toBe("seed00000000");
+  });
+});
