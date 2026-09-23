@@ -17,17 +17,9 @@ export type YouTubeMeta = {
  * para Shorts públicos reais — não dá pra usar isso pra decidir orientação.
  * Por isso só o link `/shorts/` marca vertical; todo o resto (playlist,
  * watch?v= comum) é landscape e o operador corrige no seletor manual do
- * formulário.
- *
- * `fetchImpl` continua no contrato da função (não é mais usado aqui) pra não
- * quebrar quem já chama passando um fetch de teste.
+ * formulário. Sem oEmbed, não há mais consulta de rede nenhuma aqui.
  */
-export async function detectYouTubeMeta(
-  url: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<YouTubeMeta | null> {
-  void fetchImpl;
-
+export async function detectYouTubeMeta(url: string): Promise<YouTubeMeta | null> {
   const ref = parseYouTubeUrl(url);
   if (!ref) return null;
   if (ref.kind === "youtube_playlist") return { ...ref, orientation: "landscape" };

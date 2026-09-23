@@ -5,7 +5,8 @@ import { detectYouTubeMeta } from "../lib/youtube/orientation";
 const router: IRouter = Router();
 
 // O formulário da biblioteca pergunta antes de salvar, para o preview já sair
-// no formato da peça. Roda no servidor porque o oEmbed não libera CORS.
+// no formato da peça. A detecção fica no servidor, ao lado do parseYouTubeUrl,
+// atrás do requireAdmin — não é algo pra expor sem autenticação.
 router.get("/youtube/meta", async (req, res): Promise<void> => {
   const query = GetYouTubeMetaQueryParams.safeParse(req.query);
   if (!query.success) {
