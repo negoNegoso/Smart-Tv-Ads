@@ -384,15 +384,24 @@
       // rede caiu ou estourou o tempo (o XHR chega a readyState 4 com status 0).
       function xhrPostJson(url, payload, cb) {
         var respondeu = false;
+        var xhr = null;
+        // Vigia própria além do xhr.timeout: navegador de TV antigo pode não
+        // ter a propriedade, e uma conexão meio aberta nunca chega a
+        // readyState 4 — a fila ficaria "enviando" até recarregar a página.
+        var guarda = setTimeout(function () {
+          try { if (xhr) { xhr.abort(); } } catch (e) {}
+          fim(0, '');
+        }, 25000);
         function fim(status, texto) {
           if (respondeu) { return; }
           respondeu = true;
+          clearTimeout(guarda);
           var body = null;
           try { body = JSON.parse(texto); } catch (e) {}
           cb(status, body);
         }
         try {
-          var xhr = new XMLHttpRequest();
+          xhr = new XMLHttpRequest();
           xhr.open('POST', url, true);
           xhr.setRequestHeader('Content-Type', 'application/json');
           try { xhr.timeout = 20000; } catch (e) {}

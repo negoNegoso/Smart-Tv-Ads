@@ -24,7 +24,8 @@ interface FakeImage {
 
 let imagens: FakeImage[] = [];
 let posts: Array<{ url: string; payload: Record<string, unknown>; status: number }> = [];
-// Resposta dos POSTs de telemetria. 0 = rede caiu (como um XHR de verdade).
+// Resposta dos POSTs de telemetria. 0 = rede caiu (como um XHR de verdade);
+// -1 = a requisição nunca termina (conexão meio aberta, sem timeout nativo).
 let statusDoPost = 200;
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
@@ -175,6 +176,7 @@ beforeEach(() => {
     send(body?: string) {
       if (this.method === "POST") {
         posts.push({ url: this.url, payload: JSON.parse(body ?? "{}"), status: statusDoPost });
+        if (statusDoPost === -1) return;
         this.readyState = 4;
         this.status = statusDoPost;
         this.responseText =
@@ -841,6 +843,22 @@ describe("tv.html: fila de exibições", () => {
     responder("https://blob/a.png", true);
     vi.advanceTimersByTime(5080);
     expect(exibicoes().some((e) => e.announcementId === 1 && e.durationSeconds === 5)).toBe(true);
+  });
+
+  it("envio que nunca responde não trava a fila para sempre", () => {
+    // TV com navegador antigo sem xhr.timeout e conexão meio aberta: o XHR
+    // nunca chega a readyState 4. Sem vigia própria, a fila ficava "enviando"
+    // até recarregar a página, e fora do app não há recarga diária.
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = -1;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    const id = filaGuardada()[0][0];
+
+    statusDoPost = 200;
+    vi.advanceTimersByTime(60000);
+    expect(idsEnviados()).toContain(id);
   });
 
   it("envia em lotes de até 200", () => {
