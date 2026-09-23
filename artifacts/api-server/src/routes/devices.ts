@@ -9,6 +9,7 @@ import {
   devicePlaylistTable,
   announcementsTable,
 } from "@workspace/db";
+import { pieceOrientationOf, screenOrientationOf } from "@workspace/db/orientation";
 import {
   ListDevicesQueryParams,
   ListDevicesResponse,
@@ -265,6 +266,27 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
     return;
   }
   const deviceId = params.data.id;
+
+  // Peça de outra orientação nunca iria ao ar nesta TV (o feed filtra); aceitar
+  // deixaria um item fantasma na playlist, contando como se estivesse passando.
+  const [pair] = await db
+    .select({ deviceOrientation: devicesTable.orientation, pieceOrientation: announcementsTable.orientation })
+    .from(devicesTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, parsed.data.announcementId))
+    .where(eq(devicesTable.id, deviceId));
+  if (!pair) {
+    res.status(404).json({ error: "Device or announcement not found" });
+    return;
+  }
+  const screen = screenOrientationOf(pair.deviceOrientation);
+  const piece = pieceOrientationOf(pair.pieceOrientation);
+  if (screen !== piece) {
+    res.status(400).json({
+      error: piece === "portrait" ? "Peça vertical não toca em TV horizontal" : "Peça horizontal não toca em TV retrato",
+    });
+    return;
+  }
+
   const [maxOrderRow] = await db
     .select({ maxOrder: sql<number>`COALESCE(MAX(${devicePlaylistTable.displayOrder}), -1)` })
     .from(devicePlaylistTable)
