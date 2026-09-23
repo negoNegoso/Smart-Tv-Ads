@@ -17,6 +17,7 @@ import qrRouter from "./qr";
 import tvAppRouter from "./tv-app";
 import usersRouter from "./users";
 import portalRouter from "./portal";
+import youtubeRouter from "./youtube";
 import { loadSession, requireAdmin, requireUser } from "../lib/auth/middleware";
 
 const router = Router();
@@ -43,6 +44,7 @@ router.use("/portal", requireUser, portalRouter);
 router.use(requireAdmin);
 router.use(usersRouter);
 router.use(announcementsRouter);
+router.use(youtubeRouter);
 router.use(segmentsRouter);
 router.use(cepRouter);
 router.use(companiesRouter);
