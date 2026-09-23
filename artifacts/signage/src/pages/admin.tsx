@@ -46,6 +46,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { mediaUrl } from '@/lib/media-url';
 import { BYTES_PER_MB, formatUploadLimit, useMaxUploadBytes } from '@/lib/upload-limit';
 import { parseYouTubeUrl } from '@workspace/db/youtube';
+import { PieceOrientationField } from '@/components/piece-orientation-field';
+import { pieceOrientationOf } from '@workspace/db/orientation';
 
 const uploadSchema = z
   .object({
@@ -57,6 +59,7 @@ const uploadSchema = z
     youtubeUrl: z.string().default(''),
     playbackMode: z.enum(['natural', 'capped']).default('capped'),
     audioMode: z.enum(['muted', 'sound']).default('muted'),
+    orientation: z.enum(['landscape', 'portrait']).default('landscape'),
     image: z.any().optional(),
   })
   .superRefine((v, ctx) => {
@@ -84,6 +87,7 @@ const editSchema = z
     youtubeUrl: z.string().default(''),
     playbackMode: z.enum(['natural', 'capped']).default('capped'),
     audioMode: z.enum(['muted', 'sound']).default('muted'),
+    orientation: z.enum(['landscape', 'portrait']).default('landscape'),
     image: z.any().optional(),
   })
   .superRefine((v, ctx) => {
@@ -188,7 +192,7 @@ function SortableAnnouncementRow({
         <GripVertical className="h-5 w-5" />
       </button>
 
-      <div className="h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center border">
+      <div className={`${item.orientation === 'portrait' ? 'h-24 w-[3.375rem]' : 'h-16 w-24'} shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center border`}>
         {posterSrc ? (
           <img src={posterSrc} alt={item.title} className="h-full w-full object-cover" />
         ) : (
@@ -202,6 +206,11 @@ function SortableAnnouncementRow({
           {item.mediaKind && item.mediaKind !== 'image' && (
             <span className="ml-2 rounded bg-red-600/10 px-1.5 py-0.5 text-xs font-medium text-red-600">
               ▶ YouTube
+            </span>
+          )}
+          {item.orientation === 'portrait' && (
+            <span className="ml-2 rounded bg-emerald-600/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+              Vertical
             </span>
           )}
           {isPanelGenerated && (
@@ -336,6 +345,7 @@ export default function Admin() {
       youtubeUrl: '',
       playbackMode: 'capped',
       audioMode: 'muted',
+      orientation: 'landscape',
     },
   });
 
@@ -350,6 +360,7 @@ export default function Admin() {
       youtubeUrl: '',
       playbackMode: 'capped',
       audioMode: 'muted',
+      orientation: 'landscape',
     },
   });
 
@@ -375,6 +386,7 @@ export default function Admin() {
       formData.append('mediaKind', values.mediaKind);
       formData.append('playbackMode', values.playbackMode);
       formData.append('audioMode', values.audioMode);
+      formData.append('orientation', values.orientation);
       if (values.mediaKind === 'image') {
         formData.append('image', values.image[0]);
       } else {
@@ -420,6 +432,7 @@ export default function Admin() {
         : '',
       playbackMode: (item.playbackMode as 'natural' | 'capped') ?? 'capped',
       audioMode: (item.audioMode as 'muted' | 'sound') ?? 'muted',
+      orientation: pieceOrientationOf(item.orientation),
     });
   }
 
@@ -446,6 +459,7 @@ export default function Admin() {
       formData.append('mediaKind', values.mediaKind);
       formData.append('playbackMode', values.playbackMode);
       formData.append('audioMode', values.audioMode);
+      formData.append('orientation', values.orientation);
       if (values.mediaKind !== 'image') {
         formData.append('youtubeUrl', values.youtubeUrl);
       }
@@ -521,16 +535,17 @@ export default function Admin() {
                 Novo slide
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Adicionar anúncio</DialogTitle>
                 <DialogDescription>
                   Envie uma imagem e defina a duração para entrar na rotação.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onUpload)} className="space-y-6 mt-4">
+                <form onSubmit={form.handleSubmit(onUpload)} className="mt-4 grid gap-6 md:grid-cols-[1fr_16rem]">
+                  <div className="space-y-6">
                   <FormField
                     control={form.control}
                     name="title"
@@ -690,15 +705,28 @@ export default function Admin() {
                           />
                         </FormControl>
                         <FormDescription>
-                          <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
+                          <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
                           <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  </div>
 
-                  <DialogFooter className="pt-4">
+                  <div className="md:sticky md:top-0 self-start">
+                    <PieceOrientationField
+                      mediaKind={form.watch('mediaKind')}
+                      youtubeUrl={form.watch('youtubeUrl')}
+                      files={form.watch('image') as FileList | undefined}
+                      fallbackPoster={null}
+                      caption={form.watch('showText') ? form.watch('displayText') || null : null}
+                      value={form.watch('orientation')}
+                      onChange={(o) => form.setValue('orientation', o)}
+                    />
+                  </div>
+
+                  <DialogFooter className="pt-4 md:col-span-2">
                     <Button type="submit" disabled={isUploading} className="w-full sm:w-auto">
                       {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {isUploading ? 'Enviando...' : 'Salvar e publicar'}
@@ -759,7 +787,7 @@ export default function Admin() {
       </div>
 
       <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) { setEditing(null); editForm.reset(); } }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar anúncio</DialogTitle>
             <DialogDescription>
@@ -767,21 +795,9 @@ export default function Admin() {
             </DialogDescription>
           </DialogHeader>
 
-          {editing && (
-            <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
-              <div className="h-14 w-20 shrink-0 overflow-hidden rounded bg-muted flex items-center justify-center border">
-                {editing.imageUrl ? (
-                  <img src={mediaUrl(editing.imageUrl)} alt={editing.title} className="h-full w-full object-cover" />
-                ) : (
-                  <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
-                )}
-              </div>
-              <span className="text-sm text-muted-foreground">Imagem atual</span>
-            </div>
-          )}
-
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6 mt-4">
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="mt-4 grid gap-6 md:grid-cols-[1fr_16rem]">
+              <div className="space-y-6">
               <FormField
                 control={editForm.control}
                 name="title"
@@ -941,15 +957,28 @@ export default function Admin() {
                       />
                     </FormControl>
                     <FormDescription>
-                      <span className="block mt-1">Recomendado: <strong>1920x1080</strong> (horizontal) ou <strong>1080x1920</strong> (vertical).</span>
+                      <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
                       <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              </div>
 
-              <DialogFooter className="pt-4">
+              <div className="md:sticky md:top-0 self-start">
+                <PieceOrientationField
+                  mediaKind={editForm.watch('mediaKind')}
+                  youtubeUrl={editForm.watch('youtubeUrl')}
+                  files={editForm.watch('image') as FileList | undefined}
+                  fallbackPoster={editing ? (editing.imageUrl ? mediaUrl(editing.imageUrl) : null) : null}
+                  caption={editForm.watch('showText') ? editForm.watch('displayText') || null : null}
+                  value={editForm.watch('orientation')}
+                  onChange={(o) => editForm.setValue('orientation', o)}
+                />
+              </div>
+
+              <DialogFooter className="pt-4 md:col-span-2">
                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSaving ? 'Salvando...' : 'Salvar alterações'}
