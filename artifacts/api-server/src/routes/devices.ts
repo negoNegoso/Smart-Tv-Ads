@@ -217,6 +217,7 @@ router.get("/devices/:id/playlist", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -318,6 +319,7 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -413,6 +415,7 @@ router.patch("/devices/:id/playlist/:announcementId/toggle", async (req, res): P
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))

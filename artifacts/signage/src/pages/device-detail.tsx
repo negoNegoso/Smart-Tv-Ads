@@ -96,20 +96,28 @@ type PlaylistItem = {
   // abaixo já trata. O tipo mentia e o contrato mentia junto.
   imageUrl: string | null;
   duration: number;
+  orientation: string;
 };
 
 function SortablePlaylistItem({
   item,
+  screen,
   onToggle,
   onRemove,
 }: {
   item: PlaylistItem;
+  screen: 'landscape' | 'portrait';
   onToggle: (announcementId: number) => void;
   onRemove: (announcementId: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.announcementId });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 0 };
   const imgUrl = mediaUrl(item.imageUrl);
+  const vertical = pieceOrientationOf(item.orientation) === 'portrait';
+  // A TV mudou de orientação depois que o item entrou na playlist: ele fica
+  // parado ali (o servidor não apaga sozinho), mas nunca vai ao ar — o feed
+  // filtra pela mesma regra. Apagado e com aviso pra não parecer que passa.
+  const foraDaOrientacao = (vertical ? 'portrait' : 'landscape') !== screen;
 
   return (
     <div
@@ -117,12 +125,12 @@ function SortablePlaylistItem({
       style={style}
       className={`group flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm transition-all ${
         isDragging ? 'shadow-lg ring-2 ring-primary' : 'hover:border-primary/40'
-      } ${!item.isActive ? 'opacity-50' : ''}`}
+      } ${!item.isActive || foraDaOrientacao ? 'opacity-50' : ''}`}
     >
       <button type="button" className="cursor-grab text-muted-foreground/40 hover:text-foreground px-1" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className="h-12 w-20 shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center">
+      <div className={`${vertical ? 'h-16 w-9' : 'h-12 w-20'} shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center`}>
         {item.imageUrl ? (
           <img src={imgUrl} alt={item.title} className="h-full w-full object-cover" />
         ) : (
@@ -132,6 +140,9 @@ function SortablePlaylistItem({
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate text-sm">{item.title}</p>
         <p className="text-xs text-muted-foreground font-mono">{item.duration}s</p>
+        {foraDaOrientacao ? (
+          <p className="text-xs text-destructive">Não toca nesta orientação</p>
+        ) : null}
       </div>
       <div className="flex items-center gap-1 ml-2">
         <Button
@@ -312,6 +323,7 @@ function PlaylistTab({ deviceId, screen }: { deviceId: number; screen: 'landscap
                 <SortablePlaylistItem
                   key={item.id}
                   item={item}
+                  screen={screen}
                   onToggle={(announcementId) => toggleMutation.mutate({ id: deviceId, announcementId })}
                   onRemove={(announcementId) => removeMutation.mutate({ deviceId, announcementId })}
                 />

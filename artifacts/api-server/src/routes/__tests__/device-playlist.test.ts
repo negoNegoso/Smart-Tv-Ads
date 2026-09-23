@@ -80,6 +80,7 @@ const SEM_IMAGEM = {
   title: "Vídeo do cliente",
   imageUrl: null,
   duration: 10,
+  orientation: "landscape",
 };
 
 const COM_IMAGEM = {
@@ -91,6 +92,7 @@ const COM_IMAGEM = {
   title: "Cartaz da padaria",
   imageUrl: "/api/uploads/cartaz.png",
   duration: 10,
+  orientation: "landscape",
 };
 
 beforeEach(() => {

@@ -145,6 +145,38 @@ describe('orientação da TV', () => {
   });
 });
 
+describe('playlist com item fora da orientação da TV', () => {
+  it('avisa o item que não toca nesta TV', async () => {
+    const device = { ...DEVICE, orientation: 'portrait_right' };
+    const itemFadado = {
+      id: 1,
+      deviceId: 1,
+      announcementId: 101,
+      displayOrder: 0,
+      isActive: true,
+      title: 'Cartaz da padaria',
+      imageUrl: '/api/uploads/cartaz.png',
+      duration: 10,
+      orientation: 'landscape',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+        if (url.includes('/playlist')) return json([itemFadado]);
+        if (url.includes('/preview')) return json([]);
+        if (url.includes('/announcements')) return json([]);
+        if (url.includes('/devices/1')) return json(device);
+        return json([]);
+      }),
+    );
+    renderPagina();
+
+    expect(await screen.findByText('Cartaz da padaria')).toBeInTheDocument();
+    expect(await screen.findByText('Não toca nesta orientação')).toBeInTheDocument();
+  });
+});
+
 describe('DeviceDetail — adicionar à playlist', () => {
   it('não acusa duplicata quando o servidor falha', async () => {
     stubApi(500, { error: 'Internal error' });

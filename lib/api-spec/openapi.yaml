@@ -1337,7 +1337,7 @@ components:
     # ── Playlist ─────────────────────────────────────────────────────────────
     PlaylistItem:
       type: object
-      required: [id, deviceId, announcementId, displayOrder, isActive, title, imageUrl, duration]
+      required: [id, deviceId, announcementId, displayOrder, isActive, title, imageUrl, duration, orientation]
       properties:
         id: { type: integer }
         deviceId: { type: integer }
@@ -1350,6 +1350,9 @@ components:
         # as três rotas de playlist depois que a linha já estava no banco.
         imageUrl: { type: string, nullable: true }
         duration: { type: integer }
+        # "landscape" | "portrait" da peça. O portal usa para avisar, na
+        # playlist, o item que não toca na orientação atual da TV.
+        orientation: { type: string }
 
     PlaylistItemInput:
       type: object

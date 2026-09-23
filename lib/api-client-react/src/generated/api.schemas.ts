@@ -300,6 +300,7 @@ export interface PlaylistItem {
   title: string;
   imageUrl: string | null;
   duration: number;
+  orientation: string;
 }
 
 export interface PlaylistItemInput {
