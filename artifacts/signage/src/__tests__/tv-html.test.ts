@@ -523,6 +523,9 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
     tempo: number;
     duracao: number;
     destruido: boolean;
+    estado: number;
+    mudo: boolean;
+    playCalls: number;
     eventos: {
       onReady: (e: { target: PlayerFake }) => void;
       onStateChange: (e: { data: number; target: PlayerFake }) => void;
@@ -545,15 +548,20 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
       tempo = 0;
       duracao = 0;
       destruido = false;
+      estado = -1;
+      mudo = true;
+      playCalls = 0;
       eventos: PlayerFake["eventos"];
       constructor(_holder: unknown, opts: { videoId: string; events: PlayerFake["eventos"] }) {
         this.videoId = opts.videoId;
         this.eventos = opts.events;
         players.push(this as unknown as PlayerFake);
       }
-      playVideo() {}
-      unMute() {}
+      playVideo() { this.playCalls += 1; }
+      mute() { this.mudo = true; }
+      unMute() { this.mudo = false; }
       setVolume() {}
+      getPlayerState() { return this.estado; }
       seekTo() {}
       getCurrentTime() { return this.tempo; }
       getDuration() { return this.duracao; }
@@ -604,5 +612,34 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
 
     expect(ultimo().videoId).toBe("BBBBBBBBBBB");
     expect(p.destruido).toBe(true);
+  });
+
+  it("peça com som que o navegador não deixa tocar cai para mudo e toca", () => {
+    // Chrome sem interação do usuário bloqueia autoplay com som: o player fica
+    // pronto, sai do mudo e fica parado em UNSTARTED (-1) para sempre. Em modo
+    // natural isso travava a TV nessa peça.
+    listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.eventos.onReady({ target: p });
+    expect(p.mudo).toBe(false);
+    const antes = p.playCalls;
+
+    vi.advanceTimersByTime(3000);
+
+    expect(p.mudo).toBe(true);
+    expect(p.playCalls).toBeGreaterThan(antes);
+  });
+
+  it("peça com som que começou a tocar continua com som", () => {
+    listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.eventos.onReady({ target: p });
+    p.estado = 1;
+
+    vi.advanceTimersByTime(3000);
+
+    expect(p.mudo).toBe(false);
   });
 });

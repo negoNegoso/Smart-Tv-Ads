@@ -248,6 +248,8 @@
       var ytInitTimer   = null;
       var ytEndWatch    = null;   // vigia do fim do vídeo (Shorts não dão ENDED)
       var YT_END_WATCH_MS = 500;
+      var ytSoundTimer  = null;   // confere se o vídeo com som começou a tocar
+      var YT_SOUND_CHECK_MS = 3000;
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
@@ -439,6 +441,7 @@
         ytActive = false;
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
         if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
+        if (ytSoundTimer) { clearTimeout(ytSoundTimer); ytSoundTimer = null; }
         if (ytPlayer) {
           try { ytPlayer.destroy(); } catch (e) {}
           ytPlayer = null;
@@ -495,6 +498,23 @@
         }, YT_END_WATCH_MS);
       }
 
+      // Navegador sem interação do usuário (Chrome, TV box fora do app) bloqueia
+      // autoplay com som: o player fica pronto, sai do mudo e para em
+      // UNSTARTED sem erro nenhum. Em modo natural a TV travava nessa peça.
+      // Se não estiver tocando depois de um tempo, vale mais mudo do que tela
+      // parada. O app Android libera som sem gesto, então lá isto não dispara.
+      function garantirQueToca(player) {
+        if (ytSoundTimer) { clearTimeout(ytSoundTimer); }
+        ytSoundTimer = setTimeout(function () {
+          ytSoundTimer = null;
+          var estado;
+          try { estado = player.getPlayerState(); } catch (e) { return; }
+          var S = window.YT.PlayerState;
+          if (estado === S.PLAYING || estado === S.BUFFERING || estado === S.ENDED) { return; }
+          try { player.mute(); player.playVideo(); } catch (e) {}
+        }, YT_SOUND_CHECK_MS);
+      }
+
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
       // onFail() para o chamador cair no fallback de imagem.
       function playYouTube(slide, videoId, onEnded, onFail) {
@@ -531,6 +551,7 @@
                   try { e.target.seekTo(saved, true); } catch (err) {}
                 }
                 e.target.playVideo();
+                if (slide.audioMode === 'sound') { garantirQueToca(e.target); }
                 vigiarFim(e.target, onEnded);
               },
               onStateChange: function (e) {
