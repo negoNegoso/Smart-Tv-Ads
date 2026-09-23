@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { AnnouncementInputOrientation } from './announcementInputOrientation';
 
 export interface AnnouncementInput {
   /** @minLength 1 */
@@ -17,4 +18,5 @@ export interface AnnouncementInput {
   youtubeUrl?: string;
   playbackMode?: string;
   audioMode?: string;
+  orientation?: AnnouncementInputOrientation;
 }

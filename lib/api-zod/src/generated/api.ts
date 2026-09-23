@@ -44,6 +44,7 @@ export const ListAnnouncementsResponseItem = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -68,7 +69,8 @@ export const CreateAnnouncementBody = zod.object({
   "mediaKind": zod.string().optional(),
   "youtubeUrl": zod.string().optional(),
   "playbackMode": zod.string().optional(),
-  "audioMode": zod.string().optional()
+  "audioMode": zod.string().optional(),
+  "orientation": zod.enum(['landscape', 'portrait']).optional()
 })
 
 export const CreateAnnouncementResponse = zod.object({
@@ -81,6 +83,7 @@ export const CreateAnnouncementResponse = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -102,6 +105,7 @@ export const ListActiveAnnouncementsResponseItem = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -145,6 +149,7 @@ export const GetAnnouncementResponse = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -171,7 +176,8 @@ export const UpdateAnnouncementBody = zod.object({
   "mediaKind": zod.string().optional(),
   "youtubeUrl": zod.string().optional(),
   "playbackMode": zod.string().optional(),
-  "audioMode": zod.string().optional()
+  "audioMode": zod.string().optional(),
+  "orientation": zod.enum(['landscape', 'portrait']).optional()
 })
 
 export const UpdateAnnouncementResponse = zod.object({
@@ -184,6 +190,7 @@ export const UpdateAnnouncementResponse = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
@@ -213,11 +220,26 @@ export const ToggleAnnouncementResponse = zod.object({
   "youtubeId": zod.string().nullish(),
   "playbackMode": zod.string(),
   "audioMode": zod.string(),
+  "orientation": zod.string(),
   "isActive": zod.boolean(),
   "displayOrder": zod.number(),
   "duration": zod.number(),
   "source": zod.string().optional(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Tipo, ID e orientação de um link do YouTube
+ */
+export const GetYouTubeMetaQueryParams = zod.object({
+  "url": zod.coerce.string()
+})
+
+export const GetYouTubeMetaResponse = zod.object({
+  "kind": zod.enum(['youtube_video', 'youtube_playlist']),
+  "id": zod.string(),
+  "orientation": zod.enum(['landscape', 'portrait'])
 })
 
 
@@ -545,6 +567,7 @@ export const ListDevicesResponseItem = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -572,6 +595,7 @@ export const CreateDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -591,6 +615,7 @@ export const GetDeviceByKeyResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -607,6 +632,7 @@ export const GetDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -622,7 +648,8 @@ export const UpdateDeviceParams = zod.object({
 
 export const UpdateDeviceBody = zod.object({
   "name": zod.string().min(1).optional(),
-  "location": zod.string().nullish()
+  "location": zod.string().nullish(),
+  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional()
 })
 
 export const UpdateDeviceResponse = zod.object({
@@ -631,6 +658,7 @@ export const UpdateDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -659,7 +687,8 @@ export const GetDevicePlaylistResponseItem = zod.object({
   "isActive": zod.boolean(),
   "title": zod.string(),
   "imageUrl": zod.string().nullable(),
-  "duration": zod.number()
+  "duration": zod.number(),
+  "orientation": zod.string()
 })
 export const GetDevicePlaylistResponse = zod.array(GetDevicePlaylistResponseItem)
 
@@ -711,7 +740,8 @@ export const AddToDevicePlaylistResponse = zod.object({
   "isActive": zod.boolean(),
   "title": zod.string(),
   "imageUrl": zod.string().nullable(),
-  "duration": zod.number()
+  "duration": zod.number(),
+  "orientation": zod.string()
 })
 
 
@@ -756,7 +786,8 @@ export const TogglePlaylistItemResponse = zod.object({
   "isActive": zod.boolean(),
   "title": zod.string(),
   "imageUrl": zod.string().nullable(),
-  "duration": zod.number()
+  "duration": zod.number(),
+  "orientation": zod.string()
 })
 
 
@@ -782,6 +813,35 @@ export const GetDeviceSlidesResponseItem = zod.object({
   "videoIds": zod.array(zod.string()).nullish()
 })
 export const GetDeviceSlidesResponse = zod.array(GetDeviceSlidesResponseItem)
+
+
+/**
+ * Mesma lista de /display/{deviceKey}/slides, junto com a orientação da TV para o player girar o palco. /slides continua para TVs com tv.html antigo em cache.
+ * @summary Rotação da TV e como a tela está montada
+ */
+export const GetDisplayFeedParams = zod.object({
+  "deviceKey": zod.coerce.string()
+})
+
+export const GetDisplayFeedResponse = zod.object({
+  "screen": zod.object({
+  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left'])
+}),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}))
+})
 
 
 /**
@@ -1051,6 +1111,7 @@ export const ListPortalClientDevicesResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "location": zod.string().nullish(),
+  "orientation": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "totalPlays": zod.number()
 })

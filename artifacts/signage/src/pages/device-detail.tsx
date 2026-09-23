@@ -29,12 +29,15 @@ import {
   useTogglePlaylistItem,
   useGetDeviceAnalytics,
   useGetDevicePreview,
+  useUpdateDevice,
   getGetDeviceQueryKey,
   getGetDevicePlaylistQueryKey,
   getGetDeviceAnalyticsQueryKey,
   getGetDevicePreviewQueryKey,
 } from '@workspace/api-client-react';
+import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientation';
 import { DevicePreview } from '@/components/device-preview';
+import { tvFrameClass } from '@/components/piece-preview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -42,6 +45,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { mediaUrl } from '@/lib/media-url';
 import { mensagemDeErro } from '@/lib/api-error';
+
+/** O sentido importa: girar para o lado errado deixa a arte de cabeça para baixo. */
+const DEVICE_ORIENTATION_OPTIONS = [
+  { value: 'landscape', label: 'Horizontal' },
+  { value: 'portrait_right', label: 'Retrato, girada para a direita ↻' },
+  { value: 'portrait_left', label: 'Retrato, girada para a esquerda ↺' },
+] as const;
 
 async function copyToClipboard(text: string): Promise<boolean> {
   if (navigator.clipboard?.writeText) {
@@ -86,20 +96,28 @@ type PlaylistItem = {
   // abaixo já trata. O tipo mentia e o contrato mentia junto.
   imageUrl: string | null;
   duration: number;
+  orientation: string;
 };
 
 function SortablePlaylistItem({
   item,
+  screen,
   onToggle,
   onRemove,
 }: {
   item: PlaylistItem;
+  screen: 'landscape' | 'portrait';
   onToggle: (announcementId: number) => void;
   onRemove: (announcementId: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.announcementId });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 0 };
   const imgUrl = mediaUrl(item.imageUrl);
+  const vertical = pieceOrientationOf(item.orientation) === 'portrait';
+  // A TV mudou de orientação depois que o item entrou na playlist: ele fica
+  // parado ali (o servidor não apaga sozinho), mas nunca vai ao ar — o feed
+  // filtra pela mesma regra. Apagado e com aviso pra não parecer que passa.
+  const foraDaOrientacao = (vertical ? 'portrait' : 'landscape') !== screen;
 
   return (
     <div
@@ -107,12 +125,12 @@ function SortablePlaylistItem({
       style={style}
       className={`group flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm transition-all ${
         isDragging ? 'shadow-lg ring-2 ring-primary' : 'hover:border-primary/40'
-      } ${!item.isActive ? 'opacity-50' : ''}`}
+      } ${!item.isActive || foraDaOrientacao ? 'opacity-50' : ''}`}
     >
       <button type="button" className="cursor-grab text-muted-foreground/40 hover:text-foreground px-1" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className="h-12 w-20 shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center">
+      <div className={`${vertical ? 'h-16 w-9' : 'h-12 w-20'} shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center`}>
         {item.imageUrl ? (
           <img src={imgUrl} alt={item.title} className="h-full w-full object-cover" />
         ) : (
@@ -122,6 +140,9 @@ function SortablePlaylistItem({
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate text-sm">{item.title}</p>
         <p className="text-xs text-muted-foreground font-mono">{item.duration}s</p>
+        {foraDaOrientacao ? (
+          <p className="text-xs text-destructive">Não toca nesta orientação</p>
+        ) : null}
       </div>
       <div className="flex items-center gap-1 ml-2">
         <Button
@@ -145,7 +166,7 @@ function SortablePlaylistItem({
   );
 }
 
-function PlaylistTab({ deviceId }: { deviceId: number }) {
+function PlaylistTab({ deviceId, screen }: { deviceId: number; screen: 'landscape' | 'portrait' }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -227,7 +248,10 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
   }
 
   const playlistIds = new Set(playlist.map((p) => p.announcementId));
-  const available = allAnnouncements.filter((a) => !playlistIds.has(a.id));
+  // Só o que esta TV consegue tocar: o servidor recusa o resto (400).
+  const available = allAnnouncements.filter(
+    (a) => !playlistIds.has(a.id) && pieceOrientationOf(a.orientation) === screen,
+  );
 
   return (
     <div className="space-y-4">
@@ -245,7 +269,11 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
               <DialogTitle>Adicionar à playlist</DialogTitle>
             </DialogHeader>
             {available.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-4 text-center">Todos os anúncios já estão na playlist.</p>
+              <p className="text-muted-foreground text-sm py-4 text-center">
+                {allAnnouncements.some((a) => !playlistIds.has(a.id))
+                  ? `Nenhuma peça ${screen === 'portrait' ? 'vertical' : 'horizontal'} disponível para esta TV.`
+                  : 'Todos os anúncios já estão na playlist.'}
+              </p>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {available.map((a) => {
@@ -257,7 +285,9 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
                       className="w-full flex items-center gap-3 rounded-lg border p-3 hover:bg-accent transition-colors text-left"
                       onClick={() => addMutation.mutate({ id: deviceId, data: { announcementId: a.id } })}
                     >
-                      <div className="h-10 w-16 shrink-0 rounded-md bg-muted overflow-hidden border flex items-center justify-center">
+                      <div
+                        className={`${pieceOrientationOf(a.orientation) === 'portrait' ? 'h-16 w-9' : 'h-10 w-16'} shrink-0 rounded-md bg-muted overflow-hidden border flex items-center justify-center`}
+                      >
                         {a.imageUrl ? (
                           <img src={imgUrl} alt={a.title} className="h-full w-full object-cover" />
                         ) : (
@@ -293,6 +323,7 @@ function PlaylistTab({ deviceId }: { deviceId: number }) {
                 <SortablePlaylistItem
                   key={item.id}
                   item={item}
+                  screen={screen}
                   onToggle={(announcementId) => toggleMutation.mutate({ id: deviceId, announcementId })}
                   onRemove={(announcementId) => removeMutation.mutate({ deviceId, announcementId })}
                 />
@@ -384,6 +415,19 @@ export default function DeviceDetail() {
     query: { enabled: !!deviceId, queryKey: getGetDevicePreviewQueryKey(deviceId), refetchInterval: 60_000 },
   });
 
+  const queryClient = useQueryClient();
+  const updateDevice = useUpdateDevice({
+    mutation: {
+      // Orientação nova muda a rotação (filtro) e a moldura da prévia.
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetDeviceQueryKey(deviceId) });
+        queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
+        toast({ title: 'Orientação salva. A TV gira no próximo minuto.' });
+      },
+      onError: () => toast({ title: 'Não foi possível salvar a orientação', variant: 'destructive' }),
+    },
+  });
+
   function copyUrl() {
     if (!device) return;
     const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
@@ -416,6 +460,7 @@ export default function DeviceDetail() {
     );
   }
 
+  const screen = screenOrientationOf(device.orientation);
   const displayUrl = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
 
   return (
@@ -450,6 +495,27 @@ export default function DeviceDetail() {
         </Button>
       </div>
 
+      <div className="flex items-center gap-3 mb-6">
+        <label htmlFor="device-orientation" className="text-sm font-medium shrink-0">Orientação da TV</label>
+        <select
+          id="device-orientation"
+          aria-label="Orientação da TV"
+          className="flex h-9 rounded-md border border-input bg-background px-3 text-sm"
+          value={device.orientation}
+          disabled={updateDevice.isPending}
+          onChange={(e) =>
+            updateDevice.mutate({
+              id: deviceId,
+              data: { orientation: e.target.value as (typeof DEVICE_ORIENTATION_OPTIONS)[number]['value'] },
+            })
+          }
+        >
+          {DEVICE_ORIENTATION_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
           ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a
           prévia primeiro. */}
@@ -470,7 +536,7 @@ export default function DeviceDetail() {
             ))}
           </div>
 
-          {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} /> : <AnalyticsTab deviceId={deviceId} />}
+          {tab === 'playlist' ? <PlaylistTab deviceId={deviceId} screen={screen} /> : <AnalyticsTab deviceId={deviceId} />}
         </div>
 
         <div className="order-first min-w-0 self-start lg:order-none lg:sticky lg:top-6">
@@ -480,11 +546,11 @@ export default function DeviceDetail() {
           </div>
           <p className="mb-4 text-sm text-muted-foreground">O que está passando nesta TV agora.</p>
           {preview.isLoading ? (
-            <Skeleton className="aspect-video w-full rounded-lg" />
+            <Skeleton className={`${tvFrameClass(screen)} rounded-lg`} />
           ) : preview.isError ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Não foi possível carregar a prévia.</p>
           ) : (
-            <DevicePreview slides={preview.data ?? []} />
+            <DevicePreview slides={preview.data ?? []} orientation={screen} />
           )}
         </div>
       </div>

@@ -8,7 +8,8 @@
     "./schema": "./src/schema/index.ts",
     "./scan-code": "./src/scan-code.ts",
     "./vale-do-ribeira": "./src/vale-do-ribeira.ts",
-    "./youtube": "./src/youtube.ts"
+    "./youtube": "./src/youtube.ts",
+    "./orientation": "./src/orientation.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate --config ./drizzle.config.ts",

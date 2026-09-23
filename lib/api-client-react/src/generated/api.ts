@@ -41,7 +41,9 @@ import type {
   DeviceInput,
   DevicePreviewSlide,
   DeviceUpdate,
+  DisplayFeed,
   DisplaySlide,
+  GetYouTubeMetaParams,
   HealthStatus,
   ListCompaniesParams,
   ListDevicesParams,
@@ -67,7 +69,8 @@ import type {
   UploadPanelImageRequest,
   UserAccount,
   UserInput,
-  UserUpdate
+  UserUpdate,
+  YouTubeMeta
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -362,6 +365,9 @@ if(announcementInput.playbackMode !== undefined) {
  }
 if(announcementInput.audioMode !== undefined) {
  formData.append(`audioMode`, announcementInput.audioMode);
+ }
+if(announcementInput.orientation !== undefined) {
+ formData.append(`orientation`, announcementInput.orientation);
  }
 
   return customFetch<Announcement>(getCreateAnnouncementUrl(),
@@ -759,6 +765,9 @@ if(announcementUpdate.playbackMode !== undefined) {
 if(announcementUpdate.audioMode !== undefined) {
  formData.append(`audioMode`, announcementUpdate.audioMode);
  }
+if(announcementUpdate.orientation !== undefined) {
+ formData.append(`orientation`, announcementUpdate.orientation);
+ }
 
   return customFetch<Announcement>(getUpdateAnnouncementUrl(id),
   {
@@ -944,6 +953,90 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getToggleAnnouncementMutationOptions(options));
     }
+
+export const getGetYouTubeMetaUrl = (params: GetYouTubeMetaParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/youtube/meta?${stringifiedParams}` : `/api/youtube/meta`
+}
+
+/**
+ * @summary Tipo, ID e orientação de um link do YouTube
+ */
+export const getYouTubeMeta = async (params: GetYouTubeMetaParams, options?: RequestInit): Promise<YouTubeMeta> => {
+
+  return customFetch<YouTubeMeta>(getGetYouTubeMetaUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetYouTubeMetaQueryKey = (params?: GetYouTubeMetaParams,) => {
+    return [
+    `/api/youtube/meta`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetYouTubeMetaQueryOptions = <TData = Awaited<ReturnType<typeof getYouTubeMeta>>, TError = ErrorType<void>>(params: GetYouTubeMetaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYouTubeMeta>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetYouTubeMetaQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYouTubeMeta>>> = ({ signal }) => getYouTubeMeta(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getYouTubeMeta>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetYouTubeMetaQueryResult = NonNullable<Awaited<ReturnType<typeof getYouTubeMeta>>>
+export type GetYouTubeMetaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Tipo, ID e orientação de um link do YouTube
+ */
+
+export function useGetYouTubeMeta<TData = Awaited<ReturnType<typeof getYouTubeMeta>>, TError = ErrorType<void>>(
+ params: GetYouTubeMetaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYouTubeMeta>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetYouTubeMetaQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSegmentsUrl = () => {
 
@@ -2672,6 +2765,84 @@ export function useGetDeviceSlides<TData = Awaited<ReturnType<typeof getDeviceSl
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDeviceSlidesQueryOptions(deviceKey,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDisplayFeedUrl = (deviceKey: string,) => {
+
+
+
+
+  return `/api/display/${deviceKey}/feed`
+}
+
+/**
+ * Mesma lista de /display/{deviceKey}/slides, junto com a orientação da TV para o player girar o palco. /slides continua para TVs com tv.html antigo em cache.
+ * @summary Rotação da TV e como a tela está montada
+ */
+export const getDisplayFeed = async (deviceKey: string, options?: RequestInit): Promise<DisplayFeed> => {
+
+  return customFetch<DisplayFeed>(getGetDisplayFeedUrl(deviceKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDisplayFeedQueryKey = (deviceKey: string,) => {
+    return [
+    `/api/display/${deviceKey}/feed`
+    ] as const;
+    }
+
+
+export const getGetDisplayFeedQueryOptions = <TData = Awaited<ReturnType<typeof getDisplayFeed>>, TError = ErrorType<void>>(deviceKey: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDisplayFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDisplayFeedQueryKey(deviceKey);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDisplayFeed>>> = ({ signal }) => getDisplayFeed(deviceKey, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: deviceKey !== null && deviceKey !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDisplayFeed>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDisplayFeedQueryResult = NonNullable<Awaited<ReturnType<typeof getDisplayFeed>>>
+export type GetDisplayFeedQueryError = ErrorType<void>
+
+
+/**
+ * @summary Rotação da TV e como a tela está montada
+ */
+
+export function useGetDisplayFeed<TData = Awaited<ReturnType<typeof getDisplayFeed>>, TError = ErrorType<void>>(
+ deviceKey: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDisplayFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDisplayFeedQueryOptions(deviceKey,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

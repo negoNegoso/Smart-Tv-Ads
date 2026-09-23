@@ -13,6 +13,7 @@ export interface Device {
   name: string;
   /** @nullable */
   location?: string | null;
+  orientation: string;
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: Date | null;

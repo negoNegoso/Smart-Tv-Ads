@@ -188,6 +188,23 @@ paths:
         "404":
           description: Not found
 
+  /youtube/meta:
+    get:
+      operationId: getYouTubeMeta
+      tags: [announcements]
+      summary: Tipo, ID e orientação de um link do YouTube
+      parameters:
+        - { name: url, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YouTubeMeta"
+        "400":
+          description: Link inválido
+
   # ── Clients ──────────────────────────────────────────────────────────────────
   # ── Segments (ramo de atuação; base da regra de concorrência) ───────────────
   /segments:
@@ -603,6 +620,27 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DisplaySlide"
+        "404":
+          description: Device not found
+
+  /display/{deviceKey}/feed:
+    get:
+      operationId: getDisplayFeed
+      tags: [devices]
+      summary: Rotação da TV e como a tela está montada
+      description: >
+        Mesma lista de /display/{deviceKey}/slides, junto com a orientação da
+        TV para o player girar o palco. /slides continua para TVs com tv.html
+        antigo em cache.
+      parameters:
+        - { name: deviceKey, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayFeed"
         "404":
           description: Device not found
 
@@ -1071,7 +1109,7 @@ components:
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:
       type: object
-      required: [id, title, isActive, displayOrder, duration, showText, mediaKind, playbackMode, audioMode, createdAt]
+      required: [id, title, isActive, displayOrder, duration, showText, mediaKind, playbackMode, audioMode, orientation, createdAt]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -1083,6 +1121,9 @@ components:
         youtubeId: { type: string, nullable: true }
         playbackMode: { type: string }
         audioMode: { type: string }
+        # "landscape" | "portrait". Sem enum pelo mesmo motivo de mediaKind:
+        # um valor novo não pode derrubar a lista inteira.
+        orientation: { type: string }
         isActive: { type: boolean }
         displayOrder: { type: integer }
         duration: { type: integer }
@@ -1107,6 +1148,7 @@ components:
         youtubeUrl: { type: string }
         playbackMode: { type: string }
         audioMode: { type: string }
+        orientation: { type: string, enum: [landscape, portrait] }
 
     AnnouncementUpdate:
       type: object
@@ -1121,6 +1163,7 @@ components:
         youtubeUrl: { type: string }
         playbackMode: { type: string }
         audioMode: { type: string }
+        orientation: { type: string, enum: [landscape, portrait] }
 
     AnnouncementStats:
       type: object
@@ -1260,13 +1303,17 @@ components:
     # ── Devices ──────────────────────────────────────────────────────────────
     Device:
       type: object
-      required: [id, clientId, clientName, name, deviceKey, createdAt]
+      required: [id, clientId, clientName, name, deviceKey, orientation, createdAt]
       properties:
         id: { type: integer }
         clientId: { type: integer }
         clientName: { type: string }
         name: { type: string }
         location: { type: ["string", "null"] }
+        # "landscape" | "portrait_right" | "portrait_left". Sem enum pelo mesmo
+        # motivo de Announcement.orientation: uma linha estranha no banco não
+        # pode derrubar o parse da lista de TVs inteira.
+        orientation: { type: string }
         deviceKey: { type: string }
         lastSeenAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
@@ -1285,11 +1332,12 @@ components:
       properties:
         name: { type: string, minLength: 1 }
         location: { type: ["string", "null"] }
+        orientation: { type: string, enum: [landscape, portrait_right, portrait_left] }
 
     # ── Playlist ─────────────────────────────────────────────────────────────
     PlaylistItem:
       type: object
-      required: [id, deviceId, announcementId, displayOrder, isActive, title, imageUrl, duration]
+      required: [id, deviceId, announcementId, displayOrder, isActive, title, imageUrl, duration, orientation]
       properties:
         id: { type: integer }
         deviceId: { type: integer }
@@ -1302,6 +1350,9 @@ components:
         # as três rotas de playlist depois que a linha já estava no banco.
         imageUrl: { type: string, nullable: true }
         duration: { type: integer }
+        # "landscape" | "portrait" da peça. O portal usa para avisar, na
+        # playlist, o item que não toca na orientação atual da TV.
+        orientation: { type: string }
 
     PlaylistItemInput:
       type: object
@@ -1351,6 +1402,28 @@ components:
             source:
               type: string
               enum: [campaign, panel, playlist]
+
+    DisplayFeed:
+      type: object
+      required: [screen, slides]
+      properties:
+        screen:
+          type: object
+          required: [orientation]
+          properties:
+            orientation: { type: string, enum: [landscape, portrait_right, portrait_left] }
+        slides:
+          type: array
+          items:
+            $ref: "#/components/schemas/DisplaySlide"
+
+    YouTubeMeta:
+      type: object
+      required: [kind, id, orientation]
+      properties:
+        kind: { type: string, enum: [youtube_video, youtube_playlist] }
+        id: { type: string }
+        orientation: { type: string, enum: [landscape, portrait] }
 
     # ── Telemetry ────────────────────────────────────────────────────────────
     PlayInput:
@@ -1524,11 +1597,12 @@ components:
         uniqueVisitors: { type: integer }
     PortalDevice:
       type: object
-      required: [id, name, totalPlays]
+      required: [id, name, orientation, totalPlays]
       properties:
         id: { type: integer }
         name: { type: string }
         location: { type: string, nullable: true }
+        orientation: { type: string }
         lastSeenAt: { type: string, format: date-time, nullable: true }
         totalPlays: { type: integer }
 

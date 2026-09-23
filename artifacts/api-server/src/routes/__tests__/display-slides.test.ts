@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GetDeviceSlidesResponse } from "@workspace/api-zod";
+import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 
 /**
  * /display/:deviceKey/slides é o endpoint que toda TV da frota consulta a
@@ -52,9 +52,9 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
-  announcementsTable: { id: "id", isActive: "isActive" },
+  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
@@ -83,7 +83,7 @@ async function buildApp(): Promise<Express> {
   return app;
 }
 
-const DEVICE_ROW = { id: 1, clientId: 7, companyId: 70, segmentId: null };
+const DEVICE_ROW = { id: 1, clientId: 7, companyId: 70, segmentId: null, orientation: "landscape" };
 
 const PLAYLIST_ROW = {
   announcementId: 101,
@@ -98,6 +98,7 @@ const PLAYLIST_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
   advertiserSegmentId: null,
   advertiserCompanyId: null,
   targetMode: "all" as const,
@@ -119,6 +120,7 @@ const CAMPAIGN_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
   advertiserSegmentId: null,
   advertiserCompanyId: null,
   targetMode: "all" as const,
@@ -140,6 +142,7 @@ const PANEL_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
 };
 
 describe("GET /display/:deviceKey/slides", () => {
@@ -184,5 +187,85 @@ describe("GET /display/:deviceKey/slides", () => {
     );
     expect(announcementIds).not.toContain(PANEL_ROW.announcementId);
     expect(() => GetDeviceSlidesResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV retrato recebe só as peças verticais, sem o campo orientation", async () => {
+    const vertical = { ...PLAYLIST_ROW, announcementId: 111, orientation: "portrait" };
+    selectResults = [[{ ...DEVICE_ROW, orientation: "portrait_left" }], [PLAYLIST_ROW, vertical], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([PANEL_ROW]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides");
+
+    expect(res.status).toBe(200);
+    expect((res.body as Array<{ announcementId: number }>).map((s) => s.announcementId)).toEqual([111]);
+    expect(res.body[0]).not.toHaveProperty("orientation");
+  });
+
+  it("TV deitada não recebe peça vertical", async () => {
+    const vertical = { ...CAMPAIGN_ROW, announcementId: 222, orientation: "portrait" };
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], [vertical]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides");
+
+    expect((res.body as Array<{ announcementId: number }>).map((s) => s.announcementId)).toEqual([
+      PLAYLIST_ROW.announcementId,
+    ]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    selectResults = [];
+    selectCallIndex = 0;
+  });
+
+  it("devolve a orientação da TV junto com a rotação filtrada", async () => {
+    const vertical = { ...PLAYLIST_ROW, announcementId: 111, orientation: "portrait" };
+    selectResults = [[{ ...DEVICE_ROW, orientation: "portrait_right" }], [PLAYLIST_ROW, vertical], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.screen).toEqual({ orientation: "portrait_right" });
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([111]);
+    expect(res.body.slides[0]).not.toHaveProperty("source");
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+    // Como o /slides: a TV que pergunta está no ar.
+    expect(dbUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  // Regressão do item 1: linha estranha no banco (fora do enum) não pode
+  // derrubar o parse do openapi e apagar o feed inteiro da TV.
+  it("orientação desconhecida no banco não derruba o feed: vale landscape", async () => {
+    selectResults = [[{ ...DEVICE_ROW, orientation: "diagonal" }], [PLAYLIST_ROW], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.screen).toEqual({ orientation: "landscape" });
+  });
+
+  it("404 com o mesmo corpo do /slides quando a key não existe", async () => {
+    selectResults = [[]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/nao-existe/feed");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Device not found" });
   });
 });

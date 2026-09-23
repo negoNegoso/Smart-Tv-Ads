@@ -9,6 +9,7 @@ import {
   devicePlaylistTable,
   announcementsTable,
 } from "@workspace/db";
+import { pieceOrientationOf, screenOrientationOf } from "@workspace/db/orientation";
 import {
   ListDevicesQueryParams,
   ListDevicesResponse,
@@ -48,6 +49,7 @@ async function getDeviceWithClient(where: SQL) {
       clientName: companiesTable.name,
       name: devicesTable.name,
       location: devicesTable.location,
+      orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
       createdAt: devicesTable.createdAt,
@@ -74,6 +76,7 @@ router.get("/devices", async (req, res): Promise<void> => {
       clientName: companiesTable.name,
       name: devicesTable.name,
       location: devicesTable.location,
+      orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
       createdAt: devicesTable.createdAt,
@@ -214,6 +217,7 @@ router.get("/devices/:id/playlist", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -236,6 +240,7 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
       clientId: devicesTable.clientId,
       companyId: clientsTable.companyId,
       segmentId: companiesTable.segmentId,
+      orientation: devicesTable.orientation,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -262,6 +267,27 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
     return;
   }
   const deviceId = params.data.id;
+
+  // Peça de outra orientação nunca iria ao ar nesta TV (o feed filtra); aceitar
+  // deixaria um item fantasma na playlist, contando como se estivesse passando.
+  const [pair] = await db
+    .select({ deviceOrientation: devicesTable.orientation, pieceOrientation: announcementsTable.orientation })
+    .from(devicesTable)
+    .innerJoin(announcementsTable, eq(announcementsTable.id, parsed.data.announcementId))
+    .where(eq(devicesTable.id, deviceId));
+  if (!pair) {
+    res.status(404).json({ error: "Device or announcement not found" });
+    return;
+  }
+  const screen = screenOrientationOf(pair.deviceOrientation);
+  const piece = pieceOrientationOf(pair.pieceOrientation);
+  if (screen !== piece) {
+    res.status(400).json({
+      error: piece === "portrait" ? "Peça vertical não toca em TV horizontal" : "Peça horizontal não toca em TV retrato",
+    });
+    return;
+  }
+
   const [maxOrderRow] = await db
     .select({ maxOrder: sql<number>`COALESCE(MAX(${devicePlaylistTable.displayOrder}), -1)` })
     .from(devicePlaylistTable)
@@ -293,6 +319,7 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -388,6 +415,7 @@ router.patch("/devices/:id/playlist/:announcementId/toggle", async (req, res): P
       title: announcementsTable.title,
       imageUrl: announcementsTable.imageUrl,
       duration: announcementsTable.duration,
+      orientation: announcementsTable.orientation,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))

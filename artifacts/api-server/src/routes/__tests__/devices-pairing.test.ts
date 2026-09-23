@@ -59,6 +59,7 @@ const DEVICE = {
   name: "TV do caixa",
   location: null,
   deviceKey: "A1B2C3D4E5F6A7B8",
+  orientation: "landscape",
   lastSeenAt: null,
   createdAt: new Date("2026-09-18T12:00:00Z"),
 };

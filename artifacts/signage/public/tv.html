@@ -22,6 +22,31 @@
       font-family: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
     }
 
+    /* Palco: tudo o que vai ao ar. Na TV em pé, a TV é uma tela comum girada na
+       parede e a box segue mandando imagem deitada; quem gira é este palco.
+       Largura e altura trocadas (100vh x 100vw) e rotação em torno do centro.
+       As medidas internas em vh não mudam: 1vh segue sendo 1% do lado curto
+       da tela, que é o que legenda e QR usam. */
+    #stage {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    #stage.portrait-right,
+    #stage.portrait-left {
+      right: auto; bottom: auto;
+      top: 50%; left: 50%;
+      width: 100vh; height: 100vw;
+    }
+    #stage.portrait-right {
+      -webkit-transform: translate(-50%, -50%) rotate(90deg);
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+    #stage.portrait-left {
+      -webkit-transform: translate(-50%, -50%) rotate(-90deg);
+      transform: translate(-50%, -50%) rotate(-90deg);
+    }
+
     #slot-a, #slot-b {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -161,19 +186,31 @@
   </style>
 </head>
 <body>
-  <div id="slot-a"></div>
-  <div id="slot-b"></div>
-  <div id="yt-slot" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;display:none;background:#000;"></div>
+  <div id="stage">
+    <div id="slot-a"></div>
+    <div id="slot-b"></div>
+    <div id="yt-slot" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;display:none;background:#000;"></div>
 
-  <div id="overlay">
-    <div id="caption"></div>
+    <div id="overlay">
+      <div id="caption"></div>
+    </div>
+
+    <div id="progress-track">
+      <div id="progress-fill"></div>
+    </div>
+
+    <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
+
+    <div id="empty-screen">
+      <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      <div id="empty-title">Nenhum slide configurado</div>
+      <div id="empty-sub">Acesse o painel admin e adicione anúncios à playlist deste dispositivo.</div>
+    </div>
   </div>
-
-  <div id="progress-track">
-    <div id="progress-fill"></div>
-  </div>
-
-  <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
 
   <div id="fs-hint">Pressione OK para tela cheia</div>
 
@@ -183,16 +220,6 @@
     <div id="pair-help">Leia o QR code com o celular do administrador</div>
     <div id="pair-key"></div>
     <div id="pair-url"></div>
-  </div>
-
-  <div id="empty-screen">
-    <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-      <line x1="8" y1="21" x2="16" y2="21"/>
-      <line x1="12" y1="17" x2="12" y2="21"/>
-    </svg>
-    <div id="empty-title">Nenhum slide configurado</div>
-    <div id="empty-sub">Acesse o painel admin e adicione anúncios à playlist deste dispositivo.</div>
   </div>
 
   <script>
@@ -219,6 +246,10 @@
       var ytApiUnavailable = false;   // API do YouTube desistiu de carregar
       var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
       var ytInitTimer   = null;
+      var ytEndWatch    = null;   // vigia do fim do vídeo (Shorts não dão ENDED)
+      var YT_END_WATCH_MS = 500;
+      var ytSoundTimer  = null;   // confere se o vídeo com som começou a tocar
+      var YT_SOUND_CHECK_MS = 3000;
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
@@ -234,6 +265,18 @@
       var emptyEl      = document.getElementById('empty-screen');
       var qrBox        = document.getElementById('qr-box');
       var qrImg        = document.getElementById('qr-img');
+      var stageEl      = document.getElementById('stage');
+      var screenOrientation = 'landscape';
+
+      // Aplica o giro que o servidor mandou. Devolve true se mudou, para o
+      // chamador recomeçar a rotação do primeiro slide já no formato novo.
+      function applyOrientation(orientation) {
+        var o = orientation === 'portrait_right' || orientation === 'portrait_left' ? orientation : 'landscape';
+        stageEl.className = o === 'portrait_right' ? 'portrait-right' : o === 'portrait_left' ? 'portrait-left' : '';
+        var mudou = o !== screenOrientation;
+        screenOrientation = o;
+        return mudou;
+      }
 
       // ─── Helpers ─────────────────────────────────────────────────────────────
       function getKey() {
@@ -318,7 +361,7 @@
       // não pode ser confundido com rede fora do ar. Em erro, o corpo também
       // vai junto (5º argumento) porque nem todo 404 é o do device — um
       // proxy/misroute pode devolver outro corpo, e só o corpo exato da API
-      // (GetDeviceSlides -> routes/display.ts) deve abrir o pareamento.
+      // (GetDisplayFeed -> routes/display.ts) deve abrir o pareamento.
       function xhrGet(url, cb) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
@@ -397,6 +440,8 @@
       function teardownYt() {
         ytActive = false;
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
+        if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
+        if (ytSoundTimer) { clearTimeout(ytSoundTimer); ytSoundTimer = null; }
         if (ytPlayer) {
           try { ytPlayer.destroy(); } catch (e) {}
           ytPlayer = null;
@@ -426,6 +471,48 @@
             playlistCursor[slide.announcementId] = (cur + 1) % ids.length;
           }
         }
+      }
+
+      // O player do YouTube repete Shorts em laço: no fim o tempo volta a 0 e o
+      // estado vai PLAYING -> BUFFERING -> PLAYING, sem nunca emitir ENDED. Sem
+      // isto, peça em modo natural ficava presa no mesmo Short para sempre.
+      // Olha a posição de tempos em tempos: se estava perto do fim e voltou
+      // para trás, o vídeo acabou. A folga de 2 s cobre o intervalo da vigia
+      // (e o setInterval mais lento de aba/TV em segundo plano).
+      function vigiarFim(player, onEnded) {
+        if (ytEndWatch) { clearInterval(ytEndWatch); }
+        var anterior = 0;
+        ytEndWatch = setInterval(function () {
+          var agora, duracao;
+          try {
+            agora = player.getCurrentTime();
+            duracao = player.getDuration();
+          } catch (e) { return; }
+          if (!(duracao > 0) || typeof agora !== 'number') { return; }
+          if (agora + 1 < anterior && anterior >= duracao - 2) {
+            clearInterval(ytEndWatch); ytEndWatch = null;
+            onEnded();
+            return;
+          }
+          anterior = agora;
+        }, YT_END_WATCH_MS);
+      }
+
+      // Navegador sem interação do usuário (Chrome, TV box fora do app) bloqueia
+      // autoplay com som: o player fica pronto, sai do mudo e para em
+      // UNSTARTED sem erro nenhum. Em modo natural a TV travava nessa peça.
+      // Se não estiver tocando depois de um tempo, vale mais mudo do que tela
+      // parada. O app Android libera som sem gesto, então lá isto não dispara.
+      function garantirQueToca(player) {
+        if (ytSoundTimer) { clearTimeout(ytSoundTimer); }
+        ytSoundTimer = setTimeout(function () {
+          ytSoundTimer = null;
+          var estado;
+          try { estado = player.getPlayerState(); } catch (e) { return; }
+          var S = window.YT.PlayerState;
+          if (estado === S.PLAYING || estado === S.BUFFERING || estado === S.ENDED) { return; }
+          try { player.mute(); player.playVideo(); } catch (e) {}
+        }, YT_SOUND_CHECK_MS);
       }
 
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
@@ -464,6 +551,8 @@
                   try { e.target.seekTo(saved, true); } catch (err) {}
                 }
                 e.target.playVideo();
+                if (slide.audioMode === 'sound') { garantirQueToca(e.target); }
+                vigiarFim(e.target, onEnded);
               },
               onStateChange: function (e) {
                 if (e.data === window.YT.PlayerState.ENDED) {
@@ -762,7 +851,7 @@
       }
 
       function fetchAndStart(key, isRefresh) {
-        var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/slides';
+        var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/feed';
         xhrGet(url, function (err, data, status, body) {
           // Só o 404 exato do device (routes/display.ts) é "sem device ainda":
           // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
@@ -775,31 +864,34 @@
           // está no ar. Melhor a TV repetir a lista velha do que apagar por
           // causa de um GET perdido. Na primeira carga não há lista para
           // segurar, então mostra a tela de vazio.
-          if (err || !data) {
+          var lista = data && data.slides;
+          if (err || !lista) {
             if (!isRefresh) { emptyEl.className = 'visible'; }
             return;
           }
           hidePairing();
 
+          var girou = applyOrientation(data.screen && data.screen.orientation);
+
           // Lista vazia é resposta boa do servidor, não falha: a TV tem de
           // parar. Antes isso caía no mesmo return do erro e a campanha
           // seguia em loop para sempre depois de sair do ar.
-          if (data.length === 0) {
+          if (lista.length === 0) {
             showEmpty();
             return;
           }
 
           emptyEl.className = '';
 
-          // On refresh, only reset if the slide list actually changed
-          var changed = data.length !== slides.length;
+          // Na atualização, só reinicia se a lista de slides (ou o giro) mudou
+          var changed = girou || lista.length !== slides.length;
           if (!changed) {
-            for (var i = 0; i < data.length; i++) {
-              if (data[i].announcementId !== slides[i].announcementId) { changed = true; break; }
+            for (var i = 0; i < lista.length; i++) {
+              if (lista[i].announcementId !== slides[i].announcementId) { changed = true; break; }
             }
           }
 
-          slides = data;
+          slides = lista;
 
           // Lista nova: as artes que falharam podem ter sido substituídas.
           if (changed) { falhasDeArte = 0; }

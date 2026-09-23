@@ -32,12 +32,21 @@ export interface Announcement {
   youtubeId?: string | null;
   playbackMode: string;
   audioMode: string;
+  orientation: string;
   isActive: boolean;
   displayOrder: number;
   duration: number;
   source?: string;
   createdAt: string;
 }
+
+export type AnnouncementInputOrientation = typeof AnnouncementInputOrientation[keyof typeof AnnouncementInputOrientation];
+
+
+export const AnnouncementInputOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
 
 export interface AnnouncementInput {
   /** @minLength 1 */
@@ -50,7 +59,16 @@ export interface AnnouncementInput {
   youtubeUrl?: string;
   playbackMode?: string;
   audioMode?: string;
+  orientation?: AnnouncementInputOrientation;
 }
+
+export type AnnouncementUpdateOrientation = typeof AnnouncementUpdateOrientation[keyof typeof AnnouncementUpdateOrientation];
+
+
+export const AnnouncementUpdateOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
 
 export interface AnnouncementUpdate {
   /** @minLength 1 */
@@ -65,6 +83,7 @@ export interface AnnouncementUpdate {
   youtubeUrl?: string;
   playbackMode?: string;
   audioMode?: string;
+  orientation?: AnnouncementUpdateOrientation;
 }
 
 export interface AnnouncementStats {
@@ -239,6 +258,7 @@ export interface Device {
   name: string;
   /** @nullable */
   location?: string | null;
+  orientation: string;
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: string | null;
@@ -254,11 +274,21 @@ export interface DeviceInput {
   deviceKey?: string;
 }
 
+export type DeviceUpdateOrientation = typeof DeviceUpdateOrientation[keyof typeof DeviceUpdateOrientation];
+
+
+export const DeviceUpdateOrientation = {
+  landscape: 'landscape',
+  portrait_right: 'portrait_right',
+  portrait_left: 'portrait_left',
+} as const;
+
 export interface DeviceUpdate {
   /** @minLength 1 */
   name?: string;
   /** @nullable */
   location?: string | null;
+  orientation?: DeviceUpdateOrientation;
 }
 
 export interface PlaylistItem {
@@ -270,6 +300,7 @@ export interface PlaylistItem {
   title: string;
   imageUrl: string | null;
   duration: number;
+  orientation: string;
 }
 
 export interface PlaylistItemInput {
@@ -308,6 +339,46 @@ export const DevicePreviewSlideSource = {
 export type DevicePreviewSlide = DisplaySlide & {
   source: DevicePreviewSlideSource;
 };
+
+export type DisplayFeedScreenOrientation = typeof DisplayFeedScreenOrientation[keyof typeof DisplayFeedScreenOrientation];
+
+
+export const DisplayFeedScreenOrientation = {
+  landscape: 'landscape',
+  portrait_right: 'portrait_right',
+  portrait_left: 'portrait_left',
+} as const;
+
+export type DisplayFeedScreen = {
+  orientation: DisplayFeedScreenOrientation;
+};
+
+export interface DisplayFeed {
+  screen: DisplayFeedScreen;
+  slides: DisplaySlide[];
+}
+
+export type YouTubeMetaKind = typeof YouTubeMetaKind[keyof typeof YouTubeMetaKind];
+
+
+export const YouTubeMetaKind = {
+  youtube_video: 'youtube_video',
+  youtube_playlist: 'youtube_playlist',
+} as const;
+
+export type YouTubeMetaOrientation = typeof YouTubeMetaOrientation[keyof typeof YouTubeMetaOrientation];
+
+
+export const YouTubeMetaOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
+
+export interface YouTubeMeta {
+  kind: YouTubeMetaKind;
+  id: string;
+  orientation: YouTubeMetaOrientation;
+}
 
 export interface PlayInput {
   deviceKey: string;
@@ -440,6 +511,7 @@ export interface PortalDevice {
   id: number;
   name: string;
   location?: string | null;
+  orientation: string;
   lastSeenAt?: string | null;
   totalPlays: number;
 }
@@ -630,6 +702,10 @@ export interface PublishPanelResponse {
 export interface UploadPanelImageRequest {
   image: string;
 }
+
+export type GetYouTubeMetaParams = {
+url: string;
+};
 
 export type ListCompaniesParams = {
 status?: ListCompaniesStatus;

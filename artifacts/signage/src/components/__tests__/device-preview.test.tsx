@@ -194,4 +194,16 @@ describe('DevicePreview', () => {
     render(<DevicePreview slides={[]} />);
     expect(screen.getByText('Nada no ar nesta TV')).toBeInTheDocument();
   });
+
+  it('TV retrato usa moldura em pé', () => {
+    render(<DevicePreview slides={[slide({})]} orientation="portrait" />);
+    const frame = screen.getByTestId('tv-frame');
+    expect(frame.dataset.orientation).toBe('portrait');
+    expect(frame.className).toContain('aspect-[9/16]');
+  });
+
+  it('sem orientação continua deitada', () => {
+    render(<DevicePreview slides={[slide({})]} />);
+    expect(screen.getByTestId('tv-frame').className).toContain('aspect-video');
+  });
 });

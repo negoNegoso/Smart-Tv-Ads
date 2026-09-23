@@ -10,6 +10,9 @@ export const devicesTable = pgTable(
     clientId: integer("client_id").notNull().references(() => clientsTable.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     location: text("location"),
+    // "landscape" | "portrait_right" | "portrait_left". Retrato = TV comum
+    // girada na parede; o sentido diz ao player para que lado girar.
+    orientation: text("orientation").notNull().default("landscape"),
     deviceKey: text("device_key").notNull().unique(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

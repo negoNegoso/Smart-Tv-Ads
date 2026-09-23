@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
+import { screenOrientationOf } from '@workspace/db/orientation';
 import type { DevicePreviewSlide } from '@workspace/api-client-react';
 import { DevicePreview } from '@/components/device-preview';
+import { tvFrameClass } from '@/components/piece-preview';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export interface TvPreviewGridProps {
-  devices: Array<{ id: number; name: string }>;
+  devices: Array<{ id: number; name: string; orientation?: string }>;
   /** De onde vem a rotação: rota do admin ou do portal, cada uma com seu escopo. */
   loadPreview: (deviceId: number) => Promise<DevicePreviewSlide[]>;
   queryKey: (deviceId: number) => readonly unknown[];
@@ -18,7 +21,7 @@ function TvPreviewCard({
   loadPreview,
   queryKey,
   hrefFor,
-}: Omit<TvPreviewGridProps, 'devices'> & { device: { id: number; name: string } }) {
+}: Omit<TvPreviewGridProps, 'devices'> & { device: { id: number; name: string; orientation?: string } }) {
   // Uma consulta por TV: a falha de uma fica no card dela. Mesmo ritmo do
   // player, que busca a rotação a cada 60s.
   const preview = useQuery({
@@ -26,6 +29,7 @@ function TvPreviewCard({
     queryFn: () => loadPreview(device.id),
     refetchInterval: 60_000,
   });
+  const orientation = screenOrientationOf(device.orientation);
 
   return (
     <div className="min-w-0 space-y-2">
@@ -37,13 +41,13 @@ function TvPreviewCard({
         <p className="truncate text-sm font-medium">{device.name}</p>
       )}
       {preview.isLoading ? (
-        <Skeleton className="aspect-video w-full rounded-lg" />
+        <Skeleton className={cn('rounded-lg', tvFrameClass(orientation))} />
       ) : preview.isError ? (
-        <p className="flex aspect-video w-full items-center justify-center rounded-lg border text-sm text-muted-foreground">
+        <p className={cn('flex items-center justify-center rounded-lg border text-sm text-muted-foreground', tvFrameClass(orientation))}>
           Não foi possível carregar a prévia.
         </p>
       ) : (
-        <DevicePreview slides={preview.data ?? []} compact />
+        <DevicePreview slides={preview.data ?? []} compact orientation={orientation} />
       )}
     </div>
   );

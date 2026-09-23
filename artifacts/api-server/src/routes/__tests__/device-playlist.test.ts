@@ -46,7 +46,7 @@ vi.mock("@workspace/db", () => ({
       return makeChain(insertResult);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation" },
   devicePlaylistTable: {
     id: "id",
     deviceId: "deviceId",
@@ -54,7 +54,7 @@ vi.mock("@workspace/db", () => ({
     displayOrder: "displayOrder",
     isActive: "isActive",
   },
-  announcementsTable: { id: "id", title: "title", imageUrl: "imageUrl", duration: "duration" },
+  announcementsTable: { id: "id", title: "title", imageUrl: "imageUrl", duration: "duration", orientation: "orientation" },
   clientsTable: { id: "id", companyId: "companyId" },
   companiesTable: { id: "id", name: "name", segmentId: "segmentId" },
 }));
@@ -80,6 +80,7 @@ const SEM_IMAGEM = {
   title: "Vídeo do cliente",
   imageUrl: null,
   duration: 10,
+  orientation: "landscape",
 };
 
 const COM_IMAGEM = {
@@ -91,6 +92,7 @@ const COM_IMAGEM = {
   title: "Cartaz da padaria",
   imageUrl: "/api/uploads/cartaz.png",
   duration: 10,
+  orientation: "landscape",
 };
 
 beforeEach(() => {
@@ -103,8 +105,8 @@ beforeEach(() => {
 
 describe("POST /devices/:id/playlist/add", () => {
   it("aceita peça sem imagem", async () => {
-    // maxOrder, depois a linha recém-inserida com o join de announcements.
-    selectResults = [[{ maxOrder: 0 }], [SEM_IMAGEM]];
+    // Primeiro: orientação (landscape/landscape OK), depois maxOrder, depois a linha recém-inserida com o join de announcements.
+    selectResults = [[{ deviceOrientation: "landscape", pieceOrientation: "landscape" }], [{ maxOrder: 0 }], [SEM_IMAGEM]];
     insertResult = [{ id: SEM_IMAGEM.id }];
 
     const app = await buildApp();
@@ -114,6 +116,54 @@ describe("POST /devices/:id/playlist/add", () => {
     expect(res.status).toBe(201);
     expect(res.body.imageUrl).toBeNull();
     expect(res.body.announcementId).toBe(102);
+  });
+
+  it("recusa peça vertical em TV horizontal, sem inserir", async () => {
+    selectResults = [[{ deviceOrientation: "landscape", pieceOrientation: "portrait" }]];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 102 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Peça vertical não toca em TV horizontal" });
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("recusa peça horizontal em TV retrato", async () => {
+    selectResults = [[{ deviceOrientation: "portrait_left", pieceOrientation: "landscape" }]];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 102 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Peça horizontal não toca em TV retrato" });
+  });
+
+  it("aceita peça vertical em TV retrato", async () => {
+    selectResults = [
+      [{ deviceOrientation: "portrait_right", pieceOrientation: "portrait" }],
+      [{ maxOrder: 0 }],
+      [SEM_IMAGEM],
+    ];
+    insertResult = [{ id: SEM_IMAGEM.id }];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 102 });
+
+    expect(res.status).toBe(201);
+  });
+
+  it("404 quando a TV ou a peça não existe", async () => {
+    selectResults = [[]];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 999 });
+
+    expect(res.status).toBe(404);
   });
 });
 
