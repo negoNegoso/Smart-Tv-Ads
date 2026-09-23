@@ -8,6 +8,7 @@ import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
 import { parseFormBoolean } from "../lib/form-values";
 import { parseYouTubeUrl } from "@workspace/db/youtube";
+import { parseAnnouncementOrientation } from "@workspace/db/orientation";
 import { normalizeDisplayText } from "../lib/slide-caption";
 import {
   ListAnnouncementsResponse,
@@ -167,6 +168,12 @@ router.post(
       return;
     }
 
+    const orientation = parseAnnouncementOrientation(req.body.orientation);
+    if (orientation === null) {
+      res.status(400).json({ error: "Orientação inválida" });
+      return;
+    }
+
     let imageUrl: string | null = null;
     if (req.file) {
       try {
@@ -195,6 +202,8 @@ router.post(
         youtubeId: yt.youtubeId,
         playbackMode: yt.playbackMode,
         audioMode: yt.audioMode,
+        // Ausente (cliente antigo): fica o default do banco, landscape.
+        ...(orientation ? { orientation } : {}),
         duration: parsed.data.duration ?? 10,
         displayOrder: nextOrder,
       })
@@ -275,6 +284,11 @@ router.patch(
       res.status(400).json({ error: params.error.message });
       return;
     }
+    const orientation = parseAnnouncementOrientation(req.body.orientation);
+    if (orientation === null) {
+      res.status(400).json({ error: "Orientação inválida" });
+      return;
+    }
     // FormData envia todos os campos como string — coage duration e showText antes do Zod
     const body: Record<string, unknown> = {};
     if (req.body.title !== undefined) body.title = req.body.title;
@@ -308,6 +322,8 @@ router.patch(
     }
 
     const updates: Record<string, unknown> = { ...parsed.data };
+
+    if (orientation) updates.orientation = orientation;
 
     // Campos de YouTube só são reprocessados se o cliente enviou mediaKind.
     if (req.body.mediaKind !== undefined) {
