@@ -126,6 +126,7 @@ export async function previewDevice(deviceId: number): Promise<FeedDevice | null
       clientId: devicesTable.clientId,
       companyId: clientsTable.companyId,
       segmentId: companiesTable.segmentId,
+      orientation: devicesTable.orientation,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))

@@ -9,15 +9,23 @@ import {
   advertisersTable,
   companiesTable,
 } from "@workspace/db";
+import { screenOrientationOf } from "@workspace/db/orientation";
 import { resolveSlideCaption } from "./slide-caption";
 import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
 import { filterEligibleSlides } from "./ad-eligibility";
 import { composeDeviceSlides, panelSlidesForClient } from "./panels/device-slides";
+import { filterByOrientation } from "./slide-orientation";
 
 /** De onde o slide veio: campanha vendida, painel do lojista ou playlist do device. */
 export type DeviceSlideSource = "campaign" | "panel" | "playlist";
 
-export type FeedDevice = { id: number; clientId: number; companyId: number; segmentId: number | null };
+export type FeedDevice = {
+  id: number;
+  clientId: number;
+  companyId: number;
+  segmentId: number | null;
+  orientation: string;
+};
 
 function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source: DeviceSlideSource }> {
   return rows.map((row) => ({ ...row, source }));
@@ -44,6 +52,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
+      orientation: announcementsTable.orientation,
       advertiserSegmentId: sql<number | null>`NULL`,
       advertiserCompanyId: sql<number | null>`NULL`,
       targetMode: sql<"all" | "devices" | "segments">`'all'`,
@@ -75,6 +84,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
+      orientation: announcementsTable.orientation,
       advertiserSegmentId: companiesTable.segmentId,
       advertiserCompanyId: advertisersTable.companyId,
       targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
@@ -117,8 +127,12 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     tagSource(playlistSlides, "playlist"),
   );
 
+  // Por último, depois da dedupe: filtrar antes deixaria a regra de
+  // concorrência decidir com peças que esta TV nem vai mostrar.
+  const visible = filterByOrientation(deduped, screenOrientationOf(device.orientation));
+
   return Promise.all(
-    deduped.map(async ({
+    visible.map(async ({
       scanCode,
       showText,
       displayText,
@@ -128,6 +142,8 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       deviceIds,
       segmentIds,
       weekdays,
+      // Já cumpriu o papel no filtro; o player não precisa dela.
+      orientation,
       ...slide
     }) => {
       const videoIds =

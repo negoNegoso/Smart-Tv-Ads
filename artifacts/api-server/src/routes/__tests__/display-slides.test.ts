@@ -52,9 +52,9 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
-  announcementsTable: { id: "id", isActive: "isActive" },
+  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
@@ -83,7 +83,7 @@ async function buildApp(): Promise<Express> {
   return app;
 }
 
-const DEVICE_ROW = { id: 1, clientId: 7, companyId: 70, segmentId: null };
+const DEVICE_ROW = { id: 1, clientId: 7, companyId: 70, segmentId: null, orientation: "landscape" };
 
 const PLAYLIST_ROW = {
   announcementId: 101,
@@ -98,6 +98,7 @@ const PLAYLIST_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
   advertiserSegmentId: null,
   advertiserCompanyId: null,
   targetMode: "all" as const,
@@ -119,6 +120,7 @@ const CAMPAIGN_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
   advertiserSegmentId: null,
   advertiserCompanyId: null,
   targetMode: "all" as const,
@@ -140,6 +142,7 @@ const PANEL_ROW = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
 };
 
 describe("GET /display/:deviceKey/slides", () => {
@@ -184,5 +187,33 @@ describe("GET /display/:deviceKey/slides", () => {
     );
     expect(announcementIds).not.toContain(PANEL_ROW.announcementId);
     expect(() => GetDeviceSlidesResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV retrato recebe só as peças verticais, sem o campo orientation", async () => {
+    const vertical = { ...PLAYLIST_ROW, announcementId: 111, orientation: "portrait" };
+    selectResults = [[{ ...DEVICE_ROW, orientation: "portrait_left" }], [PLAYLIST_ROW, vertical], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([PANEL_ROW]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides");
+
+    expect(res.status).toBe(200);
+    expect((res.body as Array<{ announcementId: number }>).map((s) => s.announcementId)).toEqual([111]);
+    expect(res.body[0]).not.toHaveProperty("orientation");
+  });
+
+  it("TV deitada não recebe peça vertical", async () => {
+    const vertical = { ...CAMPAIGN_ROW, announcementId: 222, orientation: "portrait" };
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], [vertical]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides");
+
+    expect((res.body as Array<{ announcementId: number }>).map((s) => s.announcementId)).toEqual([
+      PLAYLIST_ROW.announcementId,
+    ]);
   });
 });

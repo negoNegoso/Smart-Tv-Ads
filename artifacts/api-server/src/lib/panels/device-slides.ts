@@ -49,6 +49,7 @@ type PanelSlideRow = {
   youtubeId: string | null;
   playbackMode: string;
   audioMode: string;
+  orientation: string;
 } & CampaignOnlyFields;
 
 /**
@@ -77,6 +78,7 @@ export function buildPanelSlidesQuery(clientId: number) {
       youtubeId: announcementsTable.youtubeId,
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
+      orientation: announcementsTable.orientation,
     })
     .from(panelSlidesTable)
     .innerJoin(panelsTable, eq(panelsTable.id, panelSlidesTable.panelId))

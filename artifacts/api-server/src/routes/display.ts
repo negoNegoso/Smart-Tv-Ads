@@ -16,6 +16,7 @@ router.get("/display/:deviceKey/slides", async (req, res): Promise<void> => {
       clientId: devicesTable.clientId,
       companyId: clientsTable.companyId,
       segmentId: companiesTable.segmentId,
+      orientation: devicesTable.orientation,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
