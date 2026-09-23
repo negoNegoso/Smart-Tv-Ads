@@ -203,8 +203,11 @@ export default function PortalAdvertiser() {
                     <th className="py-2 font-medium">Campanha</th>
                     <th className="py-2 font-medium">Período</th>
                     <th className="py-2 font-medium">Status</th>
+                    {/* "no alvo" no texto, e não só no title: na TV, no celular e no
+                        PDF impresso ninguém passa o mouse, e o card ao lado mostra
+                        as TVs que de fato exibiram. */}
                     <th className="py-2 text-right font-medium" title="TVs em que esta campanha pode ir ao ar">
-                      TVs
+                      TVs no alvo
                     </th>
                     <th className="py-2 text-right font-medium">Exibições</th>
                     <th className="py-2 text-right font-medium">Scans</th>

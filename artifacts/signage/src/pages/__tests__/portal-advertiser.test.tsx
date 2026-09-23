@@ -53,4 +53,38 @@ describe('PortalAdvertiser', () => {
     renderPage();
     expect(await screen.findByText(/nenhuma campanha/i)).toBeInTheDocument();
   });
+
+  // A coluna conta as TVs no alvo da campanha; o card, as que exibiram. Só
+  // "TVs" nas duas deixava o anunciante achando que um dos números mentia.
+  it('diferencia TVs no alvo (tabela) de TVs alcançadas (card)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(
+              String(url).includes('/overview')
+                ? {
+                    period: { days: 30, from: '2026-08-07', to: '2026-09-05' },
+                    subjectName: null,
+                    totals: {
+                      plays: 10, scans: 1, uniqueVisitors: 1, scanRate: 0.1,
+                      reachedDevices: 3,
+                      previous: { plays: 0, scans: 0, uniqueVisitors: 0, scanRate: 0 },
+                    },
+                    series: [{ date: '2026-09-05', plays: 10, scans: 1, uniqueVisitors: 1 }],
+                  }
+                : [{
+                    id: 1, name: 'Campanha X', startsAt: '2026-09-01', endsAt: '2026-09-30', isActive: true,
+                    deviceCount: 5, totalPlays: 10, totalScans: 1, uniqueVisitors: 1,
+                  }],
+            ),
+        }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByRole('columnheader', { name: 'TVs no alvo' })).toBeInTheDocument();
+    expect(screen.getByText('3 TVs alcançadas')).toBeInTheDocument();
+  });
 });

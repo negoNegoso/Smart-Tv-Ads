@@ -16,23 +16,21 @@ export interface PortalCampaignRow {
 /** Campanhas dos anunciantes vinculados. NUNCA expõe contractValue. */
 export async function advertiserCampaigns(advertiserIds: number[], days: PortalDays): Promise<PortalCampaignRow[]> {
   if (advertiserIds.length === 0) return [];
-  // A janela entra no ON do join, não no WHERE: no WHERE, uma campanha sem
-  // exibição no período viraria linha nenhuma e sumiria da lista, em vez de
-  // aparecer zerada — que é a informação que o anunciante precisa ver.
+  // Cada contagem é uma subconsulta própria, amarrada à campanha e à janela.
+  // Antes eram dois LEFT JOIN (exibições e scans) na mesma consulta: o banco
+  // montava exibições × scans linhas por campanha só para o COUNT(DISTINCT)
+  // desfazer depois — com 20 mil exibições e mil scans, uns 30 s de página.
+  // Separadas, cada uma lê só as linhas daquela campanha no período pelos
+  // índices compostos (campanha, created_at), e campanha sem nada no período
+  // continua na lista, zerada — que é a informação que o anunciante precisa.
   const period = portalPeriod(days);
-  const playsWindow = and(
-    gte(playsTable.createdAt, period.from),
-    lt(playsTable.createdAt, period.to),
-  );
-  // Bot também fica fora daqui, e pelo mesmo motivo da janela: no ON, e não
-  // no WHERE. Anunciante não paga para ver crawler (mesma regra de
-  // overview.ts), e uma campanha cujos únicos scans foram de bot precisa
-  // aparecer com zero na lista, não sumir dela.
-  const scansWindow = and(
-    gte(scansTable.createdAt, period.from),
-    lt(scansTable.createdAt, period.to),
-    eq(scansTable.isBot, false),
-  );
+  const playsInWindow = sql`${playsTable.campaignId} = ${campaignsTable.id}
+    and ${playsTable.createdAt} >= ${period.from} and ${playsTable.createdAt} < ${period.to}`;
+  // Bot fica fora: anunciante não paga para ver crawler (mesma regra de
+  // overview.ts).
+  const humanScansInWindow = sql`${scansTable.campaignId} = ${campaignsTable.id}
+    and ${scansTable.isBot} = false
+    and ${scansTable.createdAt} >= ${period.from} and ${scansTable.createdAt} < ${period.to}`;
   const rows = await db
     .select({
       id: campaignsTable.id,
@@ -45,17 +43,14 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       advertiserSegmentId: companiesTable.segmentId,
       advertiserCompanyId: advertisersTable.companyId,
-      totalPlays: sql<number>`COUNT(DISTINCT ${playsTable.id})::int`,
-      totalScans: sql<number>`COUNT(DISTINCT ${scansTable.id})::int`,
-      uniqueVisitors: sql<number>`COUNT(DISTINCT ${scansTable.fingerprint})::int`,
+      totalPlays: sql<number>`(select count(*)::int from ${playsTable} where ${playsInWindow})`,
+      totalScans: sql<number>`(select count(*)::int from ${scansTable} where ${humanScansInWindow})`,
+      uniqueVisitors: sql<number>`(select count(distinct ${scansTable.fingerprint})::int from ${scansTable} where ${humanScansInWindow})`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
     .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
-    .leftJoin(playsTable, and(eq(playsTable.campaignId, campaignsTable.id), playsWindow))
-    .leftJoin(scansTable, and(eq(scansTable.campaignId, campaignsTable.id), scansWindow))
     .where(inArray(campaignsTable.advertiserId, advertiserIds))
-    .groupBy(campaignsTable.id, companiesTable.segmentId, advertisersTable.companyId)
     .orderBy(campaignsTable.startsAt);
 
   // A cobertura depende do alvo e da regra de concorrência, então é contada
