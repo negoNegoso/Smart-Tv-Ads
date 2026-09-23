@@ -858,6 +858,39 @@ export const RecordPlayResponse = zod.void()
 
 
 /**
+ * @summary Record a batch of plays queued by a TV (proof-of-play)
+ */
+export const recordPlaysBodyPlaysItemPlayIdMin = 8;
+export const recordPlaysBodyPlaysItemPlayIdMax = 40;
+
+export const recordPlaysBodyPlaysItemDurationSecondsMin = 0;
+export const recordPlaysBodyPlaysItemDurationSecondsMax = 86400;
+
+export const recordPlaysBodyPlaysItemAgeSecondsMin = 0;
+
+export const recordPlaysBodyPlaysMax = 200;
+
+
+
+export const RecordPlaysBody = zod.object({
+  "deviceKey": zod.string(),
+  "plays": zod.array(zod.object({
+  "playId": zod.string().min(recordPlaysBodyPlaysItemPlayIdMin).max(recordPlaysBodyPlaysItemPlayIdMax),
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "durationSeconds": zod.number().min(recordPlaysBodyPlaysItemDurationSecondsMin).max(recordPlaysBodyPlaysItemDurationSecondsMax),
+  "ageSeconds": zod.number().min(recordPlaysBodyPlaysItemAgeSecondsMin)
+})).min(1).max(recordPlaysBodyPlaysMax)
+})
+
+export const RecordPlaysResponse = zod.object({
+  "accepted": zod.number(),
+  "duplicates": zod.number(),
+  "discarded": zod.number()
+})
+
+
+/**
  * @summary Overall platform analytics
  */
 export const GetAnalyticsSummaryResponse = zod.object({

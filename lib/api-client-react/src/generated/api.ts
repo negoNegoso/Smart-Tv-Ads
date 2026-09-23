@@ -49,6 +49,8 @@ import type {
   ListDevicesParams,
   Panel,
   PanelItem,
+  PlayBatchInput,
+  PlayBatchResult,
   PlayInput,
   PlaylistItem,
   PlaylistItemInput,
@@ -2924,6 +2926,77 @@ export const useRecordPlay = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRecordPlayMutationOptions(options));
+    }
+
+export const getRecordPlaysUrl = () => {
+
+
+
+
+  return `/api/telemetry/plays`
+}
+
+/**
+ * @summary Record a batch of plays queued by a TV (proof-of-play)
+ */
+export const recordPlays = async (playBatchInput: PlayBatchInput, options?: RequestInit): Promise<PlayBatchResult> => {
+
+  return customFetch<PlayBatchResult>(getRecordPlaysUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(playBatchInput)
+  }
+);}
+
+
+
+
+
+export const getRecordPlaysMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPlays>>, TError,{data: BodyType<PlayBatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPlays>>, TError,{data: BodyType<PlayBatchInput>}, TContext> => {
+
+const mutationKey = ['recordPlays'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPlays>>, {data: BodyType<PlayBatchInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordPlays(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPlaysMutationResult = NonNullable<Awaited<ReturnType<typeof recordPlays>>>
+    export type RecordPlaysMutationBody = BodyType<PlayBatchInput>
+    export type RecordPlaysMutationError = ErrorType<void>
+
+    /**
+ * @summary Record a batch of plays queued by a TV (proof-of-play)
+ */
+export const useRecordPlays = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPlays>>, TError,{data: BodyType<PlayBatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPlays>>,
+        TError,
+        {data: BodyType<PlayBatchInput>},
+        TContext
+      > => {
+      return useMutation(getRecordPlaysMutationOptions(options));
     }
 
 export const getGetAnalyticsSummaryUrl = () => {

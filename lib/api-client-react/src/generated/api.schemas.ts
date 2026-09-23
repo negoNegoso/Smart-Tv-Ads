@@ -387,6 +387,38 @@ export interface PlayInput {
   durationSeconds: number;
 }
 
+export interface PlayBatchItem {
+  /**
+     * @minLength 8
+     * @maxLength 40
+     */
+  playId: string;
+  announcementId: number;
+  campaignId?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 86400
+     */
+  durationSeconds: number;
+  /** @minimum 0 */
+  ageSeconds: number;
+}
+
+export interface PlayBatchInput {
+  deviceKey: string;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  plays: PlayBatchItem[];
+}
+
+export interface PlayBatchResult {
+  accepted: number;
+  duplicates: number;
+  discarded: number;
+}
+
 export interface AnalyticsSummary {
   totalClients: number;
   totalDevices: number;
