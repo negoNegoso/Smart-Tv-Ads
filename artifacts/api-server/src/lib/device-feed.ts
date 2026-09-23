@@ -127,8 +127,9 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     tagSource(playlistSlides, "playlist"),
   );
 
-  // Por último, depois da dedupe: filtrar antes deixaria a regra de
-  // concorrência decidir com peças que esta TV nem vai mostrar.
+  // A ordem em relação à dedupe não muda o resultado: a elegibilidade é por
+  // slide, e a dedupe usa announcementId, que tem uma orientação só. Fica por
+  // último para ser o corte final antes da resposta ir pra TV.
   const visible = filterByOrientation(deduped, screenOrientationOf(device.orientation));
 
   return Promise.all(

@@ -34,6 +34,8 @@ export default function Display() {
   const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
 
   // Mesma regra do tv.html: girou, recomeça do primeiro slide no formato novo.
+  // Também roda na primeira carga (orientation vai de undefined pro valor),
+  // mas é inofensivo: o índice já começa em 0.
   useEffect(() => {
     setCurrentIndex(0);
     setProgress(0);

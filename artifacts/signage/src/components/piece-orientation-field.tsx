@@ -70,7 +70,9 @@ export function PieceOrientationField({
     };
   }, [file, mediaKind]);
 
-  // Link novo: pergunta ao servidor (Short por watch?v= só o oEmbed revela).
+  // Link novo: pergunta ao servidor. Ele reconhece Short pelo link /shorts/;
+  // link comum (watch?v=, playlist) vale horizontal e o operador corrige no
+  // seletor manual abaixo se for o caso.
   useEffect(() => {
     if (mediaKind === 'image' || youtubeUrl === initialUrl.current || !parseYouTubeUrl(youtubeUrl)) {
       setDetecting(false);
@@ -102,7 +104,7 @@ export function PieceOrientationField({
 
   return (
     <div className="space-y-3">
-      <PiecePreview orientation={value} posterUrl={poster} caption={caption} videoId={videoId} />
+      <PiecePreview key={videoId ?? 'sem-video'} orientation={value} posterUrl={poster} caption={caption} videoId={videoId} />
       <div className="flex items-center justify-between gap-3">
         <div role="radiogroup" aria-label="Orientação da peça" className="inline-flex rounded-md border p-0.5">
           {OPTIONS.map((opt) => (
