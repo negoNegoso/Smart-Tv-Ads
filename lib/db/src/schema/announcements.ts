@@ -19,6 +19,9 @@ export const announcementsTable = pgTable("announcements", {
   playbackMode: text("playback_mode").notNull().default("capped"),
   // "muted" | "sound" (tenta com som; se autoplay com som falhar, segue mudo).
   audioMode: text("audio_mode").notNull().default("muted"),
+  // "landscape" | "portrait". A TV só toca peça da orientação dela; o default
+  // mantém o servidor da versão anterior funcionando durante o deploy.
+  orientation: text("orientation").notNull().default("landscape"),
   isActive: boolean("is_active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
   // "admin" (peça subida no painel de gestão) | "panel" (gerada por um painel

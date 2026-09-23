@@ -85,6 +85,13 @@
       "when": 1789689566265,
       "tag": "0011_good_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790132854573,
+      "tag": "0012_gigantic_captain_universe",
+      "breakpoints": true
     }
   ]
 }
