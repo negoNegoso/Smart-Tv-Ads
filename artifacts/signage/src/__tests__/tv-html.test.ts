@@ -23,7 +23,9 @@ interface FakeImage {
 }
 
 let imagens: FakeImage[] = [];
-let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
+let posts: Array<{ url: string; payload: Record<string, unknown>; status: number }> = [];
+// Resposta dos POSTs de telemetria. 0 = rede caiu (como um XHR de verdade).
+let statusDoPost = 200;
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
 let orientacao = "landscape";
@@ -106,6 +108,23 @@ function noAr(): string | null {
   return null;
 }
 
+/**
+ * Exibições que o servidor aceitou, venham do endpoint antigo (uma por POST)
+ * ou do lote da fila. POST que falhou não conta: a exibição não chegou.
+ */
+function exibicoes(): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  for (const p of posts) {
+    if (p.status < 200 || p.status >= 300) continue;
+    if (p.url.indexOf("/api/telemetry/plays") !== -1) {
+      out.push(...(p.payload.plays as Array<Record<string, unknown>>));
+    } else if (p.url.indexOf("/api/telemetry/play") !== -1) {
+      out.push(p.payload);
+    }
+  }
+  return out;
+}
+
 function carregarTv() {
   document.documentElement.innerHTML = HTML.replace(/<!DOCTYPE html>/i, "");
   for (const script of Array.from(document.querySelectorAll("script"))) {
@@ -117,6 +136,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   imagens = [];
   posts = [];
+  statusDoPost = 200;
   listaDeSlides = [];
   statusDaLista = 200;
   orientacao = "landscape";
@@ -154,7 +174,16 @@ beforeEach(() => {
     setRequestHeader() {}
     send(body?: string) {
       if (this.method === "POST") {
-        posts.push({ url: this.url, payload: JSON.parse(body ?? "{}") });
+        posts.push({ url: this.url, payload: JSON.parse(body ?? "{}"), status: statusDoPost });
+        this.readyState = 4;
+        this.status = statusDoPost;
+        this.responseText =
+          statusDoPost === 404
+            ? '{"error":"Device not found"}'
+            : statusDoPost >= 200 && statusDoPost < 300
+              ? '{"accepted":0,"duplicates":0,"discarded":0}'
+              : "";
+        this.onreadystatechange?.();
         return;
       }
       gets.push(this.url);
@@ -206,11 +235,10 @@ describe("tv.html: arte que não carrega", () => {
 
     responder("https://blob/morta.png", false);
     responder("https://blob/viva.png", true);
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(5080);
 
-    const exibidos = posts
-      .filter((p) => p.url.indexOf("/api/telemetry/play") !== -1)
-      .map((p) => p.payload.announcementId);
+    const exibidos = exibicoes().map((p) => p.announcementId);
+    expect(exibidos).toContain(2);
     expect(exibidos).not.toContain(1);
   });
 
@@ -629,6 +657,74 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
 
     expect(p.mudo).toBe(true);
     expect(p.playCalls).toBeGreaterThan(antes);
+  });
+
+  it("imagem registra a duração configurada", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes()[0]).toMatchObject({ announcementId: 1, durationSeconds: 5 });
+  });
+
+  it("Short que termina registra a duração do vídeo, não a configurada", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 77.741;
+    p.eventos.onReady({ target: p });
+    p.eventos.onStateChange({ data: 0, target: p });
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 77.741 })]);
+  });
+
+  it("Short que recomeça sozinho também registra a duração do vídeo", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 77.741;
+    p.eventos.onReady({ target: p });
+    for (let t = 0; t <= 77.5; t += 0.5) {
+      p.tempo = t;
+      vi.advanceTimersByTime(500);
+    }
+    p.tempo = 0.08;
+    vi.advanceTimersByTime(1000);
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 77.741 })]);
+  });
+
+  it("vídeo capped passado em pedaços conta 1 exibição com a duração do vídeo", () => {
+    listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), playbackMode: "capped" }, slide(2, "https://blob/b.png")];
+    carregarTv();
+    const p1 = ultimo();
+    p1.duracao = 12;
+    p1.eventos.onReady({ target: p1 });
+    p1.tempo = 5;
+    // Corte do cronômetro (5 s): cede a tela sem contar.
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes().filter((e) => e.announcementId === 1)).toEqual([]);
+    responder("https://blob/b.png", true);
+    vi.advanceTimersByTime(5080);
+    // Volta ao vídeo, que retoma e termina.
+    const p2 = ultimo();
+    expect(p2).not.toBe(p1);
+    p2.duracao = 12;
+    p2.eventos.onReady({ target: p2 });
+    p2.eventos.onStateChange({ data: 0, target: p2 });
+    expect(exibicoes().filter((e) => e.announcementId === 1)).toEqual([
+      expect.objectContaining({ durationSeconds: 12 }),
+    ]);
+  });
+
+  it("YouTube sem duração (0) registra a última posição lida", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 0;
+    p.eventos.onReady({ target: p });
+    p.tempo = 30;
+    vi.advanceTimersByTime(500);
+    p.eventos.onStateChange({ data: 0, target: p });
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 30 })]);
   });
 
   it("peça com som que começou a tocar continua com som", () => {

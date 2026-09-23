@@ -250,6 +250,7 @@
       var YT_END_WATCH_MS = 500;
       var ytSoundTimer  = null;   // confere se o vídeo com som começou a tocar
       var YT_SOUND_CHECK_MS = 3000;
+      var ytUltimaPosicao = 0;   // última posição lida pela vigia (s)
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
@@ -482,20 +483,36 @@
       function vigiarFim(player, onEnded) {
         if (ytEndWatch) { clearInterval(ytEndWatch); }
         var anterior = 0;
+        ytUltimaPosicao = 0;
         ytEndWatch = setInterval(function () {
           var agora, duracao;
           try {
             agora = player.getCurrentTime();
             duracao = player.getDuration();
           } catch (e) { return; }
-          if (!(duracao > 0) || typeof agora !== 'number') { return; }
-          if (agora + 1 < anterior && anterior >= duracao - 2) {
+          if (typeof agora !== 'number') { return; }
+          if (duracao > 0 && agora + 1 < anterior && anterior >= duracao - 2) {
             clearInterval(ytEndWatch); ytEndWatch = null;
             onEnded();
             return;
           }
           anterior = agora;
+          // Guardada fora da checagem de duração: é o plano B quando o
+          // YouTube não informa a duração (duracaoDoVideo). Atualizada depois
+          // da detecção do laço, então no laço ainda vale a posição do fim.
+          ytUltimaPosicao = agora;
         }, YT_END_WATCH_MS);
+      }
+
+      // Tempo total do vídeo que acabou de terminar. Lido antes de goNext
+      // destruir o player. Sem duração do YouTube, a última posição lida é
+      // praticamente a duração; sem nenhuma das duas, a configurada na peça.
+      function duracaoDoVideo(slide) {
+        var d = 0;
+        try { d = ytPlayer ? ytPlayer.getDuration() : 0; } catch (e) { d = 0; }
+        if (typeof d === 'number' && d > 0 && isFinite(d)) { return d; }
+        if (ytUltimaPosicao > 0) { return ytUltimaPosicao; }
+        return slide.duration;
       }
 
       // Navegador sem interação do usuário (Chrome, TV box fora do app) bloqueia
@@ -691,7 +708,9 @@
       }
 
       // ─── Impression recording ─────────────────────────────────────────────
-      function recordImpression(slide) {
+      // durationSeconds omitido = a duração configurada (imagem, miniatura de
+      // fallback). Vídeo passa o tempo total do vídeo (duracaoDoVideo).
+      function recordImpression(slide, durationSeconds) {
         if (playSent) { return; }
         playSent = true;
         var key = deviceKey;
@@ -700,19 +719,19 @@
           deviceKey: key,
           announcementId: slide.announcementId,
           campaignId: slide.campaignId != null ? slide.campaignId : null,
-          durationSeconds: slide.duration
+          durationSeconds: durationSeconds != null ? durationSeconds : slide.duration
         });
       }
 
       // ─── Timer loop ───────────────────────────────────────────────────────
-      function goNext() {
+      function goNext(durationSeconds) {
         if (timer) { clearInterval(timer); timer = null; }
         var leaving = slides[currentIndex];
         if (leaving) {
           var leavingVid = videoIdForSlide(leaving);
           if (leavingVid) { delete videoPositions[leaving.announcementId + '-' + leavingVid]; }
         }
-        recordImpression(slides[currentIndex]);
+        recordImpression(slides[currentIndex], durationSeconds);
         advancePlaylistCursor(slides[currentIndex]);
         currentIndex = (currentIndex + 1) % slides.length;
         showSlide(slides[currentIndex]);
@@ -741,7 +760,7 @@
           var naturalDone = false;
           playYouTube(
             slide, vid,
-            function onEnded() { if (!naturalDone) { naturalDone = true; goNext(); } },
+            function onEnded() { if (!naturalDone) { naturalDone = true; goNext(duracaoDoVideo(slide)); } },
             function onFail() {
               // Fallback: mostra a thumbnail nos slots de imagem e usa o timer.
               ytFallback = true;
