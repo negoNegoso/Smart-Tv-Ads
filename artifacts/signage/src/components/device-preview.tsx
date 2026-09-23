@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import type { DevicePreviewSlide } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
+import { tvFrameClass } from '@/components/piece-preview';
 import { mediaUrl } from '@/lib/media-url';
 import { cn } from '@/lib/utils';
 
@@ -23,16 +24,25 @@ function posterFor(slide: DevicePreviewSlide): string {
 
 /**
  * Espelho da TV no admin: gira a mesma rotação que o player recebe, na mesma
- * ordem e duração. O palco imita o `public/tv.html` trocando `vh` por `cqh` —
- * na TV 100vh é a tela inteira, aqui 100cqh é o palco inteiro, então legenda
- * e QR saem na mesma proporção.
+ * ordem e duração. O palco imita o `public/tv.html` trocando `vh` por `cqmin` —
+ * na TV 100vh é a tela inteira, aqui 100cqmin é o palco inteiro, então legenda
+ * e QR saem na mesma proporção. `cqmin` é 1% do lado curto do palco: igual a
+ * `cqh` na moldura deitada, e certo também na moldura em pé.
  *
  * Diferente do player, não conta exibição (inflaria o relatório do
  * anunciante) e não toca vídeo: YouTube aparece como capa, sem som no admin.
  *
  * `compact` tira a lista da rotação — para grades com várias TVs lado a lado.
  */
-export function DevicePreview({ slides, compact = false }: { slides: DevicePreviewSlide[]; compact?: boolean }) {
+export function DevicePreview({
+  slides,
+  compact = false,
+  orientation = 'landscape',
+}: {
+  slides: DevicePreviewSlide[];
+  compact?: boolean;
+  orientation?: 'landscape' | 'portrait';
+}) {
   const [index, setIndex] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -75,7 +85,11 @@ export function DevicePreview({ slides, compact = false }: { slides: DevicePrevi
 
   if (!slide) {
     return (
-      <div className="flex aspect-video w-full flex-col items-center justify-center rounded-lg bg-black px-6 text-center text-white">
+      <div
+        data-testid="tv-frame"
+        data-orientation={orientation}
+        className={cn('flex flex-col items-center justify-center rounded-lg bg-black px-6 text-center text-white', tvFrameClass(orientation))}
+      >
         <p className="text-lg font-light text-white/70">Nada no ar nesta TV</p>
         <p className="mt-1 text-sm text-white/40">
           Adicione anúncios à playlist ou publique um painel do cliente para aparecer aqui.
@@ -90,7 +104,9 @@ export function DevicePreview({ slides, compact = false }: { slides: DevicePrevi
   return (
     <div className="space-y-3">
       <div
-        className="relative aspect-video w-full overflow-hidden rounded-lg bg-black select-none"
+        data-testid="tv-frame"
+        data-orientation={orientation}
+        className={cn('relative overflow-hidden rounded-lg bg-black select-none', tvFrameClass(orientation))}
         style={{ containerType: 'size' }}
       >
         <AnimatePresence initial={false}>
@@ -109,31 +125,31 @@ export function DevicePreview({ slides, compact = false }: { slides: DevicePrevi
         </AnimatePresence>
 
         {slide.mediaKind !== 'image' ? (
-          <span className="absolute left-[3cqh] top-[3cqh] z-20 flex items-center gap-[1cqh] rounded-[1cqh] bg-black/70 px-[2cqh] py-[1cqh] text-[4cqh] font-medium text-white">
-            <Play className="h-[4cqh] w-[4cqh] fill-current" />
+          <span className="absolute left-[3cqmin] top-[3cqmin] z-20 flex items-center gap-[1cqmin] rounded-[1cqmin] bg-black/70 px-[2cqmin] py-[1cqmin] text-[4cqmin] font-medium text-white">
+            <Play className="h-[4cqmin] w-[4cqmin] fill-current" />
             Vídeo
           </span>
         ) : null}
 
-        {/* Espelho de components/slide-caption.tsx com cqh no lugar de vh. */}
+        {/* Espelho de components/slide-caption.tsx com cqmin no lugar de vh. */}
         {slide.displayText ? (
-          <div className="absolute bottom-[3cqh] left-[3cqh] right-[20cqh] z-10">
-            <span className="inline-block h-[14cqh] max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[1cqh] bg-black/55 px-[3cqh] text-[5cqh] font-medium leading-[14cqh] tracking-tight text-white">
+          <div className="absolute bottom-[3cqmin] left-[3cqmin] right-[20cqmin] z-10">
+            <span className="inline-block h-[14cqmin] max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[1cqmin] bg-black/55 px-[3cqmin] text-[5cqmin] font-medium leading-[14cqmin] tracking-tight text-white">
               {slide.displayText}
             </span>
           </div>
         ) : null}
 
-        {/* Espelho do QR de pages/display.tsx com cqh no lugar de vh. */}
+        {/* Espelho do QR de pages/display.tsx com cqmin no lugar de vh. */}
         {slide.qrImageUrl ? (
-          <div className="absolute bottom-[3cqh] right-[3cqh] z-30 rounded-[1cqh] bg-white p-[1cqh]">
-            <span className="mb-[0.5cqh] block w-[12cqh] text-center text-[1.8cqh] font-semibold leading-[2.4cqh] tracking-[0.12em] text-black [text-indent:0.12em]">
+          <div className="absolute bottom-[3cqmin] right-[3cqmin] z-30 rounded-[1cqmin] bg-white p-[1cqmin]">
+            <span className="mb-[0.5cqmin] block w-[12cqmin] text-center text-[1.8cqmin] font-semibold leading-[2.4cqmin] tracking-[0.12em] text-black [text-indent:0.12em]">
               SAIBA +
             </span>
             <img
               src={`${import.meta.env.BASE_URL}${slide.qrImageUrl.replace(/^\//, '')}`}
               alt=""
-              className="block h-[12cqh] w-[12cqh]"
+              className="block h-[12cqmin] w-[12cqmin]"
             />
           </div>
         ) : null}
