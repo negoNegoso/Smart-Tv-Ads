@@ -250,6 +250,7 @@
       var YT_END_WATCH_MS = 500;
       var ytSoundTimer  = null;   // confere se o vídeo com som começou a tocar
       var YT_SOUND_CHECK_MS = 3000;
+      var ytUltimaPosicao = 0;   // última posição lida pela vigia (s)
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
       var playlistCursor = {};   // announcementId -> índice atual
@@ -379,13 +380,181 @@
         xhr.send();
       }
 
-      function xhrPost(url, payload) {
+      // POST com resposta: a fila precisa saber se o lote chegou. status 0 =
+      // rede caiu ou estourou o tempo (o XHR chega a readyState 4 com status 0).
+      function xhrPostJson(url, payload, cb) {
+        var respondeu = false;
+        var xhr = null;
+        // Vigia própria além do xhr.timeout: navegador de TV antigo pode não
+        // ter a propriedade, e uma conexão meio aberta nunca chega a
+        // readyState 4 — a fila ficaria "enviando" até recarregar a página.
+        var guarda = setTimeout(function () {
+          try { if (xhr) { xhr.abort(); } } catch (e) {}
+          fim(0, '');
+        }, 25000);
+        function fim(status, texto) {
+          if (respondeu) { return; }
+          respondeu = true;
+          clearTimeout(guarda);
+          var body = null;
+          try { body = JSON.parse(texto); } catch (e) {}
+          cb(status, body);
+        }
         try {
-          var xhr = new XMLHttpRequest();
+          xhr = new XMLHttpRequest();
           xhr.open('POST', url, true);
           xhr.setRequestHeader('Content-Type', 'application/json');
+          try { xhr.timeout = 20000; } catch (e) {}
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) { return; }
+            fim(xhr.status, xhr.responseText);
+          };
           xhr.send(JSON.stringify(payload));
-        } catch (e) { /* fire and forget */ }
+        } catch (e) { fim(0, ''); }
+      }
+
+      // ─── Fila de exibições ────────────────────────────────────────────────
+      // Cada exibição vira um item compacto guardado no localStorage até o
+      // servidor confirmar. Internet instável na loja deixava de contar o que
+      // passou na tela. Item: [playId, announcementId, campaignId|null,
+      // durationSeconds, shownAtMs].
+      var QUEUE_KEY = 'signage_play_queue';
+      var QUEUE_BATCH = 200;
+      var QUEUE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+      var QUEUE_MAX_ITEMS = 70000;
+      var QUEUE_SAVE_SMALL = 500;
+      var QUEUE_SAVE_EVERY_MS = 30000;
+      var playQueue = carregarFila();
+      var queueSending = false;
+      var queueDirty = false;
+      // O disco acabou de ser lido: está igual à memória. Conta a janela de
+      // 30 s a partir daqui, senão a primeira exibição regrava 3 MB na hora.
+      var queueSavedAt = Date.now();
+
+      function itemDaFilaValido(it) {
+        return it instanceof Array && it.length === 5 &&
+          typeof it[0] === 'string' && it[0].length >= 8 && it[0].length <= 40 &&
+          typeof it[1] === 'number' &&
+          (it[2] === null || typeof it[2] === 'number') &&
+          typeof it[3] === 'number' && it[3] >= 0 &&
+          typeof it[4] === 'number';
+      }
+
+      function carregarFila() {
+        try {
+          var arr = JSON.parse(window.localStorage.getItem(QUEUE_KEY) || '[]');
+          if (!(arr instanceof Array)) { return []; }
+          var ok = [];
+          for (var i = 0; i < arr.length; i++) {
+            if (itemDaFilaValido(arr[i])) { ok.push(arr[i]); }
+          }
+          return ok;
+        } catch (e) { return []; }
+      }
+
+      // Fila pequena (TV online, caso normal): grava a cada mudança. Grande
+      // (TV offline): no máximo a cada 30 s, para não regravar megabytes a
+      // cada exibição num aparelho fraco. Sem localStorage, segue em memória.
+      function gravarFila(forcar) {
+        queueDirty = true;
+        var agora = Date.now();
+        if (!forcar && playQueue.length > QUEUE_SAVE_SMALL && agora - queueSavedAt < QUEUE_SAVE_EVERY_MS) { return; }
+        try {
+          window.localStorage.setItem(QUEUE_KEY, JSON.stringify(playQueue));
+          queueSavedAt = agora;
+          queueDirty = false;
+        } catch (e) {}
+      }
+
+      function novoPlayId() {
+        var s = '';
+        while (s.length < 12) { s += Math.random().toString(36).slice(2); }
+        return s.slice(0, 12);
+      }
+
+      function podarFila() {
+        var limite = Date.now() - QUEUE_MAX_AGE_MS;
+        var mantidos = [];
+        for (var i = 0; i < playQueue.length; i++) {
+          if (playQueue[i][4] >= limite) { mantidos.push(playQueue[i]); }
+        }
+        if (mantidos.length !== playQueue.length) {
+          playQueue = mantidos;
+          gravarFila(false);
+        }
+      }
+
+      function tirarDaFila(lote) {
+        var enviados = {};
+        for (var i = 0; i < lote.length; i++) { enviados[lote[i][0]] = true; }
+        var resto = [];
+        for (var j = 0; j < playQueue.length; j++) {
+          if (!enviados[playQueue[j][0]]) { resto.push(playQueue[j]); }
+        }
+        playQueue = resto;
+        gravarFila(playQueue.length === 0);
+      }
+
+      function enfileirarExibicao(slide, durationSeconds) {
+        playQueue.push([
+          novoPlayId(),
+          slide.announcementId,
+          slide.campaignId != null ? slide.campaignId : null,
+          durationSeconds,
+          Date.now()
+        ]);
+        if (playQueue.length > QUEUE_MAX_ITEMS) {
+          playQueue.splice(0, playQueue.length - QUEUE_MAX_ITEMS);
+        }
+        gravarFila(false);
+        enviarFila();
+      }
+
+      // Um envio por vez, lote dos mais antigos. Vai a idade de cada exibição
+      // (segundos atrás, pelo relógio da TV), e não a data: um relógio de TV
+      // errado se cancela na subtração, e o servidor converte com o dele.
+      function enviarFila() {
+        if (queueSending || !deviceKey) { return; }
+        podarFila();
+        if (!playQueue.length) { return; }
+        var lote = playQueue.slice(0, QUEUE_BATCH);
+        var agora = Date.now();
+        var plays = [];
+        for (var i = 0; i < lote.length; i++) {
+          var idade = (agora - lote[i][4]) / 1000;
+          if (idade < 0) { idade = 0; }
+          if (idade > QUEUE_MAX_AGE_MS / 1000) { idade = QUEUE_MAX_AGE_MS / 1000; }
+          plays.push({
+            playId: lote[i][0],
+            announcementId: lote[i][1],
+            campaignId: lote[i][2],
+            durationSeconds: lote[i][3],
+            ageSeconds: idade
+          });
+        }
+        queueSending = true;
+        xhrPostJson(apiBase() + '/api/telemetry/plays', { deviceKey: deviceKey, plays: plays }, function (status, body) {
+          queueSending = false;
+          if (status >= 200 && status < 300) {
+            tirarDaFila(lote);
+            enviarFila();
+            return;
+          }
+          // TV apagada ou desvinculada: essas exibições não têm mais dono.
+          if (status === 404 && body && body.error === 'Device not found') {
+            playQueue = [];
+            gravarFila(true);
+            return;
+          }
+          // Lote recusado: descartar é melhor que travar a fila para sempre
+          // num item estragado.
+          if (status === 400) {
+            tirarDaFila(lote);
+            enviarFila();
+            return;
+          }
+          // Rede ou servidor fora: fica tudo, tenta no próximo gatilho.
+        });
       }
 
       // ─── Pre-load image silently ───────────────────────────────────────────
@@ -482,20 +651,36 @@
       function vigiarFim(player, onEnded) {
         if (ytEndWatch) { clearInterval(ytEndWatch); }
         var anterior = 0;
+        ytUltimaPosicao = 0;
         ytEndWatch = setInterval(function () {
           var agora, duracao;
           try {
             agora = player.getCurrentTime();
             duracao = player.getDuration();
           } catch (e) { return; }
-          if (!(duracao > 0) || typeof agora !== 'number') { return; }
-          if (agora + 1 < anterior && anterior >= duracao - 2) {
+          if (typeof agora !== 'number') { return; }
+          if (duracao > 0 && agora + 1 < anterior && anterior >= duracao - 2) {
             clearInterval(ytEndWatch); ytEndWatch = null;
             onEnded();
             return;
           }
           anterior = agora;
+          // Guardada fora da checagem de duração: é o plano B quando o
+          // YouTube não informa a duração (duracaoDoVideo). Atualizada depois
+          // da detecção do laço, então no laço ainda vale a posição do fim.
+          ytUltimaPosicao = agora;
         }, YT_END_WATCH_MS);
+      }
+
+      // Tempo total do vídeo que acabou de terminar. Lido antes de goNext
+      // destruir o player. Sem duração do YouTube, a última posição lida é
+      // praticamente a duração; sem nenhuma das duas, a configurada na peça.
+      function duracaoDoVideo(slide) {
+        var d = 0;
+        try { d = ytPlayer ? ytPlayer.getDuration() : 0; } catch (e) { d = 0; }
+        if (typeof d === 'number' && d > 0 && isFinite(d)) { return d; }
+        if (ytUltimaPosicao > 0) { return ytUltimaPosicao; }
+        return slide.duration;
       }
 
       // Navegador sem interação do usuário (Chrome, TV box fora do app) bloqueia
@@ -691,28 +876,24 @@
       }
 
       // ─── Impression recording ─────────────────────────────────────────────
-      function recordImpression(slide) {
+      // durationSeconds omitido = a duração configurada (imagem, miniatura de
+      // fallback). Vídeo passa o tempo total do vídeo (duracaoDoVideo).
+      function recordImpression(slide, durationSeconds) {
         if (playSent) { return; }
         playSent = true;
-        var key = deviceKey;
-        if (!key) { return; }
-        xhrPost(apiBase() + '/api/telemetry/play', {
-          deviceKey: key,
-          announcementId: slide.announcementId,
-          campaignId: slide.campaignId != null ? slide.campaignId : null,
-          durationSeconds: slide.duration
-        });
+        if (!deviceKey) { return; }
+        enfileirarExibicao(slide, durationSeconds != null ? durationSeconds : slide.duration);
       }
 
       // ─── Timer loop ───────────────────────────────────────────────────────
-      function goNext() {
+      function goNext(durationSeconds) {
         if (timer) { clearInterval(timer); timer = null; }
         var leaving = slides[currentIndex];
         if (leaving) {
           var leavingVid = videoIdForSlide(leaving);
           if (leavingVid) { delete videoPositions[leaving.announcementId + '-' + leavingVid]; }
         }
-        recordImpression(slides[currentIndex]);
+        recordImpression(slides[currentIndex], durationSeconds);
         advancePlaylistCursor(slides[currentIndex]);
         currentIndex = (currentIndex + 1) % slides.length;
         showSlide(slides[currentIndex]);
@@ -741,7 +922,7 @@
           var naturalDone = false;
           playYouTube(
             slide, vid,
-            function onEnded() { if (!naturalDone) { naturalDone = true; goNext(); } },
+            function onEnded() { if (!naturalDone) { naturalDone = true; goNext(duracaoDoVideo(slide)); } },
             function onFail() {
               // Fallback: mostra a thumbnail nos slots de imagem e usa o timer.
               ytFallback = true;
@@ -957,10 +1138,15 @@
       // ─── Init ─────────────────────────────────────────────────────────────
       function init() {
         fetchAndStart(deviceKey, false);
+        // O que ficou na fila de antes (TV reiniciou sem rede) sai logo.
+        enviarFila();
 
         // Refresh slide list every 60 s without interrupting current slide
         refreshTimer = setInterval(function () {
           fetchAndStart(deviceKey, true);
+          // Fila grande pode ter mudança só em memória (gravação espaçada).
+          if (queueDirty) { gravarFila(false); }
+          enviarFila();
         }, 60000);
       }
 

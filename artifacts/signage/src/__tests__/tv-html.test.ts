@@ -23,7 +23,10 @@ interface FakeImage {
 }
 
 let imagens: FakeImage[] = [];
-let posts: Array<{ url: string; payload: Record<string, unknown> }> = [];
+let posts: Array<{ url: string; payload: Record<string, unknown>; status: number }> = [];
+// Resposta dos POSTs de telemetria. 0 = rede caiu (como um XHR de verdade);
+// -1 = a requisição nunca termina (conexão meio aberta, sem timeout nativo).
+let statusDoPost = 200;
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
 let orientacao = "landscape";
@@ -106,6 +109,23 @@ function noAr(): string | null {
   return null;
 }
 
+/**
+ * Exibições que o servidor aceitou, venham do endpoint antigo (uma por POST)
+ * ou do lote da fila. POST que falhou não conta: a exibição não chegou.
+ */
+function exibicoes(): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  for (const p of posts) {
+    if (p.status < 200 || p.status >= 300) continue;
+    if (p.url.indexOf("/api/telemetry/plays") !== -1) {
+      out.push(...(p.payload.plays as Array<Record<string, unknown>>));
+    } else if (p.url.indexOf("/api/telemetry/play") !== -1) {
+      out.push(p.payload);
+    }
+  }
+  return out;
+}
+
 function carregarTv() {
   document.documentElement.innerHTML = HTML.replace(/<!DOCTYPE html>/i, "");
   for (const script of Array.from(document.querySelectorAll("script"))) {
@@ -117,6 +137,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   imagens = [];
   posts = [];
+  statusDoPost = 200;
   listaDeSlides = [];
   statusDaLista = 200;
   orientacao = "landscape";
@@ -154,7 +175,17 @@ beforeEach(() => {
     setRequestHeader() {}
     send(body?: string) {
       if (this.method === "POST") {
-        posts.push({ url: this.url, payload: JSON.parse(body ?? "{}") });
+        posts.push({ url: this.url, payload: JSON.parse(body ?? "{}"), status: statusDoPost });
+        if (statusDoPost === -1) return;
+        this.readyState = 4;
+        this.status = statusDoPost;
+        this.responseText =
+          statusDoPost === 404
+            ? '{"error":"Device not found"}'
+            : statusDoPost >= 200 && statusDoPost < 300
+              ? '{"accepted":0,"duplicates":0,"discarded":0}'
+              : "";
+        this.onreadystatechange?.();
         return;
       }
       gets.push(this.url);
@@ -206,11 +237,10 @@ describe("tv.html: arte que não carrega", () => {
 
     responder("https://blob/morta.png", false);
     responder("https://blob/viva.png", true);
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(5080);
 
-    const exibidos = posts
-      .filter((p) => p.url.indexOf("/api/telemetry/play") !== -1)
-      .map((p) => p.payload.announcementId);
+    const exibidos = exibicoes().map((p) => p.announcementId);
+    expect(exibidos).toContain(2);
     expect(exibidos).not.toContain(1);
   });
 
@@ -631,6 +661,74 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
     expect(p.playCalls).toBeGreaterThan(antes);
   });
 
+  it("imagem registra a duração configurada", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes()[0]).toMatchObject({ announcementId: 1, durationSeconds: 5 });
+  });
+
+  it("Short que termina registra a duração do vídeo, não a configurada", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 77.741;
+    p.eventos.onReady({ target: p });
+    p.eventos.onStateChange({ data: 0, target: p });
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 77.741 })]);
+  });
+
+  it("Short que recomeça sozinho também registra a duração do vídeo", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 77.741;
+    p.eventos.onReady({ target: p });
+    for (let t = 0; t <= 77.5; t += 0.5) {
+      p.tempo = t;
+      vi.advanceTimersByTime(500);
+    }
+    p.tempo = 0.08;
+    vi.advanceTimersByTime(1000);
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 77.741 })]);
+  });
+
+  it("vídeo capped passado em pedaços conta 1 exibição com a duração do vídeo", () => {
+    listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), playbackMode: "capped" }, slide(2, "https://blob/b.png")];
+    carregarTv();
+    const p1 = ultimo();
+    p1.duracao = 12;
+    p1.eventos.onReady({ target: p1 });
+    p1.tempo = 5;
+    // Corte do cronômetro (5 s): cede a tela sem contar.
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes().filter((e) => e.announcementId === 1)).toEqual([]);
+    responder("https://blob/b.png", true);
+    vi.advanceTimersByTime(5080);
+    // Volta ao vídeo, que retoma e termina.
+    const p2 = ultimo();
+    expect(p2).not.toBe(p1);
+    p2.duracao = 12;
+    p2.eventos.onReady({ target: p2 });
+    p2.eventos.onStateChange({ data: 0, target: p2 });
+    expect(exibicoes().filter((e) => e.announcementId === 1)).toEqual([
+      expect.objectContaining({ durationSeconds: 12 }),
+    ]);
+  });
+
+  it("YouTube sem duração (0) registra a última posição lida", () => {
+    listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+    carregarTv();
+    const p = ultimo();
+    p.duracao = 0;
+    p.eventos.onReady({ target: p });
+    p.tempo = 30;
+    vi.advanceTimersByTime(500);
+    p.eventos.onStateChange({ data: 0, target: p });
+    expect(exibicoes()).toEqual([expect.objectContaining({ announcementId: 1, durationSeconds: 30 })]);
+  });
+
   it("peça com som que começou a tocar continua com som", () => {
     listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
     carregarTv();
@@ -641,5 +739,158 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
     vi.advanceTimersByTime(3000);
 
     expect(p.mudo).toBe(false);
+  });
+});
+
+describe("tv.html: fila de exibições", () => {
+  const CHAVE = "signage_play_queue";
+  const DIA = 24 * 60 * 60 * 1000;
+  const filaGuardada = (): unknown[][] => JSON.parse(window.localStorage.getItem(CHAVE) ?? "[]");
+  const semear = (itens: unknown) => window.localStorage.setItem(CHAVE, JSON.stringify(itens));
+  const idsEnviados = () => exibicoes().map((e) => e.playId);
+
+  it("sem rede guarda a exibição e reenvia quando a rede volta", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes()).toEqual([]);
+    const [primeiro] = filaGuardada();
+    expect(primeiro).toEqual([expect.any(String), 1, null, 5, expect.any(Number)]);
+    expect((primeiro[0] as string).length).toBe(12);
+
+    statusDoPost = 200;
+    vi.advanceTimersByTime(60000);
+    expect(idsEnviados()).toContain(primeiro[0]);
+    expect(filaGuardada()).toEqual([]);
+  });
+
+  it("manda a idade da exibição, não a data", () => {
+    semear([["seedaaaa0001", 1, 3, 5, Date.now() - 3600 * 1000]]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(exibicoes()).toEqual([
+      { playId: "seedaaaa0001", announcementId: 1, campaignId: 3, durationSeconds: 5, ageSeconds: 3600 },
+    ]);
+    expect(posts[posts.length - 1].payload.deviceKey).toBe("CHAVE");
+  });
+
+  it("fila sobrevive a recarregar a página", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    const id = filaGuardada()[0][0];
+
+    statusDoPost = 200;
+    carregarTv();
+    expect(idsEnviados()).toContain(id);
+  });
+
+  it("TV desconhecida (404) esvazia a fila", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 404;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toEqual([]);
+    // Sem isto o teste passa com a fila nem existindo: o lote tem de ter ido.
+    expect(posts.some((p) => p.url.indexOf("/api/telemetry/plays") !== -1 && p.status === 404)).toBe(true);
+  });
+
+  it("lote recusado (400) é descartado e não trava a fila", () => {
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 400;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toEqual([]);
+    // Sem isto o teste passa com a fila nem existindo: o lote tem de ter ido.
+    expect(posts.some((p) => p.url.indexOf("/api/telemetry/plays") !== -1 && p.status === 400)).toBe(true);
+  });
+
+  it("exibição com mais de 7 dias sai da fila sem ser enviada", () => {
+    semear([
+      ["seedvelho001", 1, null, 5, Date.now() - 8 * DIA],
+      ["seednovo0001", 1, null, 5, Date.now() - 60 * 1000],
+    ]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(idsEnviados()).toEqual(["seednovo0001"]);
+  });
+
+  it("relógio da TV que voltou no tempo não gera idade negativa", () => {
+    semear([["seedfutur001", 1, null, 5, Date.now() + 3600 * 1000]]);
+    listaDeSlides = [];
+    carregarTv();
+    expect(exibicoes()).toEqual([expect.objectContaining({ playId: "seedfutur001", ageSeconds: 0 })]);
+  });
+
+  it("fila corrompida não quebra a TV e o que é válido segue", () => {
+    window.localStorage.setItem(
+      CHAVE,
+      JSON.stringify([["curto", 1, null, 5, Date.now()], "lixo", ["seedvalid001", 1, null, 5, Date.now()]]),
+    );
+    listaDeSlides = [];
+    carregarTv();
+    expect(idsEnviados()).toEqual(["seedvalid001"]);
+
+    window.localStorage.setItem(CHAVE, "{lixo");
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    expect(() => carregarTv()).not.toThrow();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(exibicoes().some((e) => e.announcementId === 1 && e.durationSeconds === 5)).toBe(true);
+  });
+
+  it("envio que nunca responde não trava a fila para sempre", () => {
+    // TV com navegador antigo sem xhr.timeout e conexão meio aberta: o XHR
+    // nunca chega a readyState 4. Sem vigia própria, a fila ficava "enviando"
+    // até recarregar a página, e fora do app não há recarga diária.
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = -1;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    const id = filaGuardada()[0][0];
+
+    statusDoPost = 200;
+    vi.advanceTimersByTime(60000);
+    expect(idsEnviados()).toContain(id);
+  });
+
+  it("envia em lotes de até 200", () => {
+    semear(Array.from({ length: 450 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [];
+    carregarTv();
+    const lotes = posts.filter((p) => p.url.indexOf("/api/telemetry/plays") !== -1).map((p) => (p.payload.plays as unknown[]).length);
+    expect(lotes).toEqual([200, 200, 50]);
+    expect(filaGuardada()).toEqual([]);
+  });
+
+  it("fila grande grava no máximo a cada 30 s", () => {
+    semear(Array.from({ length: 600 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(5080);
+    expect(filaGuardada()).toHaveLength(600); // exibição nova só na memória
+    vi.advanceTimersByTime(30000);
+    expect(filaGuardada().length).toBeGreaterThan(600);
+  });
+
+  it("passa de 70 mil itens: saem os mais antigos", () => {
+    semear(Array.from({ length: 70000 }, (_, i) => [`seed${String(i).padStart(8, "0")}`, 1, null, 5, Date.now() - 1000]));
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    statusDoPost = 0;
+    carregarTv();
+    responder("https://blob/a.png", true);
+    vi.advanceTimersByTime(35080); // exibições + janela de 30 s da gravação
+    const fila = filaGuardada();
+    expect(fila).toHaveLength(70000);
+    expect(fila[0][0]).not.toBe("seed00000000");
   });
 });

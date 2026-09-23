@@ -662,6 +662,29 @@ paths:
         "400":
           description: Bad request
 
+  /telemetry/plays:
+    post:
+      operationId: recordPlays
+      tags: [telemetry]
+      summary: Record a batch of plays queued by a TV (proof-of-play)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayBatchInput"
+      responses:
+        "200":
+          description: Batch processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayBatchResult"
+        "400":
+          description: Bad request
+        "404":
+          description: Device not found
+
   # ── Analytics ────────────────────────────────────────────────────────────────
   /analytics/summary:
     get:
@@ -1434,6 +1457,36 @@ components:
         announcementId: { type: integer }
         campaignId: { type: integer, nullable: true }
         durationSeconds: { type: number }
+
+    PlayBatchItem:
+      type: object
+      required: [playId, announcementId, durationSeconds, ageSeconds]
+      properties:
+        playId: { type: string, minLength: 8, maxLength: 40 }
+        announcementId: { type: integer }
+        campaignId: { type: integer, nullable: true }
+        durationSeconds: { type: number, minimum: 0, maximum: 86400 }
+        ageSeconds: { type: number, minimum: 0 }
+
+    PlayBatchInput:
+      type: object
+      required: [deviceKey, plays]
+      properties:
+        deviceKey: { type: string }
+        plays:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/PlayBatchItem"
+
+    PlayBatchResult:
+      type: object
+      required: [accepted, duplicates, discarded]
+      properties:
+        accepted: { type: integer }
+        duplicates: { type: integer }
+        discarded: { type: integer }
 
     # ── Analytics ────────────────────────────────────────────────────────────
     AnnouncementPlayStat:
