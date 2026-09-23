@@ -546,172 +546,172 @@ export default function Admin() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onUpload)} className="mt-4 grid gap-6 md:grid-cols-[1fr_16rem]">
                   <div className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Título interno</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex.: Promoção de inverno" {...field} />
-                        </FormControl>
-                        <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Título interno</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex.: Promoção de inverno" {...field} />
+                          </FormControl>
+                          <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="displayText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Texto exibido na TV</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
-                        </FormControl>
-                        <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="displayText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Texto exibido na TV</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
+                          </FormControl>
+                          <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="showText"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5 pr-4">
-                          <FormLabel>Mostrar texto no slide</FormLabel>
-                          <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="showText"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5 pr-4">
+                            <FormLabel>Mostrar texto no slide</FormLabel>
+                            <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duração (segundos)</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="1" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duração (segundos)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="mediaKind"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de mídia</FormLabel>
-                        <FormControl>
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={field.value}
-                            onChange={field.onChange}
-                          >
-                            <option value="image">Imagem</option>
-                            <option value="youtube_video">Vídeo do YouTube</option>
-                            <option value="youtube_playlist">Playlist do YouTube</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="mediaKind"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de mídia</FormLabel>
+                          <FormControl>
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={field.value}
+                              onChange={field.onChange}
+                            >
+                              <option value="image">Imagem</option>
+                              <option value="youtube_video">Vídeo do YouTube</option>
+                              <option value="youtube_playlist">Playlist do YouTube</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {form.watch('mediaKind') !== 'image' && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="youtubeUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Link do YouTube</FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://www.youtube.com/..." {...field} />
-                            </FormControl>
-                            <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="playbackMode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Duração do vídeo</FormLabel>
-                            <FormControl>
-                              <select
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                value={field.value}
-                                onChange={field.onChange}
-                              >
-                                <option value="capped">Limitar aos segundos abaixo</option>
-                                <option value="natural">Tocar até o fim</option>
-                              </select>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="audioMode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Áudio</FormLabel>
-                            <FormControl>
-                              <select
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                value={field.value}
-                                onChange={field.onChange}
-                              >
-                                <option value="muted">Mudo</option>
-                                <option value="sound">Com som (se permitido)</option>
-                              </select>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-
-                  <FormField
-                    control={form.control}
-                    name="image"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {form.watch('mediaKind') === 'image'
-                            ? 'Arquivo de imagem'
-                            : 'Imagem de fallback (opcional)'}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            className="cursor-pointer file:cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-3 file:py-1 file:mr-4 file:font-medium hover:file:bg-primary/20 transition-colors"
-                            onChange={(event) => onChange(event.target.files)}
-                            {...fieldProps}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
-                          <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                    {form.watch('mediaKind') !== 'image' && (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="youtubeUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Link do YouTube</FormLabel>
+                              <FormControl>
+                                <Input placeholder="https://www.youtube.com/..." {...field} />
+                              </FormControl>
+                              <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="playbackMode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Duração do vídeo</FormLabel>
+                              <FormControl>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                >
+                                  <option value="capped">Limitar aos segundos abaixo</option>
+                                  <option value="natural">Tocar até o fim</option>
+                                </select>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="audioMode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Áudio</FormLabel>
+                              <FormControl>
+                                <select
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                >
+                                  <option value="muted">Mudo</option>
+                                  <option value="sound">Com som (se permitido)</option>
+                                </select>
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </>
                     )}
-                  />
+
+                    <FormField
+                      control={form.control}
+                      name="image"
+                      render={({ field: { value, onChange, ...fieldProps } }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {form.watch('mediaKind') === 'image'
+                              ? 'Arquivo de imagem'
+                              : 'Imagem de fallback (opcional)'}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="cursor-pointer file:cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-3 file:py-1 file:mr-4 file:font-medium hover:file:bg-primary/20 transition-colors"
+                              onChange={(event) => onChange(event.target.files)}
+                              {...fieldProps}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
+                            <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
                   <div className="md:sticky md:top-0 self-start">
@@ -798,172 +798,184 @@ export default function Admin() {
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="mt-4 grid gap-6 md:grid-cols-[1fr_16rem]">
               <div className="space-y-6">
-              <FormField
-                control={editForm.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Título interno</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex.: Promoção de inverno" {...field} />
-                    </FormControl>
-                    <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editForm.control}
-                name="displayText"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Texto exibido na TV</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
-                    </FormControl>
-                    <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editForm.control}
-                name="showText"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5 pr-4">
-                      <FormLabel>Mostrar texto no slide</FormLabel>
-                      <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
+                {editing && (
+                  <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+                    <div className="h-14 w-20 shrink-0 overflow-hidden rounded bg-muted flex items-center justify-center border">
+                      {editing.imageUrl ? (
+                        <img src={mediaUrl(editing.imageUrl)} alt={editing.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                      )}
                     </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
+                    <span className="text-sm text-muted-foreground">Imagem atual</span>
+                  </div>
                 )}
-              />
+                <FormField
+                  control={editForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Título interno</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex.: Promoção de inverno" {...field} />
+                      </FormControl>
+                      <FormDescription>Usado só para identificar a peça no painel.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={editForm.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duração (segundos)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                <FormField
+                  control={editForm.control}
+                  name="displayText"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Texto exibido na TV</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex.: Padaria do Zé — Rua 7, 120" {...field} />
+                      </FormControl>
+                      <FormDescription>Deixe em branco para o slide ficar só com a imagem.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="showText"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5 pr-4">
+                        <FormLabel>Mostrar texto no slide</FormLabel>
+                        <FormDescription>Desligado, a TV exibe apenas a imagem.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duração (segundos)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="mediaKind"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de mídia</FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={field.value}
+                          onChange={field.onChange}
+                        >
+                          <option value="image">Imagem</option>
+                          <option value="youtube_video">Vídeo do YouTube</option>
+                          <option value="youtube_playlist">Playlist do YouTube</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {editForm.watch('mediaKind') !== 'image' && (
+                  <>
+                    <FormField
+                      control={editForm.control}
+                      name="youtubeUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link do YouTube</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://www.youtube.com/..." {...field} />
+                          </FormControl>
+                          <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="playbackMode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duração do vídeo</FormLabel>
+                          <FormControl>
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={field.value}
+                              onChange={field.onChange}
+                            >
+                              <option value="capped">Limitar aos segundos abaixo</option>
+                              <option value="natural">Tocar até o fim</option>
+                            </select>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="audioMode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Áudio</FormLabel>
+                          <FormControl>
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={field.value}
+                              onChange={field.onChange}
+                            >
+                              <option value="muted">Mudo</option>
+                              <option value="sound">Com som (se permitido)</option>
+                            </select>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
-              />
 
-              <FormField
-                control={editForm.control}
-                name="mediaKind"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de mídia</FormLabel>
-                    <FormControl>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={field.value}
-                        onChange={field.onChange}
-                      >
-                        <option value="image">Imagem</option>
-                        <option value="youtube_video">Vídeo do YouTube</option>
-                        <option value="youtube_playlist">Playlist do YouTube</option>
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {editForm.watch('mediaKind') !== 'image' && (
-                <>
-                  <FormField
-                    control={editForm.control}
-                    name="youtubeUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Link do YouTube</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://www.youtube.com/..." {...field} />
-                        </FormControl>
-                        <FormDescription>Cole o link do vídeo ou da playlist.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="playbackMode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duração do vídeo</FormLabel>
-                        <FormControl>
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={field.value}
-                            onChange={field.onChange}
-                          >
-                            <option value="capped">Limitar aos segundos abaixo</option>
-                            <option value="natural">Tocar até o fim</option>
-                          </select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="audioMode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Áudio</FormLabel>
-                        <FormControl>
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={field.value}
-                            onChange={field.onChange}
-                          >
-                            <option value="muted">Mudo</option>
-                            <option value="sound">Com som (se permitido)</option>
-                          </select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
-
-              <FormField
-                control={editForm.control}
-                name="image"
-                render={({ field: { value, onChange, ...fieldProps } }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {editForm.watch('mediaKind') === 'image'
-                        ? 'Substituir imagem (opcional)'
-                        : 'Imagem de fallback (opcional)'}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        className="cursor-pointer file:cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-3 file:py-1 file:mr-4 file:font-medium hover:file:bg-primary/20 transition-colors"
-                        onChange={(event) => onChange(event.target.files)}
-                        {...fieldProps}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
-                      <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={editForm.control}
+                  name="image"
+                  render={({ field: { value, onChange, ...fieldProps } }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {editForm.watch('mediaKind') === 'image'
+                          ? 'Substituir imagem (opcional)'
+                          : 'Imagem de fallback (opcional)'}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="cursor-pointer file:cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-3 file:py-1 file:mr-4 file:font-medium hover:file:bg-primary/20 transition-colors"
+                          onChange={(event) => onChange(event.target.files)}
+                          {...fieldProps}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        <span className="block mt-1">Horizontal: <strong>1920x1080</strong>. Vertical: <strong>1080x1920</strong>.</span>
+                        <span className="block">Tamanho máximo: {formatUploadLimit(maxUploadBytes)}. Resolução máxima: {MAX_DIMENSION}px.</span>
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="md:sticky md:top-0 self-start">
