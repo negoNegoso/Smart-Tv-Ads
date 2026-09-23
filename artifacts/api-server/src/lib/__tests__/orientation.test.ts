@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deviceOrientationOf,
   parseAnnouncementOrientation,
   pieceOrientationOf,
   screenOrientationOf,
@@ -24,6 +25,19 @@ describe("pieceOrientationOf", () => {
     expect(pieceOrientationOf("landscape")).toBe("landscape");
     expect(pieceOrientationOf(undefined)).toBe("landscape");
     expect(pieceOrientationOf("x")).toBe("landscape");
+  });
+});
+
+describe("deviceOrientationOf", () => {
+  it("os três valores válidos passam direto", () => {
+    expect(deviceOrientationOf("landscape")).toBe("landscape");
+    expect(deviceOrientationOf("portrait_right")).toBe("portrait_right");
+    expect(deviceOrientationOf("portrait_left")).toBe("portrait_left");
+  });
+  it("nulo, indefinido ou valor estranho no banco vale landscape", () => {
+    expect(deviceOrientationOf(null)).toBe("landscape");
+    expect(deviceOrientationOf(undefined)).toBe("landscape");
+    expect(deviceOrientationOf("diagonal")).toBe("landscape");
   });
 });
 

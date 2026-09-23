@@ -23,6 +23,17 @@ export function pieceOrientationOf(piece: string | null | undefined): Announceme
 }
 
 /**
+ * Sentido bruto do device (o que /display/feed manda pro player girar), com a
+ * mesma tolerância: um valor fora de DEVICE_ORIENTATIONS não pode derrubar o
+ * parse do openapi nem tirar a TV do ar, então vale landscape.
+ */
+export function deviceOrientationOf(raw: string | null | undefined): DeviceOrientation {
+  return (DEVICE_ORIENTATIONS as readonly string[]).includes(raw ?? "")
+    ? (raw as DeviceOrientation)
+    : "landscape";
+}
+
+/**
  * Lê o campo vindo do multipart. `undefined` = não enviado (cliente antigo,
  * o POST usa o default e o PATCH não mexe); `null` = enviado inválido (400).
  */

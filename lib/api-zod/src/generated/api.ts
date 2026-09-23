@@ -567,7 +567,7 @@ export const ListDevicesResponseItem = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -595,7 +595,7 @@ export const CreateDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -615,7 +615,7 @@ export const GetDeviceByKeyResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -632,7 +632,7 @@ export const GetDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -658,7 +658,7 @@ export const UpdateDeviceResponse = zod.object({
   "clientName": zod.string(),
   "name": zod.string(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']),
+  "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()

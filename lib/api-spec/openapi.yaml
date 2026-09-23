@@ -1310,7 +1310,10 @@ components:
         clientName: { type: string }
         name: { type: string }
         location: { type: ["string", "null"] }
-        orientation: { type: string, enum: [landscape, portrait_right, portrait_left] }
+        # "landscape" | "portrait_right" | "portrait_left". Sem enum pelo mesmo
+        # motivo de Announcement.orientation: uma linha estranha no banco não
+        # pode derrubar o parse da lista de TVs inteira.
+        orientation: { type: string }
         deviceKey: { type: string }
         lastSeenAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }

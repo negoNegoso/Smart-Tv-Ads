@@ -34,7 +34,6 @@ export * from './createPanelRequestKind';
 export * from './device';
 export * from './deviceAnalytics';
 export * from './deviceInput';
-export * from './deviceOrientation';
 export * from './devicePreviewSlide';
 export * from './devicePreviewSlideSource';
 export * from './deviceUpdate';

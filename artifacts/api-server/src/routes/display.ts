@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import { eq } from "drizzle-orm";
 import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
+import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
 
 const router: IRouter = Router();
@@ -58,7 +59,7 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
   }
   res.json(
     GetDisplayFeedResponse.parse({
-      screen: { orientation: tv.device.orientation },
+      screen: { orientation: deviceOrientationOf(tv.device.orientation) },
       slides: tv.slides,
     }),
   );

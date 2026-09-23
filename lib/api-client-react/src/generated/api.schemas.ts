@@ -251,15 +251,6 @@ export interface ClientStats {
   topAnnouncements?: AnnouncementPlayStat[];
 }
 
-export type DeviceOrientation = typeof DeviceOrientation[keyof typeof DeviceOrientation];
-
-
-export const DeviceOrientation = {
-  landscape: 'landscape',
-  portrait_right: 'portrait_right',
-  portrait_left: 'portrait_left',
-} as const;
-
 export interface Device {
   id: number;
   clientId: number;
@@ -267,7 +258,7 @@ export interface Device {
   name: string;
   /** @nullable */
   location?: string | null;
-  orientation: DeviceOrientation;
+  orientation: string;
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: string | null;

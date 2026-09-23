@@ -245,6 +245,20 @@ describe("GET /display/:deviceKey/feed", () => {
     expect(dbUpdate).toHaveBeenCalledTimes(1);
   });
 
+  // Regressão do item 1: linha estranha no banco (fora do enum) não pode
+  // derrubar o parse do openapi e apagar o feed inteiro da TV.
+  it("orientação desconhecida no banco não derruba o feed: vale landscape", async () => {
+    selectResults = [[{ ...DEVICE_ROW, orientation: "diagonal" }], [PLAYLIST_ROW], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.screen).toEqual({ orientation: "landscape" });
+  });
+
   it("404 com o mesmo corpo do /slides quando a key não existe", async () => {
     selectResults = [[]];
     const app = await buildApp();
