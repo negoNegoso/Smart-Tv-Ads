@@ -144,3 +144,43 @@ describe("PATCH /announcements/:id — orientação", () => {
     expect(updateSet).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /announcements/:id — poster ao reenviar campos de YouTube", () => {
+  // Regressão do item 3: o formulário de edição sempre manda mediaKind, mesmo
+  // quando a peça já era YouTube antes do PATCH. Isso não pode apagar um
+  // poster próprio que já estava salvo — só a troca de imagem→YouTube limpa.
+  it("peça já era YouTube: reenviar mediaKind/youtubeUrl não apaga o poster", async () => {
+    const jaEraYoutube = {
+      ...ROW,
+      mediaKind: "youtube_video",
+      youtubeId: "abc123def45",
+      imageUrl: "/api/uploads/poster-proprio.png",
+    };
+    selectQueue = [[jaEraYoutube]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch("/announcements/9")
+      .field("mediaKind", "youtube_video")
+      .field("youtubeUrl", SHORT)
+      .field("orientation", "portrait");
+
+    expect(res.status).toBe(200);
+    expect(updateSet).toHaveBeenCalledTimes(1);
+    expect(updateSet.mock.calls[0][0]).not.toHaveProperty("imageUrl");
+  });
+
+  it("peça era imagem e virou YouTube sem novo arquivo: limpa o poster antigo", async () => {
+    const eraImagem = { ...ROW, mediaKind: "image", imageUrl: "/api/uploads/cartaz.png" };
+    selectQueue = [[eraImagem]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch("/announcements/9")
+      .field("mediaKind", "youtube_video")
+      .field("youtubeUrl", SHORT);
+
+    expect(res.status).toBe(200);
+    expect(updateSet.mock.calls[0][0]).toHaveProperty("imageUrl", null);
+  });
+});

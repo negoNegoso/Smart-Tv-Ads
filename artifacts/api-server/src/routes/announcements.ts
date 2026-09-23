@@ -336,8 +336,11 @@ router.patch(
       updates.youtubeId = yt.youtubeId;
       updates.playbackMode = yt.playbackMode;
       updates.audioMode = yt.audioMode;
-      if (yt.mediaKind !== "image" && !req.file) {
-        // Trocou para YouTube sem enviar nova imagem: limpa o poster antigo.
+      if (yt.mediaKind !== "image" && !req.file && existing.mediaKind === "image") {
+        // Trocou de imagem para YouTube sem enviar nova imagem: limpa o poster
+        // antigo. Se a peça já era YouTube, o formulário reenvia mediaKind em
+        // todo PATCH (mesmo sem trocar nada), e isso não pode apagar um
+        // poster próprio que já estava salvo.
         updates.imageUrl = null;
       }
     }
