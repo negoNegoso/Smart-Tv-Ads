@@ -5,10 +5,12 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { DeviceUpdateOrientation } from './deviceUpdateOrientation';
 
 export interface DeviceUpdate {
   /** @minLength 1 */
   name?: string;
   /** @nullable */
   location?: string | null;
+  orientation?: DeviceUpdateOrientation;
 }

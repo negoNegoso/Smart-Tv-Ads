@@ -16,6 +16,7 @@ export interface Announcement {
   youtubeId?: string | null;
   playbackMode: string;
   audioMode: string;
+  orientation: string;
   isActive: boolean;
   displayOrder: number;
   duration: number;

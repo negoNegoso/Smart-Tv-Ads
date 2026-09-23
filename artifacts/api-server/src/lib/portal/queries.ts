@@ -77,7 +77,7 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
 }
 
 export interface PortalDeviceRow {
-  id: number; name: string; location: string | null; lastSeenAt: Date | null; totalPlays: number;
+  id: number; name: string; location: string | null; orientation: string; lastSeenAt: Date | null; totalPlays: number;
   isOnline: boolean;
 }
 
@@ -99,6 +99,7 @@ export async function clientDevices(clientIds: number[], days: PortalDays): Prom
       id: devicesTable.id,
       name: devicesTable.name,
       location: devicesTable.location,
+      orientation: devicesTable.orientation,
       lastSeenAt: devicesTable.lastSeenAt,
       totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
       // COALESCE porque `lastSeenAt IS NULL` faz a comparação virar NULL, e

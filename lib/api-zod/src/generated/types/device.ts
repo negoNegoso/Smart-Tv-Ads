@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { DeviceOrientation } from './deviceOrientation';
 
 export interface Device {
   id: number;
@@ -13,6 +14,7 @@ export interface Device {
   name: string;
   /** @nullable */
   location?: string | null;
+  orientation: DeviceOrientation;
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: Date | null;

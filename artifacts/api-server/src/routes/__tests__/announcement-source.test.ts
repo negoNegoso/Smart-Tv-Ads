@@ -59,6 +59,7 @@ const panelRow = {
   youtubeId: null,
   playbackMode: "capped",
   audioMode: "muted",
+  orientation: "landscape",
   isActive: true,
   displayOrder: 0,
   source: "panel",
