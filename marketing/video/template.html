@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Vale TV — vídeo</title>
+<style>
+  @font-face {
+    font-family: "Outfit";
+    font-weight: 700;
+    src: url("{{FONTE}}") format("truetype");
+  }
+  :root {
+    --verde: #28D9B4;
+    --branco: #FFFFFF;
+    --preto: #000000;
+    --verde-escuro: #0B3D33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 20% 10%, var(--verde-escuro), var(--preto) 60%);
+    color: var(--branco);
+    font-family: "Outfit", system-ui, sans-serif;
+    font-weight: 700;
+  }
+  main {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    flex-wrap: wrap;
+  }
+  canvas {
+    height: min(88vh, 960px);
+    aspect-ratio: 9 / 16;
+    max-width: 100%;
+    border-radius: 18px;
+    box-shadow: 0 0 60px rgba(40, 217, 180, 0.25);
+    background: var(--preto);
+  }
+  aside { max-width: 380px; }
+  h1 { font-size: 30px; margin: 0 0 8px; }
+  h1 span { color: var(--verde); }
+  ol { font-weight: 400; line-height: 1.5; padding-left: 20px; opacity: 0.85; }
+  .botoes { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 14px; }
+  button {
+    font: inherit;
+    font-size: 18px;
+    border-radius: 999px;
+    padding: 14px 24px;
+    cursor: pointer;
+    border: 2px solid var(--verde);
+    background: transparent;
+    color: var(--verde);
+  }
+  button.principal { background: var(--verde); color: var(--preto); }
+  button:disabled { opacity: 0.4; cursor: wait; }
+  .progresso { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
+  #barra { height: 100%; width: 0; background: var(--verde); }
+  #status { font-weight: 400; opacity: 0.85; min-height: 3em; }
+  /* No modo de exportação só o canvas importa. */
+  body.exportando aside { display: none; }
+  body.exportando canvas { height: auto; width: 1080px; border-radius: 0; box-shadow: none; }
+  body.exportando main { padding: 0; display: block; }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="video" width="1080" height="1920"></canvas>
+  <aside>
+    <h1>smart <span>vale</span> tv</h1>
+    <ol>
+      <li>Use o Google Chrome do computador.</li>
+      <li>Clique em <b>Baixar MP4</b>.</li>
+      <li>Espere os 25 segundos com esta aba aberta na frente (o som vai tocar, é normal).</li>
+      <li>O arquivo <b>smart-vale-tv.mp4</b> vai para a pasta Downloads.</li>
+    </ol>
+    <div class="botoes">
+      <button id="baixar" class="principal">Baixar MP4</button>
+      <button id="assistir">Assistir</button>
+    </div>
+    <div class="progresso"><div id="barra"></div></div>
+    <p id="status">Pronto para gravar.</p>
+  </aside>
+</main>
+<img id="logo" src="{{LOGO}}" alt="" hidden>
+<script>
+  if (new URLSearchParams(location.search).has('exportar')) document.body.classList.add('exportando');
+</script>
+<script>
+{{SCRIPTS}}
+</script>
+</body>
+</html>
