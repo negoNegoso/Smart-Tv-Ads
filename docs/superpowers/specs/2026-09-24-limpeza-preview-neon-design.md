@@ -63,8 +63,13 @@ seguida); o segundo não acha o branch e segue sem falhar (ver abaixo).
   sem esse prefixo (`main`, `backup-*`) ficam fora do alcance.
 - PR vindo de fork não recebe secrets no GitHub; o job é pulado quando
   `github.event.pull_request.head.repo.full_name != github.repository`.
-- O nome da branch só entra em `with:` da action, nunca em `run:` de shell —
-  sem risco de injeção por nome de branch.
+- A action é composta e monta `neonctl branches delete "<branch>"` num passo
+  de bash: dentro das aspas, `$`, `` ` `` e `"` ainda são interpretados. O
+  `if` do job recusa branch com qualquer um dos três (o git já proíbe espaço e
+  `\`). Sem isso, um nome de branch montado de propósito rodaria comandos com
+  a chave do Neon, que pode apagar a `main`.
+- `timeout-minutes: 5` no job: sem a chave, a CLI do Neon pode cair no login
+  pelo navegador e prender o runner até o limite padrão de 6 horas.
 
 ### Passo
 

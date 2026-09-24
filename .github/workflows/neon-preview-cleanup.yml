@@ -17,15 +17,28 @@ permissions: {}
 jobs:
   apagar-branch-neon:
     runs-on: ubuntu-24.04
+    # Sem NEON_API_KEY a CLI do Neon pode cair no login pelo navegador e ficar
+    # esperando: sem isto, cada PR fechado prenderia um runner por 6 horas.
+    timeout-minutes: 5
     # Nunca a main. No delete, só branch (tag apagada não tem preview). PR de
     # fork não recebe secrets do repositório: nem tenta.
+    # A action monta `neonctl branches delete "<branch>"` num passo de bash:
+    # dentro das aspas, $, ` e " ainda são interpretados, e um nome de branch
+    # com eles rodaria comandos com a chave do Neon (que apaga a main). O git
+    # já proíbe espaço e \ em nome de branch; os outros três são recusados aqui.
     if: >-
       (github.event_name == 'pull_request'
         && github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.head.ref != 'main')
+        && github.event.pull_request.head.ref != 'main'
+        && !contains(github.event.pull_request.head.ref, '$')
+        && !contains(github.event.pull_request.head.ref, '`')
+        && !contains(github.event.pull_request.head.ref, '"'))
       || (github.event_name == 'delete'
         && github.event.ref_type == 'branch'
-        && github.event.ref != 'main')
+        && github.event.ref != 'main'
+        && !contains(github.event.ref, '$')
+        && !contains(github.event.ref, '`')
+        && !contains(github.event.ref, '"'))
     steps:
       - name: Apagar preview/<branch> no Neon
         # A action não documenta o que faz com branch inexistente (branch sem
@@ -38,5 +51,6 @@ jobs:
           project_id: ${{ vars.NEON_PROJECT_ID }}
           api_key: ${{ secrets.NEON_API_KEY }}
           # Sempre com o prefixo: branches do Neon sem ele (main, backup-*)
-          # ficam fora de alcance. O nome só entra aqui, nunca em `run:`.
+          # ficam fora de alcance. Os caracteres de shell já foram barrados no
+          # `if` do job.
           branch: preview/${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.event.ref }}
