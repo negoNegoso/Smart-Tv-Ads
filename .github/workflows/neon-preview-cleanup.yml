@@ -1,0 +1,42 @@
+name: Limpeza do preview no Neon
+
+# Cada branch do git com deploy de preview ganha no Neon um branch
+# `preview/<branch>`, cópia da produção. O Neon só apaga esse branch quando a
+# Vercel apaga os deploys de preview (6 meses por padrão): eles se acumulam, o
+# limite do plano estoura e todo preview passa a falhar com "Resource
+# provisioning failed" (23/09). Aqui o branch sai assim que a branch do git
+# deixa de precisar de preview.
+on:
+  pull_request:
+    types: [closed]
+  delete:
+
+# O workflow não usa o GITHUB_TOKEN.
+permissions: {}
+
+jobs:
+  apagar-branch-neon:
+    runs-on: ubuntu-24.04
+    # Nunca a main. No delete, só branch (tag apagada não tem preview). PR de
+    # fork não recebe secrets do repositório: nem tenta.
+    if: >-
+      (github.event_name == 'pull_request'
+        && github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.head.ref != 'main')
+      || (github.event_name == 'delete'
+        && github.event.ref_type == 'branch'
+        && github.event.ref != 'main')
+    steps:
+      - name: Apagar preview/<branch> no Neon
+        # A action não documenta o que faz com branch inexistente (branch sem
+        # preview, ou já apagado pelo outro gatilho — PR mesclado e branch
+        # apagada em seguida disparam os dois). A limpeza nunca deixa PR ou
+        # branch com X vermelho; o resultado fica no log deste passo.
+        continue-on-error: true
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          # Sempre com o prefixo: branches do Neon sem ele (main, backup-*)
+          # ficam fora de alcance. O nome só entra aqui, nunca em `run:`.
+          branch: preview/${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.event.ref }}
