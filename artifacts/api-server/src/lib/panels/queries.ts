@@ -7,6 +7,7 @@ import {
   type PanelItem,
   type PanelKind,
 } from "@workspace/db";
+import { itemCopyValues, panelCopyValues } from "./copy";
 
 export interface PanelItemInput {
   name: string;
@@ -45,6 +46,16 @@ export async function listPanels(clientIds: number[]): Promise<PanelWithItems[]>
     .from(panelsTable)
     .where(inArray(panelsTable.clientId, clientIds))
     .orderBy(asc(panelsTable.id));
+  const items = await itemsOf(panels.map((p) => p.id));
+  return panels.map((panel) => ({ ...panel, items: items.get(panel.id) ?? [] }));
+}
+
+/**
+ * Painéis de todas as lojas. Só o admin chega aqui: é a visão da plataforma,
+ * que precisa enxergar a loja de quem pediu ajuda sem ter vínculo com ela.
+ */
+export async function listAllPanels(): Promise<PanelWithItems[]> {
+  const panels = await db.select().from(panelsTable).orderBy(asc(panelsTable.id));
   const items = await itemsOf(panels.map((p) => p.id));
   return panels.map((panel) => ({ ...panel, items: items.get(panel.id) ?? [] }));
 }
@@ -105,6 +116,40 @@ export async function replaceItems(panelId: number, items: PanelItemInput[]): Pr
       .insert(panelItemsTable)
       .values(items.map((item, index) => ({ ...item, panelId, displayOrder: index })))
       .returning();
+  });
+}
+
+/**
+ * Copia o painel, com os itens, para cada loja informada. Tudo numa
+ * transação: uma loja inexistente no meio da lista não pode deixar cópias
+ * pela metade nas outras.
+ *
+ * As fotos dos itens apontam para a mesma URL do original: apagar um painel
+ * não remove essas imagens do storage, então compartilhar é seguro e evita
+ * duplicar arquivo. Ver copy.ts para o que a cópia leva e o que não leva.
+ *
+ * Devolve null quando o painel de origem sumiu entre a autorização e a cópia.
+ */
+export async function copyPanel(sourceId: number, clientIds: number[]): Promise<PanelWithItems[] | null> {
+  return db.transaction(async (tx) => {
+    const [source] = await tx.select().from(panelsTable).where(eq(panelsTable.id, sourceId));
+    if (!source) return null;
+    const sourceItems = await tx
+      .select()
+      .from(panelItemsTable)
+      .where(eq(panelItemsTable.panelId, sourceId))
+      .orderBy(asc(panelItemsTable.displayOrder), asc(panelItemsTable.id));
+
+    const copies: PanelWithItems[] = [];
+    for (const clientId of clientIds) {
+      const [panel] = await tx.insert(panelsTable).values(panelCopyValues(source, clientId)).returning();
+      const items =
+        sourceItems.length === 0
+          ? []
+          : await tx.insert(panelItemsTable).values(itemCopyValues(sourceItems, panel.id)).returning();
+      copies.push({ ...panel, items });
+    }
+    return copies;
   });
 }
 

@@ -670,6 +670,15 @@ export interface CreatePanelRequest {
   clientId?: number;
 }
 
+export interface CopyPanelRequest {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.minimum 1
+     */
+  clientIds: number[];
+}
+
 export type UpdatePanelRequestPromoStyle = typeof UpdatePanelRequestPromoStyle[keyof typeof UpdatePanelRequestPromoStyle] | null;
 
 
@@ -768,6 +777,13 @@ clientId?: number;
 
 export type ResetUserPassword200 = {
   ok: boolean;
+};
+
+export type ListClientPanelsParams = {
+/**
+ * @minimum 1
+ */
+clientId?: number;
 };
 
 export type UploadClientPanelImage201 = {

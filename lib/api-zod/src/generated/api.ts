@@ -1152,8 +1152,15 @@ export const ListPortalClientDevicesResponse = zod.array(ListPortalClientDevices
 
 
 /**
- * @summary List client portal panels
+ * @summary List client portal panels (admin sem clientId vê todas as lojas)
  */
+
+
+
+export const ListClientPanelsQueryParams = zod.object({
+  "clientId": zod.coerce.number().min(1).optional()
+})
+
 export const listClientPanelsResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const listClientPanelsResponsePhotoOffsetMin = 0;
 export const listClientPanelsResponsePhotoOffsetMax = 100;
@@ -1462,6 +1469,68 @@ export const ReplaceClientPanelItemsResponseItem = zod.object({
   "isActive": zod.boolean()
 })
 export const ReplaceClientPanelItemsResponse = zod.array(ReplaceClientPanelItemsResponseItem)
+
+
+/**
+ * @summary Copia o painel, como rascunho, para outras lojas
+ */
+export const CopyClientPanelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const copyClientPanelBodyClientIdsMax = 100;
+
+
+
+export const CopyClientPanelBody = zod.object({
+  "clientIds": zod.array(zod.number().min(1)).min(1).max(copyClientPanelBodyClientIdsMax)
+})
+
+export const copyClientPanelResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const copyClientPanelResponsePhotoOffsetMin = 0;
+export const copyClientPanelResponsePhotoOffsetMax = 100;
+
+export const copyClientPanelResponsePhotoOffsetXMin = 0;
+export const copyClientPanelResponsePhotoOffsetXMax = 100;
+
+export const copyClientPanelResponseItemsItemPriceCentsMin = 0;
+
+export const copyClientPanelResponseItemsItemOldPriceCentsMin = 0;
+
+
+
+export const CopyClientPanelResponseItem = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "name": zod.string(),
+  "template": zod.string(),
+  "status": zod.enum(['draft', 'published']),
+  "duration": zod.number(),
+  "headline": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "accentColor": zod.string().regex(copyClientPanelResponseAccentColorRegExp).nullish(),
+  "promoStyle": zod.enum(['price', 'percent']).nullish(),
+  "photoOffset": zod.number().min(copyClientPanelResponsePhotoOffsetMin).max(copyClientPanelResponsePhotoOffsetMax).nullish(),
+  "photoOffsetX": zod.number().min(copyClientPanelResponsePhotoOffsetXMin).max(copyClientPanelResponsePhotoOffsetXMax).nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "panelId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "priceCents": zod.number().min(copyClientPanelResponseItemsItemPriceCentsMin),
+  "oldPriceCents": zod.number().min(copyClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
+  "category": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean()
+}))
+})
+export const CopyClientPanelResponse = zod.array(CopyClientPanelResponseItem)
 
 
 /**

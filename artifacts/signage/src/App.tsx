@@ -30,6 +30,7 @@ import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
 import PortalPanels from './pages/portal-panels';
 import PortalPanelEditor from './pages/portal-panel-editor';
+import PanelsAdmin from './pages/panels-admin';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 import Landing from './pages/landing';
 import { clearSessionHint, hasSessionHint, markSessionStarted } from './lib/session-hint';
@@ -86,6 +87,12 @@ function AdminRoutes() {
       </Route>
       <Route path="/advertisers/:id">
         <Layout><LegacyRedirect kind="advertiser" /></Layout>
+      </Route>
+      <Route path="/panels">
+        <Layout><PanelsAdmin /></Layout>
+      </Route>
+      <Route path="/panels/:id">
+        <Layout><PanelsAdmin /></Layout>
       </Route>
       <Route path="/devices/:id">
         <Layout><DeviceDetail /></Layout>

@@ -5,9 +5,11 @@ import { z } from "zod/v4";
 import { requireClient } from "../lib/auth/middleware";
 import { canAccessPanel, resolveOwnerClientId, type PanelAuth } from "../lib/panels/ownership";
 import {
+  copyPanel,
   createPanel,
   deletePanel,
   getPanel,
+  listAllPanels,
   listPanels,
   panelClientId,
   replaceItems,
@@ -33,6 +35,10 @@ const createBody = z.object({
   name: z.string().trim().min(1).max(80),
   template: z.string().trim().min(1).max(40),
   clientId: z.number().int().positive().optional(),
+});
+
+const copyBody = z.object({
+  clientIds: z.array(z.number().int().positive()).min(1).max(100),
 });
 
 const patchBody = z.object({
@@ -140,10 +146,28 @@ async function requirePanelAccess(req: Request, res: Response, next: NextFunctio
 
 router.use("/client/panels", requireClient);
 
+/**
+ * `?clientId=N` filtra por loja. Sem ele, o lojista vê as lojas dele e o admin
+ * vê todas — é a tela "Painéis" do admin. Loja alheia no filtro é 403: o
+ * lojista não pode usar o filtro para ler painel de quem não é dele.
+ */
 router.get("/client/panels", async (req, res) => {
   const auth = authOf(req);
-  // Admin sem vínculo usa o painel de gestão; aqui a lista sai vazia.
-  res.json(await listPanels(auth.clientIds));
+  const raw = req.query.clientId;
+  if (raw === undefined) {
+    res.json(auth.isAdmin ? await listAllPanels() : await listPanels(auth.clientIds));
+    return;
+  }
+  const clientId = typeof raw === "string" && /^[1-9]\d*$/.test(raw) ? Number(raw) : null;
+  if (clientId === null) {
+    res.status(400).json({ error: "Loja inválida." });
+    return;
+  }
+  if (!canAccessPanel(auth, clientId)) {
+    res.status(403).json({ error: "Sem permissão." });
+    return;
+  }
+  res.json(await listPanels([clientId]));
 });
 
 router.post("/client/panels", async (req, res) => {
@@ -237,6 +261,40 @@ router.post("/client/panels/:id/publish", requirePanelAccess, async (_req, res) 
 router.post("/client/panels/:id/unpublish", requirePanelAccess, async (_req, res) => {
   await unpublishPanel(res.locals.panelId as number);
   res.json({ status: "draft" });
+});
+
+/**
+ * Copia o painel para outras lojas, como rascunho. Cada destino passa pela
+ * mesma regra de acesso do painel: o admin copia para qualquer loja, o
+ * lojista só entre as dele. Um destino proibido recusa o pedido inteiro, sem
+ * copiar para os outros — cópia parcial é pior de entender que um erro.
+ */
+router.post("/client/panels/:id/copy", requirePanelAccess, async (req, res) => {
+  const parsed = copyBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Escolha ao menos uma loja para receber a cópia." });
+    return;
+  }
+  const auth = authOf(req);
+  const clientIds = [...new Set(parsed.data.clientIds)];
+  if (!clientIds.every((clientId) => canAccessPanel(auth, clientId))) {
+    res.status(403).json({ error: "Sem permissão." });
+    return;
+  }
+  try {
+    const copies = await copyPanel(res.locals.panelId as number, clientIds);
+    if (copies === null) {
+      res.status(404).json({ error: "Painel não encontrado." });
+      return;
+    }
+    res.status(201).json(copies);
+  } catch (err) {
+    if (isForeignKeyViolation(err)) {
+      res.status(400).json({ error: "Uma das lojas informadas não existe." });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.delete("/client/panels/:id", requirePanelAccess, async (_req, res) => {
