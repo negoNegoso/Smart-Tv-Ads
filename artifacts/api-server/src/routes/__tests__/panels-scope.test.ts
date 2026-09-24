@@ -5,6 +5,8 @@ import { createSession } from "../../lib/auth/session";
 const SECRET = "segredo-paineis";
 const loadAuthContext = vi.fn();
 const listPanels = vi.fn();
+const listAllPanels = vi.fn();
+const copyPanel = vi.fn();
 const getPanel = vi.fn();
 const createPanel = vi.fn();
 const updatePanel = vi.fn();
@@ -19,6 +21,8 @@ vi.mock("../../lib/auth/user-store", () => ({
 }));
 vi.mock("../../lib/panels/queries", () => ({
   listPanels: (...a: unknown[]) => listPanels(...a),
+  listAllPanels: (...a: unknown[]) => listAllPanels(...a),
+  copyPanel: (...a: unknown[]) => copyPanel(...a),
   getPanel: (...a: unknown[]) => getPanel(...a),
   createPanel: (...a: unknown[]) => createPanel(...a),
   updatePanel: (...a: unknown[]) => updatePanel(...a),
@@ -104,6 +108,8 @@ describe("escopo das rotas de painéis", () => {
     for (const fn of [
       loadAuthContext,
       listPanels,
+      listAllPanels,
+      copyPanel,
       getPanel,
       createPanel,
       updatePanel,
@@ -513,5 +519,143 @@ describe("escopo das rotas de painéis", () => {
       .send({ photoOffsetX });
     expect(res.status).toBe(400);
     expect(updatePanel).not.toHaveBeenCalled();
+  });
+});
+
+describe("painéis vistos pelo admin e cópia entre lojas", () => {
+  beforeEach(() => {
+    for (const fn of [loadAuthContext, listPanels, listAllPanels, copyPanel, panelClientId]) {
+      fn.mockReset();
+    }
+    loadAuthContext.mockResolvedValue(ctx);
+  });
+
+  it("admin sem filtro lista os painéis de todas as lojas", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    listAllPanels.mockResolvedValue([]);
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app).get("/portal/client/panels").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(listAllPanels).toHaveBeenCalled();
+    expect(listPanels).not.toHaveBeenCalled();
+  });
+
+  it("admin com ?clientId lista só os painéis daquela loja", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    listPanels.mockResolvedValue([]);
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app).get("/portal/client/panels?clientId=42").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(listPanels).toHaveBeenCalledWith([42]);
+    expect(listAllPanels).not.toHaveBeenCalled();
+  });
+
+  it("lojista filtrando a própria loja recebe só ela", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, clientIds: [7, 8] });
+    listPanels.mockResolvedValue([]);
+    const { request, app, cookie } = await agent();
+    const res = await request(app).get("/portal/client/panels?clientId=8").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(listPanels).toHaveBeenCalledWith([8]);
+  });
+
+  it("lojista filtrando loja alheia recebe 403 e nada é lido", async () => {
+    const { request, app, cookie } = await agent();
+    const res = await request(app).get("/portal/client/panels?clientId=99").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+    expect(listPanels).not.toHaveBeenCalled();
+    expect(listAllPanels).not.toHaveBeenCalled();
+  });
+
+  it.each(["abc", "0", "-3", "1.5"])("?clientId=%s responde 400", async (clientId) => {
+    const { request, app, cookie } = await agent();
+    const res = await request(app).get(`/portal/client/panels?clientId=${clientId}`).set("Cookie", cookie);
+    expect(res.status).toBe(400);
+    expect(listPanels).not.toHaveBeenCalled();
+  });
+
+  it("admin copia painel para outras lojas", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    panelClientId.mockResolvedValue(7);
+    copyPanel.mockResolvedValue([{ id: 20, clientId: 8, status: "draft", items: [] }]);
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [8] });
+    expect(res.status).toBe(201);
+    expect(copyPanel).toHaveBeenCalledWith(5, [8]);
+    expect(res.body).toEqual([{ id: 20, clientId: 8, status: "draft", items: [] }]);
+  });
+
+  it("lojista copia entre as próprias lojas, sem repetir destino", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, clientIds: [7, 8] });
+    panelClientId.mockResolvedValue(7);
+    copyPanel.mockResolvedValue([]);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [8, 8] });
+    expect(res.status).toBe(201);
+    expect(copyPanel).toHaveBeenCalledWith(5, [8]);
+  });
+
+  it("lojista não copia para loja alheia: 403 e nada é gravado", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, clientIds: [7, 8] });
+    panelClientId.mockResolvedValue(7);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [8, 99] });
+    expect(res.status).toBe(403);
+    expect(copyPanel).not.toHaveBeenCalled();
+  });
+
+  it("lojista não copia painel de loja alheia", async () => {
+    panelClientId.mockResolvedValue(99);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [7] });
+    expect(res.status).toBe(403);
+    expect(copyPanel).not.toHaveBeenCalled();
+  });
+
+  it.each([{}, { clientIds: [] }, { clientIds: ["8"] }, { clientIds: [0] }])(
+    "corpo inválido %j responde 400",
+    async (body) => {
+      panelClientId.mockResolvedValue(7);
+      const { request, app, cookie } = await agent();
+      const res = await request(app).post("/portal/client/panels/5/copy").set("Cookie", cookie).send(body);
+      expect(res.status).toBe(400);
+      expect(copyPanel).not.toHaveBeenCalled();
+    },
+  );
+
+  it("loja de destino inexistente (violação de FK) responde 400", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    panelClientId.mockResolvedValue(7);
+    copyPanel.mockRejectedValue(Object.assign(new Error("fk"), { code: "23503" }));
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [999] });
+    expect(res.status).toBe(400);
+  });
+
+  it("painel apagado entre a autorização e a cópia responde 404", async () => {
+    loadAuthContext.mockResolvedValue(adminCtx);
+    panelClientId.mockResolvedValue(7);
+    copyPanel.mockResolvedValue(null);
+    const { request, app, cookie } = await adminAgent();
+    const res = await request(app)
+      .post("/portal/client/panels/5/copy")
+      .set("Cookie", cookie)
+      .send({ clientIds: [8] });
+    expect(res.status).toBe(404);
   });
 });

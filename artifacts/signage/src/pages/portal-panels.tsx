@@ -27,14 +27,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { CopyPanelDialog, type PanelStore } from '@/components/copy-panel-dialog';
+import { listCompanies } from '@/lib/companies-api';
 
 interface PortalDevice {
   id: number;
-}
-
-interface PortalClient {
-  id: number;
-  name: string;
 }
 
 /** Erro de rede não pode virar lista vazia — ver a nota em portal-advertiser.tsx. */
@@ -87,6 +84,8 @@ function publishErrorInfo(error: unknown): { is422: boolean; message?: string } 
 interface PanelCardProps {
   panel: Panel;
   clientName?: string;
+  /** Lojas para onde o painel pode ser copiado; vazio esconde o botão. */
+  copyStores: PanelStore[];
   onEdit: (panelId: number) => void;
   onPublish: (panel: Panel) => void;
   onUnpublish: (panel: Panel) => void;
@@ -99,6 +98,7 @@ interface PanelCardProps {
 function PanelCard({
   panel,
   clientName,
+  copyStores,
   onEdit,
   onPublish,
   onUnpublish,
@@ -145,6 +145,7 @@ function PanelCard({
               Publicar
             </Button>
           )}
+          {copyStores.length > 0 ? <CopyPanelDialog panel={panel} stores={copyStores} /> : null}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" disabled={isDeleting}>
@@ -171,30 +172,64 @@ function PanelCard({
   );
 }
 
-export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => void }) {
+/**
+ * Lojas que aparecem no seletor e na cópia. O lojista vê as dele; o admin não
+ * tem vínculo com loja nenhuma, então as descobre pelo cadastro de empresas
+ * (só as que são cliente, isto é, têm TV e painel).
+ */
+async function loadStores(variant: PanelsVariant): Promise<PanelStore[]> {
+  if (variant === 'portal') return getJson<PanelStore[]>('api/portal/client/clients');
+  const companies = await listCompanies({ role: 'client' });
+  return companies.flatMap((c) => (c.clientId === null ? [] : [{ id: c.clientId, name: c.name }]));
+}
+
+type PanelsVariant = 'portal' | 'admin';
+
+/**
+ * `portal` é o "Meus painéis" do lojista; `admin` é a mesma tela vista pela
+ * plataforma, com todas as lojas. A diferença fica nas bordas (de onde vêm as
+ * lojas, o filtro, o aviso de TV) — os cards e as ações são os mesmos, para
+ * o admin ver exatamente o que o lojista vê.
+ */
+export default function PortalPanels({
+  onEdit,
+  variant = 'portal',
+}: {
+  onEdit: (panelId: number) => void;
+  variant?: PanelsVariant;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isAdmin = variant === 'admin';
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
 
-  const panelsQuery = useListClientPanels();
+  // Só o admin filtra no servidor: a plataforma inteira pode ter muitos
+  // painéis, e o lojista com duas lojas já recebe só as dele.
+  const panelsQuery = useListClientPanels(
+    isAdmin && selectedClientId !== null ? { clientId: selectedClientId } : undefined,
+  );
 
+  // O admin não tem TV própria; o aviso de "sem TV vinculada" é do lojista.
   const devicesQuery = useQuery({
     queryKey: ['portal', 'client', 'devices', 30],
     queryFn: () => getJson<PortalDevice[]>('api/portal/client/devices?days=30'),
     retry: false,
+    enabled: !isAdmin,
   });
 
   const clientsQuery = useQuery({
-    queryKey: ['portal', 'client', 'clients'],
-    queryFn: () => getJson<PortalClient[]>('api/portal/client/clients'),
+    queryKey: ['portal', variant, 'stores'],
+    queryFn: () => loadStores(variant),
     retry: false,
   });
 
   // Quem opera uma loja só nunca vê o seletor: o id vai junto do pedido de
   // qualquer jeito. Com duas ou mais, o servidor se recusa a adivinhar — e faz
   // bem, criar a tabela de preços na loja errada é pior que um erro na tela.
+  // O admin sempre escolhe: "Todas as lojas" é só leitura.
   const clients = clientsQuery.data ?? [];
-  const needsClientChoice = clients.length > 1;
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const needsClientChoice = isAdmin || clients.length > 1;
+  const copyStores = clients.length > 1 ? clients : [];
   const ownerClientId = needsClientChoice ? selectedClientId : (clients[0]?.id ?? null);
   const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
@@ -274,7 +309,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
       ) : null}
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">Meus painéis</h1>
+        <h1 className="text-2xl font-semibold">{isAdmin ? 'Painéis' : 'Meus painéis'}</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {needsClientChoice ? (
             <label className="flex items-center gap-2 text-sm">
@@ -286,7 +321,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
                   setSelectedClientId(event.target.value === '' ? null : Number(event.target.value))
                 }
               >
-                <option value="">Escolha a loja</option>
+                <option value="">{isAdmin ? 'Todas as lojas' : 'Escolha a loja'}</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -334,9 +369,11 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
       ) : panels.length === 0 ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>Você ainda não tem nenhum painel</EmptyTitle>
+            <EmptyTitle>{isAdmin ? 'Nenhum painel por aqui' : 'Você ainda não tem nenhum painel'}</EmptyTitle>
             <EmptyDescription>
-              Crie uma tabela de preços, uma promoção ou um aviso para começar a exibir nas suas TVs.
+              {isAdmin
+                ? 'Escolha uma loja para criar uma tabela de preços, uma promoção ou um aviso para as TVs dela.'
+                : 'Crie uma tabela de preços, uma promoção ou um aviso para começar a exibir nas suas TVs.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -347,6 +384,7 @@ export default function PortalPanels({ onEdit }: { onEdit: (panelId: number) => 
               key={panel.id}
               panel={panel}
               clientName={needsClientChoice ? clientNameById.get(panel.clientId) : undefined}
+              copyStores={copyStores}
               onEdit={onEdit}
               onPublish={(p) => publishPanel.mutate({ id: p.id })}
               onUnpublish={(p) => unpublishPanel.mutate({ id: p.id })}

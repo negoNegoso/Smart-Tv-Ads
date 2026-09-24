@@ -35,6 +35,7 @@ import type {
   CompanyDetail,
   CompanyInput,
   CompanyUpdate,
+  CopyPanelRequest,
   CreatePanelRequest,
   Device,
   DeviceAnalytics,
@@ -45,6 +46,7 @@ import type {
   DisplaySlide,
   GetYouTubeMetaParams,
   HealthStatus,
+  ListClientPanelsParams,
   ListCompaniesParams,
   ListDevicesParams,
   Panel,
@@ -3954,20 +3956,27 @@ export function useListPortalClientDevices<TData = Awaited<ReturnType<typeof lis
 
 
 
-export const getListClientPanelsUrl = () => {
+export const getListClientPanelsUrl = (params?: ListClientPanelsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/portal/client/panels`
+  return stringifiedParams.length > 0 ? `/api/portal/client/panels?${stringifiedParams}` : `/api/portal/client/panels`
 }
 
 /**
- * @summary List client portal panels
+ * @summary List client portal panels (admin sem clientId vê todas as lojas)
  */
-export const listClientPanels = async ( options?: RequestInit): Promise<Panel[]> => {
+export const listClientPanels = async (params?: ListClientPanelsParams, options?: RequestInit): Promise<Panel[]> => {
 
-  return customFetch<Panel[]>(getListClientPanelsUrl(),
+  return customFetch<Panel[]>(getListClientPanelsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -3980,23 +3989,23 @@ export const listClientPanels = async ( options?: RequestInit): Promise<Panel[]>
 
 
 
-export const getListClientPanelsQueryKey = () => {
+export const getListClientPanelsQueryKey = (params?: ListClientPanelsParams,) => {
     return [
-    `/api/portal/client/panels`
+    `/api/portal/client/panels`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListClientPanelsQueryOptions = <TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListClientPanelsQueryOptions = <TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<void>>(params?: ListClientPanelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListClientPanelsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListClientPanelsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientPanels>>> = ({ signal }) => listClientPanels({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientPanels>>> = ({ signal }) => listClientPanels(params, { signal, ...requestOptions });
 
 
 
@@ -4006,19 +4015,19 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListClientPanelsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientPanels>>>
-export type ListClientPanelsQueryError = ErrorType<unknown>
+export type ListClientPanelsQueryError = ErrorType<void>
 
 
 /**
- * @summary List client portal panels
+ * @summary List client portal panels (admin sem clientId vê todas as lojas)
  */
 
-export function useListClientPanels<TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListClientPanels<TData = Awaited<ReturnType<typeof listClientPanels>>, TError = ErrorType<void>>(
+ params?: ListClientPanelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListClientPanelsQueryOptions(options)
+  const queryOptions = getListClientPanelsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -4392,6 +4401,78 @@ export const useReplaceClientPanelItems = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getReplaceClientPanelItemsMutationOptions(options));
+    }
+
+export const getCopyClientPanelUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/copy`
+}
+
+/**
+ * @summary Copia o painel, como rascunho, para outras lojas
+ */
+export const copyClientPanel = async (id: number,
+    copyPanelRequest: CopyPanelRequest, options?: RequestInit): Promise<Panel[]> => {
+
+  return customFetch<Panel[]>(getCopyClientPanelUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(copyPanelRequest)
+  }
+);}
+
+
+
+
+
+export const getCopyClientPanelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyClientPanel>>, TError,{id: number;data: BodyType<CopyPanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof copyClientPanel>>, TError,{id: number;data: BodyType<CopyPanelRequest>}, TContext> => {
+
+const mutationKey = ['copyClientPanel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof copyClientPanel>>, {id: number;data: BodyType<CopyPanelRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  copyClientPanel(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CopyClientPanelMutationResult = NonNullable<Awaited<ReturnType<typeof copyClientPanel>>>
+    export type CopyClientPanelMutationBody = BodyType<CopyPanelRequest>
+    export type CopyClientPanelMutationError = ErrorType<void>
+
+    /**
+ * @summary Copia o painel, como rascunho, para outras lojas
+ */
+export const useCopyClientPanel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof copyClientPanel>>, TError,{id: number;data: BodyType<CopyPanelRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof copyClientPanel>>,
+        TError,
+        {id: number;data: BodyType<CopyPanelRequest>},
+        TContext
+      > => {
+      return useMutation(getCopyClientPanelMutationOptions(options));
     }
 
 export const getPublishClientPanelUrl = (id: number,) => {

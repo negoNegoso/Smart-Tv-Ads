@@ -178,4 +178,49 @@ describe('PortalPanels', () => {
       expect(JSON.parse(post!.init!.body as string).clientId).toBe(7);
     });
   });
+
+  it('com uma loja só, não oferece copiar para outra loja', async () => {
+    renderPage();
+    await screen.findByText('Tabela de preços da semana');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nova tabela de preços' })).toBeEnabled());
+    expect(screen.queryByRole('button', { name: /Copiar para/ })).not.toBeInTheDocument();
+  });
+
+  it('com duas lojas, o lojista copia um painel para a outra', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url: String(url), init });
+        if (String(url).includes('/clients')) {
+          return new Response(
+            JSON.stringify([
+              { id: 7, name: 'Padaria Central' },
+              { id: 12, name: 'Padaria da Praça' },
+            ]),
+            { headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (String(url).endsWith('/copy')) {
+          return new Response(JSON.stringify([{ ...panels[0], id: 9, clientId: 12, status: 'draft' }]), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(panels), { headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+
+    renderPage();
+    await screen.findByText('Tabela de preços da semana');
+    const [copiarPara] = await screen.findAllByRole('button', { name: /Copiar para/ });
+    await userEvent.click(copiarPara);
+    await userEvent.click(await screen.findByLabelText('Padaria da Praça'));
+    await userEvent.click(screen.getByRole('button', { name: 'Copiar' }));
+
+    await waitFor(() => {
+      const post = calls.find((c) => c.url.endsWith('/panels/1/copy'));
+      expect(JSON.parse(post!.init!.body as string)).toEqual({ clientIds: [12] });
+    });
+  });
 });
