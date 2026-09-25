@@ -27,4 +27,20 @@ describe('FlyerDestinationField', () => {
     renderField(5);
     expect(await screen.findByRole('option', { name: 'Semana — 20/09 a 27/09' })).toBeInTheDocument();
   });
+
+  it('campanha salva que não está mais nas opções aparece selecionada e desabilitada como encerrada', async () => {
+    mockOptions([{ id: 5, name: 'Semana', startsAt: '2026-09-20', endsAt: '2026-09-27' }]);
+    renderField(9);
+    const closed = await screen.findByRole('option', { name: 'Campanha escolhida (encerrada)' });
+    expect(closed).toBeDisabled();
+    // O select não pode fingir que o destino é outra campanha.
+    expect(screen.getByLabelText('Campanha', { selector: 'select' })).toHaveValue('9');
+  });
+
+  it('sem campanha encerrada escolhida, não mostra a opção extra', async () => {
+    mockOptions([{ id: 5, name: 'Semana', startsAt: '2026-09-20', endsAt: '2026-09-27' }]);
+    renderField(5);
+    await screen.findByRole('option', { name: 'Semana — 20/09 a 27/09' });
+    expect(screen.queryByRole('option', { name: /encerrada/ })).toBeNull();
+  });
 });

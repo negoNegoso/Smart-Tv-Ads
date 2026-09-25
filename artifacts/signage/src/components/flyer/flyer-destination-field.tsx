@@ -23,6 +23,11 @@ export function FlyerDestinationField({ panelId, campaignId, onChange }: Props) 
   const list = options.data ?? [];
   const hasOptions = list.length > 0;
   const mode = campaignId === null ? 'store' : 'campaign';
+  // A lista só traz campanha ativa e não encerrada. Se a salva sumiu dela
+  // (terminou ou foi desativada), o select mostraria outra campanha como se
+  // fosse o destino; em vez disso fica selecionada uma opção desabilitada que
+  // diz o que houve, e o servidor recusa publicar nela.
+  const savedIsClosed = campaignId !== null && options.data !== undefined && !list.some((c) => c.id === campaignId);
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">Onde vai ao ar</legend>
@@ -53,6 +58,11 @@ export function FlyerDestinationField({ panelId, campaignId, onChange }: Props) 
             value={campaignId ?? ''}
             onChange={(e) => onChange(Number(e.target.value))}
           >
+            {savedIsClosed ? (
+              <option value={campaignId} disabled>
+                Campanha escolhida (encerrada)
+              </option>
+            ) : null}
             {list.map((c) => (
               <option key={c.id} value={c.id}>{`${c.name} — ${period(c.startsAt, c.endsAt)}`}</option>
             ))}
