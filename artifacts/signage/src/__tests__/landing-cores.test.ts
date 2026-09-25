@@ -20,6 +20,8 @@ const PROIBIDO: Array<[string, RegExp]> = [
   ['texto branco sobre primary', /bg-primary\b[^'"`]*text-white|text-white[^'"`]*bg-primary\b/],
   ['cor rgb fixa', /rgb\(\d/],
   ['--primary sobrescrito', /'--primary'/],
+  // --muted sobre o cartão dá 1,1:1: o contorno do mapa some.
+  ['mapa com --muted', /'hsl\(var\(--muted\)\)'/],
 ];
 
 describe('landing sem cores fixas', () => {

@@ -60,3 +60,21 @@ describe('sem resto da identidade antiga', () => {
     expect(ANTIGAS.filter((re) => re.test(texto)).map(String)).toEqual([]);
   });
 });
+
+/**
+ * Cores de tema claro fora dos tokens: o tema virou escuro e a classe .dark
+ * saiu, então variantes `dark:` não disparam mais e tons 600/700 ficam abaixo
+ * de AA sobre o preto. Componentes shadcn (components/ui) e conteúdo de
+ * cliente ficam de fora.
+ */
+describe('sem cor de tema claro nas telas', () => {
+  const alvos = arquivos(resolve(REPO, 'artifacts/signage/src')).filter(
+    (f) => f.endsWith('.tsx') && !/components\/ui\//.test(f) && !CLIENTE.test(f),
+  );
+  const CLARAS = [/\bdark:/, /\btext-(?:red|emerald|green|blue|amber)-(?:600|700|800)\b/, /\bbg-(?:red|green|emerald|blue|amber)-100\b/];
+
+  it.each(alvos.map((f) => [f.replace(REPO + '/', ''), f]))('%s', (_rel, f) => {
+    const texto = readFileSync(f, 'utf8');
+    expect(CLARAS.filter((re) => re.test(texto)).map(String)).toEqual([]);
+  });
+});

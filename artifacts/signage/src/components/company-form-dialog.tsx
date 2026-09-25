@@ -247,7 +247,7 @@ export function CompanyFormDialog({
               <TextField id="company-city" label="Cidade" value={form.city} onChange={(v) => set('city', v)} className="sm:col-span-2" />
               <TextField id="company-state" label="UF" value={form.state} onChange={(v) => set('state', v.toUpperCase().slice(0, 2))} className="sm:col-span-1" />
             </div>
-            {cepMessage ? <p className="text-sm text-amber-600">{cepMessage}</p> : null}
+            {cepMessage ? <p className="text-sm text-amber-400">{cepMessage}</p> : null}
             {form.lat !== null && form.lng !== null ? (
               <p className="text-xs text-muted-foreground">Localização do CEP: {form.lat.toFixed(5)}, {form.lng.toFixed(5)}</p>
             ) : null}

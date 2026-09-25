@@ -204,18 +204,18 @@ function SortableAnnouncementRow({
         <h4 className="truncate font-semibold text-foreground text-lg">
           {item.title}
           {item.mediaKind && item.mediaKind !== 'image' && (
-            <span className="ml-2 rounded bg-red-600/10 px-1.5 py-0.5 text-xs font-medium text-red-600">
+            <span className="ml-2 rounded bg-red-600/10 px-1.5 py-0.5 text-xs font-medium text-red-400">
               ▶ YouTube
             </span>
           )}
           {item.orientation === 'portrait' && (
-            <span className="ml-2 rounded bg-emerald-600/10 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+            <span className="ml-2 rounded bg-emerald-600/10 px-1.5 py-0.5 text-xs font-medium text-emerald-400">
               Vertical
             </span>
           )}
           {isPanelGenerated && (
             <span
-              className="ml-2 rounded bg-blue-600/10 px-1.5 py-0.5 text-xs font-medium text-blue-600"
+              className="ml-2 rounded bg-blue-600/10 px-1.5 py-0.5 text-xs font-medium text-blue-400"
               title={panelGeneratedTitle}
             >
               Painel do cliente

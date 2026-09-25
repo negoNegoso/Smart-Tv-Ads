@@ -111,7 +111,7 @@ export function Cobertura() {
                       ? 'hsl(var(--primary))'
                       : temParceiro
                         ? 'hsl(var(--primary) / 0.35)'
-                        : 'hsl(var(--muted))'
+                        : 'hsl(var(--muted-foreground) / 0.3)'
                   }
                   stroke="hsl(var(--background))"
                   strokeWidth={1.5}
