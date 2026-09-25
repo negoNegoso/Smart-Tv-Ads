@@ -1,10 +1,11 @@
-import { pgTable, text, serial, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { clientsTable } from "./clients";
+import { campaignsTable } from "./campaigns";
 
 /** Tipos de painel que o cliente monta sozinho no portal. */
-export const PANEL_KINDS = ["menu", "promo", "notice"] as const;
+export const PANEL_KINDS = ["menu", "promo", "notice", "flyer"] as const;
 export type PanelKind = (typeof PANEL_KINDS)[number];
 
 export const PANEL_STATUSES = ["draft", "published"] as const;
@@ -21,7 +22,7 @@ export const panelsTable = pgTable(
     clientId: integer("client_id")
       .notNull()
       .references(() => clientsTable.id, { onDelete: "cascade" }),
-    // "menu" | "promo" | "notice"
+    // "menu" | "promo" | "notice" | "flyer"
     kind: text("kind").notNull(),
     // Rótulo interno do portal; não vai para a tela da TV.
     name: text("name").notNull(),
@@ -40,6 +41,13 @@ export const panelsTable = pgTable(
     photoOffset: integer("photo_offset"),
     // Enquadramento horizontal da foto da promoção, 0 a 100 (0 = esquerda, 100 = direita). Nulo vale 50 (centro).
     photoOffsetX: integer("photo_offset_x"),
+    // Destino que o editor pediu para o encarte: nulo = TVs da loja,
+    // preenchido = dentro desta campanha. O que vale na TV é o destino da
+    // última publicação (peças em campaign_announcements), não esta coluna.
+    campaignId: integer("campaign_id").references(() => campaignsTable.id, { onDelete: "set null" }),
+    // A republicação automática (datas da campanha mudaram) falhou: a arte no
+    // ar mostra datas velhas. Zerada a cada publicação bem-sucedida.
+    artOutdated: boolean("art_outdated").notNull().default(false),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

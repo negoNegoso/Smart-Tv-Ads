@@ -21,6 +21,10 @@ export const panelItemsTable = pgTable(
     category: text("category"),
     // Só a promoção usa foto; a tabela de preços é tipográfica.
     imageUrl: text("image_url"),
+    // Só o encarte usa: "UNIDADE", "KG", "BANDEJA"… Nulo = sem linha de unidade.
+    unit: text("unit"),
+    // Destaque do encarte: os 3 primeiros vão para a faixa da capa.
+    featured: boolean("featured").notNull().default(false),
     displayOrder: integer("display_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
   },
