@@ -50,8 +50,52 @@ describe('PortalPanels', () => {
     renderPage();
     expect(await screen.findByText('Tabela de preços da semana')).toBeInTheDocument();
     expect(screen.getByText('Pizza em dobro')).toBeInTheDocument();
-    expect(screen.getByText(/No ar/i)).toBeInTheDocument();
+    // Publicado sem campanha (tabela de preços, promoção, aviso): badge "Na loja".
+    expect(screen.getByText(/Na loja/i)).toBeInTheDocument();
     expect(screen.getByText(/Rascunho/i)).toBeInTheDocument();
+  });
+
+  it('oferece criar encarte', async () => {
+    renderPage();
+    await screen.findByText('Tabela de preços da semana');
+    expect(await screen.findByRole('button', { name: /novo encarte/i })).toBeInTheDocument();
+  });
+
+  it('mostra "No ar até" para encarte em campanha vigente', async () => {
+    const flyerPanel = {
+      id: 3,
+      clientId: 7,
+      kind: 'flyer',
+      name: 'Encarte da semana',
+      template: 'encarte-grade',
+      status: 'published',
+      duration: 10,
+      headline: null,
+      body: null,
+      publishedAt: '2026-09-20T12:00:00Z',
+      artOutdated: false,
+      campaignId: 5,
+      publishedCampaign: {
+        id: 5,
+        name: 'Campanha de setembro',
+        startsAt: '2026-09-01T00:00:00Z',
+        endsAt: '2099-01-01T00:00:00Z',
+        isActive: true,
+      },
+      items: [],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/clients')
+          ? new Response(JSON.stringify([{ id: 7, name: 'Padaria Central' }]), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          : new Response(JSON.stringify([flyerPanel]), { headers: { 'Content-Type': 'application/json' } }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText(/no ar até/i)).toBeInTheDocument();
   });
 
   it('erro de rede não vira lista vazia', async () => {
