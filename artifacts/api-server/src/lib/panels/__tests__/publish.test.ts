@@ -395,7 +395,7 @@ describe("publishPanel — encarte", () => {
 
   it("destino campanha grava campaign_announcements para cada peça, sem scanCode", async () => {
     getPanel.mockResolvedValue(flyer({ campaignId: 3 }));
-    loadFlyerContext.mockResolvedValue(ctx({ id: 3, startsAt: new Date(), endsAt: new Date() }));
+    loadFlyerContext.mockResolvedValue(ctx({ id: 3, startsAt: new Date(), endsAt: new Date(Date.now() + 86_400_000) }));
     fetchImageDataUri.mockResolvedValue(null);
     setupTx([301, 302, 303, 304]);
 
@@ -431,6 +431,19 @@ describe("publishPanel — encarte", () => {
 
     await expect(publishPanel(9)).rejects.toBeInstanceOf(PanelRenderError);
     expect(renderFlyerPage).not.toHaveBeenCalled();
+  });
+
+  it("campanha já encerrada vira PanelRenderError, antes de renderizar", async () => {
+    getPanel.mockResolvedValue(flyer({ campaignId: 3 }));
+    loadFlyerContext.mockResolvedValue(
+      ctx({ id: 3, startsAt: new Date("2026-01-01T00:00:00Z"), endsAt: new Date(Date.now() - 60_000) }),
+    );
+
+    const promise = publishPanel(9);
+    await expect(promise).rejects.toBeInstanceOf(PanelRenderError);
+    await expect(promise).rejects.toThrow("A campanha escolhida já terminou.");
+    expect(renderFlyerPage).not.toHaveBeenCalled();
+    expect(dbTransaction).not.toHaveBeenCalled();
   });
 
   it("campanha de outra empresa vira PanelRenderError", async () => {

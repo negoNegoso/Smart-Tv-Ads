@@ -221,18 +221,27 @@ export async function panelClientId(id: number): Promise<number | null> {
   return row?.clientId ?? null;
 }
 
-/** Campanhas de anunciante da mesma empresa da loja, ainda não encerradas — o que o seletor de destino do encarte oferece. */
-export async function campaignOptionsForClient(
-  clientId: number,
-  now: Date,
-): Promise<Array<{ id: number; name: string; startsAt: Date; endsAt: Date }>> {
+/**
+ * Campanhas de anunciante da mesma empresa da loja, ativas e ainda não
+ * encerradas — o que o seletor de destino do encarte oferece. Campanha
+ * desativada pelo admin não toca em TV nenhuma, então não é destino.
+ * Separada para o teste inspecionar o SQL via `.toSQL()` sem banco.
+ */
+export function buildCampaignOptionsQuery(clientId: number, now: Date) {
   return db
     .select({ id: campaignsTable.id, name: campaignsTable.name, startsAt: campaignsTable.startsAt, endsAt: campaignsTable.endsAt })
     .from(clientsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.companyId, clientsTable.companyId))
     .innerJoin(campaignsTable, eq(campaignsTable.advertiserId, advertisersTable.id))
-    .where(and(eq(clientsTable.id, clientId), gt(campaignsTable.endsAt, now)))
+    .where(and(eq(clientsTable.id, clientId), gt(campaignsTable.endsAt, now), eq(campaignsTable.isActive, true)))
     .orderBy(asc(campaignsTable.startsAt));
+}
+
+export async function campaignOptionsForClient(
+  clientId: number,
+  now: Date,
+): Promise<Array<{ id: number; name: string; startsAt: Date; endsAt: Date }>> {
+  return buildCampaignOptionsQuery(clientId, now);
 }
 
 /** Campanha de anunciante da mesma empresa da loja: a única que o encarte aceita. */

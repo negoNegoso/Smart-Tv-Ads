@@ -141,6 +141,11 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
       if (error instanceof FlyerCampaignMismatchError) throw new PanelRenderError(error.message, 0);
       throw error;
     }
+    // Publicar numa campanha encerrada deixaria o encarte fora da loja e fora
+    // de qualquer TV sem aviso: o feed só toca campanha dentro das datas.
+    if (ctx.campaign && ctx.campaign.endsAt < new Date()) {
+      throw new PanelRenderError("A campanha escolhida já terminou.", 0);
+    }
   }
 
   const pages = isFlyer ? [] : panelPages(panel);
