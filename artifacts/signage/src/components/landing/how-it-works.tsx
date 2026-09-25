@@ -2,9 +2,9 @@ import { LANDING } from '@/lib/landing-content';
 
 export function HowItWorks() {
   return (
-    <section id="como-funciona" className="scroll-mt-20 border-b border-zinc-200">
+    <section id="como-funciona" className="scroll-mt-20 border-b border-border">
       <div className="mx-auto max-w-6xl px-5 py-14 md:py-20">
-        <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {LANDING.howItWorks.title}
         </h2>
 
@@ -19,8 +19,8 @@ export function HowItWorks() {
                       {index + 1}
                     </span>
                     <div>
-                      <p className="font-medium text-zinc-900">{step.title}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-zinc-600">{step.body}</p>
+                      <p className="font-medium text-foreground">{step.title}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
                     </div>
                   </li>
                 ))}

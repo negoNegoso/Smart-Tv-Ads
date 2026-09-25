@@ -47,13 +47,13 @@ export function Cobertura() {
   const parceiros = ativa ? (porCidade.get(ativa) ?? 0) : 0;
 
   return (
-    <section className="border-b border-zinc-200 bg-zinc-50">
+    <section className="border-b border-border bg-card">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-2 md:items-center md:py-20">
         <div>
-          <h2 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-4xl">
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
             {LANDING.cobertura.title}
           </h2>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-600">
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
             {LANDING.cobertura.subtitle}
           </p>
 
@@ -66,27 +66,27 @@ export function Cobertura() {
               rede ter sumido — então o número some, não a frase "0 telas".
             */}
             {data.activeScreens > 0 && (
-              <p className="text-lg font-semibold text-zinc-900">
+              <p className="text-lg font-semibold text-foreground">
                 {format.format(data.activeScreens)}{' '}
-                <span className="font-normal text-zinc-600">{LANDING.cobertura.screensLabel}</span>
+                <span className="font-normal text-muted-foreground">{LANDING.cobertura.screensLabel}</span>
               </p>
             )}
-            <p className="text-lg font-semibold text-zinc-900">{LANDING.cobertura.regionLabel}</p>
+            <p className="text-lg font-semibold text-foreground">{LANDING.cobertura.regionLabel}</p>
           </div>
 
           {municipioAtivo && (
             <div className="mt-8">
-              <h3 className="text-xl font-semibold text-zinc-900">{municipioAtivo.nome}</h3>
+              <h3 className="text-xl font-semibold text-foreground">{municipioAtivo.nome}</h3>
               <p className="text-3xl font-semibold tracking-tight text-primary">
                 {format.format(parceiros)}
               </p>
-              <p className="mt-1 text-sm text-zinc-600">{LANDING.cobertura.cityLabel}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{LANDING.cobertura.cityLabel}</p>
 
               <a
                 href={whatsappUrl(`${LANDING.cobertura.ctaMessage} ${municipioAtivo.nome}.`)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {LANDING.cobertura.cta}
               </a>
@@ -110,10 +110,10 @@ export function Cobertura() {
                     municipio.ibge === ativa
                       ? 'hsl(var(--primary))'
                       : temParceiro
-                        ? 'rgb(191 219 254)'
-                        : 'rgb(228 228 231)'
+                        ? 'hsl(var(--primary) / 0.35)'
+                        : 'hsl(var(--muted))'
                   }
-                  stroke="white"
+                  stroke="hsl(var(--background))"
                   strokeWidth={1.5}
                   style={{ pointerEvents: temParceiro ? 'auto' : 'none', cursor: temParceiro ? 'pointer' : 'default' }}
                   onClick={temParceiro ? () => setSelecionada(municipio.ibge) : undefined}
@@ -131,8 +131,8 @@ export function Cobertura() {
                   onClick={() => setSelecionada(municipio.ibge)}
                   className={
                     municipio.ibge === ativa
-                      ? 'rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-white'
-                      : 'rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:border-primary'
+                      ? 'rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground'
+                      : 'rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-foreground'
                   }
                 >
                   {municipio.nome}
