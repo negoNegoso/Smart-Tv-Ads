@@ -564,6 +564,9 @@ export interface PanelItem {
   oldPriceCents?: number | null;
   category?: string | null;
   imageUrl?: string | null;
+  /** @maxLength 12 */
+  unit?: string | null;
+  featured: boolean;
   displayOrder: number;
   isActive: boolean;
 }
@@ -590,6 +593,9 @@ export interface PanelItemInput {
   category?: string | null;
   /** @maxLength 500 */
   imageUrl?: string | null;
+  /** @maxLength 12 */
+  unit?: string | null;
+  featured?: boolean;
 }
 
 export type PanelKind = typeof PanelKind[keyof typeof PanelKind];
@@ -599,6 +605,7 @@ export const PanelKind = {
   menu: 'menu',
   promo: 'promo',
   notice: 'notice',
+  flyer: 'flyer',
 } as const;
 
 export type PanelStatus = typeof PanelStatus[keyof typeof PanelStatus];
@@ -616,6 +623,14 @@ export const PanelPromoStyle = {
   price: 'price',
   percent: 'percent',
 } as const;
+
+export interface PublishedCampaign {
+  id: number;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+}
 
 export interface Panel {
   id: number;
@@ -640,10 +655,13 @@ export interface Panel {
      * @maximum 100
      */
   photoOffsetX?: number | null;
+  campaignId?: number | null;
+  artOutdated: boolean;
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   items: PanelItem[];
+  publishedCampaign?: PublishedCampaign | null;
 }
 
 export type CreatePanelRequestKind = typeof CreatePanelRequestKind[keyof typeof CreatePanelRequestKind];
@@ -653,6 +671,7 @@ export const CreatePanelRequestKind = {
   menu: 'menu',
   promo: 'promo',
   notice: 'notice',
+  flyer: 'flyer',
 } as const;
 
 export interface CreatePanelRequest {
@@ -720,6 +739,8 @@ export interface UpdatePanelRequest {
      * @maximum 100
      */
   photoOffsetX?: number | null;
+  /** @minimum 1 */
+  campaignId?: number | null;
 }
 
 export interface ReplacePanelItemsRequest {
@@ -742,6 +763,37 @@ export interface PublishPanelResponse {
 
 export interface UploadPanelImageRequest {
   image: string;
+}
+
+export interface PanelCampaignOption {
+  id: number;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface StoreIdentity {
+  clientId: number;
+  companyName: string;
+  logoUrl?: string | null;
+  /** @maxLength 120 */
+  openingHours?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  brandColor?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  brandAccentColor?: string | null;
+  address?: string | null;
+}
+
+export interface UpdateStoreIdentityRequest {
+  /** @maxLength 500 */
+  logoUrl?: string | null;
+  /** @maxLength 120 */
+  openingHours?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  brandColor?: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  brandAccentColor?: string | null;
 }
 
 export type GetYouTubeMetaParams = {

@@ -45,6 +45,7 @@ const KIND_LABEL: Record<Panel['kind'], string> = {
   menu: 'Tabela de preços',
   promo: 'Promoção',
   notice: 'Aviso',
+  flyer: 'Encarte',
 };
 
 const NEW_PANEL_OPTIONS = [

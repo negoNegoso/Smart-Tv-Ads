@@ -13,4 +13,5 @@ export const CreatePanelRequestKind = {
   menu: 'menu',
   promo: 'promo',
   notice: 'notice',
+  flyer: 'flyer',
 } as const;

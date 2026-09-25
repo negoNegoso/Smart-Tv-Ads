@@ -1136,6 +1136,58 @@ paths:
         "413":
           description: Payload too large
 
+  /portal/client/panels/{id}/campaign-options:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: listClientPanelCampaignOptions
+      tags: [portal]
+      summary: Campanhas da mesma empresa em que o encarte pode ser publicado
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PanelCampaignOption" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
+  /portal/client/stores/{clientId}/identity:
+    parameters:
+      - { name: clientId, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getClientStoreIdentity
+      tags: [portal]
+      summary: Identidade da loja usada nos encartes
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreIdentity" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+    patch:
+      operationId: updateClientStoreIdentity
+      tags: [portal]
+      summary: Atualiza logo, cores e horário da loja
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateStoreIdentityRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreIdentity" }
+        "400": { description: Bad request }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
 components:
   schemas:
     HealthStatus:
@@ -1704,7 +1756,7 @@ components:
     # ── Panels (client portal) ──────────────────────────────────────────────
     PanelItem:
       type: object
-      required: [id, panelId, name, priceCents, displayOrder, isActive]
+      required: [id, panelId, name, priceCents, displayOrder, isActive, featured]
       properties:
         id: { type: integer }
         panelId: { type: integer }
@@ -1714,6 +1766,8 @@ components:
         oldPriceCents: { type: integer, minimum: 0, nullable: true }
         category: { type: string, nullable: true }
         imageUrl: { type: string, nullable: true }
+        unit: { type: string, maxLength: 12, nullable: true }
+        featured: { type: boolean }
         displayOrder: { type: integer }
         isActive: { type: boolean }
 
@@ -1727,14 +1781,16 @@ components:
         oldPriceCents: { type: integer, minimum: 0, maximum: 100000000, nullable: true }
         category: { type: string, maxLength: 60, nullable: true }
         imageUrl: { type: string, maxLength: 500, nullable: true }
+        unit: { type: string, maxLength: 12, nullable: true }
+        featured: { type: boolean }
 
     Panel:
       type: object
-      required: [id, clientId, kind, name, template, status, duration, createdAt, updatedAt, items]
+      required: [id, clientId, kind, name, template, status, duration, artOutdated, createdAt, updatedAt, items]
       properties:
         id: { type: integer }
         clientId: { type: integer }
-        kind: { type: string, enum: [menu, promo, notice] }
+        kind: { type: string, enum: [menu, promo, notice, flyer] }
         name: { type: string }
         template: { type: string }
         status: { type: string, enum: [draft, published] }
@@ -1745,18 +1801,23 @@ components:
         promoStyle: { type: string, enum: [price, percent], nullable: true }
         photoOffset: { type: integer, minimum: 0, maximum: 100, nullable: true }
         photoOffsetX: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        campaignId: { type: integer, nullable: true }
+        artOutdated: { type: boolean }
         publishedAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         items:
           type: array
           items: { $ref: "#/components/schemas/PanelItem" }
+        publishedCampaign:
+          nullable: true
+          $ref: "#/components/schemas/PublishedCampaign"
 
     CreatePanelRequest:
       type: object
       required: [kind, name, template]
       properties:
-        kind: { type: string, enum: [menu, promo, notice] }
+        kind: { type: string, enum: [menu, promo, notice, flyer] }
         name: { type: string, minLength: 1, maxLength: 80 }
         template: { type: string, minLength: 1, maxLength: 40 }
         clientId: { type: integer }
@@ -1783,6 +1844,7 @@ components:
         promoStyle: { type: string, enum: [price, percent], nullable: true }
         photoOffset: { type: integer, minimum: 0, maximum: 100, nullable: true }
         photoOffsetX: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        campaignId: { type: integer, minimum: 1, nullable: true }
 
     ReplacePanelItemsRequest:
       type: object
@@ -1805,3 +1867,42 @@ components:
       required: [image]
       properties:
         image: { type: string }
+
+    PublishedCampaign:
+      type: object
+      required: [id, name, startsAt, endsAt, isActive]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        isActive: { type: boolean }
+
+    PanelCampaignOption:
+      type: object
+      required: [id, name, startsAt, endsAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+
+    StoreIdentity:
+      type: object
+      required: [clientId, companyName]
+      properties:
+        clientId: { type: integer }
+        companyName: { type: string }
+        logoUrl: { type: string, nullable: true }
+        openingHours: { type: string, maxLength: 120, nullable: true }
+        brandColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }
+        brandAccentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }
+        address: { type: string, nullable: true }
+
+    UpdateStoreIdentityRequest:
+      type: object
+      properties:
+        logoUrl: { type: string, maxLength: 500, nullable: true }
+        openingHours: { type: string, maxLength: 120, nullable: true }
+        brandColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }
+        brandAccentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$", nullable: true }

@@ -1172,12 +1172,14 @@ export const listClientPanelsResponseItemsItemPriceCentsMin = 0;
 
 export const listClientPanelsResponseItemsItemOldPriceCentsMin = 0;
 
+export const listClientPanelsResponseItemsItemUnitMax = 12;
+
 
 
 export const ListClientPanelsResponseItem = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string(),
   "template": zod.string(),
   "status": zod.enum(['draft', 'published']),
@@ -1188,6 +1190,8 @@ export const ListClientPanelsResponseItem = zod.object({
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(listClientPanelsResponsePhotoOffsetMin).max(listClientPanelsResponsePhotoOffsetMax).nullish(),
   "photoOffsetX": zod.number().min(listClientPanelsResponsePhotoOffsetXMin).max(listClientPanelsResponsePhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().nullish(),
+  "artOutdated": zod.boolean(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1200,9 +1204,18 @@ export const ListClientPanelsResponseItem = zod.object({
   "oldPriceCents": zod.number().min(listClientPanelsResponseItemsItemOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(listClientPanelsResponseItemsItemUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
-}))
+})),
+  "publishedCampaign": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+}).nullish()
 })
 export const ListClientPanelsResponse = zod.array(ListClientPanelsResponseItem)
 
@@ -1217,7 +1230,7 @@ export const createClientPanelBodyTemplateMax = 40;
 
 
 export const CreateClientPanelBody = zod.object({
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string().min(1).max(createClientPanelBodyNameMax),
   "template": zod.string().min(1).max(createClientPanelBodyTemplateMax),
   "clientId": zod.number().optional()
@@ -1234,12 +1247,14 @@ export const createClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const createClientPanelResponseItemsItemOldPriceCentsMin = 0;
 
+export const createClientPanelResponseItemsItemUnitMax = 12;
+
 
 
 export const CreateClientPanelResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string(),
   "template": zod.string(),
   "status": zod.enum(['draft', 'published']),
@@ -1250,6 +1265,8 @@ export const CreateClientPanelResponse = zod.object({
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(createClientPanelResponsePhotoOffsetMin).max(createClientPanelResponsePhotoOffsetMax).nullish(),
   "photoOffsetX": zod.number().min(createClientPanelResponsePhotoOffsetXMin).max(createClientPanelResponsePhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().nullish(),
+  "artOutdated": zod.boolean(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1262,9 +1279,18 @@ export const CreateClientPanelResponse = zod.object({
   "oldPriceCents": zod.number().min(createClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(createClientPanelResponseItemsItemUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
-}))
+})),
+  "publishedCampaign": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+}).nullish()
 })
 
 
@@ -1286,12 +1312,14 @@ export const getClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const getClientPanelResponseItemsItemOldPriceCentsMin = 0;
 
+export const getClientPanelResponseItemsItemUnitMax = 12;
+
 
 
 export const GetClientPanelResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string(),
   "template": zod.string(),
   "status": zod.enum(['draft', 'published']),
@@ -1302,6 +1330,8 @@ export const GetClientPanelResponse = zod.object({
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(getClientPanelResponsePhotoOffsetMin).max(getClientPanelResponsePhotoOffsetMax).nullish(),
   "photoOffsetX": zod.number().min(getClientPanelResponsePhotoOffsetXMin).max(getClientPanelResponsePhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().nullish(),
+  "artOutdated": zod.boolean(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1314,9 +1344,18 @@ export const GetClientPanelResponse = zod.object({
   "oldPriceCents": zod.number().min(getClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(getClientPanelResponseItemsItemUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
-}))
+})),
+  "publishedCampaign": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+}).nullish()
 })
 
 
@@ -1347,6 +1386,7 @@ export const updateClientPanelBodyPhotoOffsetXMax = 100;
 
 
 
+
 export const UpdateClientPanelBody = zod.object({
   "name": zod.string().min(1).max(updateClientPanelBodyNameMax).optional(),
   "template": zod.string().min(1).max(updateClientPanelBodyTemplateMax).optional(),
@@ -1356,7 +1396,8 @@ export const UpdateClientPanelBody = zod.object({
   "accentColor": zod.string().regex(updateClientPanelBodyAccentColorRegExp).nullish(),
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(updateClientPanelBodyPhotoOffsetMin).max(updateClientPanelBodyPhotoOffsetMax).nullish(),
-  "photoOffsetX": zod.number().min(updateClientPanelBodyPhotoOffsetXMin).max(updateClientPanelBodyPhotoOffsetXMax).nullish()
+  "photoOffsetX": zod.number().min(updateClientPanelBodyPhotoOffsetXMin).max(updateClientPanelBodyPhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().min(1).nullish()
 })
 
 export const updateClientPanelResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
@@ -1370,12 +1411,14 @@ export const updateClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const updateClientPanelResponseItemsItemOldPriceCentsMin = 0;
 
+export const updateClientPanelResponseItemsItemUnitMax = 12;
+
 
 
 export const UpdateClientPanelResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string(),
   "template": zod.string(),
   "status": zod.enum(['draft', 'published']),
@@ -1386,6 +1429,8 @@ export const UpdateClientPanelResponse = zod.object({
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(updateClientPanelResponsePhotoOffsetMin).max(updateClientPanelResponsePhotoOffsetMax).nullish(),
   "photoOffsetX": zod.number().min(updateClientPanelResponsePhotoOffsetXMin).max(updateClientPanelResponsePhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().nullish(),
+  "artOutdated": zod.boolean(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1398,9 +1443,18 @@ export const UpdateClientPanelResponse = zod.object({
   "oldPriceCents": zod.number().min(updateClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(updateClientPanelResponseItemsItemUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
-}))
+})),
+  "publishedCampaign": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+}).nullish()
 })
 
 
@@ -1435,6 +1489,8 @@ export const replaceClientPanelItemsBodyItemsItemCategoryMax = 60;
 
 export const replaceClientPanelItemsBodyItemsItemImageUrlMax = 500;
 
+export const replaceClientPanelItemsBodyItemsItemUnitMax = 12;
+
 export const replaceClientPanelItemsBodyItemsMax = 200;
 
 
@@ -1446,13 +1502,17 @@ export const ReplaceClientPanelItemsBody = zod.object({
   "priceCents": zod.number().min(replaceClientPanelItemsBodyItemsItemPriceCentsMin).max(replaceClientPanelItemsBodyItemsItemPriceCentsMax),
   "oldPriceCents": zod.number().min(replaceClientPanelItemsBodyItemsItemOldPriceCentsMin).max(replaceClientPanelItemsBodyItemsItemOldPriceCentsMax).nullish(),
   "category": zod.string().max(replaceClientPanelItemsBodyItemsItemCategoryMax).nullish(),
-  "imageUrl": zod.string().max(replaceClientPanelItemsBodyItemsItemImageUrlMax).nullish()
+  "imageUrl": zod.string().max(replaceClientPanelItemsBodyItemsItemImageUrlMax).nullish(),
+  "unit": zod.string().max(replaceClientPanelItemsBodyItemsItemUnitMax).nullish(),
+  "featured": zod.boolean().optional()
 })).max(replaceClientPanelItemsBodyItemsMax)
 })
 
 export const replaceClientPanelItemsResponsePriceCentsMin = 0;
 
 export const replaceClientPanelItemsResponseOldPriceCentsMin = 0;
+
+export const replaceClientPanelItemsResponseUnitMax = 12;
 
 
 
@@ -1465,6 +1525,8 @@ export const ReplaceClientPanelItemsResponseItem = zod.object({
   "oldPriceCents": zod.number().min(replaceClientPanelItemsResponseOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(replaceClientPanelItemsResponseUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
 })
@@ -1498,12 +1560,14 @@ export const copyClientPanelResponseItemsItemPriceCentsMin = 0;
 
 export const copyClientPanelResponseItemsItemOldPriceCentsMin = 0;
 
+export const copyClientPanelResponseItemsItemUnitMax = 12;
+
 
 
 export const CopyClientPanelResponseItem = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
-  "kind": zod.enum(['menu', 'promo', 'notice']),
+  "kind": zod.enum(['menu', 'promo', 'notice', 'flyer']),
   "name": zod.string(),
   "template": zod.string(),
   "status": zod.enum(['draft', 'published']),
@@ -1514,6 +1578,8 @@ export const CopyClientPanelResponseItem = zod.object({
   "promoStyle": zod.enum(['price', 'percent']).nullish(),
   "photoOffset": zod.number().min(copyClientPanelResponsePhotoOffsetMin).max(copyClientPanelResponsePhotoOffsetMax).nullish(),
   "photoOffsetX": zod.number().min(copyClientPanelResponsePhotoOffsetXMin).max(copyClientPanelResponsePhotoOffsetXMax).nullish(),
+  "campaignId": zod.number().nullish(),
+  "artOutdated": zod.boolean(),
   "publishedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -1526,9 +1592,18 @@ export const CopyClientPanelResponseItem = zod.object({
   "oldPriceCents": zod.number().min(copyClientPanelResponseItemsItemOldPriceCentsMin).nullish(),
   "category": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "unit": zod.string().max(copyClientPanelResponseItemsItemUnitMax).nullish(),
+  "featured": zod.boolean(),
   "displayOrder": zod.number(),
   "isActive": zod.boolean()
-}))
+})),
+  "publishedCampaign": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "isActive": zod.boolean()
+}).nullish()
 })
 export const CopyClientPanelResponse = zod.array(CopyClientPanelResponseItem)
 
@@ -1572,6 +1647,85 @@ export const UploadClientPanelImageBody = zod.object({
 
 export const UploadClientPanelImageResponse = zod.object({
   "imageUrl": zod.string()
+})
+
+
+/**
+ * @summary Campanhas da mesma empresa em que o encarte pode ser publicado
+ */
+export const ListClientPanelCampaignOptionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListClientPanelCampaignOptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})
+export const ListClientPanelCampaignOptionsResponse = zod.array(ListClientPanelCampaignOptionsResponseItem)
+
+
+/**
+ * @summary Identidade da loja usada nos encartes
+ */
+export const GetClientStoreIdentityParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const getClientStoreIdentityResponseOpeningHoursMax = 120;
+
+export const getClientStoreIdentityResponseBrandColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getClientStoreIdentityResponseBrandAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const GetClientStoreIdentityResponse = zod.object({
+  "clientId": zod.number(),
+  "companyName": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "openingHours": zod.string().max(getClientStoreIdentityResponseOpeningHoursMax).nullish(),
+  "brandColor": zod.string().regex(getClientStoreIdentityResponseBrandColorRegExp).nullish(),
+  "brandAccentColor": zod.string().regex(getClientStoreIdentityResponseBrandAccentColorRegExp).nullish(),
+  "address": zod.string().nullish()
+})
+
+
+/**
+ * @summary Atualiza logo, cores e horário da loja
+ */
+export const UpdateClientStoreIdentityParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const updateClientStoreIdentityBodyLogoUrlMax = 500;
+
+export const updateClientStoreIdentityBodyOpeningHoursMax = 120;
+
+export const updateClientStoreIdentityBodyBrandColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateClientStoreIdentityBodyBrandAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const UpdateClientStoreIdentityBody = zod.object({
+  "logoUrl": zod.string().max(updateClientStoreIdentityBodyLogoUrlMax).nullish(),
+  "openingHours": zod.string().max(updateClientStoreIdentityBodyOpeningHoursMax).nullish(),
+  "brandColor": zod.string().regex(updateClientStoreIdentityBodyBrandColorRegExp).nullish(),
+  "brandAccentColor": zod.string().regex(updateClientStoreIdentityBodyBrandAccentColorRegExp).nullish()
+})
+
+export const updateClientStoreIdentityResponseOpeningHoursMax = 120;
+
+export const updateClientStoreIdentityResponseBrandColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateClientStoreIdentityResponseBrandAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const UpdateClientStoreIdentityResponse = zod.object({
+  "clientId": zod.number(),
+  "companyName": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "openingHours": zod.string().max(updateClientStoreIdentityResponseOpeningHoursMax).nullish(),
+  "brandColor": zod.string().regex(updateClientStoreIdentityResponseBrandColorRegExp).nullish(),
+  "brandAccentColor": zod.string().regex(updateClientStoreIdentityResponseBrandAccentColorRegExp).nullish(),
+  "address": zod.string().nullish()
 })
 
 

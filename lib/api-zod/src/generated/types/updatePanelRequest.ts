@@ -40,4 +40,6 @@ export interface UpdatePanelRequest {
      * @maximum 100
      */
   photoOffsetX?: number | null;
+  /** @minimum 1 */
+  campaignId?: number | null;
 }

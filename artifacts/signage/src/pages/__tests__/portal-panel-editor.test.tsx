@@ -7,8 +7,9 @@ import PortalPanelEditor, { parsePriceToCents, photoOffsetFromDrag, photoOffsetX
 const panel = {
   id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços', template: 'menu-basico',
   status: 'draft', duration: 10, headline: null, body: null, publishedAt: null,
+  artOutdated: false, campaignId: null, publishedCampaign: null,
   items: [
-    { id: 1, panelId: 1, name: 'Coxinha', description: null, priceCents: 750, oldPriceCents: null, category: 'Lanches', imageUrl: null, displayOrder: 0, isActive: true },
+    { id: 1, panelId: 1, name: 'Coxinha', description: null, priceCents: 750, oldPriceCents: null, category: 'Lanches', imageUrl: null, unit: null, featured: false, displayOrder: 0, isActive: true },
   ],
 };
 
@@ -87,7 +88,7 @@ describe('PortalPanelEditor', () => {
     accentColor: null,
     promoStyle: null,
     items: [
-      { id: 2, panelId: 1, name: 'Cheesecake', description: null, priceCents: 899, oldPriceCents: null, category: null, imageUrl: null, displayOrder: 0, isActive: true },
+      { id: 2, panelId: 1, name: 'Cheesecake', description: null, priceCents: 899, oldPriceCents: null, category: null, imageUrl: null, unit: null, featured: false, displayOrder: 0, isActive: true },
     ],
   };
 

@@ -9,6 +9,7 @@ import type { PanelItem } from './panelItem';
 import type { PanelKind } from './panelKind';
 import type { PanelPromoStyle } from './panelPromoStyle';
 import type { PanelStatus } from './panelStatus';
+import type { PublishedCampaign } from './publishedCampaign';
 
 export interface Panel {
   id: number;
@@ -33,8 +34,11 @@ export interface Panel {
      * @maximum 100
      */
   photoOffsetX?: number | null;
+  campaignId?: number | null;
+  artOutdated: boolean;
   publishedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   items: PanelItem[];
+  publishedCampaign?: PublishedCampaign | null;
 }

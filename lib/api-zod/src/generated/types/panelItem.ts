@@ -17,6 +17,9 @@ export interface PanelItem {
   oldPriceCents?: number | null;
   category?: string | null;
   imageUrl?: string | null;
+  /** @maxLength 12 */
+  unit?: string | null;
+  featured: boolean;
   displayOrder: number;
   isActive: boolean;
 }

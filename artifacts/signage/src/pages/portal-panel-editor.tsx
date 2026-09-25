@@ -1012,17 +1012,23 @@ export default function PortalPanelEditor({
 
         <div>
           <div className="relative">
-            <PanelPreview
-              kind={kind}
-              headline={headline.trim() === '' ? null : headline}
-              body={body.trim() === '' ? null : body}
-              items={previewItems}
-              page={previewPage + 1}
-              accentColor={accentColor === '' ? null : accentColor}
-              promoStyle={promoStyle}
-              photoOffset={photoOffset}
-              photoOffsetX={photoOffsetX}
-            />
+            {/* Encarte tem prévia própria, renderizada pelo servidor (PNG) —
+                fora do escopo deste contrato; o editor dedicado chega numa
+                task futura. `PanelPreview` continua só para os painéis que
+                já existiam. */}
+            {kind !== 'flyer' ? (
+              <PanelPreview
+                kind={kind}
+                headline={headline.trim() === '' ? null : headline}
+                body={body.trim() === '' ? null : body}
+                items={previewItems}
+                page={previewPage + 1}
+                accentColor={accentColor === '' ? null : accentColor}
+                promoStyle={promoStyle}
+                photoOffset={photoOffset}
+                photoOffsetX={photoOffsetX}
+              />
+            ) : null}
             {/* Arrasto vertical (Anexo 2026-09-17): overlay transparente só sobre a
                 área da foto, para não interferir no resto da prévia nem acoplar o
                 componente reutilizável `PanelPreview` ao estado do editor. */}

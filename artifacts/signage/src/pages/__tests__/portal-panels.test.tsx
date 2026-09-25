@@ -6,8 +6,8 @@ import PortalPanels from '../portal-panels';
 import { Toaster } from '@/components/ui/toaster';
 
 const panels = [
-  { id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços da semana', template: 'menu-basico', status: 'published', duration: 10, headline: null, body: null, publishedAt: '2026-09-01T12:00:00Z', items: [] },
-  { id: 2, clientId: 7, kind: 'promo', name: 'Pizza em dobro', template: 'promo-foto', status: 'draft', duration: 10, headline: null, body: null, publishedAt: null, items: [] },
+  { id: 1, clientId: 7, kind: 'menu', name: 'Tabela de preços da semana', template: 'menu-basico', status: 'published', duration: 10, headline: null, body: null, publishedAt: '2026-09-01T12:00:00Z', artOutdated: false, campaignId: null, publishedCampaign: null, items: [] },
+  { id: 2, clientId: 7, kind: 'promo', name: 'Pizza em dobro', template: 'promo-foto', status: 'draft', duration: 10, headline: null, body: null, publishedAt: null, artOutdated: false, campaignId: null, publishedCampaign: null, items: [] },
 ];
 
 function renderPage() {
