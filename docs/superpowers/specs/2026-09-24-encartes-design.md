@@ -334,3 +334,20 @@ a campanha é da empresa de origem. A cópia continua saindo como rascunho.
 - QR code no encarte.
 - Mais de um modelo de layout de encarte.
 - Encarte de uma empresa em campanha de outra.
+
+## Anexo (2026-09-24): ajustes vindos do código, no plano
+
+Ao escrever o plano, o código mostrou três pontos que o spec não previa:
+
+- **Campanha editada apagaria as peças do encarte.** `PATCH /campaigns/:id`
+  remove de `campaign_announcements` tudo que não veio no formulário do admin.
+  Passa a preservar peças com `source = 'panel'`.
+- **Campanha sem peça avulsa.** POST/PATCH de campanha exigiam ao menos um
+  anúncio; uma campanha criada só para receber encarte não passaria. A
+  exigência sai.
+- **Rota da identidade.** Fica em `/api/portal/client/stores/:clientId/identity`
+  (junto das rotas de painel, com a mesma autorização), não em
+  `/api/clients/...`, que é rota de admin.
+
+Ordenação dos produtos no editor usa setas subir/descer, o padrão do editor
+atual, em vez de arrastar.
