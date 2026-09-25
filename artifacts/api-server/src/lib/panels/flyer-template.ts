@@ -64,9 +64,14 @@ interface Layout {
 const LAYOUTS: Record<FlyerOrientation, Layout> = {
   landscape: {
     width: 1920, height: 1080, padding: 36, gap: 20,
-    headerHeight: 150, footerHeight: 84, bandHeight: 440, gridColumns: 4,
+    // headerHeight -10, footerHeight +36, bandHeight +40 e featuredPhoto -60
+    // em relação à primeira versão: a foto do destaque + nome de 2 linhas +
+    // preço com unidade estourava a faixa (392px de área útil < ~437px
+    // necessários) e o rodapé não comportava horário de 2 linhas + aviso.
+    // Achado da revisão 1 (fix1.md #1 e #2).
+    headerHeight: 140, footerHeight: 130, bandHeight: 480, gridColumns: 4,
     logoWidth: 340, headlineSizes: [96, 72, 52],
-    featuredPhoto: 210, featuredName: 34, featuredPrice: 104,
+    featuredPhoto: 150, featuredName: 34, featuredPrice: 104,
     gridName: 28, gridPrice: 64, footerText: 26,
   },
   portrait: {
@@ -95,9 +100,17 @@ function headlineSize(l: Layout, headline: string): number {
   return l.headlineSizes[2];
 }
 
-function photo(url: string | null, size: number) {
+// flexShrink 1 só na foto do destaque (via `shrink`): se algum combo de
+// texto ainda não couber na faixa, é a imagem que cede espaço primeiro,
+// nunca o nome ou o preço (fix1.md #1).
+function photo(url: string | null, size: number, shrink = false) {
   if (!url) return null;
-  return node("img", { src: url, width: size, height: size, style: { width: size, height: size, objectFit: "contain" } });
+  return node("img", {
+    src: url,
+    width: size,
+    height: size,
+    style: { width: size, height: size, objectFit: "contain", flexShrink: shrink ? 1 : 0 },
+  });
 }
 
 function price(item: FlyerRenderItem, base: number, color: string, muted: string, align: "center" | "flex-start") {
@@ -106,7 +119,8 @@ function price(item: FlyerRenderItem, base: number, color: string, muted: string
   const hasOld = item.oldPriceCents !== null && item.oldPriceCents > item.priceCents;
   const old = hasOld ? flyerPriceParts(item.oldPriceCents!) : null;
   return node("div", {
-    style: { display: "flex", flexDirection: "column", alignItems: align },
+    // flexShrink 0: preço nunca encolhe (encolher espremeria os dígitos).
+    style: { display: "flex", flexDirection: "column", alignItems: align, flexShrink: 0 },
     children: [
       old ? text(`DE R$ ${old.integer}${old.decimals}`, { fontSize: Math.round(base * 0.26), color: muted, fontWeight: 700 }) : null,
       node("div", {
@@ -126,10 +140,13 @@ function featuredCard(l: Layout, p: FlyerPalette, item: FlyerRenderItem, width: 
   return node("div", {
     style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", width, height: "100%", gap: 8 },
     children: [
-      photo(item.imageUrl, l.featuredPhoto),
+      photo(item.imageUrl, l.featuredPhoto, true),
+      // display "block" + lineClamp: o satori corta na 2ª linha e já desenha
+      // as reticências no ponto certo, em vez do maxHeight+overflow antigo,
+      // que escondia o "…" do truncate() no meio da palavra (fix1.md #3).
       text(truncate(item.name.toUpperCase(), MAX_NAME), {
-        fontSize: l.featuredName, fontWeight: 700, color: p.textOnBand, textAlign: "center",
-        justifyContent: "center", lineHeight: 1.1, maxHeight: l.featuredName * 2.3, overflow: "hidden",
+        display: "block", fontSize: l.featuredName, fontWeight: 700, color: p.textOnBand, textAlign: "center",
+        lineHeight: 1.1, lineClamp: 2, flexShrink: 0, wordBreak: "break-all",
       }),
       price(item, l.featuredPrice, p.priceOnBand, p.textOnBand, "center"),
     ].filter(Boolean),
@@ -149,9 +166,11 @@ function gridCard(l: Layout, p: FlyerPalette, item: FlyerRenderItem, width: numb
       node("div", {
         style: { display: "flex", flexDirection: "column", alignItems: hasPhoto ? "flex-start" : "center", flex: 1, gap: 6 },
         children: [
+          // Mesma técnica de lineClamp do destaque (fix1.md #3): 2 linhas no
+          // máximo, com reticências visíveis se cortar.
           text(truncate(item.name.toUpperCase(), MAX_NAME), {
-            fontSize: l.gridName, fontWeight: 700, color: p.textOnBackground, lineHeight: 1.1,
-            maxHeight: l.gridName * 2.3, overflow: "hidden", textAlign: hasPhoto ? "left" : "center",
+            display: "block", fontSize: l.gridName, fontWeight: 700, color: p.textOnBackground, lineHeight: 1.1,
+            lineClamp: 2, textAlign: hasPhoto ? "left" : "center", flexShrink: 0, wordBreak: "break-all",
           }),
           price(item, l.gridPrice, p.priceOnBackground, p.textOnBackground, hasPhoto ? "flex-start" : "center"),
         ],
@@ -201,7 +220,13 @@ function footer(l: Layout, p: FlyerPalette, input: FlyerRenderInput, pageNo: num
       style: { display: "flex", alignItems: "center", gap: 12, flex: 1 },
       children: [
         node("img", { src: icon, width: iconSize, height: iconSize }),
-        text(value, { fontSize: l.footerText, fontWeight: 700, color: p.textOnBackground, lineHeight: 1.15, whiteSpace: "pre-line" }),
+        // lineClamp trava em 2 linhas: um horário de até 120 caracteres com
+        // várias quebras não empurra mais o aviso/paginação para cima da
+        // grade em nenhuma orientação (fix1.md #2).
+        text(value, {
+          display: "block", fontSize: l.footerText, fontWeight: 700, color: p.textOnBackground,
+          lineHeight: 1.15, whiteSpace: "pre-line", lineClamp: 2,
+        }),
       ],
     });
   const body = truncate(input.body?.trim() || DEFAULT_FLYER_BODY, MAX_BODY);
