@@ -32,6 +32,50 @@ function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source:
 }
 
 /**
+ * Peças de campanha no ar agora. Separada para o teste inspecionar o SQL via
+ * `.toSQL()` sem banco.
+ */
+export function buildCampaignSlidesQuery(now: Date) {
+  return db
+    .select({
+      announcementId: campaignAnnouncementsTable.announcementId,
+      campaignId: campaignsTable.id,
+      title: announcementsTable.title,
+      displayText: announcementsTable.displayText,
+      showText: announcementsTable.showText,
+      imageUrl: announcementsTable.imageUrl,
+      duration: announcementsTable.duration,
+      scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
+      mediaKind: announcementsTable.mediaKind,
+      youtubeId: announcementsTable.youtubeId,
+      playbackMode: announcementsTable.playbackMode,
+      audioMode: announcementsTable.audioMode,
+      orientation: announcementsTable.orientation,
+      advertiserSegmentId: companiesTable.segmentId,
+      advertiserCompanyId: advertisersTable.companyId,
+      targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
+      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+      weekdays: campaignsTable.weekdays,
+    })
+    .from(campaignsTable)
+    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
+    .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
+    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
+    .where(
+      and(
+        eq(campaignsTable.isActive, true),
+        lte(campaignsTable.startsAt, now),
+        gte(campaignsTable.endsAt, now),
+      ),
+    )
+    // Dentro da campanha, as peças seguem a ordem delas: sem isso as páginas
+    // de um encarte publicado na campanha podiam tocar fora de sequência.
+    .orderBy(asc(campaignsTable.id), asc(announcementsTable.displayOrder), asc(announcementsTable.id));
+}
+
+/**
  * A rotação que a TV exibe agora, na ordem de exibição, com a origem de cada
  * slide. Fonte única para a TV (/display/:deviceKey/slides) e para a prévia
  * do admin (/devices/:id/preview) — as duas não podem divergir no que vai ao
@@ -70,41 +114,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     )
     .orderBy(asc(devicePlaylistTable.displayOrder));
 
-  const campaignSlides = await db
-    .select({
-      announcementId: campaignAnnouncementsTable.announcementId,
-      campaignId: campaignsTable.id,
-      title: announcementsTable.title,
-      displayText: announcementsTable.displayText,
-      showText: announcementsTable.showText,
-      imageUrl: announcementsTable.imageUrl,
-      duration: announcementsTable.duration,
-      scanCode: sql<string | null>`CASE WHEN ${campaignAnnouncementsTable.destinationUrl} IS NULL THEN NULL ELSE ${campaignAnnouncementsTable.scanCode} END`,
-      mediaKind: announcementsTable.mediaKind,
-      youtubeId: announcementsTable.youtubeId,
-      playbackMode: announcementsTable.playbackMode,
-      audioMode: announcementsTable.audioMode,
-      orientation: announcementsTable.orientation,
-      advertiserSegmentId: companiesTable.segmentId,
-      advertiserCompanyId: advertisersTable.companyId,
-      targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
-      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      weekdays: campaignsTable.weekdays,
-    })
-    .from(campaignsTable)
-    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
-    .innerJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
-    .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.campaignId, campaignsTable.id))
-    .innerJoin(announcementsTable, eq(announcementsTable.id, campaignAnnouncementsTable.announcementId))
-    .where(
-      and(
-        eq(campaignsTable.isActive, true),
-        lte(campaignsTable.startsAt, now),
-        gte(campaignsTable.endsAt, now),
-      ),
-    )
-    .orderBy(asc(campaignsTable.id));
+  const campaignSlides = await buildCampaignSlidesQuery(now);
 
   // Alvo da campanha e regra de concorrência decidem juntos o que vai ao ar. A
   // playlist do próprio device fica de fora: é o lojista pondo o conteúdo dele.
