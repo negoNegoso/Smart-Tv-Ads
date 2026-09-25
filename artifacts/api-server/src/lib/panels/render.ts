@@ -2,6 +2,8 @@ import satori from "satori";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import { panelFonts, resvgWasm } from "./assets";
 import { panelPageNode, type RenderItem, type RenderPanel } from "./templates";
+import { flyerNode, flyerSize, type FlyerRenderInput, type FlyerRenderItem } from "./flyer-template";
+import type { FlyerOrientation, FlyerPage } from "./flyer-paginate";
 
 export const PANEL_WIDTH = 1920;
 export const PANEL_HEIGHT = 1080;
@@ -25,19 +27,29 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
+async function rasterize(tree: unknown, width: number, height: number): Promise<Buffer> {
+  const svg = await satori(tree as never, { width, height, fonts: await panelFonts() });
+  await ensureWasm();
+  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width } });
+  return Buffer.from(resvg.render().asPng());
+}
+
 export async function renderPanelPage(
   panel: RenderPanel,
   page: { category: string | null; items: RenderItem[] },
 ): Promise<Buffer> {
-  const svg = await satori(panelPageNode(panel, page) as never, {
-    width: PANEL_WIDTH,
-    height: PANEL_HEIGHT,
-    fonts: await panelFonts(),
-  });
-
-  await ensureWasm();
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: PANEL_WIDTH } });
-  return Buffer.from(resvg.render().asPng());
+  return rasterize(panelPageNode(panel, page), PANEL_WIDTH, PANEL_HEIGHT);
 }
 
-export type { RenderItem, RenderPanel };
+/** Página do encarte: 1920×1080 deitada ou 1080×1920 em pé. */
+export async function renderFlyerPage(
+  input: FlyerRenderInput,
+  page: FlyerPage<FlyerRenderItem>,
+  pageCount: number,
+  orientation: FlyerOrientation,
+): Promise<Buffer> {
+  const { width, height } = flyerSize(orientation);
+  return rasterize(flyerNode(input, page, pageCount, orientation), width, height);
+}
+
+export type { RenderItem, RenderPanel, FlyerRenderInput, FlyerRenderItem };

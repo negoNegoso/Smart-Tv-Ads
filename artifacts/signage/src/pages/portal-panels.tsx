@@ -29,6 +29,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { CopyPanelDialog, type PanelStore } from '@/components/copy-panel-dialog';
 import { listCompanies } from '@/lib/companies-api';
+import { panelStatusBadges } from '@/lib/flyer-status';
 
 interface PortalDevice {
   id: number;
@@ -45,12 +46,14 @@ const KIND_LABEL: Record<Panel['kind'], string> = {
   menu: 'Tabela de preços',
   promo: 'Promoção',
   notice: 'Aviso',
+  flyer: 'Encarte',
 };
 
 const NEW_PANEL_OPTIONS = [
   { kind: 'menu' as const, template: 'menu-basico', label: 'Nova tabela de preços' },
   { kind: 'promo' as const, template: 'promo-foto', label: 'Nova promoção' },
   { kind: 'notice' as const, template: 'aviso-simples', label: 'Novo aviso' },
+  { kind: 'flyer' as const, template: 'encarte-grade', label: 'Novo encarte' },
 ];
 
 function itemCountLabel(count: number): string {
@@ -120,10 +123,19 @@ function PanelCard({
                 tabelas de preços de lojas diferentes ficam indistinguíveis na lista. */}
             {clientName ? ` · ${clientName}` : ''}
           </p>
+          {/* Em campanha, o selo já diz agendado/no ar/encerrado; "No ar desde"
+              contradiria um encarte que ainda não entrou ou já saiu do ar. */}
+          {isPublished && panel.publishedAt && !panel.publishedCampaign ? (
+            <p className="mt-1 text-xs text-muted-foreground">{publishedDateLabel(panel.publishedAt)}</p>
+          ) : null}
         </div>
-        <Badge variant={isPublished ? 'default' : 'secondary'}>
-          {isPublished && panel.publishedAt ? publishedDateLabel(panel.publishedAt) : 'Rascunho'}
-        </Badge>
+        <div className="flex flex-wrap justify-end gap-1">
+          {panelStatusBadges(panel, new Date()).map((b) => (
+            <Badge key={b.label} variant={b.variant}>
+              {b.label}
+            </Badge>
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         <p className="mb-4 text-sm text-muted-foreground">{itemCountLabel(panel.items.length)}</p>

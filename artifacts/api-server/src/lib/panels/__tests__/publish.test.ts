@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const panelsTable = { __name: "panels" };
 const panelSlidesTable = { __name: "panel_slides" };
 const announcementsTable = { __name: "announcements" };
+const campaignAnnouncementsTable = { __name: "campaign_announcements" };
 
 const dbTransaction = vi.fn();
 vi.mock("@workspace/db", () => ({
@@ -22,13 +23,27 @@ vi.mock("@workspace/db", () => ({
   panelsTable,
   panelSlidesTable,
   announcementsTable,
+  campaignAnnouncementsTable,
 }));
 
 const getPanel = vi.fn();
 vi.mock("../queries", () => ({ getPanel: (...a: unknown[]) => getPanel(...a) }));
 
+const loadFlyerContext = vi.fn();
+vi.mock("../flyer-context", async (orig) => ({
+  ...(await orig<typeof import("../flyer-context")>()),
+  loadFlyerContext: (...a: unknown[]) => loadFlyerContext(...a),
+}));
+
 const renderPanelPage = vi.fn();
-vi.mock("../render", () => ({ renderPanelPage: (...a: unknown[]) => renderPanelPage(...a) }));
+const renderFlyerPage = vi.fn();
+vi.mock("../render", () => ({
+  renderPanelPage: (...a: unknown[]) => renderPanelPage(...a),
+  renderFlyerPage: (...a: unknown[]) => renderFlyerPage(...a),
+}));
+
+const fetchImageDataUri = vi.fn();
+vi.mock("../promo-image", () => ({ fetchImageDataUri: (...a: unknown[]) => fetchImageDataUri(...a) }));
 
 const storePut = vi.fn();
 const storeRemove = vi.fn();
@@ -46,7 +61,10 @@ const { publishPanel, PanelRenderError } = await import("../publish");
 /**
  * `tx` falso: só entende exatamente as chamadas que `publishPanel` faz.
  * Identifica a tabela por identidade de referência (os objetos acima) para
- * devolver o dado certo a cada `select`/`insert`.
+ * devolver o dado certo a cada `select`/`insert`, e registra todo
+ * `insert(...).values(...)` e `update(...).set(...)` em `inserts`/`updates`
+ * (por nome de tabela) para os testes do encarte conferirem o que foi
+ * gravado.
  */
 function fakeTx(opts: {
   oldSlideAnnouncementIds: number[];
@@ -54,7 +72,12 @@ function fakeTx(opts: {
   newAnnouncementIds: number[];
 }) {
   const newIds = [...opts.newAnnouncementIds];
+  const inserts: Array<{ table: string; values: unknown }> = [];
+  const updates: Array<{ table: string; set: unknown }> = [];
+  const tableName = (table: unknown) => (table as { __name?: string })?.__name ?? "desconhecida";
   return {
+    inserts,
+    updates,
     select(_cols: unknown) {
       return {
         from(table: unknown) {
@@ -77,7 +100,8 @@ function fakeTx(opts: {
     },
     insert(table: unknown) {
       return {
-        values(_vals: unknown) {
+        values(vals: unknown) {
+          inserts.push({ table: tableName(table), values: vals });
           if (table === announcementsTable) {
             const id = newIds.shift();
             return {
@@ -92,8 +116,13 @@ function fakeTx(opts: {
     delete(_table: unknown) {
       return { where: (_cond: unknown) => Promise.resolve(undefined) };
     },
-    update(_table: unknown) {
-      return { set: (_patch: unknown) => ({ where: (_cond: unknown) => Promise.resolve(undefined) }) };
+    update(table: unknown) {
+      return {
+        set: (patch: unknown) => {
+          updates.push({ table: tableName(table), set: patch });
+          return { where: (_cond: unknown) => Promise.resolve(undefined) };
+        },
+      };
     },
   };
 }
@@ -113,6 +142,12 @@ const basePanel = {
   duration: 10,
   headline: null,
   body: null,
+  accentColor: null,
+  promoStyle: null,
+  photoOffset: null,
+  photoOffsetX: null,
+  campaignId: null,
+  artOutdated: false,
   publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -131,13 +166,58 @@ const menuItem = (name: string, order: number) => ({
   isActive: true,
 });
 
+/** Painel de encarte com 12 itens ativos, 3 deles em destaque (ids 1–3). */
+const flyer = (over: Record<string, unknown> = {}) => ({
+  id: 9,
+  clientId: 7,
+  kind: "flyer",
+  name: "Encarte",
+  template: "t",
+  status: "draft" as const,
+  duration: 10,
+  headline: null,
+  body: null,
+  campaignId: null,
+  accentColor: null,
+  promoStyle: null,
+  photoOffset: null,
+  photoOffsetX: null,
+  artOutdated: false,
+  publishedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  items: Array.from({ length: 12 }, (_, i) => ({
+    id: i + 1,
+    panelId: 9,
+    name: `P${i}`,
+    description: null,
+    priceCents: 100,
+    oldPriceCents: null,
+    category: null,
+    imageUrl: i === 0 ? "https://x/foto.png" : null,
+    displayOrder: i,
+    isActive: true,
+    unit: null,
+    featured: i < 3,
+  })),
+  ...over,
+});
+
+const ctx = (campaign: unknown = null) => ({
+  company: { name: "M", logoUrl: null, openingHours: null, brandColor: null, brandAccentColor: null, street: null, number: null, district: null, city: null, state: null },
+  campaign,
+});
+
 describe("publishPanel — ordem de render/upload/transação", () => {
   let log: LogEntry[];
 
   beforeEach(() => {
     log = [];
     getPanel.mockReset();
+    loadFlyerContext.mockReset();
     renderPanelPage.mockReset();
+    renderFlyerPage.mockReset();
+    fetchImageDataUri.mockReset();
     dbTransaction.mockReset();
     storePut.mockReset();
     storeRemove.mockReset();
@@ -222,5 +302,158 @@ describe("publishPanel — ordem de render/upload/transação", () => {
 
     expect(storePut).toHaveBeenCalledTimes(1);
     expect(storeRemove).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("publishPanel — encarte", () => {
+  let tx: ReturnType<typeof fakeTx>;
+
+  beforeEach(() => {
+    getPanel.mockReset();
+    loadFlyerContext.mockReset();
+    renderPanelPage.mockReset();
+    renderFlyerPage.mockReset();
+    fetchImageDataUri.mockReset();
+    dbTransaction.mockReset();
+    storePut.mockReset();
+    storeRemove.mockReset();
+    storeGet.mockReset();
+
+    renderFlyerPage.mockResolvedValue(Buffer.from("png"));
+    storePut.mockImplementation(async (_b: Buffer, _t: string, name: string) => `https://store/${name}`);
+    storeRemove.mockResolvedValue(undefined);
+  });
+
+  /** Registra a transação com um `fakeTx` sem peças antigas e os ids novos informados. */
+  function setupTx(newAnnouncementIds: number[]) {
+    dbTransaction.mockImplementation(async (cb: (t: unknown) => Promise<string[]>) => {
+      tx = fakeTx({ oldSlideAnnouncementIds: [], oldAnnouncementImageUrls: [], newAnnouncementIds });
+      return cb(tx);
+    });
+  }
+
+  it("encarte gera as duas orientações com numeração própria", async () => {
+    getPanel.mockResolvedValue(flyer());
+    loadFlyerContext.mockResolvedValue(ctx());
+    fetchImageDataUri.mockResolvedValue("data:image/png;base64,AA");
+    // 12 itens, 3 destaques: horizontal 3+4 e 5 → 2 páginas; vertical 3+6 e 3 → 2 páginas
+    setupTx([301, 302, 303, 304]);
+
+    const result = await publishPanel(9);
+
+    expect(result.pages).toBe(4);
+    const names = storePut.mock.calls.map((c) => c[2]);
+    expect(names).toEqual([
+      "panel-9-landscape-p1.png", "panel-9-landscape-p2.png",
+      "panel-9-portrait-p1.png", "panel-9-portrait-p2.png",
+    ]);
+
+    // announcements inseridas com orientation certa
+    const announcementInserts = tx.inserts.filter((i) => i.table === "announcements");
+    expect(announcementInserts.map((i) => (i.values as { orientation: string }).orientation)).toEqual([
+      "landscape", "landscape", "portrait", "portrait",
+    ]);
+    expect(announcementInserts.map((i) => (i.values as { displayOrder: number }).displayOrder)).toEqual([1, 2, 1, 2]);
+
+    // panel_slides com orientation
+    const slideInserts = tx.inserts.filter((i) => i.table === "panel_slides");
+    expect(slideInserts.map((i) => (i.values as { orientation: string; pageNo: number }).orientation)).toEqual([
+      "landscape", "landscape", "portrait", "portrait",
+    ]);
+    expect(slideInserts.map((i) => (i.values as { pageNo: number }).pageNo)).toEqual([1, 2, 1, 2]);
+
+    // nenhuma linha em campaign_announcements (destino loja)
+    expect(tx.inserts.filter((i) => i.table === "campaign_announcements")).toHaveLength(0);
+  });
+
+  it("foto é resolvida uma vez e reaproveitada nas duas orientações", async () => {
+    getPanel.mockResolvedValue(flyer());
+    loadFlyerContext.mockResolvedValue(ctx());
+    fetchImageDataUri.mockResolvedValue("data:image/png;base64,AA");
+    setupTx([301, 302, 303, 304]);
+
+    await publishPanel(9);
+
+    // Só o item 1 (i === 0) tem imageUrl; a logo da loja é nula neste ctx.
+    // Se a foto fosse buscada de novo por orientação, teriam sido 2 chamadas.
+    expect(fetchImageDataUri).toHaveBeenCalledTimes(1);
+  });
+
+  it("foto que falha some do card e a publicação segue", async () => {
+    getPanel.mockResolvedValue(flyer());
+    loadFlyerContext.mockResolvedValue(ctx());
+    fetchImageDataUri.mockResolvedValue(null);
+    setupTx([301, 302, 303, 304]);
+
+    await expect(publishPanel(9)).resolves.toEqual({ pages: 4 });
+
+    const firstPage = renderFlyerPage.mock.calls[0]![1] as { featured: Array<{ name: string; imageUrl: string | null }>; grid: Array<{ name: string; imageUrl: string | null }> };
+    const p0 = [...firstPage.featured, ...firstPage.grid].find((i) => i.name === "P0");
+    expect(p0).toBeDefined();
+    expect(p0!.imageUrl).toBeNull();
+  });
+
+  it("destino campanha grava campaign_announcements para cada peça, sem scanCode", async () => {
+    getPanel.mockResolvedValue(flyer({ campaignId: 3 }));
+    loadFlyerContext.mockResolvedValue(ctx({ id: 3, startsAt: new Date(), endsAt: new Date(Date.now() + 86_400_000) }));
+    fetchImageDataUri.mockResolvedValue(null);
+    setupTx([301, 302, 303, 304]);
+
+    await publishPanel(9);
+
+    const campaignInserts = tx.inserts.filter((i) => i.table === "campaign_announcements");
+    expect(campaignInserts).toHaveLength(4);
+    expect(campaignInserts.map((i) => i.values)).toEqual([
+      { campaignId: 3, announcementId: 301, scanCode: null },
+      { campaignId: 3, announcementId: 302, scanCode: null },
+      { campaignId: 3, announcementId: 303, scanCode: null },
+      { campaignId: 3, announcementId: 304, scanCode: null },
+    ]);
+  });
+
+  it("publicação bem-sucedida zera artOutdated", async () => {
+    getPanel.mockResolvedValue(flyer());
+    loadFlyerContext.mockResolvedValue(ctx());
+    fetchImageDataUri.mockResolvedValue(null);
+    setupTx([301, 302, 303, 304]);
+
+    await publishPanel(9);
+
+    const panelUpdates = tx.updates.filter((u) => u.table === "panels");
+    expect(panelUpdates).toHaveLength(1);
+    expect(panelUpdates[0]!.set).toMatchObject({ status: "published", artOutdated: false });
+  });
+
+  it("mais de 60 itens ativos é recusado antes de renderizar", async () => {
+    getPanel.mockResolvedValue(
+      flyer({ items: Array.from({ length: 61 }, (_, i) => ({ ...flyer().items[0], id: i + 1, displayOrder: i, imageUrl: null })) }),
+    );
+
+    await expect(publishPanel(9)).rejects.toBeInstanceOf(PanelRenderError);
+    expect(renderFlyerPage).not.toHaveBeenCalled();
+  });
+
+  it("campanha já encerrada vira PanelRenderError, antes de renderizar", async () => {
+    getPanel.mockResolvedValue(flyer({ campaignId: 3 }));
+    loadFlyerContext.mockResolvedValue(
+      ctx({ id: 3, startsAt: new Date("2026-01-01T00:00:00Z"), endsAt: new Date(Date.now() - 60_000) }),
+    );
+
+    const promise = publishPanel(9);
+    await expect(promise).rejects.toBeInstanceOf(PanelRenderError);
+    await expect(promise).rejects.toThrow("A campanha escolhida já terminou.");
+    expect(renderFlyerPage).not.toHaveBeenCalled();
+    expect(dbTransaction).not.toHaveBeenCalled();
+  });
+
+  it("campanha de outra empresa vira PanelRenderError", async () => {
+    getPanel.mockResolvedValue(flyer({ campaignId: 3 }));
+    const { FlyerCampaignMismatchError } = await import("../flyer-context");
+    loadFlyerContext.mockRejectedValue(new FlyerCampaignMismatchError("A campanha escolhida não é desta loja."));
+
+    const promise = publishPanel(9);
+    await expect(promise).rejects.toBeInstanceOf(PanelRenderError);
+    await expect(promise).rejects.toThrow("não é desta loja");
+    expect(renderFlyerPage).not.toHaveBeenCalled();
   });
 });

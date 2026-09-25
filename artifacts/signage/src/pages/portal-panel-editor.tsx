@@ -19,9 +19,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-preview';
+import FlyerEditor from '@/components/flyer/flyer-editor';
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
+import { parsePriceToCents } from '@/lib/price';
+import { panelErrorInfo } from '@/lib/panel-error';
 import {
   DEFAULT_ACCENT_COLOR,
   PROMO_PHOTO_LEFT,
@@ -61,62 +64,9 @@ function centsToInputText(cents: number): string {
   return (cents / 100).toFixed(2).replace('.', ',');
 }
 
-export interface PriceParseResult {
-  ok: boolean;
-  cents: number;
-}
-
-/**
- * Preço digitado vira centavos inteiros, ou falha — nunca em silêncio. Um
- * preço na parede não pode nascer de uma coerção que ninguém vê.
- *
- * Duas leituras, dependendo do que foi digitado:
- *
- *  - Só dígitos ("1290"): atalho sem separador — os dois últimos dígitos
- *    são os centavos. "1290" -> 1290 (R$ 12,90).
- *  - Com separador decimal ("," ou "."): lido como moeda brasileira. Quando
- *    os dois aparecem, "." é separador de milhar e "," é o decimal
- *    ("1.234,56" -> 123456). Com um só, ele é o decimal — um único dígito
- *    decimal é lido como décimos ("1,5" -> 150, R$ 1,50). Três ou mais
- *    dígitos decimais não é um preço válido ("12,345" falha).
- *
- * Vazio, só letras, ou com decimais demais: `ok: false`. Um item de
- * cortesia deliberado é digitado "0,00", que é válido e vale 0 — bem
- * diferente de um campo vazio, que não é um preço.
- */
-export function parsePriceToCents(raw: string): PriceParseResult {
-  const trimmed = raw.trim();
-  if (trimmed === '') return { ok: false, cents: 0 };
-
-  const hasComma = trimmed.includes(',');
-  const hasDot = trimmed.includes('.');
-
-  if (!hasComma && !hasDot) {
-    if (!/^\d+$/.test(trimmed)) return { ok: false, cents: 0 };
-    return { ok: true, cents: parseInt(trimmed, 10) };
-  }
-
-  // "," manda quando os dois aparecem (ela é sempre o decimal em pt-BR); só
-  // sobra "." como decimal quando "," não apareceu.
-  const decimalSep = hasComma ? ',' : '.';
-  const lastIndex = trimmed.lastIndexOf(decimalSep);
-  const integerRaw = trimmed.slice(0, lastIndex);
-  const decimalRaw = trimmed.slice(lastIndex + 1);
-
-  const decimalDigits = decimalRaw.replace(/\D/g, '');
-  if (decimalRaw !== decimalDigits || decimalDigits.length === 0 || decimalDigits.length > 2) {
-    return { ok: false, cents: 0 };
-  }
-
-  // A parte inteira pode conter o outro separador como milhar (ex.: "1.234"
-  // antes de ","), mas nenhum outro caractere — letra ali é erro de digitação.
-  if (integerRaw !== '' && !/^[\d.,]*$/.test(integerRaw)) return { ok: false, cents: 0 };
-  const integerDigits = integerRaw.replace(/\D/g, '');
-
-  const reais = integerDigits === '' ? 0 : parseInt(integerDigits, 10);
-  const cents = decimalDigits.length === 1 ? Number(decimalDigits) * 10 : Number(decimalDigits);
-  return { ok: true, cents: reais * 100 + cents };
-}
+// Movido para lib/price.ts: o editor do encarte importa de lá, não desta
+// página, para não criar import circular entre os dois editores.
+export { parsePriceToCents } from '@/lib/price';
 
 /** Só para a prévia: um preço momentaneamente inválido (ainda sendo digitado) vira 0 em vez de travar o desenho — quem bloqueia de verdade é o Salvar. */
 function parsePriceOrZero(raw: string): number {
@@ -326,24 +276,6 @@ function paginateMenuDrafts(items: ItemDraft[]): ItemDraft[][] {
   return pages;
 }
 
-/**
- * A biblioteca gerada não exporta a classe `ApiError` (só o tipo `ErrorType`,
- * apagado em tempo de execução), então o 422 é detectado por forma — mesma
- * técnica usada em portal-panels.tsx.
- */
-function publishErrorInfo(error: unknown): { is422: boolean; message?: string } {
-  if (typeof error !== 'object' || error === null || !('status' in error)) {
-    return { is422: false };
-  }
-  const status = (error as { status: unknown }).status;
-  const data = 'data' in error ? (error as { data: unknown }).data : undefined;
-  const message =
-    data && typeof data === 'object' && 'error' in data && typeof (data as { error: unknown }).error === 'string'
-      ? (data as { error: string }).error
-      : undefined;
-  return { is422: status === 422, message };
-}
-
 export default function PortalPanelEditor({
   panelId,
   onBack,
@@ -437,9 +369,9 @@ export default function PortalPanelEditor({
         toast({ title: 'Painel publicado' });
       },
       onError: (error) => {
-        const { is422, message } = publishErrorInfo(error);
+        const { status, message } = panelErrorInfo(error);
         toast({
-          title: is422 && message ? message : 'Não foi possível publicar o painel',
+          title: status === 422 && message ? message : 'Não foi possível publicar o painel',
           variant: 'destructive',
         });
       },
@@ -669,6 +601,10 @@ export default function PortalPanelEditor({
       </div>
     );
   }
+
+  // Encarte tem editor próprio: layout, prévia no servidor e identidade da
+  // loja não cabem neste arquivo, que já serve três tipos de painel.
+  if (panel.kind === 'flyer') return <FlyerEditor panel={panel} onBack={onBack} />;
 
   const kind = panel.kind;
   const isPublished = panel.status === 'published';
@@ -1012,6 +948,9 @@ export default function PortalPanelEditor({
 
         <div>
           <div className="relative">
+            {/* Encarte nunca chega aqui: o guard acima delega para o
+                FlyerEditor antes deste JSX existir. `PanelPreview` só
+                atende os painéis que já existiam. */}
             <PanelPreview
               kind={kind}
               headline={headline.trim() === '' ? null : headline}

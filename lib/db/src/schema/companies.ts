@@ -35,6 +35,14 @@ export const companiesTable = pgTable(
     // Centro do CEP; nulos quando a API não devolve coordenada.
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    // Identidade da loja usada pelos encartes. Fica na empresa, não no
+    // painel, para todo encarte já nascer com a cara da marca.
+    logoUrl: text("logo_url"),
+    // Texto livre, até 2 linhas ("Seg a sáb 8h às 20h30").
+    openingHours: text("opening_hours"),
+    // "#RRGGBB". Nulos usam o verde/amarelo padrão do encarte.
+    brandColor: text("brand_color"),
+    brandAccentColor: text("brand_accent_color"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

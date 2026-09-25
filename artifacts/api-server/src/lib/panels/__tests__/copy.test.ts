@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Panel, PanelItem } from "@workspace/db";
 import { itemCopyValues, panelCopyValues } from "../copy";
 
-const published: Panel = {
+const basePanel: Panel = {
   id: 5,
   clientId: 7,
   kind: "promo",
@@ -16,9 +16,28 @@ const published: Panel = {
   promoStyle: "percent",
   photoOffset: 30,
   photoOffsetX: 70,
+  campaignId: null,
+  artOutdated: false,
   publishedAt: new Date("2026-09-01T12:00:00Z"),
   createdAt: new Date("2026-08-01T12:00:00Z"),
   updatedAt: new Date("2026-09-01T12:00:00Z"),
+};
+
+const published = basePanel;
+
+const baseItem: PanelItem = {
+  id: 90,
+  panelId: 5,
+  name: "Pizza",
+  description: null,
+  priceCents: 4990,
+  oldPriceCents: 5990,
+  category: "Salgadas",
+  imageUrl: "/media/pizza.png",
+  unit: null,
+  featured: false,
+  displayOrder: 2,
+  isActive: true,
 };
 
 describe("panelCopyValues", () => {
@@ -35,6 +54,8 @@ describe("panelCopyValues", () => {
       promoStyle: "percent",
       photoOffset: 30,
       photoOffsetX: 70,
+      campaignId: null,
+      artOutdated: false,
     });
   });
 
@@ -43,6 +64,13 @@ describe("panelCopyValues", () => {
     expect(values).not.toHaveProperty("id");
     expect(values).not.toHaveProperty("status");
     expect(values).not.toHaveProperty("publishedAt");
+  });
+
+  it("encarte copiado não leva a campanha da loja de origem", () => {
+    const source = { ...basePanel, kind: "flyer", campaignId: 3, artOutdated: true };
+    const values = panelCopyValues(source as never, 42);
+    expect(values.campaignId).toBeNull();
+    expect(values.artOutdated).toBe(false);
   });
 });
 
@@ -57,6 +85,8 @@ describe("itemCopyValues", () => {
       oldPriceCents: 5990,
       category: "Salgadas",
       imageUrl: "/media/pizza.png",
+      unit: null,
+      featured: false,
       displayOrder: 2,
       isActive: true,
     };
@@ -69,9 +99,16 @@ describe("itemCopyValues", () => {
         oldPriceCents: 5990,
         category: "Salgadas",
         imageUrl: "/media/pizza.png",
+        unit: null,
+        featured: false,
         displayOrder: 2,
         isActive: true,
       },
     ]);
+  });
+
+  it("itens copiados levam unidade e destaque", () => {
+    const [item] = itemCopyValues([{ ...baseItem, unit: "KG", featured: true }] as never, 5);
+    expect(item).toMatchObject({ unit: "KG", featured: true, panelId: 5 });
   });
 });

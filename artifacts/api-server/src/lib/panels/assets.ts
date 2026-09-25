@@ -59,17 +59,25 @@ export async function panelFonts(): Promise<
   Array<{
     name: string;
     data: ArrayBuffer;
-    weight: 400 | 700;
+    weight: 400 | 700 | 800;
     style: "normal";
   }>
 > {
-  const [interRegular, interBold, fredokaRegular, fredokaBold] = await Promise.all([
+  const [interRegular, interBold, fredokaRegular, fredokaBold, barlowBold, barlowExtraBold] = await Promise.all([
     bytes(() => import("../../../assets/fonts/Inter-Regular.ttf") as never, "fonts/Inter-Regular.ttf"),
     bytes(() => import("../../../assets/fonts/Inter-Bold.ttf") as never, "fonts/Inter-Bold.ttf"),
     // Fredoka só no slide de promoção. woff estático: o Google Fonts publica a
     // Fredoka só como fonte variável, e o satori não instancia peso de variável.
     bytes(() => import("../../../assets/fonts/Fredoka-Regular.woff") as never, "fonts/Fredoka-Regular.woff"),
     bytes(() => import("../../../assets/fonts/Fredoka-Bold.woff") as never, "fonts/Fredoka-Bold.woff"),
+    // Barlow Condensed só no encarte: condensada e pesada como o folheto de
+    // referência, nome longo cabe em card estreito. woff estático pelo mesmo
+    // motivo da Fredoka.
+    bytes(() => import("../../../assets/fonts/BarlowCondensed-Bold.woff") as never, "fonts/BarlowCondensed-Bold.woff"),
+    bytes(
+      () => import("../../../assets/fonts/BarlowCondensed-ExtraBold.woff") as never,
+      "fonts/BarlowCondensed-ExtraBold.woff",
+    ),
   ]);
   const toArrayBuffer = (b: Buffer): ArrayBuffer =>
     b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
@@ -78,6 +86,8 @@ export async function panelFonts(): Promise<
     { name: "Inter", data: toArrayBuffer(interBold), weight: 700, style: "normal" },
     { name: "Fredoka", data: toArrayBuffer(fredokaRegular), weight: 400, style: "normal" },
     { name: "Fredoka", data: toArrayBuffer(fredokaBold), weight: 700, style: "normal" },
+    { name: "Barlow Condensed", data: toArrayBuffer(barlowBold), weight: 700, style: "normal" },
+    { name: "Barlow Condensed", data: toArrayBuffer(barlowExtraBold), weight: 800, style: "normal" },
   ];
 }
 

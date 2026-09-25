@@ -38,6 +38,8 @@ vi.mock("../../lib/panels/queries", () => ({
   replaceItems: vi.fn(),
   deletePanel: vi.fn(),
   panelClientId: vi.fn(),
+  campaignOptionsForClient: vi.fn(),
+  campaignBelongsToClient: vi.fn(),
 }));
 // panels.ts também importa lib/panels/publish, que puxa @workspace/db no
 // topo. Mesmo motivo do mock acima: este arquivo nunca chama publicar/
@@ -53,6 +55,16 @@ vi.mock("../../lib/panels/publish", () => ({
       super(message);
     }
   },
+}));
+// panels.ts também importa store-identity.ts e flyer-preview.ts, ambos
+// puxando @workspace/db. Mesmo motivo dos mocks acima.
+vi.mock("../../lib/panels/store-identity", () => ({
+  getStoreIdentity: vi.fn(),
+  updateStoreIdentity: vi.fn(),
+}));
+vi.mock("../../lib/panels/flyer-preview", () => ({
+  renderFlyerPreview: vi.fn(),
+  FlyerCampaignMismatchError: class extends Error {},
 }));
 
 async function buildApp(): Promise<Express> {

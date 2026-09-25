@@ -50,6 +50,7 @@ import type {
   ListCompaniesParams,
   ListDevicesParams,
   Panel,
+  PanelCampaignOption,
   PanelItem,
   PlayBatchInput,
   PlayBatchResult,
@@ -68,7 +69,9 @@ import type {
   ResetUserPassword200,
   Segment,
   SegmentInput,
+  StoreIdentity,
   UpdatePanelRequest,
+  UpdateStoreIdentityRequest,
   UploadClientPanelImage201,
   UploadPanelImageRequest,
   UserAccount,
@@ -4689,5 +4692,231 @@ export const useUploadClientPanelImage = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUploadClientPanelImageMutationOptions(options));
+    }
+
+export const getListClientPanelCampaignOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/client/panels/${id}/campaign-options`
+}
+
+/**
+ * @summary Campanhas da mesma empresa em que o encarte pode ser publicado
+ */
+export const listClientPanelCampaignOptions = async (id: number, options?: RequestInit): Promise<PanelCampaignOption[]> => {
+
+  return customFetch<PanelCampaignOption[]>(getListClientPanelCampaignOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientPanelCampaignOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/portal/client/panels/${id}/campaign-options`
+    ] as const;
+    }
+
+
+export const getListClientPanelCampaignOptionsQueryOptions = <TData = Awaited<ReturnType<typeof listClientPanelCampaignOptions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanelCampaignOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientPanelCampaignOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientPanelCampaignOptions>>> = ({ signal }) => listClientPanelCampaignOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientPanelCampaignOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientPanelCampaignOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientPanelCampaignOptions>>>
+export type ListClientPanelCampaignOptionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Campanhas da mesma empresa em que o encarte pode ser publicado
+ */
+
+export function useListClientPanelCampaignOptions<TData = Awaited<ReturnType<typeof listClientPanelCampaignOptions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientPanelCampaignOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientPanelCampaignOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClientStoreIdentityUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/portal/client/stores/${clientId}/identity`
+}
+
+/**
+ * @summary Identidade da loja usada nos encartes
+ */
+export const getClientStoreIdentity = async (clientId: number, options?: RequestInit): Promise<StoreIdentity> => {
+
+  return customFetch<StoreIdentity>(getGetClientStoreIdentityUrl(clientId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientStoreIdentityQueryKey = (clientId: number,) => {
+    return [
+    `/api/portal/client/stores/${clientId}/identity`
+    ] as const;
+    }
+
+
+export const getGetClientStoreIdentityQueryOptions = <TData = Awaited<ReturnType<typeof getClientStoreIdentity>>, TError = ErrorType<void>>(clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientStoreIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientStoreIdentityQueryKey(clientId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientStoreIdentity>>> = ({ signal }) => getClientStoreIdentity(clientId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clientId !== null && clientId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientStoreIdentity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientStoreIdentityQueryResult = NonNullable<Awaited<ReturnType<typeof getClientStoreIdentity>>>
+export type GetClientStoreIdentityQueryError = ErrorType<void>
+
+
+/**
+ * @summary Identidade da loja usada nos encartes
+ */
+
+export function useGetClientStoreIdentity<TData = Awaited<ReturnType<typeof getClientStoreIdentity>>, TError = ErrorType<void>>(
+ clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientStoreIdentity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientStoreIdentityQueryOptions(clientId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateClientStoreIdentityUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/portal/client/stores/${clientId}/identity`
+}
+
+/**
+ * @summary Atualiza logo, cores e horário da loja
+ */
+export const updateClientStoreIdentity = async (clientId: number,
+    updateStoreIdentityRequest: UpdateStoreIdentityRequest, options?: RequestInit): Promise<StoreIdentity> => {
+
+  return customFetch<StoreIdentity>(getUpdateClientStoreIdentityUrl(clientId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateStoreIdentityRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateClientStoreIdentityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientStoreIdentity>>, TError,{clientId: number;data: BodyType<UpdateStoreIdentityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClientStoreIdentity>>, TError,{clientId: number;data: BodyType<UpdateStoreIdentityRequest>}, TContext> => {
+
+const mutationKey = ['updateClientStoreIdentity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClientStoreIdentity>>, {clientId: number;data: BodyType<UpdateStoreIdentityRequest>}> = (props) => {
+          const {clientId,data} = props ?? {};
+
+          return  updateClientStoreIdentity(clientId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClientStoreIdentityMutationResult = NonNullable<Awaited<ReturnType<typeof updateClientStoreIdentity>>>
+    export type UpdateClientStoreIdentityMutationBody = BodyType<UpdateStoreIdentityRequest>
+    export type UpdateClientStoreIdentityMutationError = ErrorType<void>
+
+    /**
+ * @summary Atualiza logo, cores e horário da loja
+ */
+export const useUpdateClientStoreIdentity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClientStoreIdentity>>, TError,{clientId: number;data: BodyType<UpdateStoreIdentityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClientStoreIdentity>>,
+        TError,
+        {clientId: number;data: BodyType<UpdateStoreIdentityRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateClientStoreIdentityMutationOptions(options));
     }
 

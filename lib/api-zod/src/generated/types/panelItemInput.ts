@@ -28,4 +28,7 @@ export interface PanelItemInput {
   category?: string | null;
   /** @maxLength 500 */
   imageUrl?: string | null;
+  /** @maxLength 12 */
+  unit?: string | null;
+  featured?: boolean;
 }

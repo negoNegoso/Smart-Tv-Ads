@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   db,
@@ -17,6 +17,7 @@ import {
 import { generateScanCode } from "@workspace/db/scan-code";
 import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
 import { normalizeWeekdays } from "../lib/ad-eligibility";
+import { republishCampaignFlyers, unpublishCampaignFlyers } from "../lib/panels/campaign-flyers";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,24 @@ function announcementIdsFor(input: z.infer<typeof campaignInput>) {
   return [...new Set([...(input.announcementIds || []), ...(input.announcementId ? [input.announcementId] : [])])];
 }
 
+/**
+ * Peça de encarte (source = 'panel') só entra na campanha pela publicação do
+ * encarte, nunca pelo formulário. O formulário round-tripa os ids que
+ * recebeu; se o encarte foi republicado nesse meio-tempo, o id antigo nem
+ * existe mais, e inserir em campaign_announcements violaria a FK depois de
+ * campaignsTable já ter sido atualizada. Descartar aqui, antes do insert e
+ * do notInArray, evita a escrita parcial.
+ */
+async function dropPanelAnnouncementIds(ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return ids;
+  const panelRows = await db
+    .select({ id: announcementsTable.id })
+    .from(announcementsTable)
+    .where(and(inArray(announcementsTable.id, ids), eq(announcementsTable.source, "panel")));
+  const panelIds = new Set(panelRows.map((r) => r.id));
+  return ids.filter((id) => !panelIds.has(id));
+}
+
 async function syncAnnouncementDestinations(campaignId: number, destinations: Record<string, string>) {
   for (const [announcementId, url] of Object.entries(destinations)) {
     const id = Number(announcementId);
@@ -121,8 +140,10 @@ const campaignSelection = {
   advertiserName: companiesTable.name,
   company: advertisersTable.company,
   deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-  announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-  announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), array[]::text[])`,
+  // Peça de encarte (source = 'panel') não vai para o formulário: ele não a
+  // conhece e reenviaria o id de volta no PATCH (ver dropPanelAnnouncementIds).
+  announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id} and an.source <> 'panel'), array[]::int[])`,
+  announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id} and an.source <> 'panel'), array[]::text[])`,
   name: campaignsTable.name,
   contractValue: campaignsTable.contractValue,
   startsAt: campaignsTable.startsAt,
@@ -249,11 +270,9 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     return;
   }
   const input = parsed.data;
-  const announcementIds = announcementIdsFor(input);
-  if (announcementIds.length === 0) {
-    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
-    return;
-  }
+  // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
+  // receber um encarte, cujas peças entram na publicação do encarte.
+  const announcementIds = await dropPanelAnnouncementIds(announcementIdsFor(input));
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
@@ -274,9 +293,11 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
   }).returning();
-  await db.insert(campaignAnnouncementsTable).values(
-    announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
-  ).onConflictDoNothing();
+  if (announcementIds.length > 0) {
+    await db.insert(campaignAnnouncementsTable).values(
+      announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
+    ).onConflictDoNothing();
+  }
   await syncAnnouncementDestinations(campaign.id, input.announcementDestinations);
   await syncCampaignTarget(campaign.id, input);
   res.status(201).json(await campaignWithStats(campaign.id));
@@ -306,11 +327,9 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     return;
   }
   const input = parsed.data;
-  const announcementIds = announcementIdsFor(input);
-  if (announcementIds.length === 0) {
-    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
-    return;
-  }
+  // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
+  // receber um encarte, cujas peças entram na publicação do encarte.
+  const announcementIds = await dropPanelAnnouncementIds(announcementIdsFor(input));
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
@@ -331,12 +350,26 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
   }).where(eq(campaignsTable.id, id));
-  await db.insert(campaignAnnouncementsTable).values(
-    announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
-  ).onConflictDoNothing();
-  await db.delete(campaignAnnouncementsTable).where(and(eq(campaignAnnouncementsTable.campaignId, id), notInArray(campaignAnnouncementsTable.announcementId, announcementIds)));
+  if (announcementIds.length > 0) {
+    await db.insert(campaignAnnouncementsTable).values(
+      announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
+    ).onConflictDoNothing();
+  }
+  // Peças de encarte entram pela publicação do encarte, não pelo formulário:
+  // o formulário não as conhece, então não pode apagá-las.
+  const panelPieces = db.select({ id: announcementsTable.id }).from(announcementsTable).where(eq(announcementsTable.source, "panel"));
+  await db.delete(campaignAnnouncementsTable).where(
+    and(
+      eq(campaignAnnouncementsTable.campaignId, id),
+      announcementIds.length > 0 ? notInArray(campaignAnnouncementsTable.announcementId, announcementIds) : undefined,
+      notInArray(campaignAnnouncementsTable.announcementId, panelPieces),
+    ),
+  );
   await syncAnnouncementDestinations(id, input.announcementDestinations);
   await syncCampaignTarget(id, input);
+  const datesChanged =
+    existing.startsAt.getTime() !== input.startsAt.getTime() || existing.endsAt.getTime() !== input.endsAt.getTime();
+  if (datesChanged) await republishCampaignFlyers(id);
   res.json(await campaignWithStats(id));
 });
 
@@ -355,11 +388,14 @@ router.post("/campaigns/:id/reset-telemetry", async (req, res): Promise<void> =>
 });
 
 router.delete("/campaigns/:id", async (req, res): Promise<void> => {
-  const [row] = await db.delete(campaignsTable).where(eq(campaignsTable.id, Number(req.params.id))).returning();
-  if (!row) {
+  const id = Number(req.params.id);
+  const [existing] = await db.select({ id: campaignsTable.id }).from(campaignsTable).where(eq(campaignsTable.id, id));
+  if (!existing) {
     res.status(404).json({ error: "Campaign not found" });
     return;
   }
+  await unpublishCampaignFlyers(id);
+  await db.delete(campaignsTable).where(eq(campaignsTable.id, id));
   res.sendStatus(204);
 });
 
