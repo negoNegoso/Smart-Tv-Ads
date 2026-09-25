@@ -18,6 +18,10 @@ export function panelCopyValues(source: Panel, clientId: number) {
     promoStyle: source.promoStyle,
     photoOffset: source.photoOffset,
     photoOffsetX: source.photoOffsetX,
+    // A campanha é da empresa de origem; na outra loja o encarte começa
+    // indo para as TVs da loja, e quem copiou escolhe a campanha de lá.
+    campaignId: null,
+    artOutdated: false,
   };
 }
 
