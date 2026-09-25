@@ -144,9 +144,17 @@ function featuredCard(l: Layout, p: FlyerPalette, item: FlyerRenderItem, width: 
       // display "block" + lineClamp: o satori corta na 2ª linha e já desenha
       // as reticências no ponto certo, em vez do maxHeight+overflow antigo,
       // que escondia o "…" do truncate() no meio da palavra (fix1.md #3).
+      // wordBreak "break-word" (não "break-all"): quebra só a palavra que não
+      // cabe sozinha na linha — "break-all" quebrava toda palavra no meio,
+      // mesmo cabendo inteira (achado da revisão 2). No código-fonte do
+      // satori instalado (Ts()/gc() em dist/index.js), "break-all" trata cada
+      // caractere como unidade de quebra (grapheme), enquanto "break-word"
+      // cai no quebra-linha padrão por palavra e só força quebra no meio
+      // quando uma palavra sozinha estoura a linha — exatamente o caso do
+      // nome de 60 caracteres sem espaço.
       text(truncate(item.name.toUpperCase(), MAX_NAME), {
         display: "block", fontSize: l.featuredName, fontWeight: 700, color: p.textOnBand, textAlign: "center",
-        lineHeight: 1.1, lineClamp: 2, flexShrink: 0, wordBreak: "break-all",
+        lineHeight: 1.1, lineClamp: 2, flexShrink: 0, wordBreak: "break-word",
       }),
       price(item, l.featuredPrice, p.priceOnBand, p.textOnBand, "center"),
     ].filter(Boolean),
@@ -166,11 +174,12 @@ function gridCard(l: Layout, p: FlyerPalette, item: FlyerRenderItem, width: numb
       node("div", {
         style: { display: "flex", flexDirection: "column", alignItems: hasPhoto ? "flex-start" : "center", flex: 1, gap: 6 },
         children: [
-          // Mesma técnica de lineClamp do destaque (fix1.md #3): 2 linhas no
-          // máximo, com reticências visíveis se cortar.
+          // Mesma técnica de lineClamp e wordBreak do destaque (fix1.md #3,
+          // revisão 2): 2 linhas no máximo, reticências visíveis se cortar, e
+          // quebra no meio da palavra só quando ela sozinha não cabe na linha.
           text(truncate(item.name.toUpperCase(), MAX_NAME), {
             display: "block", fontSize: l.gridName, fontWeight: 700, color: p.textOnBackground, lineHeight: 1.1,
-            lineClamp: 2, textAlign: hasPhoto ? "left" : "center", flexShrink: 0, wordBreak: "break-all",
+            lineClamp: 2, textAlign: hasPhoto ? "left" : "center", flexShrink: 0, wordBreak: "break-word",
           }),
           price(item, l.gridPrice, p.priceOnBackground, p.textOnBackground, hasPhoto ? "flex-start" : "center"),
         ],
