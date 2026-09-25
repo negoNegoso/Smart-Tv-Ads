@@ -1,19 +1,40 @@
-import { useEffect, useState } from 'react';
-import { QrCode, RectangleHorizontal, RectangleVertical } from 'lucide-react';
-import { LANDING } from '@/lib/landing-content';
-import { mediaUrl } from '@/lib/media-url';
-import { cn } from '@/lib/utils';
-import { usePublicPieces, type PublicPiece } from '@/hooks/use-public-pieces';
+import { useEffect, useState } from "react";
+import {
+  Image,
+  Newspaper,
+  PlayCircle,
+  QrCode,
+  RectangleHorizontal,
+  RectangleVertical,
+} from "lucide-react";
+import { LANDING } from "@/lib/landing-content";
+import { mediaUrl } from "@/lib/media-url";
+import { cn } from "@/lib/utils";
+import { usePublicPieces, type PublicPiece } from "@/hooks/use-public-pieces";
 
-type Orientation = PublicPiece['orientation'];
+type Orientation = PublicPiece["orientation"];
 
 /** Tempo de cada peça na tela; mais curto que na TV, para quem só passa o olho. */
 export const TV_MOCKUP_INTERVAL_MS = 5000;
 
-const ORIENTATIONS: Array<{ id: Orientation; label: string; Icon: typeof RectangleHorizontal }> = [
-  { id: 'landscape', label: LANDING.mockup.landscape, Icon: RectangleHorizontal },
-  { id: 'portrait', label: LANDING.mockup.portrait, Icon: RectangleVertical },
+const ORIENTATIONS: Array<{
+  id: Orientation;
+  label: string;
+  Icon: typeof RectangleHorizontal;
+}> = [
+  {
+    id: "landscape",
+    label: LANDING.mockup.landscape,
+    Icon: RectangleHorizontal,
+  },
+  { id: "portrait", label: LANDING.mockup.portrait, Icon: RectangleVertical },
 ];
+
+const KIND_ICON: Record<PublicPiece["kind"], typeof Image> = {
+  image: Image,
+  video: PlayCircle,
+  flyer: Newspaper,
+};
 
 /**
  * A TV rodando as peças que já estão no ar na rede, desenhada em CSS.
@@ -28,7 +49,7 @@ const ORIENTATIONS: Array<{ id: Orientation; label: string; Icon: typeof Rectang
  */
 export function TvMockup() {
   const { data } = usePublicPieces();
-  const [orientation, setOrientation] = useState<Orientation>('landscape');
+  const [orientation, setOrientation] = useState<Orientation>("landscape");
   const [index, setIndex] = useState(0);
 
   const pieces = (data ?? []).filter((p) => p.orientation === orientation);
@@ -41,41 +62,60 @@ export function TvMockup() {
 
   useEffect(() => {
     if (count < 2) return;
-    const id = window.setInterval(() => setIndex((i) => (i + 1) % count), TV_MOCKUP_INTERVAL_MS);
+    const id = window.setInterval(
+      () => setIndex((i) => (i + 1) % count),
+      TV_MOCKUP_INTERVAL_MS,
+    );
     return () => window.clearInterval(id);
   }, [count, orientation]);
 
   const current = count > 0 ? pieces[index % count] : null;
   const caption = current ? current.caption : LANDING.mockup.caption;
-  const portrait = orientation === 'portrait';
+  const portrait = orientation === "portrait";
+  const KindIcon = current ? KIND_ICON[current.kind] : null;
 
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-4">
-      <div
-        role="group"
-        aria-label={LANDING.mockup.orientationLabel}
-        className="inline-flex rounded-md border border-border bg-card p-1"
-      >
-        {ORIENTATIONS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={orientation === id}
-            onClick={() => setOrientation(id)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors',
-              orientation === id
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+      <div className="flex w-full flex-wrap items-center justify-center gap-3">
+        <div
+          role="group"
+          aria-label={LANDING.mockup.orientationLabel}
+          className="inline-flex rounded-md border border-border bg-card p-1"
+        >
+          {ORIENTATIONS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={orientation === id}
+              onClick={() => setOrientation(id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors",
+                orientation === id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Acompanha a peça da tela: muda junto no rodízio. Sem peça real, some. */}
+        {current && KindIcon ? (
+          <span
+            data-testid="tv-kind"
+            aria-live="polite"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
           >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {label}
-          </button>
-        ))}
+            <span className="sr-only">{LANDING.mockup.kindLabel}: </span>
+            <KindIcon className="h-4 w-4 text-primary" aria-hidden="true" />
+            {LANDING.mockup.kinds[current.kind]}
+          </span>
+        ) : null}
       </div>
 
-      <div className={cn('w-full', portrait && 'max-w-[15rem]')}>
+      <div className={cn("w-full", portrait && "max-w-[15rem]")}>
         <div className="rounded-xl border-4 border-neutral-800 bg-neutral-800 shadow-lg">
           <div
             role="img"
@@ -83,12 +123,12 @@ export function TvMockup() {
             data-testid="tv-screen"
             data-orientation={orientation}
             className={cn(
-              'relative overflow-hidden rounded-md bg-black',
-              portrait ? 'aspect-[9/16]' : 'aspect-video',
+              "relative overflow-hidden rounded-md bg-black",
+              portrait ? "aspect-[9/16]" : "aspect-video",
               count === 0 &&
-                'bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.55),transparent_60%)]',
+                "bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.55),transparent_60%)]",
             )}
-            style={{ containerType: 'size' }}
+            style={{ containerType: "size" }}
           >
             {/* Todas empilhadas: a troca é só de opacidade, sem piscar esperando carregar. */}
             {pieces.map((piece, i) => (
@@ -98,8 +138,8 @@ export function TvMockup() {
                 alt=""
                 data-active={i === index % count}
                 className={cn(
-                  'absolute inset-0 h-full w-full object-cover transition-opacity duration-700 motion-reduce:transition-none',
-                  i === index % count ? 'opacity-100' : 'opacity-0',
+                  "absolute inset-0 h-full w-full object-cover transition-opacity duration-700 motion-reduce:transition-none",
+                  i === index % count ? "opacity-100" : "opacity-0",
                 )}
               />
             ))}

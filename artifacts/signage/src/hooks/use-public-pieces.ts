@@ -4,6 +4,7 @@ export interface PublicPiece {
   imageUrl: string;
   caption: string | null;
   orientation: 'landscape' | 'portrait';
+  kind: 'image' | 'video' | 'flyer';
 }
 
 /**

@@ -38,7 +38,8 @@ export const GetPublicPiecesResponse = zod.object({
   "pieces": zod.array(zod.object({
   "imageUrl": zod.string(),
   "caption": zod.string().nullable(),
-  "orientation": zod.enum(['landscape', 'portrait'])
+  "orientation": zod.enum(['landscape', 'portrait']),
+  "kind": zod.enum(['image', 'video', 'flyer'])
 }))
 })
 

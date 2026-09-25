@@ -56,6 +56,8 @@ export const LANDING = {
     landscape: 'Horizontal',
     portrait: 'Vertical',
     screenLabel: 'TV exibindo anúncios da rede',
+    kindLabel: 'Tipo da peça',
+    kinds: { image: 'Imagem', video: 'Vídeo', flyer: 'Encarte' },
   },
   cobertura: {
     title: 'Onde a sua marca aparece',

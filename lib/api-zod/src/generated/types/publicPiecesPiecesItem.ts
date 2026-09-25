@@ -5,10 +5,12 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { PublicPiecesPiecesItemKind } from './publicPiecesPiecesItemKind';
 import type { PublicPiecesPiecesItemOrientation } from './publicPiecesPiecesItemOrientation';
 
 export type PublicPiecesPiecesItem = {
   imageUrl: string;
   caption: string | null;
   orientation: PublicPiecesPiecesItemOrientation;
+  kind: PublicPiecesPiecesItemKind;
 };

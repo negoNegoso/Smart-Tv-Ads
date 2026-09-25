@@ -30,10 +30,20 @@ export const PublicPiecesPiecesItemOrientation = {
   portrait: 'portrait',
 } as const;
 
+export type PublicPiecesPiecesItemKind = typeof PublicPiecesPiecesItemKind[keyof typeof PublicPiecesPiecesItemKind];
+
+
+export const PublicPiecesPiecesItemKind = {
+  image: 'image',
+  video: 'video',
+  flyer: 'flyer',
+} as const;
+
 export type PublicPiecesPiecesItem = {
   imageUrl: string;
   caption: string | null;
   orientation: PublicPiecesPiecesItemOrientation;
+  kind: PublicPiecesPiecesItemKind;
 };
 
 export interface PublicPieces {

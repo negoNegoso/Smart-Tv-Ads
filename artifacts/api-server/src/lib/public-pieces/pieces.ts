@@ -5,7 +5,10 @@ export interface PublicPiece {
   imageUrl: string;
   caption: string | null;
   orientation: "landscape" | "portrait";
+  kind: PublicPieceKind;
 }
+
+export type PublicPieceKind = "image" | "video" | "flyer";
 
 /** O que a consulta traz de cada peça no ar. */
 export interface PublicPieceRow {
@@ -16,6 +19,18 @@ export interface PublicPieceRow {
   showText: boolean;
   displayText: string | null;
   orientation: string;
+  source: string;
+}
+
+/**
+ * Encarte primeiro: página de encarte é imagem, mas quem vê reconhece como
+ * encarte de ofertas. Playlist conta como vídeo (só chega aqui com imagem
+ * própria).
+ */
+export function pieceKind(row: Pick<PublicPieceRow, "mediaKind" | "source">): PublicPieceKind {
+  if (row.source === "panel") return "flyer";
+  if (row.mediaKind === "youtube_video" || row.mediaKind === "youtube_playlist") return "video";
+  return "image";
 }
 
 /**
@@ -62,6 +77,7 @@ export function publicPiecesFromRows(
       imageUrl,
       caption: resolveSlideCaption({ showText: row.showText, displayText: row.displayText }),
       orientation,
+      kind: pieceKind(row),
     });
   }
 

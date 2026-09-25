@@ -45,6 +45,7 @@ export function buildPublicPiecesQuery(now: Date) {
       showText: announcementsTable.showText,
       displayText: announcementsTable.displayText,
       orientation: announcementsTable.orientation,
+      source: announcementsTable.source,
     })
     .from(announcementsTable)
     .where(

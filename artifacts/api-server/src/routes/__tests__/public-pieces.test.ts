@@ -47,8 +47,8 @@ describe("GET /public/pieces", () => {
 
   it("responde as peças no ar", async () => {
     publicPieces.mockResolvedValue([
-      { imageUrl: "/api/storage/objects/a.jpg", caption: "Pão quente", orientation: "landscape" },
-      { imageUrl: "/api/storage/objects/b.jpg", caption: null, orientation: "portrait" },
+      { imageUrl: "/api/storage/objects/a.jpg", caption: "Pão quente", orientation: "landscape", kind: "image" },
+      { imageUrl: "/api/storage/objects/b.jpg", caption: null, orientation: "portrait", kind: "flyer" },
     ]);
     const res = await get();
     expect(res.status).toBe(200);
@@ -57,6 +57,7 @@ describe("GET /public/pieces", () => {
       imageUrl: "/api/storage/objects/b.jpg",
       caption: null,
       orientation: "portrait",
+      kind: "flyer",
     });
   });
 
@@ -64,10 +65,10 @@ describe("GET /public/pieces", () => {
     // Linha suja de propósito: título interno e anunciante nunca podem sair
     // numa rota sem sessão; quem barra é o schema da rota.
     publicPieces.mockResolvedValue([
-      { imageUrl: "/a.jpg", caption: null, orientation: "landscape", title: "Rascunho", advertiser: "Padaria" },
+      { imageUrl: "/a.jpg", caption: null, orientation: "landscape", kind: "image", title: "Rascunho", advertiser: "Padaria" },
     ]);
     const res = await get();
-    expect(res.body.pieces[0]).toEqual({ imageUrl: "/a.jpg", caption: null, orientation: "landscape" });
+    expect(res.body.pieces[0]).toEqual({ imageUrl: "/a.jpg", caption: null, orientation: "landscape", kind: "image" });
   });
 
   it("permite cache no CDN e não exige sessão", async () => {

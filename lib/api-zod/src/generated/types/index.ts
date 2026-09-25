@@ -69,6 +69,7 @@ export * from './portalClient';
 export * from './portalDevice';
 export * from './publicPieces';
 export * from './publicPiecesPiecesItem';
+export * from './publicPiecesPiecesItemKind';
 export * from './publicPiecesPiecesItemOrientation';
 export * from './publicStats';
 export * from './publicStatsCitiesItem';

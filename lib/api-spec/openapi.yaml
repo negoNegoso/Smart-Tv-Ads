@@ -1240,11 +1240,14 @@ components:
           type: array
           items:
             type: object
-            required: [imageUrl, caption, orientation]
+            required: [imageUrl, caption, orientation, kind]
             properties:
               imageUrl: { type: string }
               caption: { type: string, nullable: true }
               orientation: { type: string, enum: [landscape, portrait] }
+              # Formato que o visitante reconhece: vídeo do YouTube, encarte
+              # gerado por painel do cliente ou imagem avulsa.
+              kind: { type: string, enum: [image, video, flyer] }
 
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:

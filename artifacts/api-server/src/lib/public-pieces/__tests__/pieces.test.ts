@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicPiecesFromRows, type PublicPieceRow } from "../pieces";
+import { pieceKind, publicPiecesFromRows, type PublicPieceRow } from "../pieces";
 
 function row(over: Partial<PublicPieceRow> = {}): PublicPieceRow {
   return {
@@ -10,6 +10,7 @@ function row(over: Partial<PublicPieceRow> = {}): PublicPieceRow {
     showText: true,
     displayText: "Promoção de pão",
     orientation: "landscape",
+    source: "admin",
     ...over,
   };
 }
@@ -21,6 +22,7 @@ describe("publicPiecesFromRows", () => {
       imageUrl: "/api/storage/objects/a.jpg",
       caption: "Promoção de pão",
       orientation: "landscape",
+      kind: "image",
     });
   });
 
@@ -62,5 +64,20 @@ describe("publicPiecesFromRows", () => {
     const pieces = publicPiecesFromRows(rows, 2);
     expect(pieces.filter((p) => p.orientation === "landscape")).toHaveLength(2);
     expect(pieces.filter((p) => p.orientation === "portrait")).toHaveLength(1);
+  });
+});
+
+describe("pieceKind", () => {
+  it("peça de painel é encarte, mesmo sendo imagem", () => {
+    expect(pieceKind({ mediaKind: "image", source: "panel" })).toBe("flyer");
+  });
+
+  it("vídeo e playlist do YouTube são vídeo", () => {
+    expect(pieceKind({ mediaKind: "youtube_video", source: "admin" })).toBe("video");
+    expect(pieceKind({ mediaKind: "youtube_playlist", source: "admin" })).toBe("video");
+  });
+
+  it("o resto é imagem", () => {
+    expect(pieceKind({ mediaKind: "image", source: "admin" })).toBe("image");
   });
 });
