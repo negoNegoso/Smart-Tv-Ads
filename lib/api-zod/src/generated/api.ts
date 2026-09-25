@@ -32,6 +32,19 @@ export const GetPublicStatsResponse = zod.object({
 
 
 /**
+ * @summary Pieces on air, for the TV on the public landing page
+ */
+export const GetPublicPiecesResponse = zod.object({
+  "pieces": zod.array(zod.object({
+  "imageUrl": zod.string(),
+  "caption": zod.string().nullable(),
+  "orientation": zod.enum(['landscape', 'portrait']),
+  "kind": zod.enum(['image', 'video', 'flyer'])
+}))
+})
+
+
+/**
  * @summary List all announcements
  */
 export const ListAnnouncementsResponseItem = zod.object({

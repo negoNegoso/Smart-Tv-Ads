@@ -48,6 +48,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicStats"
 
+  /public/pieces:
+    get:
+      operationId: getPublicPieces
+      tags: [public]
+      summary: Pieces on air, for the TV on the public landing page
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPieces"
+
   # ── Announcements (global media library) ────────────────────────────────────
   /announcements:
     get:
@@ -1215,6 +1228,26 @@ components:
             properties:
               ibge: { type: string }
               companies: { type: integer }
+
+    # Peças que já estão no ar nas TVs, para a TV de demonstração da landing.
+    # Só imagem, legenda que a TV já mostra e orientação: título interno,
+    # anunciante, campanha e QR nunca saem desta rota.
+    PublicPieces:
+      type: object
+      required: [pieces]
+      properties:
+        pieces:
+          type: array
+          items:
+            type: object
+            required: [imageUrl, caption, orientation, kind]
+            properties:
+              imageUrl: { type: string }
+              caption: { type: string, nullable: true }
+              orientation: { type: string, enum: [landscape, portrait] }
+              # Formato que o visitante reconhece: vídeo do YouTube, encarte
+              # gerado por painel do cliente ou imagem avulsa.
+              kind: { type: string, enum: [image, video, flyer] }
 
     # ── Announcements ────────────────────────────────────────────────────────
     Announcement:
