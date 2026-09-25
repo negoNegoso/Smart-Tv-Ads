@@ -52,6 +52,10 @@ export const LANDING = {
   mockup: {
     caption: 'Seu anúncio aqui',
     qrLabel: 'SAIBA +',
+    orientationLabel: 'Orientação da TV',
+    landscape: 'Horizontal',
+    portrait: 'Vertical',
+    screenLabel: 'TV exibindo anúncios da rede',
   },
   cobertura: {
     title: 'Onde a sua marca aparece',
