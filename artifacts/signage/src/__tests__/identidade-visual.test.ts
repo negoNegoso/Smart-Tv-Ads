@@ -1,11 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * O logo mestre (brand/logo.svg) é copiado para lugares que não importam
- * TypeScript: os vector drawables do app Android. Este teste garante que as
- * cópias continuam iguais ao mestre.
+ * Guarda da identidade visual. O logo mestre (brand/logo.svg) é copiado para
+ * lugares que não importam TypeScript — os vector drawables do app Android —
+ * e este teste confere as cópias. Também varre a plataforma atrás de restos
+ * da identidade antiga (laranja, ultramarine, índigo, ícone MonitorPlay).
  */
 const REPO = resolve(import.meta.dirname, '../../../..');
 const ler = (p: string) => readFileSync(resolve(REPO, p), 'utf8');
@@ -29,5 +30,33 @@ describe('app Android com a marca nova', () => {
 
   it('nome do app é Smart Vale TV', () => {
     expect(ler(`${RES}/values/strings.xml`)).toContain('<string name="app_name">Smart Vale TV</string>');
+  });
+});
+
+/** Tudo que é da plataforma (não de cliente) e pode carregar cor de marca. */
+function arquivos(dir: string): string[] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) return n === '__tests__' || n === 'node_modules' ? [] : arquivos(p);
+    return /\.(tsx?|css|html)$/.test(n) ? [p] : [];
+  });
+}
+
+// Conteúdo de cliente escolhe as próprias cores; não é marca da plataforma.
+const CLIENTE = /components\/flyer\/|lib\/promo-visual\.ts$|lib\/flyer-status\.ts$/;
+
+describe('sem resto da identidade antiga', () => {
+  const alvos = [
+    ...arquivos(resolve(REPO, 'artifacts/signage/src')),
+    ...arquivos(resolve(REPO, 'artifacts/signage/public')),
+    resolve(REPO, 'artifacts/signage/index.html'),
+    resolve(REPO, 'marketing/estilo.css'),
+  ].filter((f) => !CLIENTE.test(f));
+
+  const ANTIGAS = [/#ff3c00/i, /#3d00ff/i, /#4f46e5/i, /indigo-\d/, /248 100%/, /MonitorPlay/];
+
+  it.each(alvos.map((f) => [f.replace(REPO + '/', ''), f]))('%s', (_rel, f) => {
+    const texto = readFileSync(f, 'utf8');
+    expect(ANTIGAS.filter((re) => re.test(texto)).map(String)).toEqual([]);
   });
 });
