@@ -22,6 +22,24 @@ export interface PublicStats {
   cities: PublicStatsCitiesItem[];
 }
 
+export type PublicPiecesPiecesItemOrientation = typeof PublicPiecesPiecesItemOrientation[keyof typeof PublicPiecesPiecesItemOrientation];
+
+
+export const PublicPiecesPiecesItemOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
+
+export type PublicPiecesPiecesItem = {
+  imageUrl: string;
+  caption: string | null;
+  orientation: PublicPiecesPiecesItemOrientation;
+};
+
+export interface PublicPieces {
+  pieces: PublicPiecesPiecesItem[];
+}
+
 export interface Announcement {
   id: number;
   title: string;

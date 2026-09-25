@@ -61,6 +61,7 @@ import type {
   PortalCampaign,
   PortalClient,
   PortalDevice,
+  PublicPieces,
   PublicStats,
   PublishPanelResponse,
   ReorderInput,
@@ -249,6 +250,83 @@ export function useGetPublicStats<TData = Awaited<ReturnType<typeof getPublicSta
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPublicStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicPiecesUrl = () => {
+
+
+
+
+  return `/api/public/pieces`
+}
+
+/**
+ * @summary Pieces on air, for the TV on the public landing page
+ */
+export const getPublicPieces = async ( options?: RequestInit): Promise<PublicPieces> => {
+
+  return customFetch<PublicPieces>(getGetPublicPiecesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicPiecesQueryKey = () => {
+    return [
+    `/api/public/pieces`
+    ] as const;
+    }
+
+
+export const getGetPublicPiecesQueryOptions = <TData = Awaited<ReturnType<typeof getPublicPieces>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicPieces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicPiecesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicPieces>>> = ({ signal }) => getPublicPieces({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicPieces>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicPiecesQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicPieces>>>
+export type GetPublicPiecesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Pieces on air, for the TV on the public landing page
+ */
+
+export function useGetPublicPieces<TData = Awaited<ReturnType<typeof getPublicPieces>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicPieces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicPiecesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
