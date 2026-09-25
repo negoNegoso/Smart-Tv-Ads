@@ -894,3 +894,28 @@ describe("tv.html: fila de exibições", () => {
     expect(fila[0][0]).not.toBe("seed00000000");
   });
 });
+
+describe('marca na tela de pareamento', () => {
+  const MESTRE = readFileSync(resolve(import.meta.dirname, '../../../../brand/logo.svg'), 'utf8');
+  const APK = readFileSync(resolve(import.meta.dirname, '../../public/apk.html'), 'utf8');
+  const caminhos = Array.from(MESTRE.matchAll(/ d="([^"]+)"/g), (m) => m[1]);
+
+  it('tv.html e apk.html trazem o logo com os paths do mestre', () => {
+    expect(caminhos).toHaveLength(5);
+    for (const d of caminhos) {
+      expect(HTML).toContain(`d="${d}"`);
+      expect(APK).toContain(`d="${d}"`);
+    }
+  });
+
+  it('o logo do tv.html não depende de var() nem currentColor (WebView antigo)', () => {
+    const svg = /<div id="pair-logo">([\s\S]*?)<\/div>/.exec(HTML)?.[1] ?? '';
+    expect(svg).toContain('<svg');
+    expect(svg).not.toMatch(/var\(|currentColor/);
+  });
+
+  it('sem as cores antigas', () => {
+    for (const cor of ['#4f46e5', '#0b0f19']) expect(HTML.toLowerCase()).not.toContain(cor);
+    for (const cor of ['#3d00ff', '#0b0b14', '#15152a', '#2a2a4a', '#b9b9d4', '#d5d5ea']) expect(APK.toLowerCase()).not.toContain(cor);
+  });
+});
