@@ -30,6 +30,7 @@ const base = {
   publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
+  publishedCampaign: null,
 };
 
 const item = (name: string, order: number) => ({

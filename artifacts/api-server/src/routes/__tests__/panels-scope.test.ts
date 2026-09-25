@@ -29,6 +29,15 @@ vi.mock("../../lib/panels/queries", () => ({
   replaceItems: (...a: unknown[]) => replaceItems(...a),
   deletePanel: (...a: unknown[]) => deletePanel(...a),
   panelClientId: (...a: unknown[]) => panelClientId(...a),
+  campaignOptionsForClient: vi.fn(),
+  campaignBelongsToClient: vi.fn(),
+}));
+vi.mock("../../lib/panels/store-identity", () => ({
+  getStoreIdentity: vi.fn(),
+  updateStoreIdentity: vi.fn(),
+}));
+vi.mock("../../lib/panels/flyer-preview", () => ({
+  renderFlyerPreview: vi.fn(),
 }));
 vi.mock("../../lib/panels/publish", () => ({
   publishPanel: (...a: unknown[]) => publishPanel(...a),

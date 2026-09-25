@@ -1,8 +1,13 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import {
   db,
+  advertisersTable,
+  campaignAnnouncementsTable,
+  campaignsTable,
+  clientsTable,
   panelsTable,
   panelItemsTable,
+  panelSlidesTable,
   type Panel,
   type PanelItem,
   type PanelKind,
@@ -16,10 +21,22 @@ export interface PanelItemInput {
   oldPriceCents: number | null;
   category: string | null;
   imageUrl: string | null;
+  unit: string | null;
+  featured: boolean;
+}
+
+/** Campanha em que o painel está no ar agora — ver `publishedCampaigns`. */
+export interface PublishedCampaign {
+  id: number;
+  name: string;
+  startsAt: Date;
+  endsAt: Date;
+  isActive: boolean;
 }
 
 export interface PanelWithItems extends Panel {
   items: PanelItem[];
+  publishedCampaign: PublishedCampaign | null;
 }
 
 async function itemsOf(panelIds: number[]): Promise<Map<number, PanelItem[]>> {
@@ -38,6 +55,31 @@ async function itemsOf(panelIds: number[]): Promise<Map<number, PanelItem[]>> {
   return grouped;
 }
 
+/**
+ * Campanha em que cada painel está no ar, pela última publicação (peças em
+ * campaign_announcements). É o que o portal usa para "agendado / no ar /
+ * encerrado"; panels.campaign_id é só o destino pedido no editor.
+ */
+async function publishedCampaigns(panelIds: number[]): Promise<Map<number, PublishedCampaign>> {
+  const found = new Map<number, PublishedCampaign>();
+  if (panelIds.length === 0) return found;
+  const rows = await db
+    .selectDistinct({
+      panelId: panelSlidesTable.panelId,
+      id: campaignsTable.id,
+      name: campaignsTable.name,
+      startsAt: campaignsTable.startsAt,
+      endsAt: campaignsTable.endsAt,
+      isActive: campaignsTable.isActive,
+    })
+    .from(panelSlidesTable)
+    .innerJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.announcementId, panelSlidesTable.announcementId))
+    .innerJoin(campaignsTable, eq(campaignsTable.id, campaignAnnouncementsTable.campaignId))
+    .where(inArray(panelSlidesTable.panelId, panelIds));
+  for (const { panelId, ...campaign } of rows) found.set(panelId, campaign);
+  return found;
+}
+
 /** Painéis dos clientes informados. Lista vazia devolve lista vazia. */
 export async function listPanels(clientIds: number[]): Promise<PanelWithItems[]> {
   if (clientIds.length === 0) return [];
@@ -47,7 +89,12 @@ export async function listPanels(clientIds: number[]): Promise<PanelWithItems[]>
     .where(inArray(panelsTable.clientId, clientIds))
     .orderBy(asc(panelsTable.id));
   const items = await itemsOf(panels.map((p) => p.id));
-  return panels.map((panel) => ({ ...panel, items: items.get(panel.id) ?? [] }));
+  const campaigns = await publishedCampaigns(panels.map((p) => p.id));
+  return panels.map((panel) => ({
+    ...panel,
+    items: items.get(panel.id) ?? [],
+    publishedCampaign: campaigns.get(panel.id) ?? null,
+  }));
 }
 
 /**
@@ -57,14 +104,20 @@ export async function listPanels(clientIds: number[]): Promise<PanelWithItems[]>
 export async function listAllPanels(): Promise<PanelWithItems[]> {
   const panels = await db.select().from(panelsTable).orderBy(asc(panelsTable.id));
   const items = await itemsOf(panels.map((p) => p.id));
-  return panels.map((panel) => ({ ...panel, items: items.get(panel.id) ?? [] }));
+  const campaigns = await publishedCampaigns(panels.map((p) => p.id));
+  return panels.map((panel) => ({
+    ...panel,
+    items: items.get(panel.id) ?? [],
+    publishedCampaign: campaigns.get(panel.id) ?? null,
+  }));
 }
 
 export async function getPanel(id: number): Promise<PanelWithItems | null> {
   const [panel] = await db.select().from(panelsTable).where(eq(panelsTable.id, id));
   if (!panel) return null;
   const items = await itemsOf([panel.id]);
-  return { ...panel, items: items.get(panel.id) ?? [] };
+  const campaigns = await publishedCampaigns([panel.id]);
+  return { ...panel, items: items.get(panel.id) ?? [], publishedCampaign: campaigns.get(panel.id) ?? null };
 }
 
 export async function createPanel(input: {
@@ -91,6 +144,7 @@ export async function updatePanel(
       | "promoStyle"
       | "photoOffset"
       | "photoOffsetX"
+      | "campaignId"
     >
   >,
 ): Promise<Panel | null> {
@@ -147,7 +201,8 @@ export async function copyPanel(sourceId: number, clientIds: number[]): Promise<
         sourceItems.length === 0
           ? []
           : await tx.insert(panelItemsTable).values(itemCopyValues(sourceItems, panel.id)).returning();
-      copies.push({ ...panel, items });
+      // Cópia nasce rascunho: nunca publicada, então não há campanha no ar ainda.
+      copies.push({ ...panel, items, publishedCampaign: null });
     }
     return copies;
   });
@@ -164,4 +219,29 @@ export async function panelClientId(id: number): Promise<number | null> {
     .from(panelsTable)
     .where(and(eq(panelsTable.id, id)));
   return row?.clientId ?? null;
+}
+
+/** Campanhas de anunciante da mesma empresa da loja, ainda não encerradas — o que o seletor de destino do encarte oferece. */
+export async function campaignOptionsForClient(
+  clientId: number,
+  now: Date,
+): Promise<Array<{ id: number; name: string; startsAt: Date; endsAt: Date }>> {
+  return db
+    .select({ id: campaignsTable.id, name: campaignsTable.name, startsAt: campaignsTable.startsAt, endsAt: campaignsTable.endsAt })
+    .from(clientsTable)
+    .innerJoin(advertisersTable, eq(advertisersTable.companyId, clientsTable.companyId))
+    .innerJoin(campaignsTable, eq(campaignsTable.advertiserId, advertisersTable.id))
+    .where(and(eq(clientsTable.id, clientId), gt(campaignsTable.endsAt, now)))
+    .orderBy(asc(campaignsTable.startsAt));
+}
+
+/** Campanha de anunciante da mesma empresa da loja: a única que o encarte aceita. */
+export async function campaignBelongsToClient(campaignId: number, clientId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: campaignsTable.id })
+    .from(campaignsTable)
+    .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .innerJoin(clientsTable, eq(clientsTable.companyId, advertisersTable.companyId))
+    .where(and(eq(campaignsTable.id, campaignId), eq(clientsTable.id, clientId)));
+  return !!row;
 }

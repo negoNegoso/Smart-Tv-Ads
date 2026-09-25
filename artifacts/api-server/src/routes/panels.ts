@@ -5,6 +5,8 @@ import { z } from "zod/v4";
 import { requireClient } from "../lib/auth/middleware";
 import { canAccessPanel, resolveOwnerClientId, type PanelAuth } from "../lib/panels/ownership";
 import {
+  campaignBelongsToClient,
+  campaignOptionsForClient,
   copyPanel,
   createPanel,
   deletePanel,
@@ -16,6 +18,9 @@ import {
   updatePanel,
 } from "../lib/panels/queries";
 import { PanelRenderError, publishPanel, unpublishPanel } from "../lib/panels/publish";
+import { getStoreIdentity, updateStoreIdentity } from "../lib/panels/store-identity";
+import { FlyerCampaignMismatchError, renderFlyerPreview } from "../lib/panels/flyer-preview";
+import { MAX_FLYER_ITEMS } from "../lib/panels/flyer-paginate";
 import { sniffImageMimeType } from "../lib/image-sniff";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -31,7 +36,7 @@ const authOf = (req: Request): PanelAuth => ({
 });
 
 const createBody = z.object({
-  kind: z.enum(["menu", "promo", "notice"]),
+  kind: z.enum(["menu", "promo", "notice", "flyer"]),
   name: z.string().trim().min(1).max(80),
   template: z.string().trim().min(1).max(40),
   clientId: z.number().int().positive().optional(),
@@ -57,6 +62,9 @@ const patchBody = z.object({
   promoStyle: z.enum(PROMO_STYLES).nullable().optional(),
   photoOffset: z.number().int().min(0).max(100).nullable().optional(),
   photoOffsetX: z.number().int().min(0).max(100).nullable().optional(),
+  // Destino do encarte: null volta para as TVs da loja. A posse é conferida
+  // na rota (campaignBelongsToClient), não aqui — o zod só valida a forma.
+  campaignId: z.number().int().positive().nullable().optional(),
 });
 
 const itemsBody = z.object({
@@ -70,9 +78,48 @@ const itemsBody = z.object({
         oldPriceCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
         category: z.string().trim().max(60).nullable().default(null),
         imageUrl: z.string().trim().max(500).nullable().default(null),
+        // Só o encarte usa: "kg", "unidade"… Maiúsculas só na hora de renderizar.
+        unit: z.string().trim().max(12).nullable().default(null),
+        featured: z.boolean().default(false),
       }),
     )
     .max(200),
+});
+
+// Espelha FLYER_ORIENTATIONS de @workspace/db; importar de lá puxa a conexão no teste.
+const FLYER_ORIENTATIONS = ["landscape", "portrait"] as const;
+
+const hexColor = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/)
+  .transform((c) => c.toUpperCase());
+
+const identityBody = z.object({
+  logoUrl: z.string().trim().max(500).nullable().optional(),
+  openingHours: z.string().trim().max(120).nullable().optional(),
+  brandColor: hexColor.nullable().optional(),
+  brandAccentColor: hexColor.nullable().optional(),
+});
+
+const previewBody = z.object({
+  orientation: z.enum(FLYER_ORIENTATIONS),
+  page: z.number().int().min(1).max(20),
+  campaignId: z.number().int().positive().nullable(),
+  headline: z.string().trim().max(80).nullable(),
+  body: z.string().trim().max(300).nullable(),
+  items: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        priceCents: z.number().int().min(0).max(100_000_000),
+        oldPriceCents: z.number().int().min(0).max(100_000_000).nullable(),
+        imageUrl: z.string().trim().max(500).nullable(),
+        unit: z.string().trim().max(12).nullable(),
+        featured: z.boolean(),
+      }),
+    )
+    .max(MAX_FLYER_ITEMS),
+  identity: identityBody.optional(),
 });
 
 /**
@@ -190,8 +237,9 @@ router.post("/client/panels", async (req, res) => {
     });
     // Todo painel devolvido pela API carrega `items`, mesmo vazio: um
     // consumidor nunca deveria precisar saber qual rota devolveu o objeto
-    // para decidir se o campo existe.
-    res.status(201).json({ ...panel, items: [] });
+    // para decidir se o campo existe. Painel recém-criado nunca foi
+    // publicado, então nunca tem campanha no ar ainda.
+    res.status(201).json({ ...panel, items: [], publishedCampaign: null });
   } catch (err) {
     // Só um admin alcança isto: um usuário de cliente só resolve para um
     // clientId ao qual está vinculado. Ainda assim, um id inexistente vindo
@@ -213,6 +261,15 @@ router.patch("/client/panels/:id", requirePanelAccess, async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Dados inválidos para atualizar o painel." });
     return;
+  }
+  // null volta o encarte para as TVs da loja sem checar posse (não há dono
+  // a validar); qualquer id exige ser campanha de anunciante desta empresa.
+  if (parsed.data.campaignId != null) {
+    const clientId = await panelClientId(res.locals.panelId as number);
+    if (clientId === null || !(await campaignBelongsToClient(parsed.data.campaignId, clientId))) {
+      res.status(400).json({ error: "A campanha escolhida não é desta loja." });
+      return;
+    }
   }
   const updated = await updatePanel(res.locals.panelId as number, parsed.data);
   if (!updated) {
@@ -238,6 +295,13 @@ router.put("/client/panels/:id/items", requirePanelAccess, async (req, res) => {
   const parsed = itemsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Lista de itens inválida." });
+    return;
+  }
+  // Só o encarte tem teto de produtos: cardápio/promoção/aviso seguem com o
+  // limite de 200 do schema acima.
+  const panel = await getPanel(res.locals.panelId as number);
+  if (panel?.kind === "flyer" && parsed.data.items.length > MAX_FLYER_ITEMS) {
+    res.status(400).json({ error: `O encarte aceita até ${MAX_FLYER_ITEMS} produtos.` });
     return;
   }
   res.json(await replaceItems(res.locals.panelId as number, parsed.data.items));
@@ -328,6 +392,82 @@ router.post("/client/panels/:id/image", requirePanelAccess, uploadImage, async (
   }
   const imageUrl = await mediaStore().put(req.file.buffer, mimeType, req.file.originalname);
   res.status(201).json({ imageUrl });
+});
+
+/** Campanhas que o encarte deste painel pode escolher como destino. */
+router.get("/client/panels/:id/campaign-options", requirePanelAccess, async (_req, res) => {
+  const clientId = await panelClientId(res.locals.panelId as number);
+  res.json(clientId === null ? [] : await campaignOptionsForClient(clientId, new Date()));
+});
+
+router.post("/client/panels/:id/preview", requirePanelAccess, async (req, res) => {
+  const parsed = previewBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Dados inválidos para a prévia." });
+    return;
+  }
+  const clientId = await panelClientId(res.locals.panelId as number);
+  if (clientId === null) {
+    res.status(404).json({ error: "Painel não encontrado." });
+    return;
+  }
+  if (parsed.data.campaignId !== null && !(await campaignBelongsToClient(parsed.data.campaignId, clientId))) {
+    res.status(400).json({ error: "A campanha escolhida não é desta loja." });
+    return;
+  }
+  try {
+    const png = await renderFlyerPreview({ ...parsed.data, clientId });
+    // Prévia muda a cada tecla: nunca guardar em cache.
+    res.set("Cache-Control", "no-store").type("image/png").send(png);
+  } catch (error) {
+    // Defesa a mais: a campanha pode ter trocado de anunciante entre o
+    // check acima e o render (loadFlyerContext confere de novo).
+    if (error instanceof FlyerCampaignMismatchError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
+});
+
+/** Loja do path autorizada pela mesma regra dos painéis. */
+function requireStoreAccess(req: Request, res: Response, next: NextFunction): void {
+  const clientId = Number(req.params.clientId);
+  if (!Number.isInteger(clientId) || clientId < 1) {
+    res.status(400).json({ error: "Loja inválida." });
+    return;
+  }
+  if (!canAccessPanel(authOf(req), clientId)) {
+    res.status(403).json({ error: "Sem permissão." });
+    return;
+  }
+  res.locals.clientId = clientId;
+  next();
+}
+
+router.use("/client/stores", requireClient);
+
+router.get("/client/stores/:clientId/identity", requireStoreAccess, async (_req, res) => {
+  const identity = await getStoreIdentity(res.locals.clientId as number);
+  if (!identity) {
+    res.status(404).json({ error: "Loja não encontrada." });
+    return;
+  }
+  res.json(identity);
+});
+
+router.patch("/client/stores/:clientId/identity", requireStoreAccess, async (req, res) => {
+  const parsed = identityBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Dados inválidos para a identidade da loja." });
+    return;
+  }
+  const identity = await updateStoreIdentity(res.locals.clientId as number, parsed.data);
+  if (!identity) {
+    res.status(404).json({ error: "Loja não encontrada." });
+    return;
+  }
+  res.json(identity);
 });
 
 export default router;
