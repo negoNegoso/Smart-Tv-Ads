@@ -37,6 +37,7 @@ export function FlyerPreview({ panelId, payload }: { panelId: number; payload: F
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setState('loading');
       try {
@@ -44,20 +45,29 @@ export function FlyerPreview({ panelId, payload }: { panelId: number; payload: F
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error(String(res.status));
-        objectUrl = URL.createObjectURL(await res.blob());
-        if (!cancelled) {
-          setSrc(objectUrl);
-          setState('idle');
-        }
-      } catch {
-        if (!cancelled) setState('error');
+        const blob = await res.blob();
+        // O payload pode ter mudado (e o efeito já ter limpado) entre o
+        // fetch começar e a resposta chegar — mesmo com o abort acima, uma
+        // resposta em voo pode terminar antes de o abort surtir efeito. Sem
+        // este `if`, o createObjectURL de uma resposta já superada nunca é
+        // revogado (o cleanup já rodou e não roda de novo): um vazamento a
+        // cada troca de payload no meio de uma requisição.
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+        setState('idle');
+      } catch (erro) {
+        const abortado = erro instanceof DOMException && erro.name === 'AbortError';
+        if (!cancelled && !abortado) setState('error');
       }
     }, DEBOUNCE_MS);
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [panelId, body]);

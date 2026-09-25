@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
 import { parsePriceToCents } from '@/lib/price';
+import { panelErrorInfo } from '@/lib/panel-error';
 import {
   DEFAULT_ACCENT_COLOR,
   PROMO_PHOTO_LEFT,
@@ -275,24 +276,6 @@ function paginateMenuDrafts(items: ItemDraft[]): ItemDraft[][] {
   return pages;
 }
 
-/**
- * A biblioteca gerada não exporta a classe `ApiError` (só o tipo `ErrorType`,
- * apagado em tempo de execução), então o 422 é detectado por forma — mesma
- * técnica usada em portal-panels.tsx.
- */
-function publishErrorInfo(error: unknown): { is422: boolean; message?: string } {
-  if (typeof error !== 'object' || error === null || !('status' in error)) {
-    return { is422: false };
-  }
-  const status = (error as { status: unknown }).status;
-  const data = 'data' in error ? (error as { data: unknown }).data : undefined;
-  const message =
-    data && typeof data === 'object' && 'error' in data && typeof (data as { error: unknown }).error === 'string'
-      ? (data as { error: string }).error
-      : undefined;
-  return { is422: status === 422, message };
-}
-
 export default function PortalPanelEditor({
   panelId,
   onBack,
@@ -386,9 +369,9 @@ export default function PortalPanelEditor({
         toast({ title: 'Painel publicado' });
       },
       onError: (error) => {
-        const { is422, message } = publishErrorInfo(error);
+        const { status, message } = panelErrorInfo(error);
         toast({
-          title: is422 && message ? message : 'Não foi possível publicar o painel',
+          title: status === 422 && message ? message : 'Não foi possível publicar o painel',
           variant: 'destructive',
         });
       },

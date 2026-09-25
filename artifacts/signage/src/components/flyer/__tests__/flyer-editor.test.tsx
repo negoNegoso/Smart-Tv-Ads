@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Toaster } from '@/components/ui/toaster';
 import FlyerEditor, { draftsToItems } from '../flyer-editor';
 
 const panel = {
@@ -15,13 +16,28 @@ const panel = {
 };
 const identity = { clientId: 7, companyName: 'Mercado', logoUrl: null, openingHours: null, brandColor: null, brandAccentColor: null, address: 'Rua A, 10' };
 
-function mockFetch(overrides: { campaignOptions?: unknown[] } = {}) {
+function mockFetch(
+  overrides: {
+    campaignOptions?: unknown[];
+    /** 'network-error' simula o fetch do upload rejeitando (rede caiu), não uma resposta de erro do servidor. */
+    imageBehavior?: 'ok' | 'network-error';
+    patchError?: { status: number; error: string };
+    publishError?: { status: number; error: string };
+  } = {},
+) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url);
-    const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
     if (u.includes('/preview')) return new Response(new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }));
     if (u.includes('/campaign-options')) return json(overrides.campaignOptions ?? []);
     if (u.includes('/identity')) return json(identity);
+    if (u.includes('/image')) {
+      if (overrides.imageBehavior === 'network-error') throw new Error('Failed to fetch');
+      return json({ imageUrl: 'https://cdn.example.com/foto.png' });
+    }
+    if (u.includes('/publish') && overrides.publishError) return json({ error: overrides.publishError.error }, overrides.publishError.status);
+    if (init?.method === 'PATCH' && overrides.patchError) return json({ error: overrides.patchError.error }, overrides.patchError.status);
     if (init?.method === 'PUT') return json(panel.items);
     return json(panel);
   });
@@ -35,6 +51,17 @@ function renderEditor() {
   return render(
     <QueryClientProvider client={client}>
       <FlyerEditor panel={panel as never} onBack={vi.fn()} />
+    </QueryClientProvider>,
+  );
+}
+
+/** Com o Toaster montado — só para os testes que precisam ler a mensagem do toast na tela. */
+function renderEditorWithToaster() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <FlyerEditor panel={panel as never} onBack={vi.fn()} />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -114,5 +141,38 @@ describe('FlyerEditor', () => {
       const patch = fetchMock.mock.calls.find(([u, init]) => init?.method === 'PATCH' && String(u).includes('/identity'));
       expect(JSON.parse(String(patch![1]!.body))).toMatchObject({ brandColor: '#112233' });
     });
+  });
+
+  it('upload de foto: erro de rede mostra toast e libera o input', async () => {
+    mockFetch({ imageBehavior: 'network-error' });
+    renderEditorWithToaster();
+    await screen.findByDisplayValue('Arroz 5kg');
+    const fileInput = screen.getByLabelText(/foto de arroz 5kg/i) as HTMLInputElement;
+    const file = new File([new Uint8Array([1, 2, 3])], 'foto.png', { type: 'image/png' });
+
+    await userEvent.upload(fileInput, file);
+
+    expect(await screen.findByText(/não foi possível enviar a imagem/i)).toBeInTheDocument();
+    expect(fileInput).not.toBeDisabled();
+  });
+
+  it('salvar: mensagem específica do servidor aparece no toast', async () => {
+    mockFetch({ patchError: { status: 400, error: 'A campanha escolhida não é desta loja.' } });
+    renderEditorWithToaster();
+    await screen.findByDisplayValue('Arroz 5kg');
+
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+
+    expect(await screen.findByText('A campanha escolhida não é desta loja.')).toBeInTheDocument();
+  });
+
+  it('publicar: mensagem específica do servidor aparece no toast', async () => {
+    mockFetch({ publishError: { status: 422, error: 'O encarte aceita até 60 produtos.' } });
+    renderEditorWithToaster();
+    await screen.findByDisplayValue('Arroz 5kg');
+
+    await userEvent.click(screen.getByRole('button', { name: /publicar/i }));
+
+    expect(await screen.findByText('O encarte aceita até 60 produtos.')).toBeInTheDocument();
   });
 });

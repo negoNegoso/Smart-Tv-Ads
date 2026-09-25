@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes } from '@/lib/upload-limit';
 import { prepararImagemParaUpload } from '@/lib/image-para-renderizador';
 import { parsePriceToCents } from '@/lib/price';
+import { panelErrorInfo } from '@/lib/panel-error';
 import { FlyerItemsTable, emptyFlyerItem, MAX_FLYER_ITEMS, type FlyerItemDraft } from './flyer-items-table';
 import { FlyerDestinationField } from './flyer-destination-field';
 import { StoreIdentityCard, type IdentityDraft } from './store-identity-card';
@@ -61,6 +62,12 @@ export function draftsToItems(drafts: FlyerItemDraft[]) {
   return Object.keys(errors).length > 0 ? ({ ok: false, errors } as const) : ({ ok: true, items } as const);
 }
 
+/**
+ * Nunca rejeita: rede caindo no meio do upload (fetch ou res.json()) vira
+ * `{ error }` como qualquer outra falha, em vez de derrubar o `await` de
+ * quem chama — que, sem isso, pulava o `setUploadingIndex(null)` e travava
+ * o input de foto até recarregar a página.
+ */
 async function uploadImage(panelId: number, file: File, maxBytes: number): Promise<{ url: string } | { error: string }> {
   let arquivo: File;
   try {
@@ -70,13 +77,17 @@ async function uploadImage(panelId: number, file: File, maxBytes: number): Promi
   }
   const form = new FormData();
   form.append('image', arquivo);
-  const res = await fetch(`${import.meta.env.BASE_URL}api/portal/client/panels/${panelId}/image`, { method: 'POST', body: form });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: unknown };
-    return { error: typeof body.error === 'string' ? body.error : 'Não foi possível enviar a imagem.' };
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/portal/client/panels/${panelId}/image`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return { error: typeof body.error === 'string' ? body.error : 'Não foi possível enviar a imagem.' };
+    }
+    const { imageUrl } = (await res.json()) as { imageUrl: string };
+    return { url: imageUrl };
+  } catch {
+    return { error: 'Não foi possível enviar a imagem. Confira sua conexão.' };
   }
-  const { imageUrl } = (await res.json()) as { imageUrl: string };
-  return { url: imageUrl };
 }
 
 export default function FlyerEditor({ panel, onBack }: { panel: Panel; onBack: () => void }) {
@@ -100,10 +111,21 @@ export default function FlyerEditor({ panel, onBack }: { panel: Panel; onBack: (
   const publish = usePublishClientPanel({
     mutation: {
       onSuccess: () => { invalidate(); setDirty(false); toast({ title: 'Encarte publicado' }); },
-      onError: () => toast({ title: 'Não foi possível publicar o encarte', variant: 'destructive' }),
+      onError: (erro) => {
+        const { message } = panelErrorInfo(erro);
+        toast({ title: message ?? 'Não foi possível publicar o encarte', variant: 'destructive' });
+      },
     },
   });
-  const unpublish = useUnpublishClientPanel({ mutation: { onSuccess: invalidate } });
+  const unpublish = useUnpublishClientPanel({
+    mutation: {
+      onSuccess: invalidate,
+      onError: (erro) => {
+        const { message } = panelErrorInfo(erro);
+        toast({ title: message ?? 'Não foi possível tirar o encarte do ar', variant: 'destructive' });
+      },
+    },
+  });
 
   const touch = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setDirty(true); };
 
@@ -125,10 +147,13 @@ export default function FlyerEditor({ panel, onBack }: { panel: Panel; onBack: (
 
   async function pickImage(index: number, file: File) {
     setUploadingIndex(index);
-    const result = await uploadImage(panel.id, file, maxUploadBytes);
-    setUploadingIndex(null);
-    if ('error' in result) toast({ title: result.error, variant: 'destructive' });
-    else changeItem(index, { imageUrl: result.url });
+    try {
+      const result = await uploadImage(panel.id, file, maxUploadBytes);
+      if ('error' in result) toast({ title: result.error, variant: 'destructive' });
+      else changeItem(index, { imageUrl: result.url });
+    } finally {
+      setUploadingIndex(null);
+    }
   }
 
   async function save(): Promise<boolean> {
@@ -147,8 +172,9 @@ export default function FlyerEditor({ panel, onBack }: { panel: Panel; onBack: (
       await invalidate();
       toast({ title: 'Encarte salvo' });
       return true;
-    } catch {
-      toast({ title: 'Não foi possível salvar o encarte', variant: 'destructive' });
+    } catch (erro) {
+      const { message } = panelErrorInfo(erro);
+      toast({ title: message ?? 'Não foi possível salvar o encarte', variant: 'destructive' });
       invalidate();
       return false;
     }
