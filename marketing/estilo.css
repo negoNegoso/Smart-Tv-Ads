@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&display=swap');
+
 /*
  * Estilo das peças de divulgação (Facebook e WhatsApp).
  *
@@ -5,14 +7,12 @@
  * página responsiva: o Chrome headless recorta exatamente o viewport pedido em
  * gerar.sh. Mexer nos tamanhos aqui muda o corte lá.
  *
- * A paleta acompanha a landing: primary hsl(248 100% 50%).
+ * A paleta acompanha o logo (brand/README.md): preto, branco e teal #28D8B3.
  */
 
 :root {
-  --primary: hsl(248 100% 50%);
-  --zinc-900: hsl(240 6% 10%);
-  --zinc-600: hsl(240 4% 46%);
-  --zinc-200: hsl(240 6% 90%);
+  --teal: #28d8b3;
+  --preto: #000;
 }
 
 * {
@@ -27,7 +27,7 @@ body {
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
   display: flex;
   flex-direction: column;
 }
@@ -44,38 +44,30 @@ body.story {
   padding: 120px 80px 160px;
 }
 
-/* Peça do anunciante: fundo da marca, alto contraste no feed. */
+/* Peça do anunciante: fundo preto como o logo, teal nos destaques. */
 body.tema-marca {
-  background: var(--primary);
+  background: var(--preto);
   color: #fff;
 }
 
-/* Peça do ponto: fundo claro, oferta gratuita não precisa gritar. */
+/* Peça do ponto: fundo teal, texto preto — a oferta grátis em cor de marca. */
 body.tema-claro {
-  background: #fff;
-  color: var(--zinc-900);
+  background: var(--teal);
+  color: var(--preto);
 }
 
 .marca {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin-bottom: 20px;
 }
 
 .marca svg {
-  width: 42px;
-  height: 42px;
+  display: block;
+  height: 64px;
+  width: auto;
 }
 
-.tema-marca .marca {
-  color: #fff;
-}
-
-.tema-claro .marca {
-  color: var(--primary);
+.story .marca svg {
+  height: 80px;
 }
 
 .corpo {
@@ -89,7 +81,8 @@ body.tema-claro {
   font-size: 72px;
   font-weight: 700;
   line-height: 1.05;
-  letter-spacing: -0.03em;
+  /* A Outfit já é compacta: mais apertado que isso cola as palavras. */
+  letter-spacing: -0.005em;
   max-width: 15ch;
 }
 
@@ -107,7 +100,7 @@ body.tema-claro {
 .preco strong {
   font-size: 96px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
@@ -164,8 +157,13 @@ body.tema-claro {
   height: 38px;
 }
 
+.tema-marca .itens svg,
+.tema-marca .preco strong {
+  color: var(--teal);
+}
+
 .tema-claro .itens svg {
-  color: var(--primary);
+  color: var(--preto);
 }
 
 .cta {
@@ -185,13 +183,13 @@ body.tema-claro {
 }
 
 .tema-marca .cta {
-  background: #fff;
-  color: var(--primary);
+  background: var(--teal);
+  color: var(--preto);
 }
 
 .tema-claro .cta {
-  background: var(--primary);
-  color: #fff;
+  background: var(--preto);
+  color: var(--teal);
 }
 
 .cta svg {

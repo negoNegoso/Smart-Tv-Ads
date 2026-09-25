@@ -22,6 +22,18 @@ import { fileURLToPath } from 'node:url';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
 /**
+ * O logo vem do mestre em brand/. Na peça de fundo teal as partes brancas
+ * ("smart", "tv") e as teal ("vale", ícone) viram pretas — teal sobre teal
+ * sumiria.
+ */
+const LOGO = readFileSync(join(AQUI, '..', 'brand', 'logo.svg'), 'utf8').replace(/<title>.*?<\/title>\n?/, '');
+const MARCA = readFileSync(join(AQUI, '..', 'brand', 'logo-mark.svg'), 'utf8').replace(/<title>.*?<\/title>\n?/, '');
+
+function logoPara(tema) {
+  return tema === 'tema-claro' ? LOGO.replaceAll('#FFFFFF', '#000000').replaceAll('#28D8B3', '#000000') : LOGO;
+}
+
+/**
  * As peças saem direto para dentro do estático da signage: a página
  * /divulgacao do painel serve os downloads como asset da CDN, sem rota de API
  * no meio. São arquivos de divulgação — a URL ser pública é o comportamento
@@ -54,8 +66,6 @@ const FORMATOS = {
   feed: { largura: 1080, altura: 1080 },
   story: { largura: 1080, altura: 1920 },
 };
-
-const ICONE_TV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 7 5 3-5 3Z"/><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M12 17v4M8 21h8"/></svg>`;
 
 const ICONE_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
 
@@ -109,7 +119,7 @@ function montarHtml(peca, formato, css) {
 <style>${css}</style>
 </head>
 <body class="${formato} ${peca.tema}">
-  <div class="marca">${ICONE_TV}<span>Smart Vale TV</span></div>
+  <div class="marca">${logoPara(peca.tema)}</div>
 
   <div class="corpo">
     <h1 class="titulo">${peca.titulo}</h1>
@@ -150,6 +160,8 @@ for (const peca of PECAS) {
       '--headless=new',
       '--disable-gpu',
       '--hide-scrollbars',
+    // Dá tempo de a Outfit chegar do Google Fonts antes da captura.
+    '--virtual-time-budget=5000',
       `--force-device-scale-factor=${ESCALA}`,
       `--window-size=${largura},${altura}`,
       `--screenshot=${png2x}`,
@@ -169,4 +181,47 @@ for (const peca of PECAS) {
         `  (+ ${nome}-2x.png  ${largura * ESCALA}x${altura * ESCALA})`,
     );
   }
+}
+
+/**
+ * og.png (card do WhatsApp/Facebook) e apple-touch-icon saem do mesmo
+ * pipeline das peças para usar o logo mestre, não uma cópia desenhada à mão.
+ * WhatsApp e Facebook cacheiam o og.png por URL: link já compartilhado só
+ * mostra o card novo depois de um rescrape.
+ */
+const PUBLICO = join(AQUI, '..', 'artifacts', 'signage', 'public');
+const cssOg = readFileSync(join(AQUI, 'og.css'), 'utf8');
+
+const EXTRAS = [
+  {
+    nome: 'og',
+    largura: 1200,
+    altura: 630,
+    corpo: `<body><div class="logo">${LOGO}</div><h1>Anúncios nas telas do comércio da região</h1><p>Anuncie onde seu público já passa — ou monetize a TV do seu ponto</p></body>`,
+  },
+  {
+    nome: 'apple-touch-icon',
+    largura: 180,
+    altura: 180,
+    corpo: `<body class="icone">${MARCA}</body>`,
+  },
+];
+
+for (const { nome, largura, altura, corpo } of EXTRAS) {
+  const html = join(TEMP, `${nome}.html`);
+  const png2x = join(TEMP, `${nome}-2x.png`);
+  writeFileSync(html, `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>${cssOg}</style></head>${corpo}</html>`);
+  execFileSync(CHROME, [
+    '--headless=new',
+    '--disable-gpu',
+    '--hide-scrollbars',
+    // Dá tempo de a Outfit chegar do Google Fonts antes da captura.
+    '--virtual-time-budget=5000',
+    `--force-device-scale-factor=${ESCALA}`,
+    `--window-size=${largura},${altura}`,
+    `--screenshot=${png2x}`,
+    `file://${html}`,
+  ], { stdio: 'ignore' });
+  execFileSync(MAGICK, [png2x, '-filter', 'Lanczos', '-resize', `${largura}x${altura}`, '-strip', join(PUBLICO, `${nome}.png`)], { stdio: 'ignore' });
+  console.log(`gerado  ${nome}.png  ${largura}x${altura}`);
 }
