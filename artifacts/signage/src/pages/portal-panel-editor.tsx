@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { PanelPreview, type PanelPreviewItem } from '@/components/portal/panel-preview';
+import FlyerEditor from '@/components/flyer/flyer-editor';
 import { useToast } from '@/hooks/use-toast';
 import { useMaxUploadBytes, formatUploadLimit } from '@/lib/upload-limit';
 import { dimensoesDaImagem, prepararImagemParaUpload } from '@/lib/image-para-renderizador';
@@ -618,6 +619,10 @@ export default function PortalPanelEditor({
     );
   }
 
+  // Encarte tem editor próprio: layout, prévia no servidor e identidade da
+  // loja não cabem neste arquivo, que já serve três tipos de painel.
+  if (panel.kind === 'flyer') return <FlyerEditor panel={panel} onBack={onBack} />;
+
   const kind = panel.kind;
   const isPublished = panel.status === 'published';
   const previewItems: PanelPreviewItem[] =
@@ -960,23 +965,20 @@ export default function PortalPanelEditor({
 
         <div>
           <div className="relative">
-            {/* Encarte tem prévia própria, renderizada pelo servidor (PNG) —
-                fora do escopo deste contrato; o editor dedicado chega numa
-                task futura. `PanelPreview` continua só para os painéis que
-                já existiam. */}
-            {kind !== 'flyer' ? (
-              <PanelPreview
-                kind={kind}
-                headline={headline.trim() === '' ? null : headline}
-                body={body.trim() === '' ? null : body}
-                items={previewItems}
-                page={previewPage + 1}
-                accentColor={accentColor === '' ? null : accentColor}
-                promoStyle={promoStyle}
-                photoOffset={photoOffset}
-                photoOffsetX={photoOffsetX}
-              />
-            ) : null}
+            {/* Encarte nunca chega aqui: o guard acima delega para o
+                FlyerEditor antes deste JSX existir. `PanelPreview` só
+                atende os painéis que já existiam. */}
+            <PanelPreview
+              kind={kind}
+              headline={headline.trim() === '' ? null : headline}
+              body={body.trim() === '' ? null : body}
+              items={previewItems}
+              page={previewPage + 1}
+              accentColor={accentColor === '' ? null : accentColor}
+              promoStyle={promoStyle}
+              photoOffset={photoOffset}
+              photoOffsetX={photoOffsetX}
+            />
             {/* Arrasto vertical (Anexo 2026-09-17): overlay transparente só sobre a
                 área da foto, para não interferir no resto da prévia nem acoplar o
                 componente reutilizável `PanelPreview` ao estado do editor. */}
