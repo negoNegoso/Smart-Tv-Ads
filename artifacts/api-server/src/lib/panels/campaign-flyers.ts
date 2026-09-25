@@ -17,6 +17,14 @@ export const deps = {
       .where(eq(campaignAnnouncementsTable.campaignId, campaignId));
     return rows.map((r) => r.panelId);
   },
+  /** Destino escolhido hoje no editor (pode ainda não ter sido publicado). */
+  async panelCampaignId(panelId: number): Promise<number | null> {
+    const [row] = await db
+      .select({ campaignId: panelsTable.campaignId })
+      .from(panelsTable)
+      .where(eq(panelsTable.id, panelId));
+    return row?.campaignId ?? null;
+  },
   async markArtOutdated(panelId: number): Promise<void> {
     await db.update(panelsTable).set({ artOutdated: true }).where(eq(panelsTable.id, panelId));
   },
@@ -26,12 +34,26 @@ export const deps = {
  * A arte do encarte traz as datas da campanha; mudou a data, a arte precisa
  * ser refeita. Falha aqui não pode desfazer a edição da campanha: marca a
  * arte como desatualizada e o portal avisa o lojista.
+ *
+ * O destino que vale na TV é o da última publicação, mas publishPanel lê o
+ * destino atual do editor (panels.campaign_id). Se o lojista trocou o destino
+ * e ainda não publicou, republicar aqui mandaria o encarte para o destino
+ * novo sem ele pedir. Nesse caso só marca a arte como desatualizada
+ * (skipped) e a publicação fica por conta dele.
  */
-export async function republishCampaignFlyers(campaignId: number): Promise<{ republished: number[]; failed: number[] }> {
+export async function republishCampaignFlyers(
+  campaignId: number,
+): Promise<{ republished: number[]; failed: number[]; skipped: number[] }> {
   const ids = await deps.flyerPanelIdsInCampaign(campaignId);
   const republished: number[] = [];
   const failed: number[] = [];
+  const skipped: number[] = [];
   for (const id of ids) {
+    if ((await deps.panelCampaignId(id)) !== campaignId) {
+      await deps.markArtOutdated(id);
+      skipped.push(id);
+      continue;
+    }
     try {
       await publishPanel(id);
       republished.push(id);
@@ -41,7 +63,7 @@ export async function republishCampaignFlyers(campaignId: number): Promise<{ rep
       failed.push(id);
     }
   }
-  return { republished, failed };
+  return { republished, failed, skipped };
 }
 
 /**
