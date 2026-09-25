@@ -217,7 +217,8 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={form.startsAt} onChange={form.setStartsAt} required /><Field label="Fim" type="date" value={form.endsAt} onChange={form.setEndsAt} required /></div>
           <CampaignWeekdayPicker form={form} />
           <CampaignTargetPicker form={form} devices={devices} segments={segments} />
-          <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.selectedAnnouncements.length}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
+          {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
+          <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
