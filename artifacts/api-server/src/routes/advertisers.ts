@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   db,
@@ -17,6 +17,7 @@ import {
 import { generateScanCode } from "@workspace/db/scan-code";
 import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
 import { normalizeWeekdays } from "../lib/ad-eligibility";
+import { republishCampaignFlyers, unpublishCampaignFlyers } from "../lib/panels/campaign-flyers";
 
 const router: IRouter = Router();
 
@@ -250,10 +251,8 @@ router.post("/campaigns", async (req, res): Promise<void> => {
   }
   const input = parsed.data;
   const announcementIds = announcementIdsFor(input);
-  if (announcementIds.length === 0) {
-    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
-    return;
-  }
+  // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
+  // receber um encarte, cujas peças entram na publicação do encarte.
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
@@ -274,9 +273,11 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
   }).returning();
-  await db.insert(campaignAnnouncementsTable).values(
-    announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
-  ).onConflictDoNothing();
+  if (announcementIds.length > 0) {
+    await db.insert(campaignAnnouncementsTable).values(
+      announcementIds.map((announcementId) => ({ campaignId: campaign.id, announcementId, scanCode: generateScanCode() })),
+    ).onConflictDoNothing();
+  }
   await syncAnnouncementDestinations(campaign.id, input.announcementDestinations);
   await syncCampaignTarget(campaign.id, input);
   res.status(201).json(await campaignWithStats(campaign.id));
@@ -307,10 +308,8 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
   }
   const input = parsed.data;
   const announcementIds = announcementIdsFor(input);
-  if (announcementIds.length === 0) {
-    res.status(400).json({ error: "Selecione pelo menos um anúncio" });
-    return;
-  }
+  // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
+  // receber um encarte, cujas peças entram na publicação do encarte.
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
@@ -331,12 +330,26 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
   }).where(eq(campaignsTable.id, id));
-  await db.insert(campaignAnnouncementsTable).values(
-    announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
-  ).onConflictDoNothing();
-  await db.delete(campaignAnnouncementsTable).where(and(eq(campaignAnnouncementsTable.campaignId, id), notInArray(campaignAnnouncementsTable.announcementId, announcementIds)));
+  if (announcementIds.length > 0) {
+    await db.insert(campaignAnnouncementsTable).values(
+      announcementIds.map((announcementId) => ({ campaignId: id, announcementId, scanCode: generateScanCode() })),
+    ).onConflictDoNothing();
+  }
+  // Peças de encarte entram pela publicação do encarte, não pelo formulário:
+  // o formulário não as conhece, então não pode apagá-las.
+  const panelPieces = db.select({ id: announcementsTable.id }).from(announcementsTable).where(eq(announcementsTable.source, "panel"));
+  await db.delete(campaignAnnouncementsTable).where(
+    and(
+      eq(campaignAnnouncementsTable.campaignId, id),
+      announcementIds.length > 0 ? notInArray(campaignAnnouncementsTable.announcementId, announcementIds) : undefined,
+      notInArray(campaignAnnouncementsTable.announcementId, panelPieces),
+    ),
+  );
   await syncAnnouncementDestinations(id, input.announcementDestinations);
   await syncCampaignTarget(id, input);
+  const datesChanged =
+    existing.startsAt.getTime() !== input.startsAt.getTime() || existing.endsAt.getTime() !== input.endsAt.getTime();
+  if (datesChanged) await republishCampaignFlyers(id);
   res.json(await campaignWithStats(id));
 });
 
@@ -355,11 +368,14 @@ router.post("/campaigns/:id/reset-telemetry", async (req, res): Promise<void> =>
 });
 
 router.delete("/campaigns/:id", async (req, res): Promise<void> => {
-  const [row] = await db.delete(campaignsTable).where(eq(campaignsTable.id, Number(req.params.id))).returning();
-  if (!row) {
+  const id = Number(req.params.id);
+  const [existing] = await db.select({ id: campaignsTable.id }).from(campaignsTable).where(eq(campaignsTable.id, id));
+  if (!existing) {
     res.status(404).json({ error: "Campaign not found" });
     return;
   }
+  await unpublishCampaignFlyers(id);
+  await db.delete(campaignsTable).where(eq(campaignsTable.id, id));
   res.sendStatus(204);
 });
 
