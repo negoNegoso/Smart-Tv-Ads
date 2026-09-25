@@ -3,14 +3,15 @@ import { flyerPriceParts, flyerValidityLabel, formatStoreAddress, normalizeUnit 
 
 describe("flyerValidityLabel", () => {
   it("mesmo ano: sem ano", () => {
-    expect(flyerValidityLabel(new Date("2026-09-20T03:00:00Z"), new Date("2026-09-28T02:59:59Z"))).toBe(
+    expect(flyerValidityLabel(new Date("2026-09-20"), new Date("2026-09-27"))).toBe(
       "OFERTAS VÁLIDAS DE 20/09 A 27/09",
     );
   });
 
-  it("usa o dia de Brasília, não o de UTC", () => {
-    // 02:00 UTC do dia 21 ainda é dia 20 em Brasília.
-    expect(flyerValidityLabel(new Date("2026-09-21T02:00:00Z"), new Date("2026-09-21T02:00:00Z"))).toBe(
+  it("datas só-dia (meia-noite UTC) saem no próprio dia, como no admin", () => {
+    // O form da campanha grava "2026-09-20" como 2026-09-20T00:00Z; em
+    // Brasília isso seria dia 19 — o encarte não pode mostrar um dia antes.
+    expect(flyerValidityLabel(new Date("2026-09-20T00:00:00Z"), new Date("2026-09-20T00:00:00Z"))).toBe(
       "OFERTAS VÁLIDAS DE 20/09 A 20/09",
     );
   });

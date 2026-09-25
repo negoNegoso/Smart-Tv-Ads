@@ -1,16 +1,19 @@
-import { BUSINESS_TIME_ZONE } from "../ad-eligibility";
-
 const MAX_UNIT = 12;
 
+// Datas de campanha são dias guardados como meia-noite UTC (o form do admin
+// manda "2026-09-27" e o z.coerce.date vira 2026-09-27T00:00Z). Por isso o
+// dia sai em UTC, espelhando o admin (campaign-row/campaign-detail); em
+// Brasília a meia-noite UTC ainda é o dia anterior e a validade sairia um
+// dia antes. Criado uma vez só: Intl.DateTimeFormat é caro de montar.
+const DAY_FORMAT = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "UTC",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 function dayParts(date: Date): { day: string; month: string; year: string } {
-  // Dia de Brasília: o servidor roda em UTC, e sem o fuso a validade
-  // mostraria o dia seguinte para campanhas que viram às 21h.
-  const parts = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: BUSINESS_TIME_ZONE,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).formatToParts(date);
+  const parts = DAY_FORMAT.formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return { day: get("day"), month: get("month"), year: get("year") };
 }

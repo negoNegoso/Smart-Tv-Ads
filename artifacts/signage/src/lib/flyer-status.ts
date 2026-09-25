@@ -2,8 +2,10 @@ import type { Panel } from '@workspace/api-client-react';
 
 type Badge = { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' };
 
+// Datas de campanha são dias guardados como meia-noite UTC; formatar em UTC
+// (como o admin faz) evita mostrar o dia anterior no fuso de Brasília.
 const dayMonth = (iso: string) =>
-  new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
 
 /**
  * Situação do painel na lista. Para encarte em campanha, quem manda é a

@@ -40,6 +40,14 @@ describe('panelStatusBadges', () => {
     ).toMatch(/^Encerrado/);
   });
 
+  it('datas só-dia da campanha saem no próprio dia (UTC, como no admin)', () => {
+    const base = { status: 'published' as const, publishedAt: '2026-09-20T00:00:00Z', artOutdated: false };
+    expect(labels({ ...base, publishedCampaign: campaign('2026-09-20', '2026-09-27') })[0]).toBe('No ar até 27/09');
+    expect(labels({ ...base, publishedCampaign: campaign('2026-09-27', '2026-09-30') })[0]).toBe(
+      'Agendado — entra no ar 27/09',
+    );
+  });
+
   it('arte desatualizada vem junto', () => {
     expect(
       labels({ status: 'published', publishedAt: '2026-09-20T00:00:00Z', artOutdated: true, publishedCampaign: null }),

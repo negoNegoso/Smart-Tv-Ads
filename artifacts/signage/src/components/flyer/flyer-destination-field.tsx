@@ -1,8 +1,10 @@
 import { useListClientPanelCampaignOptions } from '@workspace/api-client-react';
 import { Label } from '@/components/ui/label';
 
+// Datas de campanha são dias guardados como meia-noite UTC; em UTC (como no
+// admin) o período sai no próprio dia, e não um dia antes como em Brasília.
 const period = (a: string, b: string) => {
-  const f = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const f = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
   return `${f(a)} a ${f(b)}`;
 };
 
