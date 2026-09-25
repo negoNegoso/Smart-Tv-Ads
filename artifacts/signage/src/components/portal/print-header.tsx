@@ -1,5 +1,5 @@
 // artifacts/signage/src/components/portal/print-header.tsx
-import { MonitorPlay } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 function longDate(key: string): string {
   const [year, month, day] = key.split('-').map(Number);
@@ -26,9 +26,9 @@ export function PrintHeader({
 }) {
   return (
     <header className="mb-6 hidden border-b pb-4 print:block">
-      <div className="flex items-center gap-2 font-bold tracking-tight">
-        <MonitorPlay className="h-5 w-5" aria-hidden />
-        <span>Painel de Anúncios</span>
+      <div className="flex items-center gap-3 text-foreground">
+        <Logo className="h-7" />
+        <span className="text-sm font-medium text-muted-foreground">Painel de Anúncios</span>
       </div>
       <h1 className="mt-2 text-xl font-semibold">{subject}</h1>
       <p className="text-sm text-muted-foreground">

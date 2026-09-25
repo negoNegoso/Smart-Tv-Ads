@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { MonitorPlay } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 import { markSessionStarted } from '@/lib/session-hint';
 import { readNextPath } from '@/lib/next-path';
 
@@ -45,9 +45,9 @@ export default function Login() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm p-6">
-        <div className="mb-6 flex items-center gap-2 font-bold tracking-tight text-primary">
-          <MonitorPlay className="h-6 w-6" />
-          <span>Painel de Anúncios</span>
+        <div className="mb-6 flex flex-col items-center gap-2 text-foreground">
+          <Logo className="h-12" />
+          <span className="text-sm text-muted-foreground">Painel de Anúncios</span>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
