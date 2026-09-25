@@ -80,4 +80,13 @@ describe("buildPanelSlidesQuery", () => {
     const { sql } = buildPanelSlidesQuery(42).toSQL();
     expect(sql).toContain('order by "panels"."id" asc, "panel_slides"."page_no" asc');
   });
+
+  it("exclui peça de painel que está em campanha (destino da última publicação)", () => {
+    const { sql } = buildPanelSlidesQuery(7).toSQL();
+    expect(sql).toMatch(/left join "campaign_announcements"/i);
+    expect(sql).toMatch(/"campaign_announcements"\."id" is null/i);
+    // O filtro não usa panels.campaign_id: trocar o destino no editor sem
+    // republicar não pode mudar o que toca.
+    expect(sql).not.toMatch(/"panels"\."campaign_id"/i);
+  });
 });

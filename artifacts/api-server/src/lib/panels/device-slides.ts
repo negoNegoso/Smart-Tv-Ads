@@ -1,5 +1,5 @@
-import { and, asc, eq, sql } from "drizzle-orm";
-import { db, announcementsTable, panelsTable, panelSlidesTable } from "@workspace/db";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { db, announcementsTable, panelsTable, panelSlidesTable, campaignAnnouncementsTable } from "@workspace/db";
 
 /**
  * Junta as três fontes de slides de um device na ordem de exibição, sem repetir
@@ -83,11 +83,16 @@ export function buildPanelSlidesQuery(clientId: number) {
     .from(panelSlidesTable)
     .innerJoin(panelsTable, eq(panelsTable.id, panelSlidesTable.panelId))
     .innerJoin(announcementsTable, eq(announcementsTable.id, panelSlidesTable.announcementId))
+    .leftJoin(campaignAnnouncementsTable, eq(campaignAnnouncementsTable.announcementId, panelSlidesTable.announcementId))
     .where(
       and(
         eq(panelsTable.clientId, clientId),
         eq(panelsTable.status, "published"),
         eq(announcementsTable.isActive, true),
+        // Encarte publicado dentro de campanha é entregue pela campanha (datas,
+        // dias, alvo). Olhar a peça, e não panels.campaign_id, faz valer o destino
+        // da última publicação: mudar o destino sem republicar não muda a TV.
+        isNull(campaignAnnouncementsTable.id),
       ),
     )
     .orderBy(asc(panelsTable.id), asc(panelSlidesTable.pageNo));
