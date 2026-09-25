@@ -25,6 +25,8 @@ const base = {
   promoStyle: null,
   photoOffset: null,
   photoOffsetX: null,
+  campaignId: null,
+  artOutdated: false,
   publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -39,6 +41,8 @@ const item = (name: string, order: number) => ({
   oldPriceCents: null,
   category: "Lanches",
   imageUrl: null,
+  unit: null,
+  featured: false,
   displayOrder: order,
   isActive: true,
 });

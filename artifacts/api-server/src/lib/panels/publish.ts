@@ -2,15 +2,24 @@ import { eq, inArray } from "drizzle-orm";
 import {
   db,
   announcementsTable,
+  campaignAnnouncementsTable,
   panelsTable,
   panelSlidesTable,
   type PanelItem,
 } from "@workspace/db";
 import { mediaStore, type MediaStore } from "../storage";
 import { paginateMenuItems, type PanelPage } from "./paginate";
+import { paginateFlyer, MAX_FLYER_ITEMS, type FlyerOrientation } from "./flyer-paginate";
 import { fetchImageDataUri } from "./promo-image";
-import { renderPanelPage } from "./render";
+import { renderPanelPage, renderFlyerPage } from "./render";
 import { getPanel, type PanelWithItems } from "./queries";
+import {
+  loadFlyerContext,
+  buildFlyerInput,
+  toFlyerItem,
+  FlyerCampaignMismatchError,
+  type FlyerContext,
+} from "./flyer-context";
 
 /** Falha de renderização de uma página específica; a rota vira isto em 422. */
 export class PanelRenderError extends Error {
@@ -34,6 +43,16 @@ export function panelPages(panel: PanelWithItems): PanelPage<PanelItem>[] {
       .sort((a, b) => a.displayOrder - b.displayOrder)[0];
     return first ? [{ pageNo: 1, category: null, items: [first] }] : [];
   }
+  // Encarte não usa panelPages para publicar (ver renderFlyerSlides), mas
+  // quem só conta páginas (ex.: listagem) precisa de um número plausível —
+  // a orientação horizontal serve de referência.
+  if (panel.kind === "flyer") {
+    return paginateFlyer(panel.items, "landscape").map((p) => ({
+      pageNo: p.pageNo,
+      category: null,
+      items: [...p.featured, ...p.grid],
+    }));
+  }
   return paginateMenuItems(panel.items);
 }
 
@@ -56,6 +75,47 @@ async function withResolvedImage(
   return { ...page, items: [{ ...item, imageUrl: dataUri }] };
 }
 
+export interface RenderedSlide {
+  pageNo: number;
+  orientation: FlyerOrientation;
+  png: Buffer;
+}
+
+const FLYER_ORIENTATIONS: FlyerOrientation[] = ["landscape", "portrait"];
+
+/**
+ * Todas as páginas do encarte nas duas orientações. Cada foto é buscada uma
+ * vez só: a mesma imagem aparece no jogo deitado e no em pé, e buscar duas
+ * vezes dobraria o tempo da função e as chamadas a URL externa.
+ */
+export async function renderFlyerSlides(panel: PanelWithItems, ctx: FlyerContext, store: MediaStore): Promise<RenderedSlide[]> {
+  const active = panel.items.filter((i) => i.isActive);
+  const photos = new Map<number, string | null>();
+  await Promise.all(
+    active.map(async (item) => {
+      photos.set(item.id, item.imageUrl ? await fetchImageDataUri(item.imageUrl, store) : null);
+    }),
+  );
+  const logo = ctx.company.logoUrl ? await fetchImageDataUri(ctx.company.logoUrl, store) : null;
+  const input = buildFlyerInput(panel, ctx, logo);
+  const toItem = (item: PanelItem) => toFlyerItem(item, photos.get(item.id) ?? null);
+
+  const slides: RenderedSlide[] = [];
+  for (const orientation of FLYER_ORIENTATIONS) {
+    const pages = paginateFlyer(panel.items, orientation);
+    for (const page of pages) {
+      const png = await renderFlyerPage(
+        input,
+        { ...page, featured: page.featured.map(toItem), grid: page.grid.map(toItem) },
+        pages.length,
+        orientation,
+      );
+      slides.push({ pageNo: page.pageNo, orientation, png });
+    }
+  }
+  return slides;
+}
+
 /**
  * Renderiza, grava as imagens e troca a publicação numa transação.
  *
@@ -67,30 +127,61 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
   const panel = await getPanel(panelId);
   if (!panel) throw new PanelRenderError("Painel não encontrado.", 0);
 
-  const pages = panelPages(panel);
-  if (pages.length === 0) {
+  const isFlyer = panel.kind === "flyer";
+  let ctx: FlyerContext | null = null;
+  if (isFlyer) {
+    const activeCount = panel.items.filter((i) => i.isActive).length;
+    if (activeCount === 0) throw new PanelRenderError("Encarte sem produtos para publicar.", 0);
+    if (activeCount > MAX_FLYER_ITEMS) {
+      throw new PanelRenderError(`O encarte passa de ${MAX_FLYER_ITEMS} produtos ativos.`, 0);
+    }
+    try {
+      ctx = await loadFlyerContext(panel);
+    } catch (error) {
+      if (error instanceof FlyerCampaignMismatchError) throw new PanelRenderError(error.message, 0);
+      throw error;
+    }
+  }
+
+  const pages = isFlyer ? [] : panelPages(panel);
+  if (!isFlyer && pages.length === 0) {
     throw new PanelRenderError("Painel sem conteúdo para publicar.", 0);
   }
 
   const store = mediaStore();
-  const uploaded: Array<{ pageNo: number; imageUrl: string }> = [];
+  const uploaded: Array<{ pageNo: number; orientation: FlyerOrientation; imageUrl: string }> = [];
   try {
-    for (const page of pages) {
-      const renderPage = await withResolvedImage(panel.kind, page, store);
-      const png = await renderPanelPage(
-        {
-          kind: panel.kind as "menu" | "promo" | "notice",
-          headline: panel.headline,
-          body: panel.body,
-          accentColor: panel.accentColor,
-          promoStyle: panel.promoStyle,
-          photoOffset: panel.photoOffset,
-          photoOffsetX: panel.photoOffsetX,
-        },
-        renderPage,
-      );
-      const imageUrl = await store.put(png, "image/png", `panel-${panel.id}-p${page.pageNo}.png`);
-      uploaded.push({ pageNo: page.pageNo, imageUrl });
+    if (isFlyer) {
+      // O encarte renderiza tudo (as duas orientações) antes de subir
+      // qualquer PNG: renderFlyerSlides já busca a foto uma vez só para as
+      // duas, então não há como intercalar render e upload por página aqui.
+      const rendered = await renderFlyerSlides(panel, ctx!, store);
+      for (const slide of rendered) {
+        const name = `panel-${panel.id}-${slide.orientation}-p${slide.pageNo}.png`;
+        const imageUrl = await store.put(slide.png, "image/png", name);
+        uploaded.push({ pageNo: slide.pageNo, orientation: slide.orientation, imageUrl });
+      }
+    } else {
+      // Render e upload intercalados, como antes: se a página 2 falhar ao
+      // renderizar, a página 1 já subiu e só ela é limpa no catch abaixo —
+      // publish.test.ts confere esse comportamento.
+      for (const page of pages) {
+        const renderPage = await withResolvedImage(panel.kind, page, store);
+        const png = await renderPanelPage(
+          {
+            kind: panel.kind as "menu" | "promo" | "notice",
+            headline: panel.headline,
+            body: panel.body,
+            accentColor: panel.accentColor,
+            promoStyle: panel.promoStyle,
+            photoOffset: panel.photoOffset,
+            photoOffsetX: panel.photoOffsetX,
+          },
+          renderPage,
+        );
+        const imageUrl = await store.put(png, "image/png", `panel-${panel.id}-p${page.pageNo}.png`);
+        uploaded.push({ pageNo: page.pageNo, orientation: "landscape", imageUrl });
+      }
     }
   } catch (error) {
     // Limpa o que já subiu: a publicação não vai acontecer.
@@ -133,11 +224,13 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
         const [announcement] = await tx
           .insert(announcementsTable)
           .values({
-            title: `${panel.name} — página ${page.pageNo}`,
+            title: `${panel.name} — página ${page.pageNo}${isFlyer ? (page.orientation === "portrait" ? " (vertical)" : " (horizontal)") : ""}`,
             imageUrl: page.imageUrl,
             mediaKind: "image",
             source: "panel",
+            orientation: page.orientation,
             duration: panel.duration,
+            // Horizontal primeiro, vertical depois: a TV só vê uma das duas.
             displayOrder: page.pageNo,
             isActive: true,
           })
@@ -145,13 +238,23 @@ export async function publishPanel(panelId: number): Promise<{ pages: number }> 
         await tx.insert(panelSlidesTable).values({
           panelId: panel.id,
           pageNo: page.pageNo,
+          orientation: page.orientation,
           announcementId: announcement.id,
         });
+        if (ctx?.campaign) {
+          // Sem scanCode/destinationUrl: encarte não tem QR. A campanha passa
+          // a entregar esta peça com as datas, dias e alvo dela.
+          await tx.insert(campaignAnnouncementsTable).values({
+            campaignId: ctx.campaign.id,
+            announcementId: announcement.id,
+            scanCode: null,
+          });
+        }
       }
 
       await tx
         .update(panelsTable)
-        .set({ status: "published", publishedAt: new Date() })
+        .set({ status: "published", publishedAt: new Date(), artOutdated: false })
         .where(eq(panelsTable.id, panel.id));
 
       return images;
