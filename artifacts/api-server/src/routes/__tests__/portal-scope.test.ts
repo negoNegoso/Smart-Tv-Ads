@@ -64,6 +64,7 @@ vi.mock("../../lib/panels/store-identity", () => ({
 }));
 vi.mock("../../lib/panels/flyer-preview", () => ({
   renderFlyerPreview: vi.fn(),
+  FlyerCampaignMismatchError: class extends Error {},
 }));
 
 async function buildApp(): Promise<Express> {

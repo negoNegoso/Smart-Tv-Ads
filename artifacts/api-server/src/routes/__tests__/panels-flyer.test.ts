@@ -55,6 +55,7 @@ vi.mock("../../lib/panels/store-identity", () => ({
 const renderFlyerPreview = vi.fn();
 vi.mock("../../lib/panels/flyer-preview", () => ({
   renderFlyerPreview: (...a: unknown[]) => renderFlyerPreview(...a),
+  FlyerCampaignMismatchError: class extends Error {},
 }));
 // portal.ts monta as rotas de anunciante/cliente e de painéis no mesmo router;
 // os dois módulos abaixo puxam @workspace/db no import e este arquivo nunca
@@ -311,5 +312,47 @@ describe("rotas do encarte", () => {
       });
     expect(res.status).toBe(400);
     expect(renderFlyerPreview).not.toHaveBeenCalled();
+  });
+
+  it("prévia com campanha de outra empresa → 400", async () => {
+    panelClientId.mockResolvedValue(7);
+    campaignBelongsToClient.mockResolvedValue(false);
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/1/preview")
+      .set("Cookie", cookie)
+      .send({
+        orientation: "portrait",
+        page: 1,
+        campaignId: 3,
+        headline: null,
+        body: null,
+        items: [],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("A campanha escolhida não é desta loja.");
+    expect(campaignBelongsToClient).toHaveBeenCalledWith(3, 7);
+    expect(renderFlyerPreview).not.toHaveBeenCalled();
+  });
+
+  it("prévia: loadFlyerContext rejeita com campanha de outra empresa → 400", async () => {
+    panelClientId.mockResolvedValue(7);
+    campaignBelongsToClient.mockResolvedValue(true);
+    const { FlyerCampaignMismatchError } = await import("../../lib/panels/flyer-preview");
+    renderFlyerPreview.mockRejectedValue(new FlyerCampaignMismatchError("A campanha escolhida não é desta loja."));
+    const { request, app, cookie } = await agent();
+    const res = await request(app)
+      .post("/portal/client/panels/1/preview")
+      .set("Cookie", cookie)
+      .send({
+        orientation: "portrait",
+        page: 1,
+        campaignId: 3,
+        headline: null,
+        body: null,
+        items: [],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("A campanha escolhida não é desta loja.");
   });
 });
