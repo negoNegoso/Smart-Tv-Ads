@@ -20,6 +20,13 @@ const state = vi.hoisted(() => ({
   updateCalls: [] as Array<{ table: string; patch: unknown }>,
   deleteCalls: [] as Array<{ table: string; cond: unknown }>,
   callLog: [] as string[],
+  // Ids que a consulta de dropPanelAnnouncementIds deve reportar como
+  // announcements.source = 'panel' — simula o que existe no banco.
+  panelAnnouncementIds: [] as number[],
+  // cols reais (campaignSelection) usados na última select com join em
+  // campaignsTable — é o que campaignWithStats manda, capturado para o
+  // teste inspecionar o SQL de announcementIds/announcementTitles de verdade.
+  lastJoinedCampaignCols: null as Record<string, unknown> | null,
 }));
 
 function resetState() {
@@ -32,6 +39,8 @@ function resetState() {
   state.updateCalls = [];
   state.deleteCalls = [];
   state.callLog = [];
+  state.panelAnnouncementIds = [];
+  state.lastJoinedCampaignCols = null;
 }
 
 vi.mock("@workspace/db", async () => {
@@ -75,7 +84,7 @@ vi.mock("@workspace/db", async () => {
   }
 
   const db = {
-    select(_cols?: unknown) {
+    select(cols?: unknown) {
       let hasJoin = false;
       return {
         from(table: unknown) {
@@ -85,10 +94,17 @@ vi.mock("@workspace/db", async () => {
               return terminal;
             },
             where(cond: unknown) {
-              // Subconsulta de peças de painel: devolve a própria condição
-              // real (já um SQL com getSQL() implementado), que é como o
-              // notInArray do drizzle embute isto como subquery.
-              if (table === announcementsTable) return cond;
+              if (table === announcementsTable) {
+                // Duas chamadas reais usam este select: dropPanelAnnouncementIds
+                // (é `await`ado, precisa virar array) e o panelPieces do
+                // PATCH (nunca é `await`ado, só embutido como subquery via
+                // getSQL()). O objeto atende as duas ao mesmo tempo: é
+                // thenable E tem getSQL — a condição real já implementa
+                // getSQL() (SQL.prototype.getSQL retorna this).
+                const resolved = state.panelAnnouncementIds.map((id) => ({ id }));
+                return { ...thenable(resolved), getSQL: () => cond };
+              }
+              if (table === campaignsTable && hasJoin) state.lastJoinedCampaignCols = cols as Record<string, unknown>;
               return thenable(selectResolve(table, hasJoin));
             },
           };
@@ -264,6 +280,34 @@ describe("rotas de campanha convivendo com encartes", () => {
     const res = await request(app).patch(`/campaigns/${CAMPAIGN_ID}`).send(campaignBody());
     expect(res.status).toBe(200);
     expect(republishCampaignFlyersSpy).not.toHaveBeenCalled();
+  });
+
+  it("PATCH descarta id de peça de encarte reenviado pelo formulário", async () => {
+    // O formulário round-tripa o que recebeu; se o encarte foi republicado
+    // nesse meio-tempo, o id 99 já não existe mais em campaign_announcements
+    // como peça avulsa — inserir de volta violaria a FK. 7 é uma peça avulsa
+    // normal (source = 'admin') e deve continuar entrando.
+    state.existingCampaignRow = baseExisting();
+    state.panelAnnouncementIds = [99];
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch(`/campaigns/${CAMPAIGN_ID}`)
+      .send(campaignBody({ announcementIds: [7, 99] }));
+    expect(res.status).toBe(200);
+
+    const insertCall = state.insertCalls.find((c) => c.table === "campaign_announcements");
+    const insertedIds = ((insertCall?.values ?? []) as Array<{ announcementId: number }>).map((v) => v.announcementId);
+    expect(insertedIds).toEqual([7]);
+
+    // campaignSelection também não pode listar a peça de encarte de volta:
+    // announcementIds/announcementTitles excluem source = 'panel' no SQL de
+    // verdade (capturado da própria consulta que campaignWithStats fez).
+    const cols = state.lastJoinedCampaignCols as { announcementIds: unknown; announcementTitles: unknown };
+    expect(cols).toBeTruthy();
+    const idsQuery = new PgDialect().sqlToQuery(cols.announcementIds as never);
+    const titlesQuery = new PgDialect().sqlToQuery(cols.announcementTitles as never);
+    expect(idsQuery.sql).toContain("<> 'panel'");
+    expect(titlesQuery.sql).toContain("<> 'panel'");
   });
 
   it("DELETE despublica os encartes antes de apagar", async () => {

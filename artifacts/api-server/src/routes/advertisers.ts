@@ -105,6 +105,24 @@ function announcementIdsFor(input: z.infer<typeof campaignInput>) {
   return [...new Set([...(input.announcementIds || []), ...(input.announcementId ? [input.announcementId] : [])])];
 }
 
+/**
+ * Peça de encarte (source = 'panel') só entra na campanha pela publicação do
+ * encarte, nunca pelo formulário. O formulário round-tripa os ids que
+ * recebeu; se o encarte foi republicado nesse meio-tempo, o id antigo nem
+ * existe mais, e inserir em campaign_announcements violaria a FK depois de
+ * campaignsTable já ter sido atualizada. Descartar aqui, antes do insert e
+ * do notInArray, evita a escrita parcial.
+ */
+async function dropPanelAnnouncementIds(ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return ids;
+  const panelRows = await db
+    .select({ id: announcementsTable.id })
+    .from(announcementsTable)
+    .where(and(inArray(announcementsTable.id, ids), eq(announcementsTable.source, "panel")));
+  const panelIds = new Set(panelRows.map((r) => r.id));
+  return ids.filter((id) => !panelIds.has(id));
+}
+
 async function syncAnnouncementDestinations(campaignId: number, destinations: Record<string, string>) {
   for (const [announcementId, url] of Object.entries(destinations)) {
     const id = Number(announcementId);
@@ -122,8 +140,10 @@ const campaignSelection = {
   advertiserName: companiesTable.name,
   company: advertisersTable.company,
   deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-  announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn where cn.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-  announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id}), array[]::text[])`,
+  // Peça de encarte (source = 'panel') não vai para o formulário: ele não a
+  // conhece e reenviaria o id de volta no PATCH (ver dropPanelAnnouncementIds).
+  announcementIds: sql<number[]>`coalesce((select array_agg(cn.announcement_id order by cn.announcement_id) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id} and an.source <> 'panel'), array[]::int[])`,
+  announcementTitles: sql<string[]>`coalesce((select array_agg(an.title order by an.title) from campaign_announcements cn join announcements an on an.id = cn.announcement_id where cn.campaign_id = ${campaignsTable.id} and an.source <> 'panel'), array[]::text[])`,
   name: campaignsTable.name,
   contractValue: campaignsTable.contractValue,
   startsAt: campaignsTable.startsAt,
@@ -250,9 +270,9 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     return;
   }
   const input = parsed.data;
-  const announcementIds = announcementIdsFor(input);
   // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
   // receber um encarte, cujas peças entram na publicação do encarte.
+  const announcementIds = await dropPanelAnnouncementIds(announcementIdsFor(input));
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
@@ -307,9 +327,9 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     return;
   }
   const input = parsed.data;
-  const announcementIds = announcementIdsFor(input);
   // Campanha pode nascer sem peça avulsa: é o caso da campanha feita para
   // receber um encarte, cujas peças entram na publicação do encarte.
+  const announcementIds = await dropPanelAnnouncementIds(announcementIdsFor(input));
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
