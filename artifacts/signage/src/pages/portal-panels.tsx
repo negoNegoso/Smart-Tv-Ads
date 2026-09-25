@@ -123,7 +123,9 @@ function PanelCard({
                 tabelas de preços de lojas diferentes ficam indistinguíveis na lista. */}
             {clientName ? ` · ${clientName}` : ''}
           </p>
-          {isPublished && panel.publishedAt ? (
+          {/* Em campanha, o selo já diz agendado/no ar/encerrado; "No ar desde"
+              contradiria um encarte que ainda não entrou ou já saiu do ar. */}
+          {isPublished && panel.publishedAt && !panel.publishedCampaign ? (
             <p className="mt-1 text-xs text-muted-foreground">{publishedDateLabel(panel.publishedAt)}</p>
           ) : null}
         </div>

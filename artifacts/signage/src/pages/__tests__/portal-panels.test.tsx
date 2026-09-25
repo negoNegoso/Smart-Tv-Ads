@@ -52,6 +52,8 @@ describe('PortalPanels', () => {
     expect(screen.getByText('Pizza em dobro')).toBeInTheDocument();
     // Publicado sem campanha (tabela de preços, promoção, aviso): badge "Na loja".
     expect(screen.getByText(/Na loja/i)).toBeInTheDocument();
+    // Na loja, a data da publicação é o que diz desde quando está no ar.
+    expect(screen.getByText(/No ar desde/i)).toBeInTheDocument();
     expect(screen.getByText(/Rascunho/i)).toBeInTheDocument();
   });
 
@@ -96,6 +98,9 @@ describe('PortalPanels', () => {
     );
     renderPage();
     expect(await screen.findByText(/no ar até/i)).toBeInTheDocument();
+    // O selo da campanha já diz o estado; "No ar desde" contradiria um
+    // encarte agendado ou encerrado.
+    expect(screen.queryByText(/no ar desde/i)).toBeNull();
   });
 
   it('erro de rede não vira lista vazia', async () => {
