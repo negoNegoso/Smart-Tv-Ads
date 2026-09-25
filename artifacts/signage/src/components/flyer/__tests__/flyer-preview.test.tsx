@@ -6,8 +6,11 @@ function payload(headline: string): FlyerPreviewPayload {
   return { campaignId: null, headline, body: null, items: [] };
 }
 
+// Bytes direto, não Blob: sob jsdom o Blob global é o do jsdom (sem .stream()),
+// e o Response do Node 22 (o do CI) chama .stream() em todo objeto com cara de
+// Blob e lança. Uint8Array vale em qualquer versão do Node.
 function pngResponse() {
-  return new Response(new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }));
+  return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'Content-Type': 'image/png' } });
 }
 
 describe('FlyerPreview', () => {

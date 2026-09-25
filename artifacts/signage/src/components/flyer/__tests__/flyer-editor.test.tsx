@@ -29,7 +29,8 @@ function mockFetch(
     const u = String(url);
     const json = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-    if (u.includes('/preview')) return new Response(new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }));
+    // Bytes direto, não Blob do jsdom: ver pngResponse em flyer-preview.test.tsx.
+    if (u.includes('/preview')) return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'Content-Type': 'image/png' } });
     if (u.includes('/campaign-options')) return json(overrides.campaignOptions ?? []);
     if (u.includes('/identity')) return json(identity);
     if (u.includes('/image')) {
