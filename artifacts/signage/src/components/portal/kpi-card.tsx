@@ -6,8 +6,8 @@ import type { Delta } from './delta';
 
 const ARROW = { up: ArrowUp, down: ArrowDown, flat: ArrowRight } as const;
 const TONE = {
-  up: 'text-emerald-600 dark:text-emerald-400',
-  down: 'text-red-600 dark:text-red-400',
+  up: 'text-emerald-400',
+  down: 'text-red-400',
   flat: 'text-muted-foreground',
 } as const;
 

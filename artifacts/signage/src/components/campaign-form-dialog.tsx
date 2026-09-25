@@ -203,7 +203,7 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
                       />
                     )}
                     {checked && hasPublishedQr && (
-                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                      <p className="mt-1 text-xs text-amber-400">
                         Esta peça já tem um QR code publicado. Desmarcá-la apaga o vínculo e invalida esse QR code para sempre.
                       </p>
                     )}

@@ -894,3 +894,56 @@ describe("tv.html: fila de exibições", () => {
     expect(fila[0][0]).not.toBe("seed00000000");
   });
 });
+
+describe('marca na tela de pareamento', () => {
+  const MESTRE = readFileSync(resolve(import.meta.dirname, '../../../../brand/logo.svg'), 'utf8');
+  const APK = readFileSync(resolve(import.meta.dirname, '../../public/apk.html'), 'utf8');
+  const caminhos = Array.from(MESTRE.matchAll(/ d="([^"]+)"/g), (m) => m[1]);
+
+  it('tv.html e apk.html trazem o logo com os paths do mestre', () => {
+    expect(caminhos).toHaveLength(5);
+    for (const d of caminhos) {
+      expect(HTML).toContain(`d="${d}"`);
+      expect(APK).toContain(`d="${d}"`);
+    }
+  });
+
+  it('o logo do tv.html não depende de var() nem currentColor (WebView antigo)', () => {
+    const svg = /<div id="pair-logo">([\s\S]*?)<\/div>/.exec(HTML)?.[1] ?? '';
+    expect(svg).toContain('<svg');
+    expect(svg).not.toMatch(/var\(|currentColor/);
+  });
+
+  it('sem as cores antigas', () => {
+    for (const cor of ['#4f46e5', '#0b0f19']) expect(HTML.toLowerCase()).not.toContain(cor);
+    for (const cor of ['#3d00ff', '#0b0b14', '#15152a', '#2a2a4a', '#b9b9d4', '#d5d5ea']) expect(APK.toLowerCase()).not.toContain(cor);
+  });
+});
+
+describe('tela de pareamento cabe numa TV 960×540', () => {
+  // Viewport CSS típico de TV box 1080p xhdpi / 720p tvdpi. O html tem
+  // overflow hidden: o que passar da altura some, e a URL de pareamento é a
+  // última linha.
+  const ALTURA = 540;
+  const regra = (sel: string) => new RegExp(`${sel.replace(/[#]/g, '\\#')}\\s*\\{([^}]*)\\}`).exec(HTML)?.[1] ?? '';
+  const medida = (css: string, prop: string) => {
+    const m = new RegExp(`(?:^|[;\\s])${prop}:\\s*([\\d.]+)(px|vh)`).exec(css);
+    if (!m) return 0;
+    return m[2] === 'vh' ? (Number(m[1]) * ALTURA) / 100 : Number(m[1]);
+  };
+  // Altura de uma linha de texto: font-size × line-height normal (~1,2).
+  const linha = (sel: string) => medida(regra(sel), 'font-size') * 1.2;
+
+  it('logo, título, QR, ajuda, chave e URL somam menos que a tela', () => {
+    const total =
+      medida(regra('#pair-screen'), 'padding-top') +
+      medida(regra('#pair-logo svg'), 'height') + medida(regra('#pair-logo'), 'margin-bottom') +
+      linha('#pair-title') + medida(regra('#pair-title'), 'margin-bottom') +
+      medida(regra('#pair-qr'), 'height') +
+      medida(regra('#pair-help'), 'margin-top') + linha('#pair-help') +
+      medida(regra('#pair-key'), 'margin-top') + linha('#pair-key') +
+      medida(regra('#pair-url'), 'margin-top') + linha('#pair-url');
+    // 5% de folga para fonte de sistema maior.
+    expect(total).toBeLessThanOrEqual(ALTURA * 0.95);
+  });
+});

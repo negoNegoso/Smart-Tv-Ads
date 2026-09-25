@@ -1,19 +1,21 @@
+import { Link } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-8 bg-background px-4">
+      <Link href="/" className="text-foreground">
+        <Logo className="h-10" />
+      </Link>
+      <Card className="w-full max-w-md">
         <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Página não encontrada
-            </h1>
+          <div className="mb-4 flex gap-2">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <h1 className="text-2xl font-bold text-foreground">404 Página não encontrada</h1>
           </div>
-
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-muted-foreground">
             Esqueceu de adicionar a página ao roteador?
           </p>
         </CardContent>

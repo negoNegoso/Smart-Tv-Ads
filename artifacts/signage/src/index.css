@@ -80,79 +80,9 @@
   }
 }
 
-/* LIGHT MODE */
+/* Tema único, escuro, na paleta do logo: preto, branco e teal. A landing e o
+   portal usam o mesmo tema; não há mais modo claro nem classe .dark. */
 :root {
-  --button-outline: rgba(0, 0, 0, 0.1);
-  --badge-outline: rgba(0, 0, 0, 0.05);
-
-  --opaque-button-border-intensity: -8;
-
-  --elevate-1: rgba(0, 0, 0, 0.03);
-  --elevate-2: rgba(0, 0, 0, 0.08);
-
-  --background: 240 20% 98%;
-  --foreground: 240 10% 10%;
-  
-  --border: 240 10% 90%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 10%;
-  --card-border: 240 10% 90%;
-
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 240 10% 10%;
-  --sidebar-border: 240 10% 90%;
-  --sidebar-primary: 248 100% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 10% 96%;
-  --sidebar-accent-foreground: 240 10% 10%;
-  --sidebar-ring: 248 100% 50%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 10%;
-  --popover-border: 240 10% 90%;
-
-  /* Ultramarine */
-  --primary: 248 100% 50%;
-  --primary-foreground: 0 0% 100%;
-
-  --secondary: 240 5% 90%;
-  --secondary-foreground: 240 10% 10%;
-
-  --muted: 240 5% 94%;
-  --muted-foreground: 240 10% 45%;
-
-  --accent: 240 5% 96%;
-  --accent-foreground: 240 10% 10%;
-
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-
-  --input: 240 10% 90%;
-  --ring: 248 100% 50%;
-
-  --chart-1: 248 100% 50%;
-  --chart-2: 280 80% 60%;
-  --chart-3: 160 60% 45%;
-  --chart-4: 40 90% 55%;
-  --chart-5: 340 70% 60%;
-
-  --app-font-sans: 'Outfit', sans-serif;
-  --app-font-serif: Georgia, serif;
-  --app-font-mono: 'Space Mono', monospace;
-  --radius: 0.5rem;
-  
-  --shadow-2xs: 0px 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-xs: 0px 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0px 4px 8px rgba(0, 0, 0, 0.04);
-  --shadow: 0px 8px 16px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0px 12px 24px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0px 16px 32px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0px 24px 48px rgba(0, 0, 0, 0.04);
-  --shadow-2xl: 0px 32px 64px rgba(0, 0, 0, 0.04);
-}
-
-.dark {
   --button-outline: rgba(255, 255, 255, 0.1);
   --badge-outline: rgba(255, 255, 255, 0.05);
 
@@ -161,51 +91,68 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  --background: 240 10% 4%;
-  --foreground: 0 0% 98%;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
 
-  --border: 240 10% 15%;
+  --border: 210 8% 15%;
 
-  --card: 240 10% 6%;
-  --card-foreground: 0 0% 98%;
-  --card-border: 240 10% 15%;
+  --card: 210 7% 6%;
+  --card-foreground: 0 0% 100%;
+  --card-border: 210 8% 15%;
 
-  --sidebar: 240 10% 6%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 240 10% 15%;
-  --sidebar-primary: 248 100% 65%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 10% 12%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-ring: 248 100% 65%;
+  --sidebar: 210 7% 6%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 210 8% 15%;
+  --sidebar-primary: 167 69% 50%;
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 210 7% 12%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 167 69% 50%;
 
-  --popover: 240 10% 6%;
-  --popover-foreground: 0 0% 98%;
-  --popover-border: 240 10% 15%;
+  --popover: 210 7% 6%;
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 210 8% 15%;
 
-  --primary: 248 100% 65%;
-  --primary-foreground: 0 0% 100%;
+  /* Teal da marca (#28D8B3). Texto sobre ele é preto: branco daria 1,8:1. */
+  --primary: 167 69% 50%;
+  --primary-foreground: 0 0% 0%;
 
-  --secondary: 240 10% 15%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 210 7% 12%;
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 240 10% 12%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 210 7% 10%;
+  --muted-foreground: 201 7% 63%;
 
-  --accent: 240 10% 15%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 210 7% 14%;
+  --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 240 10% 15%;
-  --ring: 248 100% 65%;
-  
-  --chart-1: 248 100% 65%;
-  --chart-2: 280 80% 65%;
-  --chart-3: 160 60% 50%;
-  --chart-4: 40 90% 60%;
-  --chart-5: 340 70% 65%;
+  --input: 210 8% 15%;
+  --ring: 167 69% 50%;
+
+  --chart-1: 167 69% 50%;
+  --chart-2: 200 80% 60%;
+  --chart-3: 45 90% 60%;
+  --chart-4: 280 70% 70%;
+  --chart-5: 340 75% 65%;
+
+  --app-font-sans: 'Outfit', sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: 'Space Mono', monospace;
+  --radius: 0.5rem;
+
+  --shadow-2xs: 0px 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-xs: 0px 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0px 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow: 0px 8px 16px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0px 12px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0px 16px 32px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0px 24px 48px rgba(0, 0, 0, 0.4);
+  --shadow-2xl: 0px 32px 64px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -300,9 +247,34 @@
     print-color-adjust: exact;
   }
 
-  /* O papel é sempre claro, mesmo com o tema escuro ligado na tela: sem isto
-     o fundo de `.dark` vai para o PDF e a impressora gasta tinta numa página
-     que devia sair branca. */
+  /* O papel é sempre claro: a tela é preta, mas o relatório impresso vira
+     comprovante em PDF e a impressora não pode gastar tinta numa página
+     inteira preta. Os tokens voltam a uma paleta clara só aqui; o teal
+     escurece porque o da marca some no branco (1,8:1). */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+    --border: 0 0% 85%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --card-border: 0 0% 85%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --popover-border: 0 0% 85%;
+    --primary: 169 83% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 35%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 7%;
+    --input: 0 0% 85%;
+    --ring: 169 83% 26%;
+    --chart-1: 169 83% 26%;
+    color-scheme: light;
+  }
+
   body {
     background: #fff;
   }

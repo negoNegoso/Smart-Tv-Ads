@@ -48,7 +48,7 @@ export function CampaignRow({ campaign, onToggle }: { campaign: CampaignRowData;
           <p className="truncate font-medium">{campaign.name}</p>
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CalendarDays className="h-3 w-3" />{date(campaign.startsAt)} — {date(campaign.endsAt)} · {target(campaign)}{recurrence(campaign)}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${campaign.isActive ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>{campaign.isActive ? "Ativa" : "Pausada"}</span>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${campaign.isActive ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{campaign.isActive ? "Ativa" : "Pausada"}</span>
         <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="shrink-0">
           <Switch checked={campaign.isActive} onCheckedChange={() => onToggle(campaign.id)} aria-label="Ativar campanha" />
         </div>

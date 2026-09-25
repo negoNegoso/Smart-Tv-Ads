@@ -12,12 +12,13 @@ import { LANDING } from '@/lib/landing-content';
 export function TvMockup() {
   return (
     <div className="w-full max-w-md" aria-hidden="true">
-      <div className="rounded-xl border-4 border-zinc-800 bg-zinc-800 shadow-lg">
-        <div className="relative aspect-video overflow-hidden rounded-md bg-gradient-to-br from-primary via-indigo-600 to-indigo-900">
+      <div className="rounded-xl border-4 border-neutral-800 bg-neutral-800 shadow-lg">
+        <div className="relative aspect-video overflow-hidden rounded-md bg-black bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.55),transparent_60%)]">
           <div className="absolute bottom-3 left-3 right-24 truncate rounded bg-black/55 px-3 py-2 text-sm font-medium text-white">
             {LANDING.mockup.caption}
           </div>
-          <div className="absolute bottom-3 right-3 rounded bg-white p-1.5 text-center">
+          {/* Branco do QR real da TV, não do tema. */}
+          <div className="absolute bottom-3 right-3 rounded bg-[#fff] p-1.5 text-center">
             <span className="block text-[0.6rem] font-semibold tracking-[0.12em] text-black">
               {LANDING.mockup.qrLabel}
             </span>
@@ -25,7 +26,7 @@ export function TvMockup() {
           </div>
         </div>
       </div>
-      <div className="mx-auto h-4 w-24 rounded-b-lg bg-zinc-800" />
+      <div className="mx-auto h-4 w-24 rounded-b-lg bg-neutral-800" />
     </div>
   );
 }

@@ -183,7 +183,7 @@ export default function CampaignDetail() {
           ) : (
             <>
               <h1 className="text-3xl font-bold tracking-tight">{data.name}</h1>
-              <span className={`rounded-full px-2 py-1 text-xs ${data.isActive ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>{data.isActive ? "Ativa" : "Pausada"}</span>
+              <span className={`rounded-full px-2 py-1 text-xs ${data.isActive ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground"}`}>{data.isActive ? "Ativa" : "Pausada"}</span>
             </>
           )}
         </div>
@@ -290,7 +290,7 @@ export default function CampaignDetail() {
                           onChange={(e) => form.setAnnouncementDestinations({ ...form.announcementDestinations, [String(id)]: e.target.value })}
                         />
                         {hasPublishedQr && (
-                          <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                          <p className="mt-1 text-xs text-amber-400">
                             Esta peça já tem um QR code publicado. Desvinculá-la apaga o vínculo e invalida esse QR code para sempre.
                           </p>
                         )}

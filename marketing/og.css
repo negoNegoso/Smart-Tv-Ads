@@ -1,0 +1,16 @@
+/* Card social 1200×630 (og.png): preto, logo ao centro, frase, faixa teal. */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overflow: hidden; }
+body {
+  width: 1200px; height: 630px; background: #000; color: #fff;
+  font-family: 'Outfit', sans-serif;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-bottom: 16px solid #28d8b3;
+}
+.logo svg { display: block; height: 190px; width: auto; }
+h1 { margin-top: 48px; font-size: 44px; font-weight: 600; }
+p { margin-top: 14px; font-size: 28px; color: #9aa3a8; }
+/* apple-touch-icon 180×180: só o ícone, sobre preto. */
+body.icone { width: 180px; height: 180px; border: 0; }
+body.icone svg { width: 144px; height: 144px; }

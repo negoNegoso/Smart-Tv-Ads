@@ -1,11 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone do app: ícone da marca (brand/logo-mark.svg) em teal sobre preto.
+     pathData copiado do mestre; identidade-visual.test.ts confere a cópia.
+     A moldura tem o furo desenhado no sentido contrário: o buraco aparece
+     mesmo no Android anterior ao 7, que ignora fillType. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
     android:height="48dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
-    <path android:fillColor="#FF111111" android:pathData="M0,0h48v48h-48z" />
-    <path android:fillColor="#FFFFFFFF" android:pathData="M8,12h32v20h-32z" />
-    <path android:fillColor="#FF111111" android:pathData="M10,14h28v16h-28z" />
-    <path android:fillColor="#FFFFFFFF" android:pathData="M18,35h12v2h-12z" />
+    <path android:fillColor="#FF000000" android:pathData="M0,0h48v48h-48z" />
+    <group
+        android:scaleX="0.09756"
+        android:scaleY="0.09756"
+        android:translateX="-69.76"
+        android:translateY="4.59">
+        <path
+            android:pathData="M774 97L1148 25L1148 373L774 320ZM780 103L780 317L1114 357L1114 50Z"
+            android:fillColor="#FF28D8B3"
+            android:strokeColor="#FF28D8B3"
+            android:strokeWidth="24"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M887 152L1010 215L887 280Z"
+            android:fillColor="#FF28D8B3"
+            android:strokeColor="#FF28D8B3"
+            android:strokeWidth="14"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>

@@ -1,5 +1,6 @@
 import { Link } from 'wouter';
-import { BRAND, LANDING, WHATSAPP_NUMBER, whatsappUrl } from '@/lib/landing-content';
+import { Logo } from '@/components/brand/logo';
+import { LANDING, WHATSAPP_NUMBER, whatsappUrl } from '@/lib/landing-content';
 
 function prettyPhone(raw: string): string {
   // 5513997478695 → (13) 99747-8695
@@ -9,11 +10,11 @@ function prettyPhone(raw: string): string {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50">
+    <footer className="border-t border-border bg-card">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-semibold text-zinc-900">{BRAND}</p>
-          <p className="mt-1 max-w-sm text-sm text-zinc-600">{LANDING.footer.tagline}</p>
+          <Logo className="h-8 text-foreground" />
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">{LANDING.footer.tagline}</p>
         </div>
 
         <div className="flex flex-col gap-2 text-sm">
@@ -25,7 +26,7 @@ export function SiteFooter() {
           >
             WhatsApp {prettyPhone(WHATSAPP_NUMBER)}
           </a>
-          <Link href="/login" className="text-zinc-600 hover:text-zinc-900">
+          <Link href="/login" className="text-muted-foreground hover:text-foreground">
             {LANDING.footer.loginLabel}
           </Link>
         </div>
