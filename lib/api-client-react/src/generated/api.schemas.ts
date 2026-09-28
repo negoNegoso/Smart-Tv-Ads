@@ -22,6 +22,34 @@ export interface PublicStats {
   cities: PublicStatsCitiesItem[];
 }
 
+export type PublicPiecesPiecesItemOrientation = typeof PublicPiecesPiecesItemOrientation[keyof typeof PublicPiecesPiecesItemOrientation];
+
+
+export const PublicPiecesPiecesItemOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
+
+export type PublicPiecesPiecesItemKind = typeof PublicPiecesPiecesItemKind[keyof typeof PublicPiecesPiecesItemKind];
+
+
+export const PublicPiecesPiecesItemKind = {
+  image: 'image',
+  video: 'video',
+  flyer: 'flyer',
+} as const;
+
+export type PublicPiecesPiecesItem = {
+  imageUrl: string;
+  caption: string | null;
+  orientation: PublicPiecesPiecesItemOrientation;
+  kind: PublicPiecesPiecesItemKind;
+};
+
+export interface PublicPieces {
+  pieces: PublicPiecesPiecesItem[];
+}
+
 export interface Announcement {
   id: number;
   title: string;

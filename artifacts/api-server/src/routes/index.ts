@@ -1,6 +1,7 @@
 import { Router } from "express";
 import healthRouter from "./health";
 import publicStatsRouter from "./public-stats";
+import publicPiecesRouter from "./public-pieces";
 import authRouter from "./auth";
 import announcementsRouter from "./announcements";
 import segmentsRouter from "./segments";
@@ -25,6 +26,7 @@ const router = Router();
 // Públicos
 router.use(healthRouter);
 router.use(publicStatsRouter);
+router.use(publicPiecesRouter);
 router.use(displayRouter);
 router.use(telemetryRouter);
 router.use(qrRouter);
