@@ -12,10 +12,12 @@ async function buildApp(): Promise<Express> {
   process.env.SESSION_SECRET = SECRET;
   const { default: express } = await import("express");
   const { default: cookieParser } = await import("cookie-parser");
-  const { loadSession, requireAdvertiser, requireClient, requireAdmin } = await import("../middleware");
+  const { loadSession, requireAdvertiser, requireClient, requireAdmin, requireUser } = await import("../middleware");
   const app = express();
   app.use(cookieParser());
   app.use(loadSession);
+  // Espelha a montagem real do portal: requireUser antes das guardas por papel.
+  app.get("/portal/cli", requireUser, requireClient, (_req, res) => res.json({ ok: true }));
   app.get("/adv", requireAdvertiser, (req, res) => res.json({ ids: (req as any).auth.advertiserIds }));
   app.get("/cli", requireClient, (req, res) => res.json({ ids: (req as any).auth.clientIds }));
   app.get("/admin", requireAdmin, (_req, res) => res.json({ ok: true }));
@@ -93,6 +95,30 @@ describe("guardas por papel", () => {
     const { default: request } = await import("supertest");
     const res = await request(app).get("/admin").set("Cookie", `sid=${createSession(SECRET, "7")}`);
     expect(res.status).toBe(403);
+  });
+
+  it("portal: usuário com troca de senha pendente recebe 403", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, mustChangePassword: true });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/portal/cli").set("Cookie", `sid=${createSession(SECRET, "7")}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("portal: admin do banco com troca de senha pendente recebe 403", async () => {
+    loadAuthContext.mockResolvedValue({ ...ctx, isAdmin: true, mustChangePassword: true });
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/portal/cli").set("Cookie", `sid=${createSession(SECRET, "7")}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("portal: usuário com senha já trocada passa", async () => {
+    loadAuthContext.mockResolvedValue(ctx);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/portal/cli").set("Cookie", `sid=${createSession(SECRET, "7")}`);
+    expect(res.status).toBe(200);
   });
 
   it("usuário comum não passa em requireAdmin", async () => {
