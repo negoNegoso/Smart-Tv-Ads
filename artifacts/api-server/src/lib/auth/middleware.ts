@@ -93,10 +93,20 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   unauthorized(res);
 }
 
-/** Exige sessão válida (admin ou usuário). Requer loadSession antes. */
+/**
+ * Exige sessão válida (admin ou usuário). Requer loadSession antes.
+ * Senha temporária pendente barra o portal também: sem isso, quem recebeu a
+ * senha provisória (ou a vazou) usava o portal sem nunca trocá-la — a tela de
+ * troca obrigatória existia só no front, e o admin do banco alcançava os
+ * painéis de todas as lojas por /portal/client/panels.
+ */
 export function requireUser(req: Request, res: Response, next: NextFunction): void {
   if (!req.auth) {
     unauthorized(res);
+    return;
+  }
+  if (req.auth.user?.mustChangePassword) {
+    res.status(403).json({ error: "Troque a senha antes de continuar." });
     return;
   }
   next();
