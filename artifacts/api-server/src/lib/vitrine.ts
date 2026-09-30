@@ -48,3 +48,12 @@ export function playKey(announcementId: number, campaignId: number | null | unde
 export function onAirKeys(slides: Array<{ announcementId: number; campaignId?: number | null }>): Set<string> {
   return new Set(slides.map((s) => playKey(s.announcementId, s.campaignId)));
 }
+
+/**
+ * Teto de idade de uma exibição da vitrine. A landing descarrega a fila a
+ * cada 15 s, então um play real tem segundos de vida; a rota é pública e não
+ * pode aceitar data retroativa (o teto de 7 dias do buildPlayRows serve à
+ * fila offline da TV e deixaria forjar exibição em períodos de relatório
+ * anteriores).
+ */
+export const VITRINE_MAX_PLAY_AGE_SECONDS = 5 * 60;

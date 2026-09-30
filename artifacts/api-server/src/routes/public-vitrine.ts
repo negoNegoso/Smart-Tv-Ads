@@ -8,7 +8,7 @@ import {
   RecordVitrinePlaysBody,
   RecordVitrinePlaysResponse,
 } from "@workspace/api-zod";
-import { findShowcaseDevice, onAirKeys, playKey } from "../lib/vitrine";
+import { findShowcaseDevice, onAirKeys, playKey, VITRINE_MAX_PLAY_AGE_SECONDS } from "../lib/vitrine";
 import { loadDeviceSlides } from "../lib/device-feed";
 import { buildPlayRows } from "../lib/telemetry/record-plays";
 import { isBotUserAgent } from "../lib/bot-detect";
@@ -86,7 +86,7 @@ router.post("/public/vitrine/plays", async (req, res): Promise<void> => {
   // conjuntos de "existentes" do buildPlayRows saem do próprio lote.
   const { rows, discarded } = buildPlayRows(
     device.id,
-    onAir,
+    onAir.map((p) => ({ ...p, ageSeconds: Math.min(p.ageSeconds, VITRINE_MAX_PLAY_AGE_SECONDS) })),
     new Set(onAir.map((p) => p.announcementId)),
     new Set(onAir.flatMap((p) => (p.campaignId != null ? [p.campaignId] : []))),
     new Date(),

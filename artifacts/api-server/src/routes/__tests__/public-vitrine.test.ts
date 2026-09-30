@@ -160,6 +160,36 @@ describe("POST /public/vitrine/plays", () => {
     expect(res.body).toEqual({ accepted: 0, duplicates: 1, discarded: 0 });
   });
 
+  it("idade informada é limitada a 5 minutos: não dá para antedatar", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([SLIDE]);
+    state.insertReturning = [{ id: 1 }];
+    const before = Date.now();
+    const res = await post({ orientation: "portrait", plays: [{ ...PLAY, ageSeconds: 7 * 24 * 3600 }] });
+
+    expect(res.body).toEqual({ accepted: 1, duplicates: 0, discarded: 0 });
+    const [rows] = dbInsert.mock.calls[0] as [Array<{ createdAt: Date }>];
+    const ageMs = before - rows[0].createdAt.getTime();
+    expect(ageMs).toBeLessThanOrEqual(5 * 60 * 1000 + 5000);
+    expect(ageMs).toBeGreaterThan(5 * 60 * 1000 - 5000);
+  });
+
+  it("slide de playlist (sem campanha) aceita play com campaignId nulo ou ausente", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([{ ...SLIDE, campaignId: null }]);
+    state.insertReturning = [{ id: 1 }, { id: 2 }];
+    const { campaignId: _omit, ...semCampanha } = PLAY;
+    const res = await post({
+      orientation: "portrait",
+      plays: [
+        { ...PLAY, campaignId: null },
+        { ...semCampanha, playId: "sem-campanha-0002" },
+      ],
+    });
+
+    expect(res.body).toEqual({ accepted: 2, duplicates: 0, discarded: 0 });
+  });
+
   it("lote com mais de 10 é 400", async () => {
     const plays = Array.from({ length: 11 }, (_, i) => ({ ...PLAY, playId: `lote-grande-${String(i).padStart(4, "0")}` }));
     const res = await post({ orientation: "portrait", plays });
