@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LANDING } from '@/lib/landing-content';
 import { TvMockup } from '../tv-mockup';
+import { TV_PIECES_INTERVAL_MS } from '../pieces-screen';
 
 vi.mock('@/components/youtube-slide', () => ({ YouTubeSlide: () => <div data-testid="youtube" /> }));
 
@@ -32,7 +33,14 @@ const FEEDS: Record<string, unknown> = {
 
 let posts: Array<{ orientation: string; plays: unknown[] }> = [];
 
-function stubApi(feeds: Record<string, unknown> = FEEDS) {
+// Peças no ar da rede (/public/pieces): o que a TV mostra enquanto não há vitrine.
+const PIECES = [
+  { imageUrl: '/api/storage/objects/h1.jpg', caption: 'Mercado do Vale', orientation: 'landscape', kind: 'image' },
+  { imageUrl: '/api/storage/objects/h2.jpg', caption: 'Ótica Central', orientation: 'landscape', kind: 'video' },
+  { imageUrl: '/api/storage/objects/v1.jpg', caption: 'Sorveteria', orientation: 'portrait', kind: 'image' },
+];
+
+function stubApi(feeds: Record<string, unknown> = FEEDS, pieces: unknown[] = PIECES) {
   posts = [];
   vi.stubGlobal(
     'fetch',
@@ -41,6 +49,9 @@ function stubApi(feeds: Record<string, unknown> = FEEDS) {
       if (init?.method === 'POST') {
         posts.push(JSON.parse(String(init.body)));
         return new Response(JSON.stringify({ accepted: 1, duplicates: 0, discarded: 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('public/pieces')) {
+        return new Response(JSON.stringify({ pieces }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       const m = url.match(/vitrine\/(landscape|portrait)\/feed/);
       const feed = m ? feeds[m[1]] : undefined;
@@ -110,15 +121,42 @@ describe('TvMockup', () => {
     expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.image);
   });
 
-  it('sem vitrine (404), mostra o slide de exemplo', async () => {
+  it('sem vitrine (404), toca as peças no ar da rede, como antes da vitrine', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     stubApi({});
+    renderTv();
+    expect(await screen.findByText('Mercado do Vale')).toBeInTheDocument();
+    expect(screen.getByTestId('tv-screen').querySelectorAll('img')).toHaveLength(2);
+
+    await act(async () => {
+      vi.advanceTimersByTime(TV_PIECES_INTERVAL_MS);
+    });
+    expect(screen.getByTestId('tv-caption')).toHaveTextContent('Ótica Central');
+    // Não é o player da vitrine: nada vai para o relatório de anunciante.
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(posts).toHaveLength(0);
+  });
+
+  it('sem vitrine, a vertical mostra só as peças verticais da rede', async () => {
+    stubApi({});
+    renderTv();
+    await screen.findByText('Mercado do Vale');
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
+    expect(await screen.findByText('Sorveteria')).toBeInTheDocument();
+    expect(screen.getByTestId('tv-screen').querySelectorAll('img')).toHaveLength(1);
+  });
+
+  it('sem vitrine e sem peça no ar, mostra o slide de exemplo', async () => {
+    stubApi({}, []);
     renderTv();
     expect(await screen.findByText(LANDING.mockup.caption)).toBeInTheDocument();
     expect(screen.queryByTestId('tv-kind')).not.toBeInTheDocument();
   });
 
-  it('vitrine sem peça também cai no exemplo', async () => {
-    stubApi({ landscape: { screen: { orientation: 'landscape' }, slides: [] } });
+  it('vitrine sem peça e rede sem peça cai no exemplo', async () => {
+    stubApi({ landscape: { screen: { orientation: 'landscape' }, slides: [] } }, []);
     renderTv();
     expect(await screen.findByText(LANDING.mockup.caption)).toBeInTheDocument();
   });

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   PlayCircle,
-  QrCode,
   RectangleHorizontal,
   RectangleVertical,
 } from "lucide-react";
@@ -13,6 +12,7 @@ import {
   type DisplaySlide,
 } from "@workspace/api-client-react";
 import { PlayerStage } from "@/components/player-stage";
+import { PiecesScreen } from "./pieces-screen";
 import { useSeen } from "@/hooks/use-seen";
 import { LANDING } from "@/lib/landing-content";
 import { createVitrinePlaysQueue } from "@/lib/vitrine-plays";
@@ -45,7 +45,7 @@ const ORIENTATIONS: Array<{
  *
  * Cada exibição conta no relatório do anunciante, por isso a TV para quando
  * ninguém pode vê-la (aba escondida ou fora da tela). Sem vitrine ou sem
- * peça, fica o slide de exemplo desenhado em CSS.
+ * peça, mostra as peças no ar da rede (PiecesScreen), sem contar exibição.
  */
 export function TvMockup() {
   const [orientation, setOrientation] = useState<Orientation>("landscape");
@@ -167,24 +167,9 @@ export function TvMockup() {
                 onSlideChange={setCurrent}
               />
             ) : (
-              <>
-                <div className="absolute bottom-[3cqmin] left-[3cqmin] right-[26cqmin] z-10">
-                  <span
-                    data-testid="tv-caption"
-                    className="block truncate rounded-[1cqmin] bg-black/55 px-[3cqmin] py-[2cqmin] text-[5cqmin] font-medium text-white"
-                  >
-                    {LANDING.mockup.caption}
-                  </span>
-                </div>
-
-                {/* Branco do QR real da TV, não do tema. */}
-                <div className="absolute bottom-[3cqmin] right-[3cqmin] z-10 rounded-[1cqmin] bg-[#fff] p-[1.5cqmin] text-center">
-                  <span className="block text-[3cqmin] font-semibold tracking-[0.12em] text-black">
-                    {LANDING.mockup.qrLabel}
-                  </span>
-                  <QrCode className="mx-auto mt-[0.5cqmin] h-[14cqmin] w-[14cqmin] text-black" />
-                </div>
-              </>
+              // Sem vitrine (ou vitrine sem peça): as peças no ar da rede.
+              // Só busca quando precisa — com vitrine, isto nem monta.
+              <PiecesScreen orientation={orientation} />
             )}
           </div>
         </div>
