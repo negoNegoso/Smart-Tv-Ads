@@ -139,6 +139,24 @@ describe('PlayerStage', () => {
     expect(onPlay).not.toHaveBeenCalled();
   });
 
+  it('um vídeo só recomeça a cada volta e conta toda exibição', () => {
+    // O YouTubeSlide só recria o player quando o slideKey muda; com um vídeo
+    // só, o slideKey precisa mudar a cada volta ou a TV congela no fim.
+    const onPlay = vi.fn();
+    const video = slide({ announcementId: 3, mediaKind: 'youtube_video', youtubeId: 'abc', playbackMode: 'natural' });
+    render(<PlayerStage slides={[video]} onPlay={onPlay} />);
+    type Props = { onEnded: () => void; slideKey: string };
+    const first = youtubeProps.mock.lastCall![0] as Props;
+
+    act(() => first.onEnded());
+    const second = youtubeProps.mock.lastCall![0] as Props;
+    expect(second.slideKey).not.toBe(first.slideKey);
+    expect(onPlay).toHaveBeenCalledTimes(1);
+
+    act(() => second.onEnded());
+    expect(onPlay).toHaveBeenCalledTimes(2);
+  });
+
   it('avisa o slide na tela', () => {
     const onSlideChange = vi.fn();
     render(<PlayerStage slides={[A, B]} onSlideChange={onSlideChange} />);

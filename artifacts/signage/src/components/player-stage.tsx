@@ -202,7 +202,10 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
     <div className="player-stage absolute inset-0 overflow-hidden bg-black select-none" style={{ containerType: 'size' }}>
       {isYouTube && videoId ? (
         <YouTubeSlide
-          slideKey={`${slide.announcementId}-${videoId}`}
+          // `cycle` na chave: com um vídeo só, o índice e o vídeo não mudam
+          // ao avançar, e o player (recriado só quando a chave muda) ficaria
+          // parado no fim. A posição salva não usa essa chave.
+          slideKey={`${slide.announcementId}-${videoId}-${cycle}`}
           videoId={videoId}
           audioMode={muted ? 'muted' : slide.audioMode === 'sound' ? 'sound' : 'muted'}
           playbackMode={slide.playbackMode === 'natural' ? 'natural' : 'capped'}
