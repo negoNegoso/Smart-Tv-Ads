@@ -8,8 +8,11 @@ process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
 const findShowcaseDevice = vi.fn();
 const loadDeviceSlides = vi.fn();
 const dbUpdate = vi.fn();
+const dbInsert = vi.fn();
+const state = vi.hoisted(() => ({ insertReturning: [] as unknown[] }));
 
-vi.mock("../../lib/vitrine", () => ({
+vi.mock("../../lib/vitrine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/vitrine")>()),
   findShowcaseDevice: (...a: unknown[]) => findShowcaseDevice(...a),
 }));
 vi.mock("../../lib/device-feed", () => ({
@@ -18,8 +21,17 @@ vi.mock("../../lib/device-feed", () => ({
 vi.mock("@workspace/db", () => {
   const chain = { set: () => chain, where: () => Promise.resolve() };
   return {
-    db: { update: (...a: unknown[]) => (dbUpdate(...a), chain) },
+    db: {
+      update: (...a: unknown[]) => (dbUpdate(...a), chain),
+      insert: () => ({
+        values: (rows: unknown) => {
+          dbInsert(rows);
+          return { onConflictDoNothing: () => ({ returning: () => Promise.resolve(state.insertReturning) }) };
+        },
+      }),
+    },
     devicesTable: { id: "id", lastSeenAt: "lastSeenAt" },
+    playsTable: { deviceId: "deviceId", clientPlayId: "clientPlayId", id: "id" },
   };
 });
 
@@ -55,6 +67,8 @@ beforeEach(() => {
   findShowcaseDevice.mockReset();
   loadDeviceSlides.mockReset();
   dbUpdate.mockReset();
+  dbInsert.mockReset();
+  state.insertReturning = [];
 });
 
 describe("GET /public/vitrine/:orientation/feed", () => {
@@ -97,5 +111,76 @@ describe("GET /public/vitrine/:orientation/feed", () => {
 
     expect(res.status).toBe(400);
     expect(findShowcaseDevice).not.toHaveBeenCalled();
+  });
+});
+
+const UA = "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/140 Safari/537.36";
+const PLAY = { playId: "a1b2c3d4-0000-4000-8000-000000000001", announcementId: 10, campaignId: 3, durationSeconds: 8, ageSeconds: 2 };
+
+async function post(body: object, ua = UA) {
+  const { default: request } = await import("supertest");
+  return request(await buildApp()).post("/public/vitrine/plays").set("User-Agent", ua).send(body);
+}
+
+describe("POST /public/vitrine/plays", () => {
+  it("grava a exibição de peça no ar na vitrine", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([SLIDE]);
+    state.insertReturning = [{ id: 1 }];
+    const res = await post({ orientation: "portrait", plays: [PLAY] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ accepted: 1, duplicates: 0, discarded: 0 });
+    const [rows] = dbInsert.mock.calls[0] as [Array<Record<string, unknown>>];
+    expect(rows[0]).toMatchObject({ deviceId: 5, announcementId: 10, campaignId: 3, clientPlayId: PLAY.playId });
+  });
+
+  it("descarta peça fora do ar e campanha trocada", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([SLIDE]);
+    const res = await post({
+      orientation: "portrait",
+      plays: [
+        { ...PLAY, playId: "fora-do-ar-0001", announcementId: 77 },
+        { ...PLAY, playId: "campanha-errada-01", campaignId: 999 },
+      ],
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ accepted: 0, duplicates: 0, discarded: 2 });
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("playId repetido conta como duplicata", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([SLIDE]);
+    state.insertReturning = []; // ON CONFLICT DO NOTHING não devolveu linha
+    const res = await post({ orientation: "portrait", plays: [PLAY] });
+
+    expect(res.body).toEqual({ accepted: 0, duplicates: 1, discarded: 0 });
+  });
+
+  it("lote com mais de 10 é 400", async () => {
+    const plays = Array.from({ length: 11 }, (_, i) => ({ ...PLAY, playId: `lote-grande-${String(i).padStart(4, "0")}` }));
+    const res = await post({ orientation: "portrait", plays });
+
+    expect(res.status).toBe(400);
+    expect(findShowcaseDevice).not.toHaveBeenCalled();
+  });
+
+  it("robô recebe 202 e nada é gravado", async () => {
+    const res = await post({ orientation: "portrait", plays: [PLAY] }, "Googlebot/2.1");
+
+    expect(res.status).toBe(202);
+    expect(findShowcaseDevice).not.toHaveBeenCalled();
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("sem vitrine, 404 com o corpo do feed", async () => {
+    findShowcaseDevice.mockResolvedValue(null);
+    const res = await post({ orientation: "landscape", plays: [PLAY] });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Showcase not found" });
   });
 });

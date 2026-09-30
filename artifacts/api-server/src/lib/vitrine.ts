@@ -33,3 +33,18 @@ export async function findShowcaseDevice(
     .limit(1);
   return row ? { ...row, showcase: true } : null;
 }
+
+/** Chave "peça:campanha" — a mesma peça pode estar no ar por campanha e pela playlist. */
+export function playKey(announcementId: number, campaignId: number | null | undefined): string {
+  return `${announcementId}:${campaignId ?? ""}`;
+}
+
+/**
+ * O que pode virar exibição agora: exatamente o que o feed da vitrine manda.
+ * A rota de plays é pública, então só aceita peça que um visitante de fato
+ * poderia estar vendo — play de peça fora do ar ou com campanha trocada é
+ * descartado, e não pesa no relatório de ninguém.
+ */
+export function onAirKeys(slides: Array<{ announcementId: number; campaignId?: number | null }>): Set<string> {
+  return new Set(slides.map((s) => playKey(s.announcementId, s.campaignId)));
+}
