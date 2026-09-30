@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD COLUMN "showcase" boolean DEFAULT false NOT NULL;

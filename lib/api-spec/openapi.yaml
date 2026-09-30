@@ -61,6 +61,57 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicPieces"
 
+  /public/vitrine/{orientation}/feed:
+    get:
+      operationId: getVitrineFeed
+      tags: [public]
+      summary: Rotação da TV vitrine da Smart Vale, para o player da landing
+      description: >
+        Mesmo formato de /display/{deviceKey}/feed, sem expor a key: a
+        vitrine é achada pela orientação de tela. Cada consulta marca a
+        vitrine como vista (lastSeenAt).
+      parameters:
+        - name: orientation
+          in: path
+          required: true
+          schema: { type: string, enum: [landscape, portrait] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayFeed"
+        "400":
+          description: Orientação inválida
+        "404":
+          description: Nenhuma vitrine nessa orientação
+
+  /public/vitrine/plays:
+    post:
+      operationId: recordVitrinePlays
+      tags: [public]
+      summary: Exibições da vitrine vistas por visitantes da landing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VitrinePlaysInput"
+      responses:
+        "200":
+          description: Lote processado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayBatchResult"
+        "202":
+          description: Robô; nada gravado
+        "400":
+          description: Corpo inválido
+        "404":
+          description: Nenhuma vitrine nessa orientação
+
   # ── Announcements (global media library) ────────────────────────────────────
   /announcements:
     get:
@@ -1446,7 +1497,7 @@ components:
     # ── Devices ──────────────────────────────────────────────────────────────
     Device:
       type: object
-      required: [id, clientId, clientName, name, deviceKey, orientation, createdAt]
+      required: [id, clientId, clientName, name, deviceKey, orientation, showcase, createdAt]
       properties:
         id: { type: integer }
         clientId: { type: integer }
@@ -1459,6 +1510,7 @@ components:
         orientation: { type: string }
         deviceKey: { type: string }
         lastSeenAt: { type: ["string", "null"], format: date-time }
+        showcase: { type: boolean }
         createdAt: { type: string, format: date-time }
 
     DeviceInput:
@@ -1476,6 +1528,7 @@ components:
         name: { type: string, minLength: 1 }
         location: { type: ["string", "null"] }
         orientation: { type: string, enum: [landscape, portrait_right, portrait_left] }
+        showcase: { type: boolean }
 
     # ── Playlist ─────────────────────────────────────────────────────────────
     PlaylistItem:
@@ -1607,6 +1660,20 @@ components:
         accepted: { type: integer }
         duplicates: { type: integer }
         discarded: { type: integer }
+
+    VitrinePlaysInput:
+      type: object
+      required: [orientation, plays]
+      properties:
+        orientation: { type: string, enum: [landscape, portrait] }
+        plays:
+          type: array
+          minItems: 1
+          # Lote pequeno: a rota é pública, e um visitante gera poucas
+          # exibições a cada 15 s.
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/PlayBatchItem"
 
     # ── Analytics ────────────────────────────────────────────────────────────
     AnnouncementPlayStat:

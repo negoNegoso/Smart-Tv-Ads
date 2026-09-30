@@ -52,6 +52,7 @@ async function getDeviceWithClient(where: SQL) {
       orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
+      showcase: devicesTable.showcase,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -79,6 +80,7 @@ router.get("/devices", async (req, res): Promise<void> => {
       orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
+      showcase: devicesTable.showcase,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)

@@ -32,7 +32,7 @@ vi.mock("@workspace/db", () => ({
     select: () => makeChain(selectResult),
     update: () => makeChain(updateResult),
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase" },
   devicePlaylistTable: {},
   announcementsTable: {},
   clientsTable: { id: "id", companyId: "companyId" },
@@ -59,6 +59,7 @@ const DEVICE = {
   deviceKey: "A1B2C3D4E5F6A7B8",
   orientation: "portrait_right",
   lastSeenAt: null,
+  showcase: false,
   createdAt: new Date("2026-09-01T12:00:00Z"),
 };
 
@@ -86,5 +87,15 @@ describe("PATCH /devices/:id — orientação", () => {
 
     expect(res.status).toBe(400);
     expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("devolve se a TV é vitrine", async () => {
+    selectResult = [{ ...DEVICE, showcase: true }];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ name: "Vitrine horizontal" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.showcase).toBe(true);
   });
 });

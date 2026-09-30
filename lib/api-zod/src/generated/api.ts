@@ -45,6 +45,68 @@ export const GetPublicPiecesResponse = zod.object({
 
 
 /**
+ * Mesmo formato de /display/{deviceKey}/feed, sem expor a key: a vitrine é achada pela orientação de tela. Cada consulta marca a vitrine como vista (lastSeenAt).
+ * @summary Rotação da TV vitrine da Smart Vale, para o player da landing
+ */
+export const GetVitrineFeedParams = zod.object({
+  "orientation": zod.enum(['landscape', 'portrait'])
+})
+
+export const GetVitrineFeedResponse = zod.object({
+  "screen": zod.object({
+  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left'])
+}),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}))
+})
+
+
+/**
+ * @summary Exibições da vitrine vistas por visitantes da landing
+ */
+export const recordVitrinePlaysBodyPlaysItemPlayIdMin = 8;
+export const recordVitrinePlaysBodyPlaysItemPlayIdMax = 40;
+
+export const recordVitrinePlaysBodyPlaysItemDurationSecondsMin = 0;
+export const recordVitrinePlaysBodyPlaysItemDurationSecondsMax = 86400;
+
+export const recordVitrinePlaysBodyPlaysItemAgeSecondsMin = 0;
+
+export const recordVitrinePlaysBodyPlaysMax = 10;
+
+
+
+export const RecordVitrinePlaysBody = zod.object({
+  "orientation": zod.enum(['landscape', 'portrait']),
+  "plays": zod.array(zod.object({
+  "playId": zod.string().min(recordVitrinePlaysBodyPlaysItemPlayIdMin).max(recordVitrinePlaysBodyPlaysItemPlayIdMax),
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "durationSeconds": zod.number().min(recordVitrinePlaysBodyPlaysItemDurationSecondsMin).max(recordVitrinePlaysBodyPlaysItemDurationSecondsMax),
+  "ageSeconds": zod.number().min(recordVitrinePlaysBodyPlaysItemAgeSecondsMin)
+})).min(1).max(recordVitrinePlaysBodyPlaysMax)
+})
+
+export const RecordVitrinePlaysResponse = zod.object({
+  "accepted": zod.number(),
+  "duplicates": zod.number(),
+  "discarded": zod.number()
+})
+
+
+/**
  * @summary List all announcements
  */
 export const ListAnnouncementsResponseItem = zod.object({
@@ -583,6 +645,7 @@ export const ListDevicesResponseItem = zod.object({
   "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
+  "showcase": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
@@ -611,6 +674,7 @@ export const CreateDeviceResponse = zod.object({
   "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
+  "showcase": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -631,6 +695,7 @@ export const GetDeviceByKeyResponse = zod.object({
   "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
+  "showcase": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -648,6 +713,7 @@ export const GetDeviceResponse = zod.object({
   "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
+  "showcase": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -662,7 +728,8 @@ export const UpdateDeviceParams = zod.object({
 export const UpdateDeviceBody = zod.object({
   "name": zod.string().min(1).optional(),
   "location": zod.string().nullish(),
-  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional()
+  "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional(),
+  "showcase": zod.boolean().optional()
 })
 
 export const UpdateDeviceResponse = zod.object({
@@ -674,6 +741,7 @@ export const UpdateDeviceResponse = zod.object({
   "orientation": zod.string(),
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
+  "showcase": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 

@@ -13,4 +13,5 @@ export interface DeviceUpdate {
   /** @nullable */
   location?: string | null;
   orientation?: DeviceUpdateOrientation;
+  showcase?: boolean;
 }
