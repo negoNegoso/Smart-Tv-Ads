@@ -50,12 +50,42 @@
     #slot-a, #slot-b {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    #slot-a { opacity: 1; z-index: 1; }
+    #slot-b { opacity: 0; z-index: 1; }
+
+    /* Duas camadas por slot. `.slot-arte` é a arte; em tela cheia (cover) ela
+       é tudo o que aparece. Arte fora da proporção da tela (post de feed 4:5
+       numa TV em pé) ganha a classe `moldura` no slot: vai inteira (contain) e
+       a mesma arte desfocada preenche o fundo. Espelho de src/pages/display.tsx.
+
+       O desfoque é estático — só a opacidade do slot anima no crossfade —,
+       para pesar pouco nas TVs fracas. O scale esconde a borda clara que o
+       blur deixa. Sem suporte a filter, o fundo fica nítido mas escurecido. */
+    .slot-fundo, .slot-arte {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
       background-size: cover;
       background-position: center center;
       background-repeat: no-repeat;
     }
-    #slot-a { opacity: 1; z-index: 1; }
-    #slot-b { opacity: 0; z-index: 1; }
+    .slot-fundo {
+      display: none;
+      -webkit-filter: blur(4vh);
+      filter: blur(4vh);
+      -webkit-transform: scale(1.15);
+      transform: scale(1.15);
+    }
+    .slot-fundo:after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;                 /* fallback para WebKit sem rgba */
+      background: rgba(0,0,0,0.45);
+    }
+    .moldura .slot-fundo { display: block; }
+    .moldura .slot-arte { background-size: contain; }
 
     .slot-enter { -webkit-transition: opacity 1.2s ease-in-out; transition: opacity 1.2s ease-in-out; }
 
@@ -193,8 +223,8 @@
 </head>
 <body>
   <div id="stage">
-    <div id="slot-a"></div>
-    <div id="slot-b"></div>
+    <div id="slot-a"><div class="slot-fundo"></div><div class="slot-arte"></div></div>
+    <div id="slot-b"><div class="slot-fundo"></div><div class="slot-arte"></div></div>
     <div id="yt-slot" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;display:none;background:#000;"></div>
 
     <div id="overlay">
@@ -800,15 +830,44 @@
         }
       }
 
-      // Pinta a arte já carregada no próximo slot e faz o crossfade.
-      function paintImageSlide(slide, url) {
+      // Espelho de src/lib/art-fit.ts — mudou lá, mude aqui. Arte cuja
+      // proporção foge mais de 10% da tela vai inteira, com fundo desfocado:
+      // em `cover`, um post de feed 4:5 numa TV em pé perde ~30% das laterais.
+      function precisaDeMoldura(larguraArte, alturaArte, larguraTela, alturaTela) {
+        if (!(larguraArte > 0 && alturaArte > 0 && larguraTela > 0 && alturaTela > 0)) { return false; }
+        var arte = larguraArte / alturaArte;
+        var tela = larguraTela / alturaTela;
+        return Math.max(arte, tela) / Math.min(arte, tela) > 1.1;
+      }
+
+      // Medida do palco (já girado na TV em pé). Sem layout (0×0), usa a
+      // proporção nominal da orientação.
+      function medidaDoPalco() {
+        var w = stageEl.offsetWidth;
+        var h = stageEl.offsetHeight;
+        if (w > 0 && h > 0) { return [w, h]; }
+        return screenOrientation === 'landscape' ? [16, 9] : [9, 16];
+      }
+
+      // Pinta a arte já carregada no próximo slot e faz o crossfade. `img` é a
+      // imagem pré-carregada (traz as medidas); só slide de imagem ganha
+      // moldura — a miniatura de reserva do YouTube tem faixas pretas
+      // embutidas, que apareceriam inteiras.
+      function paintImageSlide(slide, url, img) {
         var prev = activeSlot === 'a' ? slotA : slotB;
         var next = activeSlot === 'a' ? slotB : slotA;
 
-        next.style.backgroundImage = 'url(' + url + ')';
+        var palco = medidaDoPalco();
+        var ehImagem = !slide.mediaKind || slide.mediaKind === 'image';
+        var moldura = ehImagem && !!img &&
+          precisaDeMoldura(img.naturalWidth || img.width, img.naturalHeight || img.height, palco[0], palco[1]);
+
+        next.getElementsByClassName('slot-arte')[0].style.backgroundImage = 'url(' + url + ')';
+        // Sem moldura o fundo fica vazio: nada para o navegador desfocar.
+        next.getElementsByClassName('slot-fundo')[0].style.backgroundImage = moldura ? 'url(' + url + ')' : '';
         next.style.zIndex = '2';
         next.style.opacity = '1';
-        next.className = 'slot-enter';
+        next.className = moldura ? 'slot-enter moldura' : 'slot-enter';
 
         prev.style.zIndex = '1';
         prev.style.opacity = '0';
@@ -844,7 +903,7 @@
           // a arte atrasada some por cima do slide que está no ar agora.
           if (pedido !== currentIndex) { return; }
           falhasDeArte = 0;
-          paintImageSlide(slide, url);
+          paintImageSlide(slide, url, img);
         };
         img.onerror = function () {
           if (pedido !== currentIndex) { return; }
@@ -855,7 +914,7 @@
             retry.onload = function () {
               if (pedido !== currentIndex) { return; }
               falhasDeArte = 0;
-              paintImageSlide(slide, furaCache);
+              paintImageSlide(slide, furaCache, retry);
             };
             retry.onerror = function () {
               if (pedido !== currentIndex) { return; }
