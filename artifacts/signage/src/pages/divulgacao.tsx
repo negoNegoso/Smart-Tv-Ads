@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Download, Info } from 'lucide-react';
+import { Copy, Check, Download, Info, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,22 +21,35 @@ function urlDaPeca(arquivo: string, alta: boolean): string {
   return `${import.meta.env.BASE_URL}divulgacao/${arquivo}${alta ? '-2x' : ''}.png`;
 }
 
-function BotaoCopiar({ legenda }: { legenda: string }) {
+/** URL completa, para mandar ao próprio celular ou salvar nos favoritos. */
+function urlDaApresentacao(): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}apresentacao`;
+}
+
+function BotaoCopiar({
+  texto,
+  rotulo = DIVULGACAO.copiar,
+  aviso = DIVULGACAO.copiado,
+}: {
+  texto: string;
+  rotulo?: string;
+  aviso?: string;
+}) {
   const { toast } = useToast();
   const [copiado, setCopiado] = useState(false);
 
   async function copiar() {
     try {
-      await navigator.clipboard.writeText(legenda);
+      await navigator.clipboard.writeText(texto);
       setCopiado(true);
-      toast({ title: DIVULGACAO.copiado });
+      toast({ title: aviso });
       window.setTimeout(() => setCopiado(false), 2000);
     } catch {
       // Navegador sem permissão de área de transferência (ou contexto não
       // seguro). Selecionar o texto na tela continua funcionando.
       toast({
         title: 'Não foi possível copiar',
-        description: 'Selecione a legenda e copie manualmente.',
+        description: 'Selecione o texto e copie manualmente.',
         variant: 'destructive',
       });
     }
@@ -45,7 +58,7 @@ function BotaoCopiar({ legenda }: { legenda: string }) {
   return (
     <Button type="button" variant="outline" size="sm" className="gap-2" onClick={copiar}>
       {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {DIVULGACAO.copiar}
+      {rotulo}
     </Button>
   );
 }
@@ -96,7 +109,7 @@ function CardPeca({ peca }: { peca: PecaDivulgacao }) {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {DIVULGACAO.legendaLabel}
               </p>
-              <BotaoCopiar legenda={peca.legenda} />
+              <BotaoCopiar texto={peca.legenda} />
             </div>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-foreground">
               {peca.legenda}
@@ -115,6 +128,36 @@ export default function Divulgacao() {
         <h1 className="text-3xl font-bold tracking-tight">{DIVULGACAO.title}</h1>
         <p className="mt-1 text-muted-foreground">{DIVULGACAO.subtitle}</p>
       </div>
+
+      {/*
+        Não é peça para postar: é o que o operador abre na reunião. Fica no
+        topo porque é o atalho que ele procura antes de sair para vender.
+      */}
+      <Card className="mb-8">
+        <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <Presentation className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              {DIVULGACAO.apresentacao.titulo}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{DIVULGACAO.apresentacao.body}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {/* Aba nova: o operador não perde esta página ao abrir os slides. */}
+            <Button asChild size="sm" className="gap-2">
+              <a href={`${import.meta.env.BASE_URL}apresentacao`} target="_blank" rel="noopener noreferrer">
+                <Presentation className="h-4 w-4" />
+                {DIVULGACAO.apresentacao.abrir}
+              </a>
+            </Button>
+            <BotaoCopiar
+              texto={urlDaApresentacao()}
+              rotulo={DIVULGACAO.apresentacao.copiarLink}
+              aviso={DIVULGACAO.apresentacao.linkCopiado}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="mb-8 grid gap-4 md:grid-cols-3">
         {DIVULGACAO.avisos.map((aviso) => (

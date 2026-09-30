@@ -46,6 +46,13 @@ export const DIVULGACAO = {
         'O Facebook recomprime melhor a partir do arquivo maior. O WhatsApp trabalha melhor com o tamanho padrão.',
     },
   ],
+  apresentacao: {
+    titulo: 'Apresentação comercial',
+    body: 'Slides para mostrar ao cliente na reunião, com a rede e as peças ao vivo. F põe em tela cheia; I abre o índice para pular ao bloco de quem está na mesa.',
+    abrir: 'Abrir apresentação',
+    copiarLink: 'Copiar link',
+    linkCopiado: 'Link copiado',
+  },
   downloadAlta: 'Baixar alta (2x)',
   downloadPadrao: 'Baixar padrão',
   legendaLabel: 'Legenda pronta',
