@@ -270,6 +270,7 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
       companyId: clientsTable.companyId,
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
+      showcase: devicesTable.showcase,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
