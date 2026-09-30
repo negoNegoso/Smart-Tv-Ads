@@ -32,6 +32,10 @@ export interface PlayerStageProps {
 export function PlayerStage({ slides, muted = false, paused = false, onPlay, onSlideChange }: PlayerStageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  // Conta cada avanço. Com uma peça só, (0 + 1) % 1 = 0: o índice não muda e
+  // o efeito do timer não rodaria de novo — só a primeira exibição contaria e
+  // a barra passaria de 100%. O contador força o reinício a cada volta.
+  const [cycle, setCycle] = useState(0);
   const playSent = useRef(false);
   const playlistCursor = useRef<Record<number, number>>({});
   const videoPositions = useRef<Record<string, number>>({});
@@ -129,6 +133,7 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
           // contar play nem avançar o cursor da playlist (retoma depois).
           elapsedRef.current = 0;
           setCurrentIndex((prev) => (prev + 1) % slides.length);
+          setCycle((c) => c + 1);
           setProgress(0);
         } else {
           // Imagem ou fallback: comportamento atual (1 play por exibição).
@@ -147,13 +152,14 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
           }
           elapsedRef.current = 0;
           setCurrentIndex((prev) => (prev + 1) % slides.length);
+          setCycle((c) => c + 1);
           setProgress(0);
         }
       }
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [currentIndex, slides, fallbackIds, paused]);
+  }, [currentIndex, cycle, slides, fallbackIds, paused]);
 
   // Lista vazia: a casca decide o estado vazio.
   if (slides.length === 0) return null;
@@ -188,6 +194,7 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
     }
     elapsedRef.current = 0;
     setCurrentIndex((prev) => (prev + 1) % slides.length);
+    setCycle((c) => c + 1);
     setProgress(0);
   };
 

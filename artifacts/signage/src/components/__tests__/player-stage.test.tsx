@@ -57,6 +57,18 @@ describe('PlayerStage', () => {
     expect(screen.getByText('Farmácia 24h')).toBeInTheDocument();
   });
 
+  it('com uma peça só, conta toda exibição', () => {
+    // Vitrine com um anúncio é caso real: o índice não muda ao avançar
+    // (0 → 0), mas cada volta é uma exibição nova.
+    const onPlay = vi.fn();
+    render(<PlayerStage slides={[A]} onPlay={onPlay} />);
+    // Dois act de 2 s (4 s no total): o React só re-renderiza ao sair do act,
+    // como o navegador faria entre um tique e outro do timer.
+    act(() => vi.advanceTimersByTime(2000));
+    act(() => vi.advanceTimersByTime(2000));
+    expect(onPlay).toHaveBeenCalledTimes(2);
+  });
+
   it('pausado não avança nem conta; ao voltar, termina o tempo que faltava', () => {
     const onPlay = vi.fn();
     const { rerender } = render(<PlayerStage slides={[A, B]} onPlay={onPlay} />);
