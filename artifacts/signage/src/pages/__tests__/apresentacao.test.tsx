@@ -63,6 +63,16 @@ describe('Apresentacao', () => {
     expect(slideAtual()).toBe('9');
   });
 
+  it('depois de usar o botão do índice, espaço avança em vez de reabrir o índice', async () => {
+    renderPagina();
+    const botao = screen.getByRole('button', { name: APRESENTACAO.navegacao.indice });
+    await userEvent.click(botao);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await userEvent.keyboard(' ');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(slideAtual()).toBe('2');
+  });
+
   it('tecla I abre o índice e Esc fecha', () => {
     renderPagina();
     fireEvent.keyDown(window, { key: 'i' });

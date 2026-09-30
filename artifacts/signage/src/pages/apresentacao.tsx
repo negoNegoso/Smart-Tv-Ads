@@ -103,7 +103,12 @@ export default function Apresentacao() {
 
       <button
         type="button"
-        onClick={() => setIndiceAberto((a) => !a)}
+        onClick={(e) => {
+          // Sem o blur o foco fica no botão, e o próximo espaço (avançar)
+          // reabriria o índice na frente do cliente.
+          e.currentTarget.blur();
+          setIndiceAberto((a) => !a);
+        }}
         aria-label={APRESENTACAO.navegacao.indice}
         aria-expanded={indiceAberto}
         className="absolute bottom-4 right-4 z-20 rounded-full border border-border bg-card p-2 text-muted-foreground opacity-60 hover:text-foreground hover:opacity-100"
