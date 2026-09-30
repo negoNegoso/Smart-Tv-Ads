@@ -8,7 +8,7 @@ import {
   RecordVitrinePlaysBody,
   RecordVitrinePlaysResponse,
 } from "@workspace/api-zod";
-import { findShowcaseDevice, onAirKeys, playKey, VITRINE_MAX_PLAY_AGE_SECONDS } from "../lib/vitrine";
+import { findShowcaseDevice, onAirDurations, playKey, VITRINE_MAX_PLAY_AGE_SECONDS } from "../lib/vitrine";
 import { loadDeviceSlides } from "../lib/device-feed";
 import { buildPlayRows } from "../lib/telemetry/record-plays";
 import { isBotUserAgent } from "../lib/bot-detect";
@@ -78,8 +78,13 @@ router.post("/public/vitrine/plays", async (req, res): Promise<void> => {
     return;
   }
 
-  const allowed = onAirKeys(await loadDeviceSlides(device, req.log));
-  const onAir = parsed.data.plays.filter((p) => allowed.has(playKey(p.announcementId, p.campaignId)));
+  const durations = onAirDurations(await loadDeviceSlides(device, req.log));
+  // A duração vem do feed, não do cliente: o relatório do anunciante soma
+  // plays.duration_seconds, e a rota é pública — um POST anônimo com
+  // durationSeconds alto forjaria tempo de tela.
+  const onAir = parsed.data.plays
+    .filter((p) => durations.has(playKey(p.announcementId, p.campaignId)))
+    .map((p) => ({ ...p, durationSeconds: durations.get(playKey(p.announcementId, p.campaignId))! }));
   const offAir = parsed.data.plays.length - onAir.length;
 
   // Tudo que sobrou está no feed, então peça e campanha existem: os dois

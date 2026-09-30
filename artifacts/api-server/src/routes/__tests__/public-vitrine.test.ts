@@ -135,6 +135,17 @@ describe("POST /public/vitrine/plays", () => {
     expect(rows[0]).toMatchObject({ deviceId: 5, announcementId: 10, campaignId: 3, clientPlayId: PLAY.playId });
   });
 
+  it("duração gravada vem do feed, não do cliente", async () => {
+    findShowcaseDevice.mockResolvedValue(VITRINE);
+    loadDeviceSlides.mockResolvedValue([SLIDE]);
+    state.insertReturning = [{ id: 1 }];
+    const res = await post({ orientation: "portrait", plays: [{ ...PLAY, durationSeconds: 86400 }] });
+
+    expect(res.body).toEqual({ accepted: 1, duplicates: 0, discarded: 0 });
+    const [rows] = dbInsert.mock.calls[0] as [Array<Record<string, unknown>>];
+    expect(rows[0]).toMatchObject({ durationSeconds: 8 });
+  });
+
   it("descarta peça fora do ar e campanha trocada", async () => {
     findShowcaseDevice.mockResolvedValue(VITRINE);
     loadDeviceSlides.mockResolvedValue([SLIDE]);
