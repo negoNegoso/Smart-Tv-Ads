@@ -42,6 +42,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { mediaUrl } from '@/lib/media-url';
 import { mensagemDeErro } from '@/lib/api-error';
@@ -429,6 +430,22 @@ export default function DeviceDetail() {
     },
   });
 
+  const updateShowcase = useUpdateDevice({
+    mutation: {
+      // Ligar/desligar muda a rotação (modo vitrine) e a prévia ao lado.
+      onSuccess: (d) => {
+        queryClient.invalidateQueries({ queryKey: getGetDeviceQueryKey(deviceId) });
+        queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
+        toast({ title: d.showcase ? 'Vitrine ligada. A landing espelha esta TV.' : 'Vitrine desligada.' });
+      },
+      onError: (err) =>
+        toast({
+          title: mensagemDeErro(err, 'Não foi possível salvar a vitrine'),
+          variant: 'destructive',
+        }),
+    },
+  });
+
   function copyUrl() {
     if (!device) return;
     const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
@@ -515,6 +532,23 @@ export default function DeviceDetail() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
+      </div>
+
+      <div className="mb-6 flex items-start gap-3 rounded-lg border px-3 py-2.5">
+        <Switch
+          id="device-showcase"
+          aria-label="Vitrine da landing"
+          checked={device.showcase}
+          disabled={updateShowcase.isPending}
+          onCheckedChange={(checked) => updateShowcase.mutate({ id: deviceId, data: { showcase: checked } })}
+        />
+        <div className="text-sm">
+          <label htmlFor="device-showcase" className="font-medium">Vitrine da landing</label>
+          <p className="text-muted-foreground">
+            A landing espelha esta TV. Recebe todas as campanhas no ar, sem alvo nem concorrência, e cada
+            visita na landing conta como exibição. Uma vitrine por orientação.
+          </p>
+        </div>
       </div>
 
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e

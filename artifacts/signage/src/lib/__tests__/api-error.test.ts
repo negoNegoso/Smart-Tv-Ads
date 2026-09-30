@@ -38,4 +38,13 @@ describe('mensagemDeErro', () => {
     expect(mensagemDeErro({ data: { error: 42 } }, FALLBACK)).toBe(FALLBACK);
     expect(mensagemDeErro({ data: 'texto solto' }, FALLBACK)).toBe(FALLBACK);
   });
+
+  it('repassa o conflito de vitrine, que o servidor já escreve em português', () => {
+    const err = { data: { error: 'Já existe uma vitrine vertical: Vitrine vertical' } };
+    expect(mensagemDeErro(err, FALLBACK)).toBe('Já existe uma vitrine vertical: Vitrine vertical');
+  });
+
+  it('mensagem qualquer do servidor continua caindo no fallback', () => {
+    expect(mensagemDeErro({ data: { error: 'Device not found' } }, FALLBACK)).toBe(FALLBACK);
+  });
 });

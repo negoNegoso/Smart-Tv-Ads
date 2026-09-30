@@ -24,6 +24,7 @@ const DEVICE = {
   lastSeenAt: null,
   createdAt: '2026-09-01T12:00:00Z',
   orientation: 'landscape',
+  showcase: false,
 };
 
 const ANUNCIO = {
@@ -195,5 +196,40 @@ describe('DeviceDetail — adicionar à playlist', () => {
     await tentarAdicionar();
 
     await waitFor(() => expect(textoNaTela()).toContain('Essa peça já está na playlist.'));
+  });
+});
+
+describe('vitrine da landing', () => {
+  it('liga a vitrine pelo switch e manda showcase no PATCH', async () => {
+    const patches: unknown[] = [];
+    stubTv(DEVICE, [ANUNCIO], patches);
+    renderPagina();
+
+    await userEvent.click(await screen.findByRole('switch', { name: 'Vitrine da landing' }));
+
+    await waitFor(() => expect(patches).toEqual([{ showcase: true }]));
+  });
+
+  it('mostra no toast o conflito com a outra vitrine', async () => {
+    // Como stubTv, mas o PATCH responde 409 com o erro em português do servidor.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+        if (init?.method === 'PATCH') {
+          return json({ error: 'Já existe uma vitrine horizontal: Vitrine H' }, 409);
+        }
+        if (url.includes('/playlist')) return json([]);
+        if (url.includes('/preview')) return json([]);
+        if (url.includes('/announcements')) return json([ANUNCIO]);
+        if (url.includes('/devices/1')) return json(DEVICE);
+        return json([]);
+      }),
+    );
+    renderPagina();
+
+    await userEvent.click(await screen.findByRole('switch', { name: 'Vitrine da landing' }));
+
+    await waitFor(() => expect(textoNaTela()).toContain('Já existe uma vitrine horizontal: Vitrine H'));
   });
 });

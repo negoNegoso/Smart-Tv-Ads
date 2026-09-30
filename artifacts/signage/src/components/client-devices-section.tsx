@@ -143,7 +143,12 @@ export function ClientDevicesSection({ clientId }: { clientId: number }) {
               </div>
               <div className="min-w-0 flex-1">
                 <Link href={`/devices/${device.id}`}>
-                  <h3 className="cursor-pointer font-semibold transition-colors hover:text-primary">{device.name}</h3>
+                  <h3 className="cursor-pointer font-semibold transition-colors hover:text-primary">
+                    {device.name}
+                    {device.showcase ? (
+                      <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">Vitrine</span>
+                    ) : null}
+                  </h3>
                 </Link>
                 <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
                   {device.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{device.location}</span>}

@@ -19,5 +19,8 @@ export function mensagemDeErro(err: unknown, fallback: string): string {
 
   if (mensagem === "Announcement already in playlist") return "Essa peça já está na playlist.";
 
+  // O 409 da vitrine já sai do servidor em português e nomeia a outra TV.
+  if (mensagem.startsWith("Já existe uma vitrine")) return mensagem;
+
   return fallback;
 }
