@@ -58,6 +58,7 @@ export function YouTubeSlide({
 
   useEffect(() => {
     let player: any = null;
+    let host: HTMLDivElement | null = null;
     let cancelled = false;
     let started = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -68,7 +69,13 @@ export function YouTubeSlide({
     loadYouTubeApi().then(() => {
       if (cancelled || !containerRef.current) return;
       const YT = (window as any).YT;
-      player = new YT.Player(containerRef.current, {
+      // O YT.Player troca o elemento que recebe por um iframe. Se fosse o div
+      // do ref, o próximo vídeo (slide seguinte ou o mesmo vídeo em ciclo
+      // novo) seria criado num elemento que já saiu da página, e a tela
+      // ficava preta. Cada player ganha um alvo novo dentro do contêiner.
+      host = document.createElement('div');
+      containerRef.current.appendChild(host);
+      player = new YT.Player(host, {
         videoId,
         playerVars: {
           autoplay: 1,
@@ -128,13 +135,16 @@ export function YouTubeSlide({
       } catch {
         /* noop */
       }
+      // destroy() tira o iframe; o alvo pode sobrar se o player nem chegou a nascer.
+      host?.remove();
     };
     // Recria o player a cada troca de slide/vídeo.
   }, [slideKey, videoId, audioMode, playbackMode]);
 
   return (
     <div className="absolute inset-0 z-0 bg-black">
-      <div ref={containerRef} className="h-full w-full" />
+      {/* O iframe do YouTube nasce no tamanho padrão (640x390); o seletor faz ele ocupar a tela. */}
+      <div ref={containerRef} className="h-full w-full [&>*]:h-full [&>*]:w-full" />
     </div>
   );
 }
