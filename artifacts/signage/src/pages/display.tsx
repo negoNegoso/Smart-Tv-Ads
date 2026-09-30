@@ -7,6 +7,7 @@ import { SlideCaption } from '@/components/slide-caption';
 import { YouTubeSlide } from '@/components/youtube-slide';
 import { FullscreenHint } from '@/components/fullscreen-hint';
 import { stageStyle } from '@/lib/stage-rotation';
+import { ArtLayers } from '@/components/art-layers';
 
 // Referência estável: `[]` novo a cada render reiniciaria o timer do slide.
 const NO_SLIDES: never[] = [];
@@ -238,9 +239,12 @@ export default function Display() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1.2, ease: 'easeInOut' }}
-              className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url(${posterUrl})` }}
-            />
+              className="absolute inset-0 z-0 overflow-hidden"
+            >
+              {/* Só slide de imagem ganha moldura: a miniatura de reserva do
+                  YouTube tem faixas pretas embutidas. */}
+              <ArtLayers url={posterUrl} alt="" allowFrame={!slide.mediaKind || slide.mediaKind === 'image'} />
+            </motion.div>
           </AnimatePresence>
         )}
 

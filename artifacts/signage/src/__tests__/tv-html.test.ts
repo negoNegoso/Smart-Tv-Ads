@@ -19,6 +19,8 @@ interface FakeImage {
   src: string;
   onload: (() => void) | null;
   onerror: (() => void) | null;
+  naturalWidth?: number;
+  naturalHeight?: number;
   respondida?: boolean;
 }
 
@@ -82,7 +84,7 @@ function criarStorageFake(): Storage {
  * faria. Uma falha faz a página pedir a mesma arte de novo furando cache, então
  * o helper responde também esse novo pedido — daí o laço.
  */
-function responder(url: string, ok: boolean) {
+function responder(url: string, ok: boolean, medidas?: [number, number]) {
   const pendentes = () => imagens.filter((i) => !i.respondida && i.src.indexOf(url) === 0);
   if (pendentes().length === 0) {
     throw new Error(`nenhuma imagem pediu ${url}; pediram: ${imagens.map((i) => i.src)}`);
@@ -92,21 +94,28 @@ function responder(url: string, ok: boolean) {
     if (alvo.length === 0) return;
     for (const img of alvo) {
       img.respondida = true;
+      if (medidas) [img.naturalWidth, img.naturalHeight] = medidas;
       if (ok) img.onload?.();
       else img.onerror?.();
     }
   }
 }
 
-/** Qual arte está de fato na tela (slot visível com background). */
-function noAr(): string | null {
+/** Slot visível com arte pintada (a camada da frente, `.slot-arte`). */
+function slotNoAr(): HTMLElement | null {
   for (const id of ["slot-a", "slot-b"]) {
     const el = document.getElementById(id)!;
-    if (el.style.opacity === "1" && el.style.backgroundImage) {
-      return el.style.backgroundImage.replace(/^url\(["']?|["']?\)$/g, "");
-    }
+    const arte = el.querySelector<HTMLElement>(".slot-arte");
+    if (el.style.opacity === "1" && arte?.style.backgroundImage) return el;
   }
   return null;
+}
+
+/** Qual arte está de fato na tela. */
+function noAr(): string | null {
+  const el = slotNoAr();
+  if (!el) return null;
+  return el.querySelector<HTMLElement>(".slot-arte")!.style.backgroundImage.replace(/^url\(["']?|["']?\)$/g, "");
 }
 
 /**
@@ -540,6 +549,78 @@ describe("tv.html: TV em retrato", () => {
   it("o CSS gira com prefixo -webkit- para os WebViews antigos", () => {
     expect(HTML).toMatch(/#stage\.portrait-right\s*\{[^}]*-webkit-transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(90deg\)/);
     expect(HTML).toMatch(/#stage\.portrait-left\s*\{[^}]*-webkit-transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(-90deg\)/);
+  });
+});
+
+describe("tv.html: arte fora da proporção da tela", () => {
+  // Arte inteira na frente e a mesma arte desfocada atrás, para reaproveitar
+  // post de feed (4:5) sem cortar as bordas. jsdom não mede o palco (0×0),
+  // então a TV cai na proporção nominal da orientação: 9:16 ou 16:9.
+  const emMoldura = () => slotNoAr()!.className.split(" ").indexOf("moldura") !== -1;
+  const fundo = () => slotNoAr()!.querySelector<HTMLElement>(".slot-fundo")!.style.backgroundImage;
+
+  it("post de feed 4:5 na TV em pé aparece inteiro com o fundo desfocado", () => {
+    orientacao = "portrait_right";
+    listaDeSlides = [slide(1, "https://blob/feed.png")];
+    carregarTv();
+    responder("https://blob/feed.png", true, [1080, 1350]);
+
+    expect(noAr()).toBe("https://blob/feed.png");
+    expect(emMoldura()).toBe(true);
+    expect(fundo()).toContain("https://blob/feed.png");
+  });
+
+  it("story 9:16 na TV em pé segue em tela cheia, sem fundo", () => {
+    orientacao = "portrait_right";
+    listaDeSlides = [slide(1, "https://blob/story.png")];
+    carregarTv();
+    responder("https://blob/story.png", true, [1080, 1920]);
+
+    expect(emMoldura()).toBe(false);
+    expect(fundo()).toBe("");
+  });
+
+  it("post de feed 4:5 na TV deitada também ganha moldura", () => {
+    listaDeSlides = [slide(1, "https://blob/feed.png")];
+    carregarTv();
+    responder("https://blob/feed.png", true, [1080, 1350]);
+    expect(emMoldura()).toBe(true);
+  });
+
+  it("slide seguinte no formato certo tira a moldura do slot reaproveitado", () => {
+    orientacao = "portrait_right";
+    listaDeSlides = [
+      slide(1, "https://blob/feed.png"),
+      slide(2, "https://blob/story.png"),
+      slide(3, "https://blob/story2.png"),
+    ];
+    carregarTv();
+    responder("https://blob/feed.png", true, [1080, 1350]);
+    vi.advanceTimersByTime(5080);
+    responder("https://blob/story.png", true, [1080, 1920]);
+    vi.advanceTimersByTime(5080);
+    // O slot 3 é o mesmo DOM do slot 1 (alternância a/b).
+    responder("https://blob/story2.png", true, [1080, 1920]);
+
+    expect(noAr()).toBe("https://blob/story2.png");
+    expect(emMoldura()).toBe(false);
+    expect(fundo()).toBe("");
+  });
+
+  it("miniatura de reserva do YouTube (4:3 com faixas) fica em tela cheia", () => {
+    orientacao = "portrait_right";
+    listaDeSlides = [{ ...slide(1, ""), imageUrl: null, mediaKind: "youtube_video", youtubeId: "AAAAAAAAAAA" }];
+    carregarTv();
+    // Sem window.YT a API não carrega; em 6 s a TV desiste e mostra a miniatura.
+    vi.advanceTimersByTime(6000);
+    responder("https://img.youtube.com/vi/AAAAAAAAAAA/hqdefault.jpg", true, [480, 360]);
+
+    expect(noAr()).toContain("hqdefault.jpg");
+    expect(emMoldura()).toBe(false);
+  });
+
+  it("o desfoque tem prefixo -webkit- para os WebViews antigos", () => {
+    expect(HTML).toMatch(/\.slot-fundo\s*\{[^}]*-webkit-filter:\s*blur\(/);
   });
 });
 

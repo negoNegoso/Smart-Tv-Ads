@@ -45,6 +45,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { mediaUrl } from '@/lib/media-url';
 import { mensagemDeErro } from '@/lib/api-error';
+import { ArtLayers } from '@/components/art-layers';
 
 /** O sentido importa: girar para o lado errado deixa a arte de cabeça para baixo. */
 const DEVICE_ORIENTATION_OPTIONS = [
@@ -130,9 +131,9 @@ function SortablePlaylistItem({
       <button type="button" className="cursor-grab text-muted-foreground/40 hover:text-foreground px-1" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className={`${vertical ? 'h-16 w-9' : 'h-12 w-20'} shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center`}>
+      <div className={`${vertical ? 'h-16 w-9' : 'h-12 w-20'} relative shrink-0 overflow-hidden rounded-md bg-muted border flex items-center justify-center`}>
         {item.imageUrl ? (
-          <img src={imgUrl} alt={item.title} className="h-full w-full object-cover" />
+          <ArtLayers url={imgUrl} alt={item.title} />
         ) : (
           <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
         )}
@@ -286,10 +287,10 @@ function PlaylistTab({ deviceId, screen }: { deviceId: number; screen: 'landscap
                       onClick={() => addMutation.mutate({ id: deviceId, data: { announcementId: a.id } })}
                     >
                       <div
-                        className={`${pieceOrientationOf(a.orientation) === 'portrait' ? 'h-16 w-9' : 'h-10 w-16'} shrink-0 rounded-md bg-muted overflow-hidden border flex items-center justify-center`}
+                        className={`${pieceOrientationOf(a.orientation) === 'portrait' ? 'h-16 w-9' : 'h-10 w-16'} relative shrink-0 rounded-md bg-muted overflow-hidden border flex items-center justify-center`}
                       >
                         {a.imageUrl ? (
-                          <img src={imgUrl} alt={a.title} className="h-full w-full object-cover" />
+                          <ArtLayers url={imgUrl} alt={a.title} allowFrame={a.mediaKind === 'image'} />
                         ) : (
                           <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
                         )}
