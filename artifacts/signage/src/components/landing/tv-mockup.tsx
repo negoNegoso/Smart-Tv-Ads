@@ -7,6 +7,7 @@ import {
   RectangleHorizontal,
   RectangleVertical,
 } from "lucide-react";
+import { ArtLayers } from "@/components/art-layers";
 import { LANDING } from "@/lib/landing-content";
 import { mediaUrl } from "@/lib/media-url";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,8 @@ const KIND_ICON: Record<PublicPiece["kind"], typeof Image> = {
 /**
  * A TV rodando as peças que já estão no ar na rede, desenhada em CSS.
  *
- * Reproduz o que a tela realmente mostra: arte em `cover`, faixa de legenda e
+ * Reproduz o que a tela realmente mostra: arte com o enquadramento da TV
+ * (ArtLayers: `cover`, ou inteira com fundo desfocado), faixa de legenda e
  * a caixa branca do QR com o rótulo SAIBA +, os mesmos elementos de
  * pages/display.tsx. Medidas em `cqmin` (1% do lado curto da moldura), como
  * em piece-preview.tsx, para legenda e QR não mudarem de escala ao girar.
@@ -132,16 +134,16 @@ export function TvMockup() {
           >
             {/* Todas empilhadas: a troca é só de opacidade, sem piscar esperando carregar. */}
             {pieces.map((piece, i) => (
-              <img
+              <div
                 key={`${piece.imageUrl}-${i}`}
-                src={mediaUrl(piece.imageUrl)}
-                alt=""
                 data-active={i === index % count}
                 className={cn(
-                  "absolute inset-0 h-full w-full object-cover transition-opacity duration-700 motion-reduce:transition-none",
+                  "absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none",
                   i === index % count ? "opacity-100" : "opacity-0",
                 )}
-              />
+              >
+                <ArtLayers url={mediaUrl(piece.imageUrl)} alt="" />
+              </div>
             ))}
 
             {caption ? (
