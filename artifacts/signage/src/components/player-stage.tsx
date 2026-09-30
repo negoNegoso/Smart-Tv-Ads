@@ -24,8 +24,9 @@ export interface PlayerStageProps {
  * landing (`TvMockup`, dentro da moldura) — os dois não podem divergir no
  * que vai ao ar.
  *
- * Ocupa a caixa pai e mede tudo em `cqmin` (1% do lado curto do palco), por
- * isso escala da TV de 55" à moldura de 28rem sem mudar proporção. Não gira:
+ * Ocupa a caixa pai e mede tudo em `var(--u)`: `cqmin` (1% do lado curto do
+ * palco) onde há container queries, com `vh` de reserva nos motores antigos
+ * das TVs (ver `.player-stage` em index.css). Com cqmin escala da TV de 55" à moldura de 28rem sem mudar proporção. Não gira:
  * girar a TV em pé é assunto da casca do display.
  */
 export function PlayerStage({ slides, muted = false, paused = false, onPlay, onSlideChange }: PlayerStageProps) {
@@ -38,6 +39,12 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
   // Tempo já exibido do slide atual: sobrevive à pausa para, ao voltar,
   // terminar só o que faltava em vez de recomeçar a contagem.
   const elapsedRef = useRef(0);
+  // De quem é o tempo em elapsedRef. O tempo só deve sobreviver à pausa: se o
+  // refetch reordena a lista e o mesmo índice passa a apontar outro anúncio,
+  // ou se o vídeo falha e vira pôster, a contagem recomeça. Sem isso, um
+  // anúncio que ficou 50 ms na tela herdaria o tempo do anterior e geraria
+  // prova de exibição falsa.
+  const elapsedOwner = useRef<string | null>(null);
 
   // Callbacks em ref: o pai trocar de função (nova a cada render) não pode
   // reiniciar o timer do slide.
@@ -93,6 +100,11 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
     const vid = videoIdFor(slide);
     const isYouTube =
       slide.mediaKind !== 'image' && !!vid && !fallbackIds.has(fbKeyFor(slide.announcementId, vid));
+    const owner = `${slide.announcementId}|${vid}|${isYouTube}`;
+    if (elapsedOwner.current !== owner) {
+      elapsedOwner.current = owner;
+      elapsedRef.current = 0;
+    }
     const naturalVideo = isYouTube && slide.playbackMode === 'natural';
     // Vídeo "natural" que toca: o componente avança via onEnded, não o timer.
     if (naturalVideo) {
@@ -180,7 +192,7 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
   };
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-black select-none" style={{ containerType: 'size' }}>
+    <div className="player-stage absolute inset-0 overflow-hidden bg-black select-none" style={{ containerType: 'size' }}>
       {isYouTube && videoId ? (
         <YouTubeSlide
           slideKey={`${slide.announcementId}-${videoId}`}
@@ -216,18 +228,18 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
       <SlideCaption text={slide.displayText ?? null} slideKey={slide.announcementId} />
 
       {slide.qrImageUrl && (
-        <div className="absolute bottom-[3cqmin] right-[3cqmin] z-30 rounded-[1cqmin] bg-white p-[1cqmin]">
+        <div className="absolute bottom-[calc(3*var(--u))] right-[calc(3*var(--u))] z-30 rounded-[calc(1*var(--u))] bg-white p-[calc(1*var(--u))]">
           {/* `artifacts/signage/public/tv.html` espelha este rotulo em ES5 (#qr-label) — mudou aqui, mude la. */}
           {/* Caixa alta literal, nao text-transform: um `uppercase` a menos para
               o espelho ES5 depender nas TVs. O text-indent compensa o
               letter-spacing que sobra depois do ultimo caractere. */}
-          <span className="mb-[0.5cqmin] block w-[12cqmin] text-center text-[1.8cqmin] font-semibold leading-[2.4cqmin] tracking-[0.12em] text-black [text-indent:0.12em]">
+          <span className="mb-[calc(0.5*var(--u))] block w-[calc(12*var(--u))] text-center text-[length:calc(1.8*var(--u))] font-semibold leading-[calc(2.4*var(--u))] tracking-[0.12em] text-black [text-indent:0.12em]">
             SAIBA +
           </span>
           <img
             src={`${import.meta.env.BASE_URL}${slide.qrImageUrl.replace(/^\//, "")}`}
             alt=""
-            className="block h-[12cqmin] w-[12cqmin]"
+            className="block h-[calc(12*var(--u))] w-[calc(12*var(--u))]"
           />
         </div>
       )}

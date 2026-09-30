@@ -82,6 +82,7 @@ export default function Display() {
     <div className="relative h-[100dvh] w-screen bg-black overflow-hidden select-none">
       <div style={stageStyle(orientation)}>
         {/* key: girou a TV, recomeça do primeiro slide no formato novo (mesma regra do tv.html). */}
+        {/* Passar pelo estado de erro/vazio desmonta o palco: ao voltar, o rodízio recomeça sem cursor de playlist nem posição de vídeo — aceito. */}
         <PlayerStage key={orientation} slides={slides} onPlay={sendPlay} />
       </div>
       <FullscreenHint />

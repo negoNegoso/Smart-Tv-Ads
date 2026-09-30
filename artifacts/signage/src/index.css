@@ -284,3 +284,19 @@
     margin: 12mm;
   }
 }
+
+/*
+ * Unidade do PlayerStage (legenda, QR): `cqmin` acompanha o palco (TV em tela
+ * cheia ou a moldura da landing), mas só existe no Chromium 105+/Safari 16+.
+ * Motor antigo de TV cai em 1vh, que em tela cheia é o mesmo tamanho. A
+ * reserva fica aqui, e não inline, porque estilo inline venceria o @supports.
+ */
+.player-stage {
+  --u: 1vh;
+}
+
+@supports (width: 1cqmin) {
+  .player-stage {
+    --u: 1cqmin;
+  }
+}

@@ -70,6 +70,20 @@ describe('PlayerStage', () => {
     expect(onPlay).toHaveBeenCalledTimes(1);
   });
 
+  it('lista reordenada no meio do slide não herda o tempo do anterior', () => {
+    const onPlay = vi.fn();
+    const { rerender } = render(<PlayerStage slides={[A, B]} onPlay={onPlay} />);
+    act(() => vi.advanceTimersByTime(1500));
+    // Refetch trouxe a lista em outra ordem: o índice 0 agora é o B.
+    rerender(<PlayerStage slides={[B, A]} onPlay={onPlay} />);
+    act(() => vi.advanceTimersByTime(500));
+    expect(onPlay).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(1500));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onPlay).toHaveBeenCalledWith(B);
+  });
+
   it('muted força o YouTube mudo mesmo com peça de som', () => {
     const video = slide({ announcementId: 3, mediaKind: 'youtube_video', youtubeId: 'abc', audioMode: 'sound' });
     render(<PlayerStage slides={[video]} muted />);
