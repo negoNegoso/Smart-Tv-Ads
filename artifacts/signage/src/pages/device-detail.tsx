@@ -426,7 +426,8 @@ export default function DeviceDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
         toast({ title: 'Orientação salva. A TV gira no próximo minuto.' });
       },
-      onError: () => toast({ title: 'Não foi possível salvar a orientação', variant: 'destructive' }),
+      onError: (err) =>
+        toast({ title: mensagemDeErro(err, 'Não foi possível salvar a orientação'), variant: 'destructive' }),
     },
   });
 
