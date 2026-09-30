@@ -3,8 +3,8 @@ import type { CSSProperties } from 'react';
 /**
  * Espelho do `#stage` de `public/tv.html` — mudou lá, mude aqui. A TV retrato
  * é uma TV comum girada na parede: o palco troca largura por altura e gira em
- * torno do centro. As medidas em vh de dentro não mudam (1vh segue sendo 1%
- * do lado curto da tela).
+ * torno do centro. As medidas em cqmin de dentro não mudam (o palco girado
+ * segue com o lado curto igual ao da tela).
  */
 export function stageStyle(orientation: string | undefined): CSSProperties {
   if (orientation !== 'portrait_right' && orientation !== 'portrait_left') {
