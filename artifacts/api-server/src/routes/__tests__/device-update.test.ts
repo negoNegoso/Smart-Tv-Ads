@@ -9,7 +9,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 const setMock = vi.fn();
 let updateResult: unknown[] = [];
-let selectResult: unknown[] = [];
+// O PATCH faz até três selects: TV atual, outras vitrines (só se o estado
+// final é vitrine) e a TV com cliente (resposta). Cada um consome um item.
+let selectQueue: unknown[][] = [];
 
 function makeChain(result: unknown) {
   const chain: Record<string, unknown> = {
@@ -29,7 +31,7 @@ function makeChain(result: unknown) {
 
 vi.mock("@workspace/db", () => ({
   db: {
-    select: () => makeChain(selectResult),
+    select: () => makeChain(selectQueue.shift() ?? []),
     update: () => makeChain(updateResult),
   },
   devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase" },
@@ -66,11 +68,13 @@ const DEVICE = {
 beforeEach(() => {
   setMock.mockReset();
   updateResult = [{ id: 1 }];
-  selectResult = [DEVICE];
+  selectQueue = [];
 });
 
 describe("PATCH /devices/:id — orientação", () => {
   it("grava um retrato válido e devolve a TV com a orientação", async () => {
+    // 1) TV atual  2) TV com cliente (resposta)
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [DEVICE]];
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).patch("/devices/1").send({ orientation: "portrait_right" });
@@ -90,12 +94,77 @@ describe("PATCH /devices/:id — orientação", () => {
   });
 
   it("devolve se a TV é vitrine", async () => {
-    selectResult = [{ ...DEVICE, showcase: true }];
+    selectQueue = [[{ id: 1, showcase: true, orientation: "landscape" }], [], [{ ...DEVICE, showcase: true }]];
     const app = await buildApp();
     const { default: request } = await import("supertest");
     const res = await request(app).patch("/devices/1").send({ name: "Vitrine horizontal" });
 
     expect(res.status).toBe(200);
     expect(res.body.showcase).toBe(true);
+  });
+});
+
+describe("PATCH /devices/:id — vitrine", () => {
+  it("liga a vitrine quando não há outra na mesma orientação", async () => {
+    selectQueue = [
+      [{ id: 1, showcase: false, orientation: "landscape" }],
+      [{ id: 9, name: "Vitrine vertical", orientation: "portrait_right" }],
+      [{ ...DEVICE, orientation: "landscape", showcase: true }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ showcase: true });
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ showcase: true });
+  });
+
+  it("409 com o nome da vitrine que já ocupa a orientação, sem gravar", async () => {
+    selectQueue = [
+      [{ id: 1, showcase: false, orientation: "portrait_left" }],
+      [{ id: 9, name: "Vitrine vertical", orientation: "portrait_right" }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ showcase: true });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("Já existe uma vitrine vertical: Vitrine vertical");
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("girar uma vitrine para a orientação de outra também é 409", async () => {
+    selectQueue = [
+      [{ id: 1, showcase: true, orientation: "landscape" }],
+      [{ id: 9, name: "Vitrine vertical", orientation: "portrait_right" }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ orientation: "portrait_left" });
+
+    expect(res.status).toBe(409);
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("desligar a vitrine não consulta as outras", async () => {
+    selectQueue = [
+      [{ id: 1, showcase: true, orientation: "landscape" }],
+      [{ ...DEVICE, orientation: "landscape", showcase: false }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ showcase: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.showcase).toBe(false);
+  });
+
+  it("TV inexistente é 404", async () => {
+    selectQueue = [[]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/99").send({ showcase: true });
+
+    expect(res.status).toBe(404);
   });
 });
