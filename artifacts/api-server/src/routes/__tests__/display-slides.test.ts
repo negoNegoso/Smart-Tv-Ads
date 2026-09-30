@@ -318,21 +318,28 @@ describe("GET /display/:deviceKey/feed — TV vitrine", () => {
   });
 
   it("vitrine respeita os dias da semana da campanha", async () => {
-    // Lista com um dia só, que não é hoje: basta escolher um dia diferente
-    // do atual em São Paulo.
-    const hoje = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date());
-    const idx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(hoje);
-    const outroDia = (idx + 1) % 7;
-    selectResults = [
-      [{ ...DEVICE_ROW, showcase: true }],
-      [],
-      [{ ...CAMPAIGN_ROW, weekdays: [outroDia] }],
-    ];
-    const app = await buildApp();
-    const { default: request } = await import("supertest");
-    const res = await request(app).get("/display/tv-1/feed");
+    // Data fixa (quarta ao meio-dia em São Paulo): o teste e o feed leem o
+    // mesmo "agora", sem risco de virar o dia entre um e outro.
+    vi.useFakeTimers({ now: new Date("2026-09-30T15:00:00Z"), toFake: ["Date"] });
+    try {
+      // Lista com um dia só, que não é hoje: basta escolher um dia diferente
+      // do atual em São Paulo.
+      const hoje = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date());
+      const idx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(hoje);
+      const outroDia = (idx + 1) % 7;
+      selectResults = [
+        [{ ...DEVICE_ROW, showcase: true }],
+        [],
+        [{ ...CAMPAIGN_ROW, weekdays: [outroDia] }],
+      ];
+      const app = await buildApp();
+      const { default: request } = await import("supertest");
+      const res = await request(app).get("/display/tv-1/feed");
 
-    expect(res.body.slides).toEqual([]);
+      expect(res.body.slides).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("TV comum segue filtrando pelo alvo", async () => {
