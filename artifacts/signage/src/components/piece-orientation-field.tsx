@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getYouTubeMeta } from '@workspace/api-client-react';
 import { parseYouTubeUrl, youtubeThumbnailUrl } from '@workspace/db/youtube';
+import { ImageDetails } from '@/components/image-details';
 import { PiecePreview } from '@/components/piece-preview';
 import { imageOrientation } from '@/lib/piece-orientation';
 import { cn } from '@/lib/utils';
@@ -128,6 +129,8 @@ export function PieceOrientationField({
       <p className="text-xs text-muted-foreground">
         {value === 'portrait' ? 'Toca só nas TVs em modo retrato.' : 'Toca só nas TVs deitadas.'}
       </p>
+      {/* Capa de fallback do YouTube não vai para a tela como arte principal. */}
+      {file && mediaKind === 'image' ? <ImageDetails file={file} orientation={value} /> : null}
     </div>
   );
 }

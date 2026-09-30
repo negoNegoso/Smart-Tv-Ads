@@ -7,6 +7,10 @@ vi.mock('@/lib/piece-orientation', () => ({
   imageOrientation: vi.fn(async () => 'portrait'),
 }));
 
+vi.mock('@/lib/image-para-renderizador', () => ({
+  dimensoesDaImagem: vi.fn(async () => ({ largura: 1080, altura: 1920 })),
+}));
+
 function fileList(file: File): FileList {
   return { 0: file, length: 1, item: () => file } as unknown as FileList;
 }
@@ -110,5 +114,16 @@ describe('PieceOrientationField', () => {
 
     rerender(<PieceOrientationField {...base} value="portrait" onChange={onChange} />);
     expect(screen.getByTestId('piece-frame').dataset.orientation).toBe('portrait');
+  });
+
+  it('imagem escolhida mostra os detalhes; capa de fallback do YouTube não', async () => {
+    const file = new File(['x'], 'a.png', { type: 'image/png' });
+    const { rerender } = render(<PieceOrientationField {...base} files={fileList(file)} value="portrait" onChange={vi.fn()} />);
+    expect(await screen.findByText('Detalhes da imagem')).toBeInTheDocument();
+
+    rerender(
+      <PieceOrientationField {...base} mediaKind="youtube_video" files={fileList(file)} value="portrait" onChange={vi.fn()} />,
+    );
+    expect(screen.queryByText('Detalhes da imagem')).toBeNull();
   });
 });

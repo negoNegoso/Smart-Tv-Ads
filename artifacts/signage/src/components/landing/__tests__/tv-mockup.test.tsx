@@ -76,4 +76,29 @@ describe('TvMockup', () => {
     await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
     expect(screen.getByTestId('tv-caption')).toHaveTextContent(LANDING.mockup.caption);
   });
+
+  it('arte fora da proporção vai inteira com fundo desfocado, como na TV', async () => {
+    // jsdom não faz layout nem carrega imagem: fixa a tela 16:9 e uma arte 4:5.
+    vi.stubGlobal(
+      'Image',
+      class {
+        naturalWidth = 1080;
+        naturalHeight = 1350;
+        onload: (() => void) | null = null;
+        set src(_v: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(() => 160);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(() => 90);
+    stubPieces({ pieces: PIECES.slice(0, 1) });
+    renderTv();
+    await screen.findByText('Pão quente');
+
+    const tela = screen.getByTestId('tv-screen');
+    await vi.waitFor(() => expect(tela.querySelector('[data-art-fundo]')).not.toBeNull());
+    expect(tela.querySelector('img')).toHaveClass('object-contain');
+    vi.restoreAllMocks();
+  });
 });
