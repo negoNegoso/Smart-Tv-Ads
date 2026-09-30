@@ -85,9 +85,6 @@ export function TvMockup() {
     };
   }, [queue]);
 
-  // Girou a TV: o badge espera o player novo dizer o que está no ar.
-  useEffect(() => setCurrent(null), [orientation]);
-
   const portrait = orientation === "portrait";
   const kind = current
     ? current.mediaKind === "image"
@@ -109,7 +106,14 @@ export function TvMockup() {
               key={id}
               type="button"
               aria-pressed={orientation === id}
-              onClick={() => setOrientation(id)}
+              onClick={() => {
+                // Girou a TV: o badge espera o player novo dizer o que está no
+                // ar. Zerar aqui, não num efeito: efeito do pai roda depois do
+                // onSlideChange do filho e apagaria o slide que ele acabou de
+                // avisar (orientação que já estava no cache).
+                if (id !== orientation) setCurrent(null);
+                setOrientation(id);
+              }}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors",
                 orientation === id
@@ -123,7 +127,7 @@ export function TvMockup() {
           ))}
         </div>
 
-        {/* Acompanha a peça da tela: muda junto no rodízio. Sem peça real, some. */}
+        {/* Acompanha a peça que o player está exibindo (onSlideChange). Sem peça real, some. */}
         {live && kind ? (
           <span
             data-testid="tv-kind"

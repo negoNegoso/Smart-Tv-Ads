@@ -98,6 +98,18 @@ describe('TvMockup', () => {
     expect(screen.getByTestId('tv-screen')).toHaveAttribute('data-orientation', 'portrait');
   });
 
+  it('etiqueta volta ao retornar para a orientação já carregada', async () => {
+    stubApi();
+    renderTv();
+    await screen.findByText('Pão quente');
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
+    await screen.findByText('Açaí');
+    // Horizontal já está no cache: o player monta com o feed na hora.
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.landscape }));
+    await screen.findByText('Pão quente');
+    expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.image);
+  });
+
   it('sem vitrine (404), mostra o slide de exemplo', async () => {
     stubApi({});
     renderTv();

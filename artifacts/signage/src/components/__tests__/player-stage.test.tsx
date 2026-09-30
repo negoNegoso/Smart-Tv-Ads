@@ -126,6 +126,19 @@ describe('PlayerStage', () => {
     expect(screen.getByText('Farmácia 24h')).toBeInTheDocument();
   });
 
+  it('vídeo natural pausado sai da tela e não conta exibição', () => {
+    const onPlay = vi.fn();
+    const video = slide({ announcementId: 3, mediaKind: 'youtube_video', youtubeId: 'abc', playbackMode: 'natural' });
+    const { rerender } = render(<PlayerStage slides={[video, B]} onPlay={onPlay} />);
+    expect(screen.getByTestId('youtube')).toBeInTheDocument();
+    // Pausado, o YouTubeSlide desmonta (o player é destruído no cleanup dele),
+    // então não sobra vídeo tocando que dispare onEnded sem ninguém ver.
+    rerender(<PlayerStage slides={[video, B]} onPlay={onPlay} paused />);
+    expect(screen.queryByTestId('youtube')).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
   it('avisa o slide na tela', () => {
     const onSlideChange = vi.fn();
     render(<PlayerStage slides={[A, B]} onSlideChange={onSlideChange} />);
