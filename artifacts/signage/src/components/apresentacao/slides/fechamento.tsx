@@ -20,12 +20,8 @@ export function SlideFechamento() {
 
   useEffect(() => {
     let vivo = true;
-    QRCode.toString(URL_WHATSAPP, {
-      type: 'svg',
-      margin: 1,
-      errorCorrectionLevel: 'M',
-      color: { dark: '#000000', light: '#ffffff' },
-    })
+    // Sem `color`: o padrão do qrcode já é preto sobre branco.
+    QRCode.toString(URL_WHATSAPP, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' })
       .then((s) => vivo && setSvg(s))
       .catch(() => vivo && setSvg(null));
     return () => {
