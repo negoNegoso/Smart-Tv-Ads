@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { clientsTable } from "./clients";
@@ -15,6 +15,10 @@ export const devicesTable = pgTable(
     orientation: text("orientation").notNull().default("landscape"),
     deviceKey: text("device_key").notNull().unique(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    // TV vitrine da landing: recebe toda campanha no ar, sem alvo nem
+    // concorrência, e é espelhada na página pública. Uma por orientação de
+    // tela — a regra fica no PATCH /devices/:id (retrato tem dois valores).
+    showcase: boolean("showcase").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

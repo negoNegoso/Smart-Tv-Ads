@@ -1,22 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
-  Newspaper,
   PlayCircle,
-  QrCode,
   RectangleHorizontal,
   RectangleVertical,
 } from "lucide-react";
-import { ArtLayers } from "@/components/art-layers";
+import {
+  getGetVitrineFeedQueryKey,
+  recordVitrinePlays,
+  useGetVitrineFeed,
+  type DisplaySlide,
+} from "@workspace/api-client-react";
+import { PlayerStage } from "@/components/player-stage";
+import { PiecesScreen } from "./pieces-screen";
+import { useSeen } from "@/hooks/use-seen";
 import { LANDING } from "@/lib/landing-content";
-import { mediaUrl } from "@/lib/media-url";
+import { createVitrinePlaysQueue } from "@/lib/vitrine-plays";
 import { cn } from "@/lib/utils";
-import { usePublicPieces, type PublicPiece } from "@/hooks/use-public-pieces";
 
-type Orientation = PublicPiece["orientation"];
+type Orientation = "landscape" | "portrait";
 
-/** Tempo de cada peça na tela; mais curto que na TV, para quem só passa o olho. */
-export const TV_MOCKUP_INTERVAL_MS = 5000;
+/** Mesmo ritmo da TV: a rotação é buscada a cada minuto. */
+const FEED_REFETCH_MS = 60_000;
+/** Exibições vão em lote; no pagehide vai o resto por sendBeacon. */
+const PLAYS_FLUSH_MS = 15_000;
 
 const ORIENTATIONS: Array<{
   id: Orientation;
@@ -31,50 +38,60 @@ const ORIENTATIONS: Array<{
   { id: "portrait", label: LANDING.mockup.portrait, Icon: RectangleVertical },
 ];
 
-const KIND_ICON: Record<PublicPiece["kind"], typeof Image> = {
-  image: Image,
-  video: PlayCircle,
-  flyer: Newspaper,
-};
-
 /**
- * A TV rodando as peças que já estão no ar na rede, desenhada em CSS.
+ * A TV do hero: o player real espelhando a TV vitrine da Smart Vale naquela
+ * orientação. Mesmo `PlayerStage` da TV (vídeo, legenda, QR escaneável,
+ * tempo de cada peça), sempre mudo — navegador bloqueia autoplay com som.
  *
- * Reproduz o que a tela realmente mostra: arte com o enquadramento da TV
- * (ArtLayers: `cover`, ou inteira com fundo desfocado), faixa de legenda e
- * a caixa branca do QR com o rótulo SAIBA +, os mesmos elementos de
- * pages/display.tsx. Medidas em `cqmin` (1% do lado curto da moldura), como
- * em piece-preview.tsx, para legenda e QR não mudarem de escala ao girar.
- *
- * Cada orientação só toca peça dela, como a TV de verdade. Sem peça na
- * orientação escolhida (ou API fora), fica o slide de exemplo.
+ * Cada exibição conta no relatório do anunciante, por isso a TV para quando
+ * ninguém pode vê-la (aba escondida ou fora da tela). Sem vitrine ou sem
+ * peça, mostra as peças no ar da rede (PiecesScreen), sem contar exibição.
  */
 export function TvMockup() {
-  const { data } = usePublicPieces();
   const [orientation, setOrientation] = useState<Orientation>("landscape");
-  const [index, setIndex] = useState(0);
+  const [current, setCurrent] = useState<DisplaySlide | null>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const seen = useSeen(screenRef);
 
-  const pieces = (data ?? []).filter((p) => p.orientation === orientation);
-  const count = pieces.length;
+  const feed = useGetVitrineFeed(orientation, {
+    query: {
+      queryKey: getGetVitrineFeedQueryKey(orientation),
+      retry: false,
+      refetchInterval: FEED_REFETCH_MS,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const slides = feed.data?.slides ?? [];
+  const live = slides.length > 0;
 
-  // Girar a TV recomeça da primeira peça daquela orientação.
+  // Uma fila por orientação: o lote diz de qual vitrine são as exibições.
+  const queue = useMemo(
+    () =>
+      createVitrinePlaysQueue({
+        orientation,
+        send: (body) => recordVitrinePlays(body),
+      }),
+    [orientation],
+  );
   useEffect(() => {
-    setIndex(0);
-  }, [orientation]);
+    const id = window.setInterval(() => void queue.flush(), PLAYS_FLUSH_MS);
+    const onHide = () => queue.flushBeacon();
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("pagehide", onHide);
+      // Trocou de orientação ou saiu da página: o que sobrou vai agora.
+      queue.flushBeacon();
+    };
+  }, [queue]);
 
-  useEffect(() => {
-    if (count < 2) return;
-    const id = window.setInterval(
-      () => setIndex((i) => (i + 1) % count),
-      TV_MOCKUP_INTERVAL_MS,
-    );
-    return () => window.clearInterval(id);
-  }, [count, orientation]);
-
-  const current = count > 0 ? pieces[index % count] : null;
-  const caption = current ? current.caption : LANDING.mockup.caption;
   const portrait = orientation === "portrait";
-  const KindIcon = current ? KIND_ICON[current.kind] : null;
+  const kind = current
+    ? current.mediaKind === "image"
+      ? "image"
+      : "video"
+    : null;
+  const KindIcon = kind === "video" ? PlayCircle : Image;
 
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-4">
@@ -89,7 +106,14 @@ export function TvMockup() {
               key={id}
               type="button"
               aria-pressed={orientation === id}
-              onClick={() => setOrientation(id)}
+              onClick={() => {
+                // Girou a TV: o badge espera o player novo dizer o que está no
+                // ar. Zerar aqui, não num efeito: efeito do pai roda depois do
+                // onSlideChange do filho e apagaria o slide que ele acabou de
+                // avisar (orientação que já estava no cache).
+                if (id !== orientation) setCurrent(null);
+                setOrientation(id);
+              }}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors",
                 orientation === id
@@ -103,8 +127,8 @@ export function TvMockup() {
           ))}
         </div>
 
-        {/* Acompanha a peça da tela: muda junto no rodízio. Sem peça real, some. */}
-        {current && KindIcon ? (
+        {/* Acompanha a peça que o player está exibindo (onSlideChange). Sem peça real, some. */}
+        {live && kind ? (
           <span
             data-testid="tv-kind"
             aria-live="polite"
@@ -112,7 +136,7 @@ export function TvMockup() {
           >
             <span className="sr-only">{LANDING.mockup.kindLabel}: </span>
             <KindIcon className="h-4 w-4 text-primary" aria-hidden="true" />
-            {LANDING.mockup.kinds[current.kind]}
+            {LANDING.mockup.kinds[kind]}
           </span>
         ) : null}
       </div>
@@ -120,6 +144,7 @@ export function TvMockup() {
       <div className={cn("w-full", portrait && "max-w-[15rem]")}>
         <div className="rounded-xl border-4 border-neutral-800 bg-neutral-800 shadow-lg">
           <div
+            ref={screenRef}
             role="img"
             aria-label={LANDING.mockup.screenLabel}
             data-testid="tv-screen"
@@ -127,43 +152,25 @@ export function TvMockup() {
             className={cn(
               "relative overflow-hidden rounded-md bg-black",
               portrait ? "aspect-[9/16]" : "aspect-video",
-              count === 0 &&
+              !live &&
                 "bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.55),transparent_60%)]",
             )}
             style={{ containerType: "size" }}
           >
-            {/* Todas empilhadas: a troca é só de opacidade, sem piscar esperando carregar. */}
-            {pieces.map((piece, i) => (
-              <div
-                key={`${piece.imageUrl}-${i}`}
-                data-active={i === index % count}
-                className={cn(
-                  "absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none",
-                  i === index % count ? "opacity-100" : "opacity-0",
-                )}
-              >
-                <ArtLayers url={mediaUrl(piece.imageUrl)} alt="" />
-              </div>
-            ))}
-
-            {caption ? (
-              <div className="absolute bottom-[3cqmin] left-[3cqmin] right-[26cqmin] z-10">
-                <span
-                  data-testid="tv-caption"
-                  className="block truncate rounded-[1cqmin] bg-black/55 px-[3cqmin] py-[2cqmin] text-[5cqmin] font-medium text-white"
-                >
-                  {caption}
-                </span>
-              </div>
-            ) : null}
-
-            {/* Branco do QR real da TV, não do tema. */}
-            <div className="absolute bottom-[3cqmin] right-[3cqmin] z-10 rounded-[1cqmin] bg-[#fff] p-[1.5cqmin] text-center">
-              <span className="block text-[3cqmin] font-semibold tracking-[0.12em] text-black">
-                {LANDING.mockup.qrLabel}
-              </span>
-              <QrCode className="mx-auto mt-[0.5cqmin] h-[14cqmin] w-[14cqmin] text-black" />
-            </div>
+            {live ? (
+              <PlayerStage
+                key={orientation}
+                slides={slides}
+                muted
+                paused={!seen}
+                onPlay={(s) => queue.push(s)}
+                onSlideChange={setCurrent}
+              />
+            ) : (
+              // Sem vitrine (ou vitrine sem peça): as peças no ar da rede.
+              // Só busca quando precisa — com vitrine, isto nem monta.
+              <PiecesScreen orientation={orientation} />
+            )}
           </div>
         </div>
         <div className="mx-auto h-4 w-24 rounded-b-lg bg-neutral-800" />

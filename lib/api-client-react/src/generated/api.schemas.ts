@@ -290,6 +290,7 @@ export interface Device {
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: string | null;
+  showcase: boolean;
   createdAt: string;
 }
 
@@ -317,6 +318,7 @@ export interface DeviceUpdate {
   /** @nullable */
   location?: string | null;
   orientation?: DeviceUpdateOrientation;
+  showcase?: boolean;
 }
 
 export interface PlaylistItem {
@@ -445,6 +447,23 @@ export interface PlayBatchResult {
   accepted: number;
   duplicates: number;
   discarded: number;
+}
+
+export type VitrinePlaysInputOrientation = typeof VitrinePlaysInputOrientation[keyof typeof VitrinePlaysInputOrientation];
+
+
+export const VitrinePlaysInputOrientation = {
+  landscape: 'landscape',
+  portrait: 'portrait',
+} as const;
+
+export interface VitrinePlaysInput {
+  orientation: VitrinePlaysInputOrientation;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  plays: PlayBatchItem[];
 }
 
 export interface AnalyticsSummary {

@@ -17,5 +17,6 @@ export interface Device {
   deviceKey: string;
   /** @nullable */
   lastSeenAt?: Date | null;
+  showcase: boolean;
   createdAt: Date;
 }

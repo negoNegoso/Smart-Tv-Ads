@@ -38,6 +38,13 @@ describe("janelas de tempo dos números públicos", () => {
     const now = new Date("2026-03-31T12:00:00.000Z");
     expect(activeSince(now).toISOString()).toBe("2026-03-30T12:00:00.000Z");
   });
+
+  it("telas ativas não contam a TV vitrine, que fica online com as visitas da landing", async () => {
+    const { buildActiveScreensQuery } = await import("../../lib/public-stats/queries");
+    const { sql } = buildActiveScreensQuery(new Date("2026-03-31T12:00:00.000Z")).toSQL();
+    expect(sql).toContain('"devices"."last_seen_at" >= $');
+    expect(sql).toContain('"devices"."showcase" = $');
+  });
 });
 
 describe("GET /public/stats", () => {

@@ -8,7 +8,7 @@ export interface PublicPiece {
 }
 
 /**
- * Peças no ar para a TV da landing.
+ * Peças no ar na rede, para a TV da landing enquanto não há TV vitrine.
  *
  * Mesma regra de `usePublicStats`: falha vira lista vazia, nunca erro na
  * tela. Sem peça, a TV mostra o slide de exemplo desenhado em CSS.

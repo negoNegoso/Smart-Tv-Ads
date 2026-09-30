@@ -52,7 +52,7 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
   announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
@@ -267,5 +267,88 @@ describe("GET /display/:deviceKey/feed", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Device not found" });
+  });
+});
+
+describe("GET /display/:deviceKey/feed — TV vitrine", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    selectResults = [];
+    selectCallIndex = 0;
+  });
+
+  // Campanha mirada em outra TV, e de concorrente do mesmo segmento: a TV
+  // comum não mostra; a vitrine mostra, porque ela é a amostra da rede.
+  const MIRADA_EM_OUTRA = {
+    ...CAMPAIGN_ROW,
+    announcementId: 404,
+    campaignId: 6,
+    targetMode: "devices" as const,
+    deviceIds: [99],
+    advertiserSegmentId: 3,
+    advertiserCompanyId: 30,
+  };
+
+  it("vitrine recebe campanha de qualquer alvo e ignora concorrência", async () => {
+    selectResults = [
+      [{ ...DEVICE_ROW, segmentId: 3, showcase: true }],
+      [PLAYLIST_ROW],
+      [CAMPAIGN_ROW, MIRADA_EM_OUTRA],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
+    expect(ids).toEqual(expect.arrayContaining([CAMPAIGN_ROW.announcementId, 404, PLAYLIST_ROW.announcementId]));
+  });
+
+  it("vitrine não carrega painéis de lojista", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: true }], [PLAYLIST_ROW], [CAMPAIGN_ROW]];
+    panelSlidesForClientMock.mockResolvedValue([PANEL_ROW]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(panelSlidesForClientMock).not.toHaveBeenCalled();
+    const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
+    expect(ids).not.toContain(PANEL_ROW.announcementId);
+  });
+
+  it("vitrine respeita os dias da semana da campanha", async () => {
+    // Data fixa (quarta ao meio-dia em São Paulo): o teste e o feed leem o
+    // mesmo "agora", sem risco de virar o dia entre um e outro.
+    vi.useFakeTimers({ now: new Date("2026-09-30T15:00:00Z"), toFake: ["Date"] });
+    try {
+      // Lista com um dia só, que não é hoje: basta escolher um dia diferente
+      // do atual em São Paulo.
+      const hoje = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" }).format(new Date());
+      const idx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(hoje);
+      const outroDia = (idx + 1) % 7;
+      selectResults = [
+        [{ ...DEVICE_ROW, showcase: true }],
+        [],
+        [{ ...CAMPAIGN_ROW, weekdays: [outroDia] }],
+      ];
+      const app = await buildApp();
+      const { default: request } = await import("supertest");
+      const res = await request(app).get("/display/tv-1/feed");
+
+      expect(res.body.slides).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("TV comum segue filtrando pelo alvo", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [], [MIRADA_EM_OUTRA]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.body.slides).toEqual([]);
   });
 });

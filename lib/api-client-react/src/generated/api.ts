@@ -78,6 +78,7 @@ import type {
   UserAccount,
   UserInput,
   UserUpdate,
+  VitrinePlaysInput,
   YouTubeMeta
 } from './api.schemas';
 
@@ -338,6 +339,155 @@ export function useGetPublicPieces<TData = Awaited<ReturnType<typeof getPublicPi
 
 
 
+
+export const getGetVitrineFeedUrl = (orientation: 'landscape' | 'portrait',) => {
+
+
+
+
+  return `/api/public/vitrine/${orientation}/feed`
+}
+
+/**
+ * Mesmo formato de /display/{deviceKey}/feed, sem expor a key: a vitrine é achada pela orientação de tela. Cada consulta marca a vitrine como vista (lastSeenAt).
+ * @summary Rotação da TV vitrine da Smart Vale, para o player da landing
+ */
+export const getVitrineFeed = async (orientation: 'landscape' | 'portrait', options?: RequestInit): Promise<DisplayFeed> => {
+
+  return customFetch<DisplayFeed>(getGetVitrineFeedUrl(orientation),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVitrineFeedQueryKey = (orientation: 'landscape' | 'portrait',) => {
+    return [
+    `/api/public/vitrine/${orientation}/feed`
+    ] as const;
+    }
+
+
+export const getGetVitrineFeedQueryOptions = <TData = Awaited<ReturnType<typeof getVitrineFeed>>, TError = ErrorType<void>>(orientation: 'landscape' | 'portrait', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVitrineFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVitrineFeedQueryKey(orientation);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVitrineFeed>>> = ({ signal }) => getVitrineFeed(orientation, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orientation !== null && orientation !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVitrineFeed>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVitrineFeedQueryResult = NonNullable<Awaited<ReturnType<typeof getVitrineFeed>>>
+export type GetVitrineFeedQueryError = ErrorType<void>
+
+
+/**
+ * @summary Rotação da TV vitrine da Smart Vale, para o player da landing
+ */
+
+export function useGetVitrineFeed<TData = Awaited<ReturnType<typeof getVitrineFeed>>, TError = ErrorType<void>>(
+ orientation: 'landscape' | 'portrait', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVitrineFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVitrineFeedQueryOptions(orientation,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordVitrinePlaysUrl = () => {
+
+
+
+
+  return `/api/public/vitrine/plays`
+}
+
+/**
+ * @summary Exibições da vitrine vistas por visitantes da landing
+ */
+export const recordVitrinePlays = async (vitrinePlaysInput: VitrinePlaysInput, options?: RequestInit): Promise<PlayBatchResult | void> => {
+
+  return customFetch<PlayBatchResult | void>(getRecordVitrinePlaysUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vitrinePlaysInput)
+  }
+);}
+
+
+
+
+
+export const getRecordVitrinePlaysMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordVitrinePlays>>, TError,{data: BodyType<VitrinePlaysInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordVitrinePlays>>, TError,{data: BodyType<VitrinePlaysInput>}, TContext> => {
+
+const mutationKey = ['recordVitrinePlays'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordVitrinePlays>>, {data: BodyType<VitrinePlaysInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordVitrinePlays(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordVitrinePlaysMutationResult = NonNullable<Awaited<ReturnType<typeof recordVitrinePlays>>>
+    export type RecordVitrinePlaysMutationBody = BodyType<VitrinePlaysInput>
+    export type RecordVitrinePlaysMutationError = ErrorType<void>
+
+    /**
+ * @summary Exibições da vitrine vistas por visitantes da landing
+ */
+export const useRecordVitrinePlays = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordVitrinePlays>>, TError,{data: BodyType<VitrinePlaysInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordVitrinePlays>>,
+        TError,
+        {data: BodyType<VitrinePlaysInput>},
+        TContext
+      > => {
+      return useMutation(getRecordVitrinePlaysMutationOptions(options));
+    }
 
 export const getListAnnouncementsUrl = () => {
 

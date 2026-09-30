@@ -12,7 +12,7 @@ import {
 import { screenOrientationOf } from "@workspace/db/orientation";
 import { resolveSlideCaption } from "./slide-caption";
 import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
-import { filterEligibleSlides } from "./ad-eligibility";
+import { campaignRunsOnDay, filterEligibleSlides } from "./ad-eligibility";
 import { composeDeviceSlides, panelSlidesForClient } from "./panels/device-slides";
 import { filterByOrientation } from "./slide-orientation";
 
@@ -25,6 +25,8 @@ export type FeedDevice = {
   companyId: number;
   segmentId: number | null;
   orientation: string;
+  /** TV vitrine da landing. Ausente vale false (quem monta o device sem a coluna). */
+  showcase?: boolean;
 };
 
 function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source: DeviceSlideSource }> {
@@ -116,19 +118,29 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
 
   const campaignSlides = await buildCampaignSlidesQuery(now);
 
-  // Alvo da campanha e regra de concorrência decidem juntos o que vai ao ar. A
-  // playlist do próprio device fica de fora: é o lojista pondo o conteúdo dele.
-  const eligibleCampaignSlides = filterEligibleSlides(campaignSlides, device, now);
+  // A vitrine é a amostra da rede na landing: toda campanha no ar entra,
+  // sem alvo nem concorrência. Só a agenda vale — campanha que não roda hoje
+  // também não roda em TV nenhuma.
+  // Nas outras TVs, alvo da campanha e regra de concorrência decidem juntos o
+  // que vai ao ar. A playlist do próprio device fica de fora: é o lojista
+  // pondo o conteúdo dele.
+  const eligibleCampaignSlides = device.showcase
+    ? campaignSlides.filter((slide) => campaignRunsOnDay(slide.weekdays, now))
+    : filterEligibleSlides(campaignSlides, device, now);
 
-  // Terceira fonte: painéis que o próprio lojista publicou no portal. Essa é
-  // a fonte menos crítica das três — uma falha aqui (tabela ausente, lock,
-  // linha inválida) nunca pode apagar campanhas pagas e a playlist do device
-  // que já estavam prontas para ir ao ar, então cai para lista vazia.
+  // Terceira fonte: painéis que o próprio lojista publicou no portal. A
+  // vitrine não tem lojista — mostra só o que foi pago e a playlist dela.
+  // Para as outras TVs essa é a fonte menos crítica das três — uma falha aqui
+  // (tabela ausente, lock, linha inválida) nunca pode apagar campanhas pagas e
+  // a playlist do device que já estavam prontas para ir ao ar, então cai para
+  // lista vazia.
   let panelSlides: Awaited<ReturnType<typeof panelSlidesForClient>> = [];
-  try {
-    panelSlides = await panelSlidesForClient(device.clientId);
-  } catch (error) {
-    log.error({ err: error }, "Could not load panel slides for device");
+  if (!device.showcase) {
+    try {
+      panelSlides = await panelSlidesForClient(device.clientId);
+    } catch (error) {
+      log.error({ err: error }, "Could not load panel slides for device");
+    }
   }
 
   const deduped = composeDeviceSlides(

@@ -91,6 +91,8 @@ export * from './uploadPanelImageRequest';
 export * from './userAccount';
 export * from './userInput';
 export * from './userUpdate';
+export * from './vitrinePlaysInput';
+export * from './vitrinePlaysInputOrientation';
 export * from './youTubeMeta';
 export * from './youTubeMetaKind';
 export * from './youTubeMetaOrientation';

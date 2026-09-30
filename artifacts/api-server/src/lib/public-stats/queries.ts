@@ -1,4 +1,4 @@
-import { eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, playsTable, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { VALE_DO_RIBEIRA_IBGE } from "@workspace/db/vale-do-ribeira";
 import { coverageFromRows, type CityCoverage } from "./coverage";
@@ -22,6 +22,20 @@ export function playsSince(now: Date): Date {
 
 export function activeSince(now: Date): Date {
   return new Date(now.getTime() - ACTIVE_SCREEN_WINDOW_HOURS * 60 * 60 * 1000);
+}
+
+/**
+ * Telas ativas nas últimas 24h. A vitrine fica de fora: ela aparece online
+ * enquanto alguém está na landing, e não é tela instalada em comércio.
+ * Separada para o teste inspecionar o SQL via `.toSQL()` sem banco.
+ */
+export function buildActiveScreensQuery(now: Date) {
+  // lastSeenAt nulo não satisfaz o gte: device cadastrado que nunca reportou
+  // presença não conta como tela ativa.
+  return db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(devicesTable)
+    .where(and(gte(devicesTable.lastSeenAt, activeSince(now)), eq(devicesTable.showcase, false)));
 }
 
 export interface PublicStats {
@@ -59,12 +73,7 @@ export async function publicStats(now: Date = new Date()): Promise<PublicStats> 
     .from(playsTable)
     .where(gte(playsTable.createdAt, playsSince(now)));
 
-  // lastSeenAt nulo não satisfaz o gte: device cadastrado que nunca reportou
-  // presença não conta como tela ativa.
-  const [screens] = await db
-    .select({ n: sql<number>`COUNT(*)::int` })
-    .from(devicesTable)
-    .where(gte(devicesTable.lastSeenAt, activeSince(now)));
+  const [screens] = await buildActiveScreensQuery(now);
 
   const [clients] = await db
     .select({ n: sql<number>`COUNT(*)::int` })

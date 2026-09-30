@@ -106,6 +106,13 @@
       "when": 1790301560653,
       "tag": "0014_moaning_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790801289632,
+      "tag": "0015_icy_pyro",
+      "breakpoints": true
     }
   ]
 }

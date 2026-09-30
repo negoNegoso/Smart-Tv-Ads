@@ -1,20 +1,64 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LANDING } from '@/lib/landing-content';
-import { TvMockup, TV_MOCKUP_INTERVAL_MS } from '../tv-mockup';
+import { TvMockup } from '../tv-mockup';
+import { TV_PIECES_INTERVAL_MS } from '../pieces-screen';
 
+vi.mock('@/components/youtube-slide', () => ({ YouTubeSlide: () => <div data-testid="youtube" /> }));
+
+function slide(id: number, text: string, over: Record<string, unknown> = {}) {
+  return {
+    announcementId: id,
+    campaignId: 3,
+    title: text,
+    displayText: text,
+    imageUrl: `/api/storage/objects/${id}.jpg`,
+    duration: 2,
+    qrImageUrl: null,
+    mediaKind: 'image',
+    youtubeId: null,
+    playbackMode: 'capped',
+    audioMode: 'muted',
+    videoIds: null,
+    ...over,
+  };
+}
+
+const FEEDS: Record<string, unknown> = {
+  landscape: { screen: { orientation: 'landscape' }, slides: [slide(1, 'Pão quente'), slide(2, 'Farmácia 24h', { mediaKind: 'youtube_video', youtubeId: 'abc' })] },
+  portrait: { screen: { orientation: 'portrait_right' }, slides: [slide(5, 'Açaí')] },
+};
+
+let posts: Array<{ orientation: string; plays: unknown[] }> = [];
+
+// Peças no ar da rede (/public/pieces): o que a TV mostra enquanto não há vitrine.
 const PIECES = [
-  { imageUrl: '/api/storage/objects/h1.jpg', caption: 'Pão quente', orientation: 'landscape', kind: 'image' },
-  { imageUrl: '/api/storage/objects/h2.jpg', caption: 'Farmácia 24h', orientation: 'landscape', kind: 'video' },
-  { imageUrl: '/api/storage/objects/v1.jpg', caption: 'Açaí', orientation: 'portrait', kind: 'flyer' },
+  { imageUrl: '/api/storage/objects/h1.jpg', caption: 'Mercado do Vale', orientation: 'landscape', kind: 'image' },
+  { imageUrl: '/api/storage/objects/h2.jpg', caption: 'Ótica Central', orientation: 'landscape', kind: 'video' },
+  { imageUrl: '/api/storage/objects/v1.jpg', caption: 'Sorveteria', orientation: 'portrait', kind: 'image' },
 ];
 
-function stubPieces(body: unknown, ok = true) {
+function stubApi(feeds: Record<string, unknown> = FEEDS, pieces: unknown[] = PIECES) {
+  posts = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn(() => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(body) })),
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+      if (init?.method === 'POST') {
+        posts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ accepted: 1, duplicates: 0, discarded: 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('public/pieces')) {
+        return new Response(JSON.stringify({ pieces }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      const m = url.match(/vitrine\/(landscape|portrait)\/feed/);
+      const feed = m ? feeds[m[1]] : undefined;
+      return feed
+        ? new Response(JSON.stringify(feed), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        : new Response(JSON.stringify({ error: 'Showcase not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }),
   );
 }
 
@@ -27,78 +71,132 @@ function renderTv() {
   );
 }
 
+beforeEach(() => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe('TvMockup', () => {
-  it('toca as peças horizontais em rodízio', async () => {
-    // shouldAdvanceTime: o findBy e o react-query ainda precisam do relógio andando.
+  it('toca o feed da vitrine horizontal e conta a exibição', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    stubPieces({ pieces: PIECES });
+    stubApi();
     renderTv();
     expect(await screen.findByText('Pão quente')).toBeInTheDocument();
-    expect(screen.getByTestId('tv-screen')).toHaveAttribute('data-orientation', 'landscape');
+    expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.image);
 
-    act(() => {
-      vi.advanceTimersByTime(TV_MOCKUP_INTERVAL_MS);
+    await act(async () => {
+      vi.advanceTimersByTime(2_000);
     });
-    expect(screen.getByTestId('tv-caption')).toHaveTextContent('Farmácia 24h');
     expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.video);
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+    });
+    await waitFor(() => expect(posts.length).toBeGreaterThan(0));
+    expect(posts[0].orientation).toBe('landscape');
+    expect(posts[0].plays[0]).toMatchObject({ announcementId: 1, campaignId: 3 });
   });
 
-  it('vertical mostra só as peças verticais', async () => {
-    stubPieces({ pieces: PIECES });
+  it('vertical troca para a vitrine vertical, em pé e sem girar', async () => {
+    stubApi();
     renderTv();
     await screen.findByText('Pão quente');
-
     await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
-    expect(screen.getByRole('button', { name: LANDING.mockup.portrait })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByText('Açaí')).toBeInTheDocument();
     expect(screen.getByTestId('tv-screen')).toHaveAttribute('data-orientation', 'portrait');
-    expect(screen.getByTestId('tv-caption')).toHaveTextContent('Açaí');
-    expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.flyer);
+  });
+
+  it('etiqueta volta ao retornar para a orientação já carregada', async () => {
+    stubApi();
+    renderTv();
+    await screen.findByText('Pão quente');
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
+    await screen.findByText('Açaí');
+    // Horizontal já está no cache: o player monta com o feed na hora.
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.landscape }));
+    await screen.findByText('Pão quente');
+    expect(screen.getByTestId('tv-kind')).toHaveTextContent(LANDING.mockup.kinds.image);
+  });
+
+  it('sem vitrine (404), toca as peças no ar da rede, como antes da vitrine', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubApi({});
+    renderTv();
+    expect(await screen.findByText('Mercado do Vale')).toBeInTheDocument();
+    expect(screen.getByTestId('tv-screen').querySelectorAll('img')).toHaveLength(2);
+
+    await act(async () => {
+      vi.advanceTimersByTime(TV_PIECES_INTERVAL_MS);
+    });
+    expect(screen.getByTestId('tv-caption')).toHaveTextContent('Ótica Central');
+    // Não é o player da vitrine: nada vai para o relatório de anunciante.
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(posts).toHaveLength(0);
+  });
+
+  it('sem vitrine, a vertical mostra só as peças verticais da rede', async () => {
+    stubApi({});
+    renderTv();
+    await screen.findByText('Mercado do Vale');
+    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
+    expect(await screen.findByText('Sorveteria')).toBeInTheDocument();
     expect(screen.getByTestId('tv-screen').querySelectorAll('img')).toHaveLength(1);
   });
 
-  it('sem peça, mostra o slide de exemplo', async () => {
-    stubPieces({}, false);
+  it('sem vitrine e sem peça no ar, mostra o slide de exemplo', async () => {
+    stubApi({}, []);
     renderTv();
     expect(await screen.findByText(LANDING.mockup.caption)).toBeInTheDocument();
-    expect(screen.getByTestId('tv-screen').querySelectorAll('img')).toHaveLength(0);
     expect(screen.queryByTestId('tv-kind')).not.toBeInTheDocument();
   });
 
-  it('orientação sem peça também cai no slide de exemplo', async () => {
-    stubPieces({ pieces: PIECES.slice(0, 2) });
+  it('vitrine sem peça e rede sem peça cai no exemplo', async () => {
+    stubApi({ landscape: { screen: { orientation: 'landscape' }, slides: [] } }, []);
     renderTv();
-    await screen.findByText('Pão quente');
-    await userEvent.click(screen.getByRole('button', { name: LANDING.mockup.portrait }));
-    expect(screen.getByTestId('tv-caption')).toHaveTextContent(LANDING.mockup.caption);
+    expect(await screen.findByText(LANDING.mockup.caption)).toBeInTheDocument();
   });
 
-  it('arte fora da proporção vai inteira com fundo desfocado, como na TV', async () => {
-    // jsdom não faz layout nem carrega imagem: fixa a tela 16:9 e uma arte 4:5.
-    vi.stubGlobal(
-      'Image',
-      class {
-        naturalWidth = 1080;
-        naturalHeight = 1350;
-        onload: (() => void) | null = null;
-        set src(_v: string) {
-          queueMicrotask(() => this.onload?.());
-        }
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(() => 160);
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(() => 90);
-    stubPieces({ pieces: PIECES.slice(0, 1) });
+  it('aba escondida não avança nem conta exibição', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubApi();
     renderTv();
     await screen.findByText('Pão quente');
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(screen.getByText('Pão quente')).toBeInTheDocument();
+    expect(posts).toHaveLength(0);
+  });
 
-    const tela = screen.getByTestId('tv-screen');
-    await vi.waitFor(() => expect(tela.querySelector('[data-art-fundo]')).not.toBeNull());
-    expect(tela.querySelector('img')).toHaveClass('object-contain');
-    vi.restoreAllMocks();
+  it('TV fora da tela não avança', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let callback: IntersectionObserverCallback = () => {};
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          callback = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    stubApi();
+    renderTv();
+    await screen.findByText('Pão quente');
+    act(() => callback([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(screen.getByText('Pão quente')).toBeInTheDocument();
   });
 });

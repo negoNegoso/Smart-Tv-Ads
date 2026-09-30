@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, sql, and, type SQL } from "drizzle-orm";
+import { eq, ne, asc, sql, and, type SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import {
   db,
@@ -10,6 +10,7 @@ import {
   announcementsTable,
 } from "@workspace/db";
 import { pieceOrientationOf, screenOrientationOf } from "@workspace/db/orientation";
+import { showcaseConflictMessage } from "../lib/showcase";
 import {
   ListDevicesQueryParams,
   ListDevicesResponse,
@@ -52,6 +53,7 @@ async function getDeviceWithClient(where: SQL) {
       orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
+      showcase: devicesTable.showcase,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -79,6 +81,7 @@ router.get("/devices", async (req, res): Promise<void> => {
       orientation: devicesTable.orientation,
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
+      showcase: devicesTable.showcase,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -164,6 +167,32 @@ router.patch("/devices/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const [current] = await db
+    .select({ id: devicesTable.id, showcase: devicesTable.showcase, orientation: devicesTable.orientation })
+    .from(devicesTable)
+    .where(eq(devicesTable.id, params.data.id));
+  if (!current) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  // Vale o estado depois do PATCH: ligar a vitrine e girar uma vitrine
+  // existente caem na mesma regra.
+  const next = {
+    id: current.id,
+    showcase: parsed.data.showcase ?? current.showcase,
+    orientation: parsed.data.orientation ?? current.orientation,
+  };
+  if (next.showcase) {
+    const others = await db
+      .select({ id: devicesTable.id, name: devicesTable.name, orientation: devicesTable.orientation })
+      .from(devicesTable)
+      .where(and(eq(devicesTable.showcase, true), ne(devicesTable.id, current.id)));
+    const conflict = showcaseConflictMessage(next, others);
+    if (conflict) {
+      res.status(409).json({ error: conflict });
+      return;
+    }
+  }
   const [updated] = await db
     .update(devicesTable)
     .set(parsed.data)
@@ -241,6 +270,7 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
       companyId: clientsTable.companyId,
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
+      showcase: devicesTable.showcase,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
