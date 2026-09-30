@@ -33,6 +33,7 @@ import PortalPanelEditor from './pages/portal-panel-editor';
 import PanelsAdmin from './pages/panels-admin';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 import Landing from './pages/landing';
+import Apresentacao from './pages/apresentacao';
 import { clearSessionHint, hasSessionHint, markSessionStarted } from './lib/session-hint';
 import { loginPathFor, readNextPath } from './lib/next-path';
 
@@ -291,6 +292,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/display/:deviceKey" component={Display} />
+      {/* Pública e fora do RootGate: abre igual com ou sem sessão, sem esperar /auth/me. */}
+      <Route path="/apresentacao" component={Apresentacao} />
       <Route path="/" component={RootGate} />
       <Route path="/login" component={LoginGate} />
       <Route>

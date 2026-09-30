@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { LANDING, whatsappUrl } from '@/lib/landing-content';
 import { usePublicStats } from '@/hooks/use-public-stats';
-import { VALE_MUNICIPIOS, VALE_VIEW_BOX } from '@/lib/mapa-vale';
+import { VALE_MUNICIPIOS } from '@/lib/mapa-vale';
+import { MapaVale } from './mapa-vale';
 
 const format = new Intl.NumberFormat('pt-BR');
 
@@ -39,6 +40,7 @@ export function Cobertura() {
   // diretamente) garante que um ibge fora dos 24 vindo da API não conta como
   // parceiro: sem isso a seção renderizaria com título e mapa vazios.
   const parceiras = VALE_MUNICIPIOS.filter((m) => porCidade.has(m.ibge));
+  const idsParceiras = React.useMemo(() => new Set(porCidade.keys()), [porCidade]);
 
   if (!data || parceiras.length === 0) return null;
 
@@ -95,32 +97,12 @@ export function Cobertura() {
         </div>
 
         <div>
-          <svg
-            viewBox={VALE_VIEW_BOX}
+          <MapaVale
+            parceiras={idsParceiras}
+            ativa={ativa}
+            onSelecionar={setSelecionada}
             className="mx-auto hidden h-auto w-full max-w-md md:block"
-            aria-hidden="true"
-          >
-            {VALE_MUNICIPIOS.map((municipio) => {
-              const temParceiro = porCidade.has(municipio.ibge);
-              return (
-                <path
-                  key={municipio.ibge}
-                  d={municipio.path}
-                  fill={
-                    municipio.ibge === ativa
-                      ? 'hsl(var(--primary))'
-                      : temParceiro
-                        ? 'hsl(var(--primary) / 0.35)'
-                        : 'hsl(var(--muted-foreground) / 0.3)'
-                  }
-                  stroke="hsl(var(--background))"
-                  strokeWidth={1.5}
-                  style={{ pointerEvents: temParceiro ? 'auto' : 'none', cursor: temParceiro ? 'pointer' : 'default' }}
-                  onClick={temParceiro ? () => setSelecionada(municipio.ibge) : undefined}
-                />
-              );
-            })}
-          </svg>
+          />
 
           <ul className="mt-6 flex flex-wrap gap-2" aria-label={LANDING.cobertura.listLabel}>
             {parceiras.map((municipio) => (
