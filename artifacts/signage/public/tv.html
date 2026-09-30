@@ -58,7 +58,8 @@
     /* Duas camadas por slot. `.slot-arte` é a arte; em tela cheia (cover) ela
        é tudo o que aparece. Arte fora da proporção da tela (post de feed 4:5
        numa TV em pé) ganha a classe `moldura` no slot: vai inteira (contain) e
-       a mesma arte desfocada preenche o fundo. Espelho de src/pages/display.tsx.
+       a mesma arte desfocada preenche o fundo. Espelho de
+       src/components/art-layers.tsx (player React, prévias e miniaturas).
 
        O desfoque é estático — só a opacidade do slot anima no crossfade —,
        para pesar pouco nas TVs fracas. O scale esconde a borda clara que o

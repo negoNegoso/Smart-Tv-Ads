@@ -48,6 +48,7 @@ import { BYTES_PER_MB, formatUploadLimit, useMaxUploadBytes } from '@/lib/upload
 import { parseYouTubeUrl } from '@workspace/db/youtube';
 import { PieceOrientationField } from '@/components/piece-orientation-field';
 import { pieceOrientationOf } from '@workspace/db/orientation';
+import { ArtLayers } from '@/components/art-layers';
 
 const uploadSchema = z
   .object({
@@ -192,9 +193,9 @@ function SortableAnnouncementRow({
         <GripVertical className="h-5 w-5" />
       </button>
 
-      <div className={`${item.orientation === 'portrait' ? 'h-24 w-[3.375rem]' : 'h-16 w-24'} shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center border`}>
+      <div className={`${item.orientation === 'portrait' ? 'h-24 w-[3.375rem]' : 'h-16 w-24'} relative shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center border`}>
         {posterSrc ? (
-          <img src={posterSrc} alt={item.title} className="h-full w-full object-cover" />
+          <ArtLayers url={posterSrc} alt={item.title} allowFrame={!item.mediaKind || item.mediaKind === 'image'} />
         ) : (
           <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
         )}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ArtLayers } from '@/components/art-layers';
 
 type Orientation = 'landscape' | 'portrait';
 
@@ -15,8 +16,8 @@ export function tvFrameClass(orientation: Orientation): string {
 }
 
 /**
- * Prévia da peça na biblioteca, antes de salvar: mesmo `cover` e mesma
- * legenda que a TV usa. Medidas em `cqmin` (1% do lado curto da moldura),
+ * Prévia da peça na biblioteca, antes de salvar: mesmo enquadramento (cover
+ * ou arte inteira com fundo desfocado) e mesma legenda que a TV usa. Medidas em `cqmin` (1% do lado curto da moldura),
  * pelo mesmo motivo do `vh` no player: legenda e QR seguem o lado curto nas
  * duas orientações.
  */
@@ -49,7 +50,8 @@ export function PiecePreview({
           allow="autoplay; encrypted-media"
         />
       ) : posterUrl ? (
-        <img src={posterUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        // Capa de vídeo do YouTube fica em cover, como na TV.
+        <ArtLayers url={posterUrl} alt="" allowFrame={!videoId} />
       ) : (
         <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-white/60">
           Escolha uma imagem ou cole um link

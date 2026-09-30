@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import type { DevicePreviewSlide } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { tvFrameClass } from '@/components/piece-preview';
+import { ArtLayers } from '@/components/art-layers';
 import { mediaUrl } from '@/lib/media-url';
 import { cn } from '@/lib/utils';
 
@@ -119,7 +120,7 @@ export function DevicePreview({
             className="absolute inset-0"
           >
             {poster ? (
-              <img src={poster} alt={slide.title} className="h-full w-full object-cover" />
+              <ArtLayers url={poster} alt={slide.title} allowFrame={slide.mediaKind === 'image'} />
             ) : null}
           </motion.div>
         </AnimatePresence>

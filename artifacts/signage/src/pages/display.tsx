@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type RefObject } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRoute } from 'wouter';
 import { useGetDisplayFeed, getGetDisplayFeedQueryKey } from '@workspace/api-client-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -7,7 +7,7 @@ import { SlideCaption } from '@/components/slide-caption';
 import { YouTubeSlide } from '@/components/youtube-slide';
 import { FullscreenHint } from '@/components/fullscreen-hint';
 import { stageStyle } from '@/lib/stage-rotation';
-import { precisaDeMoldura } from '@/lib/art-fit';
+import { ArtLayers } from '@/components/art-layers';
 
 // Referência estável: `[]` novo a cada render reiniciaria o timer do slide.
 const NO_SLIDES: never[] = [];
@@ -33,7 +33,6 @@ export default function Display() {
   const playlistCursor = useRef<Record<number, number>>({});
   const videoPositions = useRef<Record<string, number>>({});
   const [fallbackIds, setFallbackIds] = useState<Set<string>>(new Set());
-  const stageRef = useRef<HTMLDivElement>(null);
 
   // Mesma regra do tv.html: girou, recomeça do primeiro slide no formato novo.
   // Também roda na primeira carga (orientation vai de undefined pro valor),
@@ -216,7 +215,7 @@ export default function Display() {
 
   return (
     <div className="relative h-[100dvh] w-screen bg-black overflow-hidden select-none">
-      <div ref={stageRef} style={stageStyle(orientation)} className="flex items-center justify-center overflow-hidden">
+      <div style={stageStyle(orientation)} className="flex items-center justify-center overflow-hidden">
         {isYouTube && videoId ? (
           <YouTubeSlide
             slideKey={`${slide.announcementId}-${videoId}`}
@@ -244,7 +243,7 @@ export default function Display() {
             >
               {/* Só slide de imagem ganha moldura: a miniatura de reserva do
                   YouTube tem faixas pretas embutidas. */}
-              <ArtLayers url={posterUrl} stageRef={stageRef} allowFrame={!slide.mediaKind || slide.mediaKind === 'image'} />
+              <ArtLayers url={posterUrl} alt="" allowFrame={!slide.mediaKind || slide.mediaKind === 'image'} />
             </motion.div>
           </AnimatePresence>
         )}
@@ -278,56 +277,6 @@ export default function Display() {
 
       <FullscreenHint />
     </div>
-  );
-}
-
-/**
- * Espelho das camadas `.slot-fundo`/`.slot-arte` de `public/tv.html` — mudou
- * lá, mude aqui. Mede a arte ao carregar; fora da proporção do palco, ela vai
- * inteira (contain) com a mesma arte desfocada e escurecida atrás.
- */
-function ArtLayers({
-  url,
-  stageRef,
-  allowFrame,
-}: {
-  url: string;
-  stageRef: RefObject<HTMLDivElement | null>;
-  allowFrame: boolean;
-}) {
-  const [framed, setFramed] = useState(false);
-
-  useEffect(() => {
-    setFramed(false);
-    if (!allowFrame || !url) return;
-    let vivo = true;
-    const img = new Image();
-    img.onload = () => {
-      const stage = stageRef.current;
-      if (!vivo || !stage) return;
-      setFramed(precisaDeMoldura(img.naturalWidth, img.naturalHeight, stage.offsetWidth, stage.offsetHeight));
-    };
-    img.src = url;
-    return () => {
-      vivo = false;
-    };
-  }, [url, allowFrame, stageRef]);
-
-  return (
-    <>
-      {framed && (
-        <div
-          className="absolute inset-0 scale-[1.15] bg-cover bg-center bg-no-repeat blur-[4vh]"
-          style={{ backgroundImage: `url(${url})` }}
-        >
-          <div className="absolute inset-0 bg-black/45" />
-        </div>
-      )}
-      <div
-        className={`absolute inset-0 bg-center bg-no-repeat ${framed ? 'bg-contain' : 'bg-cover'}`}
-        style={{ backgroundImage: `url(${url})` }}
-      />
-    </>
   );
 }
 
