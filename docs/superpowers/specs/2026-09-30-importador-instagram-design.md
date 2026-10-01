@@ -80,15 +80,16 @@ ligadas por interfaces para o executor ser testado sem rede.
 ```ts
 interface FonteInstagram {
   lerPerfil(handle: string, limite: number): Promise<Perfil>;
-  baixar(midia: Midia, destino: string): Promise<string>; // caminho do arquivo
+  baixar(postUrl: string, n: number, destino: string): Promise<string>; // caminho do arquivo
 }
 type Perfil = { handle: string; nome: string; bio: string; site: string | null; posts: Post[] };
 type Post = { codigo: string; data: string; legenda: string; url: string; midias: Midia[] };
-type Midia = { n: number; tipo: "imagem" | "video"; largura: number; altura: number; url: string };
+type Midia = { n: number; tipo: "imagem" | "video"; largura: number; altura: number };
 ```
 
 `lerPerfil` pede só metadados. `baixar` pega o arquivo original, sem
-recompressão. Orientação da peça: `altura > largura` → `portrait`; senão
+recompressão, pelo link do post: a URL direta do CDN expira em horas e o plano
+pode ser retomado dias depois. Orientação da peça: `altura > largura` → `portrait`; senão
 `landscape`. Quadrado vale `landscape`, para tocar na maioria das TVs.
 
 **`youtube.ts` — envio ao YouTube.**
@@ -112,6 +113,9 @@ campanha, criar peça de imagem (multipart), criar peça YouTube, vincular peça
 - `listar <url> [--limite 12]`: só leitura. Imprime JSON com perfil, posts,
   empresa encontrada (por @) ou candidatas por nome, campanhas do anunciante, e
   para cada mídia se o `externalRef` já existe.
+- `planejar <url> --itens <lista> --empresa <id|nova> [--gravar-instagram]
+  --campanha <id|nova>`: monta o plano a partir da listagem já salva, sem nova
+  ida ao Instagram. Existe para a skill não escrever JSON à mão.
 - `importar --plano <arquivo>`: executa o plano item a item e grava o status de
   volta no mesmo arquivo.
 
@@ -121,17 +125,22 @@ campanha, criar peça de imagem (multipart), criar peça YouTube, vincular peça
 {
   "handle": "padariacentral",
   "empresa": { "id": 12 },
-  "campanha": { "id": null, "criar": { "nome": "Instagram @padariacentral" } },
+  "campanha": { "criar": { "nome": "Instagram @padariacentral" } },
   "itens": [
-    { "ref": "instagram:DAbc123:1", "tipo": "imagem", "status": "pendente" },
-    { "ref": "instagram:DXyz789:1", "tipo": "video", "status": "pendente", "videoId": null }
+    { "ref": "instagram:DAbc123:1", "codigo": "DAbc123", "n": 1, "tipo": "imagem",
+      "postUrl": "https://www.instagram.com/p/DAbc123/", "data": "2026-09-28",
+      "orientacao": "portrait", "status": "pendente" },
+    { "ref": "instagram:DXyz789:1", "codigo": "DXyz789", "n": 1, "tipo": "video",
+      "postUrl": "https://www.instagram.com/reel/DXyz789/", "data": "2026-09-25",
+      "orientacao": "portrait", "status": "pendente" }
   ]
 }
 ```
 
 `empresa` e `campanha` aceitam `{ "id": n }` (usar existente) ou
 `{ "criar": {...} }`. Depois de criar, o executor grava o `id` no plano. Status
-do item: `pendente`, `criada`, `pulada`, `falha` (com `erro`).
+do item: `pendente`, `criada`, `pulada`, `falha` (com `erro`). O item ganha
+`videoId` quando o reel sobe e `pecaId` quando a peça é criada.
 
 **Mapeamento:**
 
@@ -150,10 +159,11 @@ do item: `pendente`, `criada`, `pulada`, `falha` (com `erro`).
 
 Imagem dura 10 s (padrão da plataforma).
 
-**Credenciais** em `.env.local` (já fora do git): `PLATAFORMA_URL`,
-`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `YOUTUBE_CLIENT_ID`,
-`YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`. Um comando
-`importar youtube-login` faz o fluxo OAuth uma vez e imprime o refresh token.
+**Credenciais** em `.env.importador` (fora do git pelo `.env*`):
+`PLATAFORMA_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `YOUTUBE_CLIENT_ID`,
+`YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`. Não é o `.env.local`: o
+`vercel env pull` reescreve aquele arquivo. O subcomando `youtube-login` faz o
+fluxo OAuth uma vez e imprime o refresh token.
 
 `.instagram-import/` entra no `.gitignore`.
 
@@ -185,6 +195,7 @@ A skill não escreve na plataforma por conta própria: toda escrita passa pelo
 | Login admin recusado | para antes de qualquer escrita |
 | Cota do YouTube esgotada | imagens seguem; vídeos restantes ficam `pendente`; rodar `importar` outro dia retoma |
 | Vídeo subiu, peça falhou | `videoId` fica no plano; nova execução reaproveita, sem subir de novo |
+| YouTube trancou o vídeo como privado | item `falha` com o id do vídeo; a peça não é criada (vídeo privado não toca na TV) |
 | Imagem acima do limite de upload | recomprime em JPEG de qualidade alta com `ffmpeg` até caber; anota no relatório |
 | `409` de `externalRef` | item `pulada` |
 | Falha em um item | item `falha` com a mensagem; os outros seguem |
@@ -223,9 +234,13 @@ duplicar nada.
 
 ## Pré-requisitos do admin (uma vez)
 
-- `brew install gallery-dl`.
+- `brew install gallery-dl yt-dlp` (sem o `yt-dlp` o reel baixa em qualidade
+  menor).
 - Conta do Instagram separada, logada no Chrome. Raspagem automatizada viola
   os termos do Instagram e a conta usada pode ser limitada; não usar a conta
   pessoal nem a da plataforma.
 - Projeto no Google Cloud com YouTube Data API v3 e credencial OAuth do canal
-  da plataforma. Cota padrão: cerca de 6 envios por dia.
+  da plataforma (tipo "App para computador"). Cota padrão: cerca de 6 envios
+  por dia. Projeto sem a auditoria da API do YouTube pode ter os envios
+  trancados como privados; nesse caso o reel só entra depois da auditoria, ou
+  mudando o vídeo para não listado à mão no YouTube Studio.
