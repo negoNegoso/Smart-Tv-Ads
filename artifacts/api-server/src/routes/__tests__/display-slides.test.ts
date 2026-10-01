@@ -52,7 +52,7 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
   announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
@@ -350,5 +350,90 @@ describe("GET /display/:deviceKey/feed — TV vitrine", () => {
     const res = await request(app).get("/display/tv-1/feed");
 
     expect(res.body.slides).toEqual([]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed — música de fundo", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    selectResults = [];
+    selectCallIndex = 0;
+    panelSlidesForClientMock.mockResolvedValue([]);
+  });
+
+  it("TV com link de vídeo recebe music com tipo e ID", async () => {
+    selectResults = [
+      [{ ...DEVICE_ROW, musicUrl: "https://youtu.be/dQw4w9WgXcQ" }],
+      [PLAYLIST_ROW],
+      [],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.music).toEqual({ kind: "youtube_video", youtubeId: "dQw4w9WgXcQ" });
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV com link de playlist recebe a playlist sem resolver os vídeos", async () => {
+    selectResults = [
+      [{ ...DEVICE_ROW, musicUrl: "https://www.youtube.com/playlist?list=PL1234567890abc" }],
+      [PLAYLIST_ROW],
+      [],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.body.music).toEqual({ kind: "youtube_playlist", youtubeId: "PL1234567890abc" });
+  });
+
+  it("TV sem link recebe music null", async () => {
+    selectResults = [[{ ...DEVICE_ROW, musicUrl: null }], [PLAYLIST_ROW], []];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.body.music).toBeNull();
+  });
+
+  it("link gravado que deixou de ser reconhecido vira music null, sem derrubar o feed", async () => {
+    selectResults = [[{ ...DEVICE_ROW, musicUrl: "isto não é link" }], [PLAYLIST_ROW], []];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.music).toBeNull();
+    expect(res.body.slides).toHaveLength(1);
+  });
+
+  it("a música não vira slide", async () => {
+    selectResults = [
+      [{ ...DEVICE_ROW, musicUrl: "https://youtu.be/dQw4w9WgXcQ" }],
+      [PLAYLIST_ROW],
+      [],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([101]);
+  });
+
+  it("/slides (tv.html antigo) segue sendo só a lista", async () => {
+    selectResults = [
+      [{ ...DEVICE_ROW, musicUrl: "https://youtu.be/dQw4w9WgXcQ" }],
+      [PLAYLIST_ROW],
+      [],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides");
+
+    expect(Array.isArray(res.body)).toBe(true);
   });
 });

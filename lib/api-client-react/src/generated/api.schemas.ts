@@ -291,6 +291,8 @@ export interface Device {
   /** @nullable */
   lastSeenAt?: string | null;
   showcase: boolean;
+  /** @nullable */
+  musicUrl?: string | null;
   createdAt: string;
 }
 
@@ -319,6 +321,8 @@ export interface DeviceUpdate {
   location?: string | null;
   orientation?: DeviceUpdateOrientation;
   showcase?: boolean;
+  /** @nullable */
+  musicUrl?: string | null;
 }
 
 export interface PlaylistItem {
@@ -383,8 +387,26 @@ export type DisplayFeedScreen = {
   orientation: DisplayFeedScreenOrientation;
 };
 
+export type DisplayFeedMusicKind = typeof DisplayFeedMusicKind[keyof typeof DisplayFeedMusicKind];
+
+
+export const DisplayFeedMusicKind = {
+  youtube_video: 'youtube_video',
+  youtube_playlist: 'youtube_playlist',
+} as const;
+
+/**
+ * @nullable
+ */
+export type DisplayFeedMusic = {
+  kind: DisplayFeedMusicKind;
+  youtubeId: string;
+} | null;
+
 export interface DisplayFeed {
   screen: DisplayFeedScreen;
+  /** @nullable */
+  music?: DisplayFeedMusic;
   slides: DisplaySlide[];
 }
 

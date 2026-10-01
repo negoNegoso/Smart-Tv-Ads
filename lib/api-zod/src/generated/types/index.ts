@@ -40,6 +40,8 @@ export * from './devicePreviewSlideSource';
 export * from './deviceUpdate';
 export * from './deviceUpdateOrientation';
 export * from './displayFeed';
+export * from './displayFeedMusic';
+export * from './displayFeedMusicKind';
 export * from './displayFeedScreen';
 export * from './displayFeedScreenOrientation';
 export * from './displaySlide';

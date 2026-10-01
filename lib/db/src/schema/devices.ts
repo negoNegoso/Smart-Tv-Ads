@@ -19,6 +19,10 @@ export const devicesTable = pgTable(
     // concorrência, e é espelhada na página pública. Uma por orientação de
     // tela — a regra fica no PATCH /devices/:id (retrato tem dois valores).
     showcase: boolean("showcase").notNull().default(false),
+    // Link do YouTube (vídeo ou playlist) que toca em fundo na TV, só o áudio.
+    // Guardado como o admin colou; tipo e ID saem do parser na hora do feed.
+    // Nulo = TV sem música.
+    musicUrl: text("music_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

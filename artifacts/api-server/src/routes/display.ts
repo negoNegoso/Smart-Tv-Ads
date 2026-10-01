@@ -4,6 +4,7 @@ import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
+import { musicRefFromUrl } from "../lib/youtube/music";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ async function loadForTv(req: Request) {
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
       showcase: devicesTable.showcase,
+      musicUrl: devicesTable.musicUrl,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -61,6 +63,9 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
   res.json(
     GetDisplayFeedResponse.parse({
       screen: { orientation: deviceOrientationOf(tv.device.orientation) },
+      // Fora de `slides`: música não é peça e não conta exibição. Link que o
+      // parser não reconhece vira null, e a TV segue só com as peças.
+      music: musicRefFromUrl(tv.device.musicUrl),
       slides: tv.slides,
     }),
   );

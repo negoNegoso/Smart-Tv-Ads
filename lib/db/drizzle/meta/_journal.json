@@ -113,6 +113,13 @@
       "when": 1790801289632,
       "tag": "0015_icy_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790892845672,
+      "tag": "0016_cute_gunslinger",
+      "breakpoints": true
     }
   ]
 }

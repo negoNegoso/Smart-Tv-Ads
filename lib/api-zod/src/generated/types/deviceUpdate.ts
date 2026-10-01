@@ -14,4 +14,6 @@ export interface DeviceUpdate {
   location?: string | null;
   orientation?: DeviceUpdateOrientation;
   showcase?: boolean;
+  /** @nullable */
+  musicUrl?: string | null;
 }
