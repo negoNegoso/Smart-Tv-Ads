@@ -255,3 +255,64 @@ describe('vitrine da landing', () => {
     await waitFor(() => expect(textoNaTela()).toContain('Já existe uma vitrine horizontal: Vitrine H'));
   });
 });
+
+describe('música de fundo', () => {
+  const LINK = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+  it('salvar manda o link no PATCH e confirma', async () => {
+    const patches: unknown[] = [];
+    stubTv(DEVICE, [ANUNCIO], patches);
+    renderPagina();
+
+    await userEvent.type(await screen.findByLabelText('Música de fundo (YouTube)'), LINK);
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(patches).toEqual([{ musicUrl: LINK }]));
+    await waitFor(() => expect(textoNaTela()).toContain('Música de fundo salva.'));
+  });
+
+  it('mostra o link gravado e remover manda null', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, musicUrl: LINK } as typeof DEVICE, [ANUNCIO], patches);
+    renderPagina();
+
+    const campo = (await screen.findByLabelText('Música de fundo (YouTube)')) as HTMLInputElement;
+    await waitFor(() => expect(campo.value).toBe(LINK));
+    await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+
+    await waitFor(() => expect(patches).toEqual([{ musicUrl: null }]));
+    await waitFor(() => expect(textoNaTela()).toContain('Música de fundo removida.'));
+  });
+
+  it('TV sem música não oferece remover, e salvar fica desligado com o campo vazio', async () => {
+    stubTv(DEVICE, [ANUNCIO]);
+    renderPagina();
+
+    await screen.findByLabelText('Música de fundo (YouTube)');
+    expect(screen.queryByRole('button', { name: 'Remover' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('link recusado pelo servidor aparece no toast e o campo mantém o digitado', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+        if (init?.method === 'PATCH') return json({ error: 'Link do YouTube inválido' }, 400);
+        if (url.includes('/playlist')) return json([]);
+        if (url.includes('/preview')) return json([]);
+        if (url.includes('/announcements')) return json([ANUNCIO]);
+        if (url.includes('/devices/1')) return json(DEVICE);
+        return json([]);
+      }),
+    );
+    renderPagina();
+
+    const campo = (await screen.findByLabelText('Música de fundo (YouTube)')) as HTMLInputElement;
+    await userEvent.type(campo, 'https://exemplo.com/musica');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(textoNaTela()).toContain('Link do YouTube inválido'));
+    expect(campo.value).toBe('https://exemplo.com/musica');
+  });
+});
