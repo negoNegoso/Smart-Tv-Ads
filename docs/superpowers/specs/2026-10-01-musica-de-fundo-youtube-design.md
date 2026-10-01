@@ -48,7 +48,13 @@ admin mostra de volta exatamente o que foi digitado e não há par tipo/ID para
 ficar fora de sincronia.
 
 `parseYouTubeUrl` já dá prioridade à playlist: `watch?v=…&list=…` vira
-playlist.
+playlist. Dois ajustes para o que o admin de fato cola:
+
+- O parser passa a aceitar `music.youtube.com` e `youtube.com/live/<id>`
+  (vale também para as peças).
+- Mix automático (`list=RD…`, o link que o YouTube dá ao clicar numa música)
+  não carrega no player embutido. Para a música, vale o vídeo `v` do link, em
+  laço; sem `v`, o link é recusado. Regra em `musicRefFromUrl`, só da música.
 
 ## 2. API
 
