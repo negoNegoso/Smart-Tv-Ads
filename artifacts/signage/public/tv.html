@@ -316,6 +316,9 @@
       var musicaPausada = false;   // há peça com som no ar
       var musicaVigia   = null;
       var MUSICA_VIGIA_MS = 30000;
+      var musicaRetomada = null;   // timer da retomada depois da peça com som
+      var MUSICA_RETOMAR_MS = 500;
+      var appAvisado    = false;   // somIniciou foi mandado para esta peça
 
       // ─── DOM refs ─────────────────────────────────────────────────────────────
       var slotA        = document.getElementById('slot-a');
@@ -758,6 +761,30 @@
         });
       }
 
+      // Peça com som entrou: a música cede a vez. Vale mesmo sem música
+      // configurada, para a que for ligada no meio da peça não tocar por cima.
+      function pausarMusica() {
+        if (musicaRetomada) { clearTimeout(musicaRetomada); musicaRetomada = null; }
+        musicaPausada = true;
+        if (musicaPlayer && musicaPronta) {
+          try { musicaPlayer.pauseVideo(); } catch (e) {}
+        }
+      }
+
+      // Peça com som saiu. Com atraso: showSlide derruba um player e logo
+      // cria o seguinte; duas peças com som em sequência dariam um estalo de
+      // música entre elas. A segunda cancela esta retomada antes de ela valer.
+      function retomarMusica() {
+        if (musicaRetomada) { clearTimeout(musicaRetomada); }
+        musicaRetomada = setTimeout(function () {
+          musicaRetomada = null;
+          musicaPausada = false;
+          if (musicaPlayer && musicaPronta) {
+            try { musicaPlayer.playVideo(); } catch (e) {}
+          }
+        }, MUSICA_RETOMAR_MS);
+      }
+
       // App Android (window.SignageNative): a peça com som toma o áudio da TV
       // e a música que tocava em segundo plano (Spotify) não volta sozinha. O
       // app precisa saber quando o som começa e quando acaba para dar o play
@@ -770,7 +797,13 @@
 
       function teardownYt() {
         ytActive = false;
-        if (somNoAr) { somNoAr = false; avisarApp('somTerminou'); }
+        if (somNoAr) {
+          somNoAr = false;
+          retomarMusica();
+          // Só fecha o que foi aberto: o app que não ouviu o começo guardaria
+          // um "havia música" velho e ligaria o Spotify sem motivo.
+          if (appAvisado) { appAvisado = false; avisarApp('somTerminou'); }
+        }
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
         if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
         if (ytSoundTimer) { clearTimeout(ytSoundTimer); ytSoundTimer = null; }
@@ -866,9 +899,17 @@
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
       // onFail() para o chamador cair no fallback de imagem.
       function playYouTube(slide, videoId, onEnded, onFail) {
-        // Avisa antes de criar o player: é o momento em que nada nosso toca,
-        // então o app consegue ver se havia música de fundo.
-        if (slide.audioMode === 'sound') { somNoAr = true; avisarApp('somIniciou'); }
+        if (slide.audioMode === 'sound') {
+          somNoAr = true;
+          // Com música do painel, o app fica de fora: ele veria a nossa
+          // música como "havia música antes" e, no fim da peça, mandaria
+          // play ao Spotify por cima dela.
+          // Sem música do painel, avisa antes de criar o player: é o momento
+          // em que nada nosso toca, então o app consegue ver se havia música
+          // de fundo (Spotify).
+          if (!musicaRef) { appAvisado = true; avisarApp('somIniciou'); }
+          pausarMusica();
+        }
         loadYtApi(function () {
           var holder = document.createElement('div');
           ytSlot.innerHTML = '';

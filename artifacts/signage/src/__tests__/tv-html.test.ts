@@ -1408,4 +1408,214 @@ describe("tv.html: música de fundo do painel", () => {
       expect(exibicoes().map((e) => e.announcementId)).toEqual([1]);
     });
   });
+
+  /**
+   * Peça de vídeo no ar, pronta e tocando. Sem isto o player da peça nunca
+   * avisa onReady e, em 5 s, a TV desiste dele e cai no fallback de imagem —
+   * o que derruba a peça no meio de um teste que avança o relógio.
+   */
+  function pecaNoAr(): PlayerDeTeste {
+    const p = dasPecas().filter((x) => !x.destruido).pop()!;
+    p.eventos.onReady({ target: p });
+    p.estado = 1;
+    return p;
+  }
+
+  /** Leva a peça de vídeo no ar até o fim natural. */
+  function terminarPeca() {
+    const p = pecaNoAr();
+    p.eventos.onStateChange!({ data: 0, target: p });
+  }
+
+  describe("peça com som", () => {
+
+    it("pausa a música quando entra e retoma quando sai", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png"), video(2, "BBBBBBBBBBB", "sound")];
+      carregarTv();
+      const m = musicaTocando();
+      responder("https://blob/a.png", true);
+      expect(m.pauseCalls).toBe(0);
+
+      vi.advanceTimersByTime(5080); // entra a peça com som
+      expect(m.pauseCalls).toBe(1);
+
+      terminarPeca(); // volta para a imagem
+      expect(m.playCalls).toBe(1); // ainda não: a retomada tem atraso
+      vi.advanceTimersByTime(500);
+      expect(m.playCalls).toBe(2);
+    });
+
+    it("peça de vídeo muda não pausa a música", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      const m = musicaTocando();
+      responder("https://blob/a.png", true);
+
+      vi.advanceTimersByTime(5080);
+      terminarPeca();
+      vi.advanceTimersByTime(500);
+
+      expect(m.pauseCalls).toBe(0);
+      expect(m.playCalls).toBe(1);
+    });
+
+    it("duas peças com som seguidas: a música não toca entre elas", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB", "sound")];
+      carregarTv();
+      const m = musicaTocando();
+      expect(m.playCalls).toBe(0);
+
+      terminarPeca(); // sai a 1, entra a 2
+      vi.advanceTimersByTime(600);
+
+      expect(m.playCalls).toBe(0);
+    });
+
+    // Review Focus 3.
+    it("música que fica pronta no meio de uma peça com som espera a peça sair", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), slide(2, "https://blob/b.png")];
+      carregarTv();
+
+      const m = musicaTocando(); // onReady com a peça com som no ar
+      expect(m.playCalls).toBe(0);
+      expect(m.mudo).toBe(false);
+
+      terminarPeca();
+      vi.advanceTimersByTime(500);
+      expect(m.playCalls).toBe(1);
+    });
+
+    // Review Focus 3.
+    it("música trocada pelo admin durante uma peça com som não toca por cima", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound")];
+      carregarTv();
+      musicaTocando();
+      pecaNoAr();
+
+      musica = { kind: "youtube_video", youtubeId: "NNNNNNNNNNN" };
+      vi.advanceTimersByTime(60000);
+      const nova = musicaTocando();
+
+      expect(nova.videoId).toBe("NNNNNNNNNNN");
+      expect(nova.playCalls).toBe(0);
+    });
+
+    it("peça com som que cai no fallback de imagem devolve a música", () => {
+      musica = VIDEO;
+      listaDeSlides = [{ ...video(1, "AAAAAAAAAAA", "sound"), playbackMode: "capped" }, slide(2, "https://blob/b.png")];
+      carregarTv();
+      const m = musicaTocando();
+      expect(m.playCalls).toBe(0);
+
+      // O player da peça nunca fica pronto: em 5 s a TV desiste e mostra a miniatura.
+      vi.advanceTimersByTime(5500);
+
+      expect(m.playCalls).toBe(1);
+    });
+
+    it("vigia não dá play com peça com som no ar", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound")];
+      carregarTv();
+      const m = musicaTocando();
+      pecaNoAr();
+
+      vi.advanceTimersByTime(30000);
+
+      expect(m.playCalls).toBe(0);
+    });
+
+    // Review Focus 4.
+    it("player da música que lança ao pausar e ao tocar não trava as peças", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB", "sound")];
+      carregarTv();
+      const m = musicaTocando();
+      m.lanca = true;
+
+      terminarPeca();
+      vi.advanceTimersByTime(600);
+
+      expect(dasPecas().filter((x) => !x.destruido).pop()!.videoId).toBe("BBBBBBBBBBB");
+    });
+  });
+
+  describe("ponte com o app Android", () => {
+    let avisos: string[] = [];
+
+    beforeEach(() => {
+      avisos = [];
+      vi.stubGlobal("SignageNative", {
+        somIniciou: () => avisos.push("somIniciou"),
+        somTerminou: () => avisos.push("somTerminou"),
+      });
+    });
+
+    it("com música do painel, o app não é avisado: senão ele ligaria o Spotify por cima", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      musicaTocando();
+
+      terminarPeca();
+
+      expect(avisos).toEqual([]);
+    });
+
+    it("sem música do painel, a ponte segue como antes", () => {
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+
+      terminarPeca();
+
+      expect(avisos).toEqual(["somIniciou", "somTerminou"]);
+    });
+
+    it("música ligada no meio da peça: o app que ouviu o início ouve o fim", () => {
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      pecaNoAr();
+      expect(avisos).toEqual(["somIniciou"]);
+
+      musica = VIDEO;
+      vi.advanceTimersByTime(60000);
+      terminarPeca();
+
+      expect(avisos).toEqual(["somIniciou", "somTerminou"]);
+    });
+
+    it("música removida no meio da peça: o app que não ouviu o início não ouve o fim", () => {
+      musica = VIDEO;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      musicaTocando();
+      pecaNoAr();
+
+      musica = null;
+      vi.advanceTimersByTime(60000);
+      terminarPeca();
+
+      expect(avisos).toEqual([]);
+    });
+
+    // Review Focus 5: sem a API do YouTube não há música do painel tocando,
+    // então o Spotify de fundo volta a ser assunto do app.
+    it("música configurada mas API do YouTube fora: a ponte volta a valer", () => {
+      vi.stubGlobal("YT", undefined);
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      vi.advanceTimersByTime(7000); // a API desiste de carregar
+
+      listaDeSlides = [video(9, "AAAAAAAAAAA", "sound"), slide(1, "https://blob/a.png")];
+      vi.advanceTimersByTime(60000); // lista nova: recomeça pela peça com som
+
+      expect(avisos[0]).toBe("somIniciou");
+    });
+  });
 });
