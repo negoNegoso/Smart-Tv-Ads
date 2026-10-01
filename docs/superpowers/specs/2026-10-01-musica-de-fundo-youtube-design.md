@@ -52,8 +52,10 @@ playlist. Dois ajustes para o que o admin de fato cola:
 
 - O parser passa a aceitar `music.youtube.com` e `youtube.com/live/<id>`
   (vale também para as peças).
-- Mix automático (`list=RD…`, o link que o YouTube dá ao clicar numa música)
-  não carrega no player embutido. Para a música, vale o vídeo `v` do link, em
+- Listas que só existem para quem está logado não carregam no player
+  embutido: mix automático (`list=RD…`, o link que o YouTube dá ao clicar numa
+  música; `RDCLAK…` é playlist pública e fica de fora), curtidos (`LL`, `LM`) e
+  assistir mais tarde (`WL`). Para a música, vale o vídeo `v` do link, em
   laço; sem `v`, o link é recusado. Regra em `musicRefFromUrl`, só da música.
 
 ## 2. API
@@ -132,7 +134,9 @@ está, igual à lista de slides. `showPairing` (device desconhecido ou apagado)
 desliga a música.
 
 **Criação.** Usa o `loadYtApi` que já existe. Se a API do YouTube não
-carregar, a TV fica sem música e as peças seguem no fallback de sempre.
+carregar, a TV fica sem música e as peças seguem no fallback de sempre. A
+música pede a API de novo depois de 5 minutos (as peças não: seguem indo
+direto para a miniatura, e aproveitam a API se ela voltar).
 
 - Vídeo: `videoId` + `playerVars { autoplay: 1, loop: 1, playlist: <id>, controls: 0, disablekb: 1, fs: 0, playsinline: 1 }`
   (o `loop` de vídeo único exige o próprio ID em `playlist`).
@@ -140,7 +144,9 @@ carregar, a TV fica sem música e as peças seguem no fallback de sempre.
 - `onReady`: `unMute()`, `setVolume(100)` e, se `musicaPausada` for falso,
   `playVideo()`.
 - `onError`: em playlist, `nextVideo()`; em vídeo único, nada (a vigia tenta
-  de novo).
+  de novo). No máximo 5 erros seguidos por rodada da vigia, para playlist em
+  que nada toca não ficar pulando sem parar; e nunca com peça com som no ar,
+  porque `nextVideo()` dá play.
 
 **Pausa e retomada.** Nos mesmos dois pontos que hoje ligam e desligam
 `somNoAr`:

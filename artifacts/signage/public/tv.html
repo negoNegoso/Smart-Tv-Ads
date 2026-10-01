@@ -294,6 +294,8 @@
       var ytApiLoading  = false;
       var ytApiUnavailable = false;   // API do YouTube desistiu de carregar
       var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
+      var ytApiFalhouEm = 0;          // quando a API desistiu (ms)
+      var YT_API_RETRY_MS = 300000;   // espera antes de pedir a API de novo
       var ytInitTimer   = null;
       var ytEndWatch    = null;   // vigia do fim do vídeo (Shorts não dão ENDED)
       var YT_END_WATCH_MS = 500;
@@ -316,6 +318,8 @@
       var musicaPausada = false;   // há peça com som no ar
       var musicaVigia   = null;
       var MUSICA_VIGIA_MS = 30000;
+      var musicaErros   = 0;       // erros seguidos, sem nenhum vídeo tocar
+      var MUSICA_MAX_ERROS = 5;
       var musicaRetomada = null;   // timer da retomada depois da peça com som
       var MUSICA_RETOMAR_MS = 500;
       var appAvisado    = false;   // somIniciou foi mandado para esta peça
@@ -627,14 +631,27 @@
       }
 
       // ─── YouTube IFrame API (ES5) ───────────────────────────────────────────
-      function loadYtApi(cb, onFail) {
+      // tentarDeNovo: quem chama aceita pedir a API outra vez depois de uma
+      // falha antiga. Só a música usa: ela não segura nada na tela enquanto
+      // espera, e sem isso um tropeço de rede na hora de ligar a TV deixava a
+      // loja sem música até a página recarregar. As peças seguem desistindo
+      // na hora (vão direto para a miniatura) e aproveitam a API se ela voltar.
+      function loadYtApi(cb, onFail, tentarDeNovo) {
         if (window.YT && window.YT.Player) { cb(); return; }
-        if (ytApiUnavailable) { if (onFail) onFail(); return; }
+        if (ytApiUnavailable) {
+          if (!tentarDeNovo || new Date().getTime() - ytApiFalhouEm < YT_API_RETRY_MS) {
+            if (onFail) onFail();
+            return;
+          }
+          ytApiUnavailable = false;
+          ytApiLoading = false;
+        }
 
         var failed = false;
         var giveUp = setTimeout(function () {
           failed = true;
           ytApiUnavailable = true;
+          ytApiFalhouEm = new Date().getTime();
           if (onFail) onFail();
         }, YT_API_TIMEOUT_MS);
 
@@ -663,6 +680,7 @@
           if (failed) { return; }
           failed = true;
           ytApiUnavailable = true;
+          ytApiFalhouEm = new Date().getTime();
           clearTimeout(giveUp);
           if (onFail) onFail();
         };
@@ -674,6 +692,7 @@
       function desligarMusica() {
         musicaRef = null;
         musicaPronta = false;
+        musicaErros = 0;
         if (musicaVigia) { clearInterval(musicaVigia); musicaVigia = null; }
         if (musicaPlayer) {
           try { musicaPlayer.destroy(); } catch (e) {}
@@ -691,6 +710,9 @@
           var estado = musicaPlayer.getPlayerState();
           var S = window.YT.PlayerState;
           if (estado === S.PLAYING || estado === S.BUFFERING) { return; }
+          // Nova rodada: a playlist ganha outra chance de pular os vídeos
+          // que não tocam.
+          musicaErros = 0;
           musicaPlayer.playVideo();
         } catch (e) {}
       }
@@ -726,12 +748,21 @@
               if (!musicaPausada) { e.target.playVideo(); }
             } catch (err) {}
           },
+          onStateChange: function (e) {
+            if (e.data === window.YT.PlayerState.PLAYING) { musicaErros = 0; }
+          },
           onError: function (e) {
             // Vídeo da playlist que não toca (embed bloqueado, removido):
             // segue para o próximo. Vídeo único fica para a vigia.
-            if (music.kind === 'youtube_playlist') {
-              try { e.target.nextVideo(); } catch (err) {}
-            }
+            // Com limite: playlist em que nada toca ficaria pulando de vídeo
+            // sem parar, disputando a box com as peças. Passou do limite,
+            // para e espera a vigia.
+            // Com peça com som no ar, não pula: nextVideo dá play e a música
+            // tocaria por cima da peça.
+            musicaErros += 1;
+            if (music.kind !== 'youtube_playlist') { return; }
+            if (musicaPausada || musicaErros > MUSICA_MAX_ERROS) { return; }
+            try { e.target.nextVideo(); } catch (err) {}
           }
         };
         musicaPlayer = new window.YT.Player(holder, opts);
@@ -754,11 +785,12 @@
           if (musicaRef !== ref || musicaPlayer) { return; }
           try { criarPlayerDaMusica(music); } catch (e) { desligarMusica(); }
         }, function () {
-          // Sem a API do YouTube não há música. Zera a referência para o
-          // próximo feed tentar de novo e para a ponte com o app Android
-          // (Spotify) voltar a valer.
+          // Sem a API do YouTube não há música. Zera a referência para a
+          // ponte com o app Android (Spotify) voltar a valer e para um feed
+          // seguinte tentar de novo — a API é pedida outra vez depois de
+          // YT_API_RETRY_MS.
           if (musicaRef === ref) { musicaRef = null; }
-        });
+        }, true);
       }
 
       // Peça com som entrou: a música cede a vez. Vale mesmo sem música

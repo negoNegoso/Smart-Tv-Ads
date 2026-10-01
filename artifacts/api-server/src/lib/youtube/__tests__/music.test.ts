@@ -36,6 +36,27 @@ describe("musicRefFromUrl", () => {
     expect(musicRefFromUrl("https://www.youtube.com/playlist?list=RDdQw4w9WgXcQ")).toBeNull();
   });
 
+  // Listas que só existem para quem está logado: curtidos (LL), curtidos do
+  // YouTube Music (LM) e "assistir mais tarde" (WL). O player embutido, sem
+  // login, não as carrega.
+  it.each(["LL", "LM", "WL"])("lista pessoal (%s) toca o vídeo do link, não a lista", (lista) => {
+    expect(musicRefFromUrl(`https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=${lista}`)).toEqual({
+      kind: "youtube_video",
+      youtubeId: "dQw4w9WgXcQ",
+    });
+  });
+
+  it("lista pessoal sem vídeo no link não serve", () => {
+    expect(musicRefFromUrl("https://www.youtube.com/playlist?list=LL")).toBeNull();
+  });
+
+  it("playlist pública do YouTube Music (RDCLAK…) é playlist de verdade, não mix", () => {
+    expect(musicRefFromUrl("https://music.youtube.com/playlist?list=RDCLAK5uy_abc123")).toEqual({
+      kind: "youtube_playlist",
+      youtubeId: "RDCLAK5uy_abc123",
+    });
+  });
+
   it("nulo, vazio e link de outro site dão null", () => {
     expect(musicRefFromUrl(null)).toBeNull();
     expect(musicRefFromUrl(undefined)).toBeNull();

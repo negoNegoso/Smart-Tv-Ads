@@ -1618,4 +1618,89 @@ describe("tv.html: música de fundo do painel", () => {
       expect(avisos[0]).toBe("somIniciou");
     });
   });
+
+  describe("playlist com vídeos que não tocam", () => {
+    const erros = (m: PlayerDeTeste, vezes: number) => {
+      for (let i = 0; i < vezes; i += 1) m.eventos.onError!({ data: 150, target: m });
+    };
+
+    it("todos bloqueados: desiste depois de alguns pulos em vez de girar para sempre", () => {
+      musica = PLAYLIST;
+      carregarTv();
+      const m = musicaTocando();
+
+      erros(m, 20);
+
+      expect(m.nextCalls).toBe(5);
+    });
+
+    it("a vigia dá nova chance à playlist depois", () => {
+      musica = PLAYLIST;
+      carregarTv();
+      const m = musicaTocando();
+      erros(m, 20);
+      m.estado = -1;
+
+      vi.advanceTimersByTime(30000);
+      expect(m.playCalls).toBe(2);
+      erros(m, 20);
+
+      expect(m.nextCalls).toBe(10);
+    });
+
+    it("vídeo que tocou zera a contagem de erros", () => {
+      musica = PLAYLIST;
+      carregarTv();
+      const m = musicaTocando();
+      erros(m, 3);
+
+      m.eventos.onStateChange!({ data: 1, target: m });
+      erros(m, 20);
+
+      expect(m.nextCalls).toBe(8);
+    });
+
+    it("erro com peça com som no ar não pula de faixa por cima da peça", () => {
+      musica = PLAYLIST;
+      listaDeSlides = [video(1, "AAAAAAAAAAA", "sound")];
+      carregarTv();
+      const m = musicaTocando();
+      pecaNoAr();
+
+      erros(m, 1);
+
+      expect(m.nextCalls).toBe(0);
+    });
+  });
+
+  describe("API do YouTube que falhou ao carregar", () => {
+    const pedidosDaApi = () => document.head.querySelectorAll('script[src*="iframe_api"]').length;
+
+    it("a música pede a API de novo depois de alguns minutos, sem insistir antes", () => {
+      vi.stubGlobal("YT", undefined);
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      expect(pedidosDaApi()).toBe(1);
+
+      vi.advanceTimersByTime(4 * 60000);
+      expect(pedidosDaApi()).toBe(1);
+
+      vi.advanceTimersByTime(3 * 60000);
+      expect(pedidosDaApi()).toBe(2);
+    });
+
+    it("quando a API chega no novo pedido, a música começa", () => {
+      vi.stubGlobal("YT", undefined);
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      vi.advanceTimersByTime(6 * 60000);
+
+      instalarYt();
+      (window as unknown as { onYouTubeIframeAPIReady: () => void }).onYouTubeIframeAPIReady();
+
+      expect(daMusica()).toHaveLength(1);
+    });
+  });
 });
