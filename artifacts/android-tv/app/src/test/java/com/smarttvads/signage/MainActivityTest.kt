@@ -1,11 +1,15 @@
 package com.smarttvads.signage
 
+import android.app.Application
+import android.content.Context
+import android.media.AudioManager
 import android.os.Looper
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebView
+import androidx.test.core.app.ApplicationProvider
 import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -128,6 +132,53 @@ class MainActivityTest {
         assertNotNull(a.webView)
         assertNotSame(velha, a.webView)
         assertEquals(BuildConfig.TV_URL, shadowOf(a.webView!!).lastLoadedUrl)
+    }
+
+    private fun audio() = shadowOf(
+        ApplicationProvider.getApplicationContext<Application>()
+            .getSystemService(Context.AUDIO_SERVICE) as AudioManager,
+    )
+
+    /** O que o tv.html enxerga como `window.SignageNative`. */
+    private fun MainActivity.ponte() =
+        shadowOf(webView!!).getJavascriptInterface("SignageNative") as MusicaDeFundo
+
+    /** Peça com som do começo ao fim, com música tocando antes dela. */
+    private fun MainActivity.pecaComSomSobreMusica() {
+        audio().setIsMusicActive(true)
+        ponte().somIniciou()
+        passar(0)
+        audio().setIsMusicActive(false)
+        ponte().somTerminou()
+    }
+
+    private fun playsMandados() = audio().dispatchedMediaKeyEvents.map { it.keyCode }
+
+    @Test
+    fun `tv html retoma a musica de fundo pela ponte SignageNative`() {
+        val a = abrir()
+        a.pecaComSomSobreMusica()
+        passar(1_000)
+        assertEquals(listOf(KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PLAY), playsMandados())
+    }
+
+    @Test
+    fun `WebView recriada continua com a ponte da musica de fundo`() {
+        val a = abrir()
+        a.onRendererGone()
+        passar(0)
+        a.pecaComSomSobreMusica()
+        passar(1_000)
+        assertEquals(listOf(KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PLAY), playsMandados())
+    }
+
+    @Test
+    fun `painel fechado nao manda play depois`() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        controller.get().pecaComSomSobreMusica()
+        controller.pause().stop().destroy()
+        passar(60_000)
+        assertEquals(emptyList<Int>(), playsMandados())
     }
 
     @Test
