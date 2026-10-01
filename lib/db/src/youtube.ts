@@ -16,7 +16,8 @@ export function parseYouTubeUrl(input: string): YouTubeRef | null {
   }
 
   const host = url.hostname.replace(/^www\./, "").toLowerCase();
-  const isYouTube = host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be";
+  const isYouTube =
+    host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com" || host === "youtu.be";
   if (!isYouTube) return null;
 
   const list = url.searchParams.get("list");
@@ -30,7 +31,8 @@ export function parseYouTubeUrl(input: string): YouTubeRef | null {
   const v = url.searchParams.get("v");
   if (v) return { kind: "youtube_video", id: v };
 
-  const m = url.pathname.match(/^\/(embed|shorts)\/([^/?]+)/);
+  // /live/<id> é o link que o botão "Compartilhar" dá numa transmissão ao vivo.
+  const m = url.pathname.match(/^\/(embed|shorts|live)\/([^/?]+)/);
   if (m) return { kind: "youtube_video", id: m[2] };
 
   return null;
