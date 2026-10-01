@@ -32,6 +32,8 @@ let statusDoPost = 200;
 let listaDeSlides: unknown[] = [];
 let statusDaLista = 200;
 let orientacao = "landscape";
+// Música de fundo que o /feed devolve (null = TV sem música).
+let musica: unknown = null;
 let gets: string[] = [];
 // Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
 // O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
@@ -150,6 +152,7 @@ beforeEach(() => {
   listaDeSlides = [];
   statusDaLista = 200;
   orientacao = "landscape";
+  musica = null;
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
@@ -203,7 +206,7 @@ beforeEach(() => {
       if (statusDaLista === 200) {
         // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
         this.responseText = this.url.indexOf("/feed") >= 0
-          ? JSON.stringify({ screen: { orientation: orientacao }, slides: listaDeSlides })
+          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, slides: listaDeSlides })
           : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
@@ -1085,5 +1088,324 @@ describe('tela de pareamento cabe numa TV 960×540', () => {
       medida(regra('#pair-url'), 'margin-top') + linha('#pair-url');
     // 5% de folga para fonte de sistema maior.
     expect(total).toBeLessThanOrEqual(ALTURA * 0.95);
+  });
+});
+
+describe("tv.html: música de fundo do painel", () => {
+  /**
+   * Player fake do YouTube que serve às peças e à música. `slot` diz em qual
+   * contêiner o player foi criado: "yt-slot" é peça, "musica-slot" é música.
+   */
+  interface PlayerDeTeste {
+    slot: string;
+    videoId?: string;
+    vars: Record<string, unknown>;
+    estado: number;
+    mudo: boolean;
+    volume: number;
+    destruido: boolean;
+    playCalls: number;
+    pauseCalls: number;
+    nextCalls: number;
+    lanca: boolean;
+    eventos: {
+      onReady: (e: { target: PlayerDeTeste }) => void;
+      onStateChange?: (e: { data: number; target: PlayerDeTeste }) => void;
+      onError?: (e: { data: number; target: PlayerDeTeste }) => void;
+    };
+  }
+  let players: PlayerDeTeste[] = [];
+  // Construtor do player da música lança (Review Focus 4).
+  let construtorDaMusicaLanca = false;
+
+  const VIDEO = { kind: "youtube_video", youtubeId: "MMMMMMMMMMM" };
+  const PLAYLIST = { kind: "youtube_playlist", youtubeId: "PLmusica123" };
+
+  const video = (announcementId: number, youtubeId: string, audioMode = "muted") => ({
+    ...slide(announcementId, ""),
+    imageUrl: null,
+    mediaKind: "youtube_video",
+    youtubeId,
+    playbackMode: "natural",
+    audioMode,
+  });
+
+  function instalarYt() {
+    class PlayerStub {
+      slot: string;
+      videoId?: string;
+      vars: Record<string, unknown>;
+      estado = -1;
+      mudo = true;
+      volume = 0;
+      destruido = false;
+      playCalls = 0;
+      pauseCalls = 0;
+      nextCalls = 0;
+      lanca = false;
+      eventos: PlayerDeTeste["eventos"];
+      constructor(
+        holder: HTMLElement,
+        opts: { videoId?: string; playerVars?: Record<string, unknown>; events: PlayerDeTeste["eventos"] },
+      ) {
+        this.slot = holder.parentElement?.id ?? "";
+        if (this.slot === "musica-slot" && construtorDaMusicaLanca) throw new Error("player quebrado");
+        this.videoId = opts.videoId;
+        this.vars = opts.playerVars ?? {};
+        this.eventos = opts.events;
+        players.push(this as unknown as PlayerDeTeste);
+      }
+      private falha() { if (this.lanca) throw new Error("player quebrado"); }
+      playVideo() { this.falha(); this.playCalls += 1; this.estado = 1; }
+      pauseVideo() { this.falha(); this.pauseCalls += 1; this.estado = 2; }
+      nextVideo() { this.nextCalls += 1; }
+      mute() { this.mudo = true; }
+      unMute() { this.mudo = false; }
+      setVolume(v: number) { this.volume = v; }
+      getPlayerState() { this.falha(); return this.estado; }
+      seekTo() {}
+      getCurrentTime() { return 0; }
+      getDuration() { return 0; }
+      destroy() { this.destruido = true; }
+    }
+    vi.stubGlobal("YT", {
+      Player: PlayerStub,
+      PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3 },
+    });
+  }
+
+  beforeEach(() => {
+    players = [];
+    construtorDaMusicaLanca = false;
+    instalarYt();
+  });
+
+  const daMusica = () => players.filter((p) => p.slot === "musica-slot");
+  const dasPecas = () => players.filter((p) => p.slot === "yt-slot");
+  /** Player da música em uso, já pronto (como o iframe avisaria). */
+  function musicaTocando(): PlayerDeTeste {
+    const m = daMusica().filter((p) => !p.destruido).pop()!;
+    m.eventos.onReady({ target: m });
+    return m;
+  }
+
+  describe("criação", () => {
+    it("vídeo: player fora do palco, em laço, com som e tocando", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+
+      expect(daMusica()).toHaveLength(1);
+      const m = daMusica()[0];
+      expect(m.videoId).toBe("MMMMMMMMMMM");
+      // O laço de vídeo único só funciona com o próprio ID em `playlist`.
+      expect(m.vars).toMatchObject({ loop: 1, playlist: "MMMMMMMMMMM", controls: 0 });
+      expect(document.getElementById("musica-slot")!.closest("#stage")).toBeNull();
+
+      m.eventos.onReady({ target: m });
+      expect(m.mudo).toBe(false);
+      expect(m.volume).toBe(100);
+      expect(m.playCalls).toBe(1);
+    });
+
+    it("playlist: o player carrega a lista pelo ID e recomeça no fim", () => {
+      musica = PLAYLIST;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+
+      const m = daMusica()[0];
+      expect(m.videoId).toBeUndefined();
+      expect(m.vars).toMatchObject({ listType: "playlist", list: "PLmusica123", loop: 1 });
+    });
+
+    it("TV sem música não cria player", () => {
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      expect(daMusica()).toHaveLength(0);
+    });
+
+    it("feed de servidor antigo (sem o campo music) não cria player", () => {
+      musica = undefined;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      expect(daMusica()).toHaveLength(0);
+    });
+
+    it("lista de slides vazia toca a música mesmo assim", () => {
+      musica = VIDEO;
+      listaDeSlides = [];
+      carregarTv();
+
+      expect(daMusica()).toHaveLength(1);
+      expect(musicaTocando().playCalls).toBe(1);
+    });
+
+    it("erro num vídeo da playlist pula para o próximo", () => {
+      musica = PLAYLIST;
+      carregarTv();
+      const m = musicaTocando();
+
+      m.eventos.onError!({ data: 150, target: m });
+
+      expect(m.nextCalls).toBe(1);
+    });
+  });
+
+  describe("refresh do feed", () => {
+    it("mesma música: o player continua o mesmo", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const m = musicaTocando();
+
+      vi.advanceTimersByTime(60000);
+
+      expect(daMusica()).toHaveLength(1);
+      expect(m.destruido).toBe(false);
+    });
+
+    it("outro link: destrói o player e cria o novo", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const antigo = musicaTocando();
+
+      musica = PLAYLIST;
+      vi.advanceTimersByTime(60000);
+
+      expect(antigo.destruido).toBe(true);
+      expect(daMusica()).toHaveLength(2);
+      expect(daMusica()[1].vars).toMatchObject({ list: "PLmusica123" });
+    });
+
+    it("música removida: destrói o player", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const m = musicaTocando();
+
+      musica = null;
+      vi.advanceTimersByTime(60000);
+
+      expect(m.destruido).toBe(true);
+      expect(document.getElementById("musica-slot")!.innerHTML).toBe("");
+    });
+
+    it("feed que falha mantém a música", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const m = musicaTocando();
+
+      statusDaLista = 0;
+      vi.advanceTimersByTime(60000);
+
+      expect(m.destruido).toBe(false);
+      expect(daMusica()).toHaveLength(1);
+    });
+
+    it("TV apagada no servidor (pareamento) desliga a música", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const m = musicaTocando();
+
+      statusDaLista = 404;
+      vi.advanceTimersByTime(60000);
+
+      expect(m.destruido).toBe(true);
+    });
+  });
+
+  describe("fora das métricas", () => {
+    it("a música não gera exibição", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      musicaTocando();
+      responder("https://blob/a.png", true);
+
+      vi.advanceTimersByTime(5080);
+
+      expect(exibicoes().map((e) => e.announcementId)).toEqual([1]);
+    });
+  });
+
+  describe("vigia", () => {
+    it("música que parou sozinha volta a tocar", () => {
+      musica = VIDEO;
+      carregarTv();
+      const m = musicaTocando();
+      m.estado = 2; // parou sem ninguém pedir
+
+      vi.advanceTimersByTime(30000);
+
+      expect(m.playCalls).toBe(2);
+      expect(m.mudo).toBe(false);
+    });
+
+    it("música tocando ou carregando não leva play de novo", () => {
+      musica = VIDEO;
+      carregarTv();
+      const m = musicaTocando();
+
+      vi.advanceTimersByTime(30000);
+      m.estado = 3;
+      vi.advanceTimersByTime(30000);
+
+      expect(m.playCalls).toBe(1);
+    });
+
+    it("player que ainda não ficou pronto não leva play", () => {
+      musica = VIDEO;
+      carregarTv();
+
+      vi.advanceTimersByTime(30000);
+
+      expect(daMusica()[0].playCalls).toBe(0);
+    });
+  });
+
+  describe("falhas da música não param as peças", () => {
+    // Review Focus 4.
+    it("construtor do player que lança", () => {
+      construtorDaMusicaLanca = true;
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png"), slide(2, "https://blob/b.png")];
+      carregarTv();
+      responder("https://blob/a.png", true);
+      expect(noAr()).toBe("https://blob/a.png");
+
+      vi.advanceTimersByTime(5080);
+      responder("https://blob/b.png", true);
+
+      expect(noAr()).toBe("https://blob/b.png");
+    });
+
+    it("player que lança na vigia", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      const m = musicaTocando();
+      m.lanca = true;
+      responder("https://blob/a.png", true);
+
+      expect(() => vi.advanceTimersByTime(35080)).not.toThrow();
+      expect(exibicoes().length).toBeGreaterThan(0);
+    });
+
+    // Review Focus 5.
+    it("API do YouTube que não carrega: peças de imagem seguem", () => {
+      vi.stubGlobal("YT", undefined);
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      responder("https://blob/a.png", true);
+
+      vi.advanceTimersByTime(7000);
+
+      expect(daMusica()).toHaveLength(0);
+      expect(exibicoes().map((e) => e.announcementId)).toEqual([1]);
+    });
   });
 });
