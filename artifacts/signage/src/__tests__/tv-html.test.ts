@@ -821,6 +821,65 @@ describe("tv.html: vídeo do YouTube em modo natural", () => {
 
     expect(p.mudo).toBe(false);
   });
+
+  describe("música de fundo no app Android", () => {
+    // O app Android expõe `window.SignageNative`. A peça com som toma o áudio
+    // da TV e o Spotify que tocava em segundo plano não volta sozinho: o app
+    // precisa saber quando o som da peça começa e quando acaba.
+    let avisos: string[] = [];
+
+    beforeEach(() => {
+      avisos = [];
+      vi.stubGlobal("SignageNative", {
+        somIniciou: () => avisos.push("somIniciou"),
+        somTerminou: () => avisos.push("somTerminou"),
+      });
+    });
+
+    it("peça com som avisa o app antes de o vídeo sair do mudo", () => {
+      listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      const p = ultimo();
+      // Ainda mudo: é agora que o app consegue ver se havia música tocando.
+      expect(p.mudo).toBe(true);
+      expect(avisos).toEqual(["somIniciou"]);
+    });
+
+    it("avisa que o som terminou quando a peça sai da tela", () => {
+      listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      const p = ultimo();
+      p.eventos.onReady({ target: p });
+
+      p.eventos.onStateChange({ data: 0, target: p });
+
+      expect(avisos).toEqual(["somIniciou", "somTerminou"]);
+    });
+
+    it("peça muda não avisa o app", () => {
+      listaDeSlides = [video(1, "AAAAAAAAAAA"), video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      const p = ultimo();
+      p.eventos.onReady({ target: p });
+      p.eventos.onStateChange({ data: 0, target: p });
+
+      expect(avisos).toEqual([]);
+    });
+
+    it("ponte que lança exceção não trava a peça", () => {
+      vi.stubGlobal("SignageNative", {
+        somIniciou: () => { throw new Error("ponte quebrada"); },
+        somTerminou: () => { throw new Error("ponte quebrada"); },
+      });
+      listaDeSlides = [{ ...video(1, "AAAAAAAAAAA"), audioMode: "sound" }, video(2, "BBBBBBBBBBB")];
+      carregarTv();
+      const p = ultimo();
+      p.eventos.onReady({ target: p });
+      p.eventos.onStateChange({ data: 0, target: p });
+
+      expect(ultimo().videoId).toBe("BBBBBBBBBBB");
+    });
+  });
 });
 
 describe("tv.html: fila de exibições", () => {

@@ -294,6 +294,7 @@
       var YT_END_WATCH_MS = 500;
       var ytSoundTimer  = null;   // confere se o vídeo com som começou a tocar
       var YT_SOUND_CHECK_MS = 3000;
+      var somNoAr       = false;  // peça com som na tela: o app foi avisado
       var ytUltimaPosicao = 0;   // última posição lida pela vigia (s)
       var ytActive      = false;
       var ytFallback    = false;   // slide de vídeo caiu no fallback de imagem
@@ -650,8 +651,19 @@
         document.head.appendChild(tag);
       }
 
+      // App Android (window.SignageNative): a peça com som toma o áudio da TV
+      // e a música que tocava em segundo plano (Spotify) não volta sozinha. O
+      // app precisa saber quando o som começa e quando acaba para dar o play
+      // de volta. Fora do app, ou em APK antigo sem a ponte, não faz nada.
+      function avisarApp(metodo) {
+        try {
+          if (window.SignageNative && window.SignageNative[metodo]) { window.SignageNative[metodo](); }
+        } catch (e) {}
+      }
+
       function teardownYt() {
         ytActive = false;
+        if (somNoAr) { somNoAr = false; avisarApp('somTerminou'); }
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
         if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
         if (ytSoundTimer) { clearTimeout(ytSoundTimer); ytSoundTimer = null; }
@@ -747,6 +759,9 @@
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
       // onFail() para o chamador cair no fallback de imagem.
       function playYouTube(slide, videoId, onEnded, onFail) {
+        // Avisa antes de criar o player: é o momento em que nada nosso toca,
+        // então o app consegue ver se havia música de fundo.
+        if (slide.audioMode === 'sound') { somNoAr = true; avisarApp('somIniciou'); }
         loadYtApi(function () {
           var holder = document.createElement('div');
           ytSlot.innerHTML = '';

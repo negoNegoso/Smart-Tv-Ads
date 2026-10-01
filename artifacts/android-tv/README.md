@@ -204,6 +204,13 @@ deploy web.
 - Falha ao baixar ou instalar atualização: nada muda no painel; aviso
   "Falha ao atualizar" por 10 s quando a instalação falha; tenta de novo na
   próxima checagem.
+- Música de fundo (ex.: Spotify aberto na box, tocando em segundo plano): a
+  peça com som cala a música e, 1 s depois que ela sai da tela, o app manda
+  play de volta. Só manda se havia música tocando quando a peça começou —
+  música pausada de propósito continua pausada. Se o play comum não trouxer a
+  música em 2 s, o app manda o play direto ao Spotify, uma vez, e para por aí.
+  O uso do Spotify em estabelecimento é responsabilidade de quem assina a
+  conta: os termos do Spotify são de uso pessoal.
 
 ## Checklist de teste manual
 
@@ -213,6 +220,10 @@ deploy web.
 - [ ] Reiniciar o aparelho → abre sozinho e exibe.
 - [ ] Sem rede no boot → aviso → volta sozinho ao reconectar.
 - [ ] Peça com YouTube toca com som sem clique.
+- [ ] Com o Spotify tocando em segundo plano, a peça com som cala a música e
+      ela volta sozinha até ~3 s depois que a peça sai da tela.
+- [ ] Com o Spotify pausado à mão, a peça com som passa e a música segue
+      pausada.
 - [ ] Apagar a TV no painel → volta ao QR.
 - [ ] Segurar Voltar por 5 s e soltar abre as Configurações da TV.
 - [ ] Uma tecla do controle mostra "Sair da tela cheia"; OK com ele em foco

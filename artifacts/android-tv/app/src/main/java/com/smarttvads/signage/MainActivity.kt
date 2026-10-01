@@ -39,6 +39,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     internal var movedToBack = false
         private set
     private lateinit var updateController: UpdateController
+    private lateinit var musica: MusicaDeFundo
 
     /**
      * Executor da checagem de atualização, um por instância. Sem shutdown no
@@ -110,6 +111,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         exitButton = findViewById(R.id.exit_fullscreen)
         exitButton.setOnClickListener { exitFullscreen() }
         updateController = updateControllerFactory(this)
+        musica = MusicaDeFundo(this)
         UpdateState.listener = this
         UpdateState.pendingVersion?.let { onUpdateReady(it) }
         handler.postDelayed(updateCheck, UPDATE_FIRST_CHECK_MS)
@@ -143,6 +145,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         if (live?.get() === this) live = null
         if (UpdateState.listener === this) UpdateState.listener = null
         handler.removeCallbacksAndMessages(null)
+        musica.cancelar()
         updateExecutor.shutdown()
         destroyWebView()
         super.onDestroy()
@@ -301,6 +304,8 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         }
         TvWebViewConfig.apply(view)
         view.webViewClient = TvWebViewClient(this)
+        // Antes do loadUrl: a ponte só existe em página carregada depois dela.
+        view.addJavascriptInterface(musica, MusicaDeFundo.NOME_NA_PAGINA)
         container.addView(
             view,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
