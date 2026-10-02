@@ -25,6 +25,7 @@ import Analytics from './pages/analytics';
 import CampaignDetail from './pages/campaign-detail';
 import Users from './pages/users';
 import Divulgacao from './pages/divulgacao';
+import Fleet from './pages/fleet';
 import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
@@ -76,6 +77,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/companies/:id">
         <Layout><CompanyDetailPage /></Layout>
+      </Route>
+      <Route path="/parque">
+        <Layout><Fleet /></Layout>
       </Route>
       <Route path="/clients">
         <Redirect to="/companies" />

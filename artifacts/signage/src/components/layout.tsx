@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, BarChart3, Building2, LogOut, KeyRound, Megaphone, PanelsTopLeft } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Building2, LogOut, KeyRound, Megaphone, Monitor, PanelsTopLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/brand/logo';
@@ -17,6 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const navItems = [
     { href: '/companies', label: 'Empresas', icon: Building2 },
+    { href: '/parque', label: 'Parque de TVs', icon: Monitor },
     { href: '/panels', label: 'Painéis', icon: PanelsTopLeft },
     { href: '/admin', label: 'Biblioteca de Mídia', icon: LayoutDashboard },
     { href: '/analytics', label: 'Análises', icon: BarChart3 },
