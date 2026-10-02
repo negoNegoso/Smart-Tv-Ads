@@ -133,6 +133,30 @@ não sai do painel). Chegar lá com o app em primeiro plano:
 
 Para devolver o launcher original, troque a tela inicial padrão de volta.
 
+### Imagem sem nitidez
+
+Qualquer tecla do controle mostra também o botão **"Ajustar imagem"**, ao
+lado do de sair (seta para a direita leva o foco até ele; OK abre). A tela de
+ajuste mostra:
+
+- a resolução em que o Android está desenhando e, se a box disser que tem
+  modo maior, qual é. Abaixo de 1920x1080, suba a resolução pelo botão "Abrir
+  configurações de tela";
+- um padrão de teste ao fundo, com linhas de 1 px. De perto as linhas são
+  nítidas; de longe o fundo é um cinza liso. Faixas, ondas ou borrão indicam
+  que a box ou a TV estão reescalando a imagem: acerte a resolução da box
+  para a nativa da TV e, na TV, use o formato "Ajustar à tela" (nome varia
+  por marca: "Just Scan", "Somente varredura", "1:1") e baixe a nitidez;
+- uma moldura branca de 1 px nas bordas. Lado cortado é overscan da TV:
+  resolve no mesmo ajuste de formato.
+
+O app não troca a resolução sozinho: box genérica só deixa mexer nisso pelas
+configurações do sistema. Em TV com painel HD (1366x768) nenhuma resolução
+casa pixel a pixel; escolha a que der o padrão mais limpo.
+
+Voltar ou "Fechar" saem da tela de ajuste, e ela fecha sozinha depois de
+5 minutos sem ninguém mexer no controle.
+
 ### Android TV / Google TV certificado
 
 Em aparelhos com o Android TV certificado pela Google (a maioria das smart
@@ -196,6 +220,8 @@ deploy web.
 - Mexeu no controle: o botão "Sair da tela cheia" aparece no canto inferior
   esquerdo por 8 s e some sozinho, sem cobrir os anúncios. Com ele em foco, o
   OK sai do painel; sem ele na tela, o OK volta a servir à atualização.
+  Junto aparece "Ajustar imagem", que abre a tela de ajuste (ver "Imagem sem
+  nitidez").
 - Motor da WebView trava: o app recria a WebView sozinho.
 - Todo dia às 04:00 a página é recarregada.
 - Aparelho sem Android System WebView: aviso na tela pedindo para atualizar.
@@ -232,6 +258,9 @@ deploy web.
 - [ ] Segurar Voltar por 5 s e soltar abre as Configurações da TV.
 - [ ] Uma tecla do controle mostra "Sair da tela cheia"; OK com ele em foco
       devolve as barras e leva ao menu da TV; sem mexer, o botão some em 8 s.
+- [ ] Seta para a direita leva o foco a "Ajustar imagem"; OK abre a tela de
+      ajuste com a resolução, o padrão de linhas e a moldura inteira; "Abrir
+      configurações de tela" abre a tela de vídeo do sistema; Voltar fecha.
 - [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
       com Android comum (em Android TV / Google TV certificado, só depois
       do procedimento da seção "Android TV certificado").

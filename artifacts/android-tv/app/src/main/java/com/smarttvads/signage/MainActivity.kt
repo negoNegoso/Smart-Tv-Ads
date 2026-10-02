@@ -34,6 +34,10 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     private lateinit var webViewMissing: View
     private lateinit var updateBanner: android.widget.TextView
     private lateinit var exitButton: android.widget.Button
+    private lateinit var ajustarButton: android.widget.Button
+    private lateinit var ajusteOverlay: View
+    private lateinit var ajusteInfo: android.widget.TextView
+    private lateinit var ajusteFechar: View
 
     /** Saiu para o menu da TV. Existe para os testes conferirem a saída. */
     internal var movedToBack = false
@@ -80,10 +84,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     }
     private val hideUpdateBanner = Runnable { updateBanner.visibility = View.GONE }
     private val hideExitButton = Runnable {
-        exitButton.visibility = View.GONE
-        // Sem o botão, o foco volta para a página.
+        hideMenu()
+        // Sem o menu, o foco volta para a página.
         webView?.requestFocus()
     }
+    private val fecharAjuste = Runnable { closeAjuste() }
 
     /**
      * Freio do retry após cancelamento (I-4): sem isso, um ABORTED vindo do
@@ -110,6 +115,13 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         updateBanner = findViewById(R.id.update_banner)
         exitButton = findViewById(R.id.exit_fullscreen)
         exitButton.setOnClickListener { exitFullscreen() }
+        ajustarButton = findViewById(R.id.ajustar_imagem)
+        ajustarButton.setOnClickListener { openAjuste() }
+        ajusteOverlay = findViewById(R.id.ajuste_overlay)
+        ajusteInfo = findViewById(R.id.ajuste_info)
+        ajusteFechar = findViewById(R.id.ajuste_fechar)
+        ajusteFechar.setOnClickListener { closeAjuste() }
+        findViewById<View>(R.id.ajuste_configuracoes).setOnClickListener { openDisplaySettings() }
         updateController = updateControllerFactory(this)
         musica = MusicaDeFundo(this)
         UpdateState.listener = this
@@ -133,6 +145,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         super.onResume()
         resumed = true
         webView?.onResume()
+        // Voltou das configurações de tela: a resolução pode ter mudado.
+        if (ajusteOverlay.visibility == View.VISIBLE) {
+            showDiagnostico()
+            adiarFechamentoDoAjuste()
+        }
     }
 
     override fun onPause() {
@@ -158,17 +175,37 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
      * Interceptado aqui, antes da WebView, que tem o foco.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // Com o botão de sair em foco, o OK é dele; a atualização espera o
-        // botão sumir para voltar a responder ao OK.
-        if (isOkKey(event.keyCode) && exitButton.visibility == View.VISIBLE) {
-            if (event.action == KeyEvent.ACTION_UP) exitFullscreen()
+        // Tela de ajuste aberta: as teclas são dos botões dela e Voltar fecha.
+        if (ajusteOverlay.visibility == View.VISIBLE) {
+            adiarFechamentoDoAjuste()
+            if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+            if (event.action == KeyEvent.ACTION_UP) closeAjuste()
+            return true
+        }
+        val menuVisivel = exitButton.visibility == View.VISIBLE
+        // Com o menu na tela, o OK é do botão em foco; a atualização espera o
+        // menu sumir para voltar a responder ao OK.
+        if (isOkKey(event.keyCode) && menuVisivel) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                if (ajustarButton.isFocused) openAjuste() else exitFullscreen()
+            }
+            return true
+        }
+        // Esquerda/direita alternam entre os dois botões. Feito aqui porque a
+        // busca de foco do sistema poderia levar o foco para a WebView.
+        if (menuVisivel && isSideKey(event.keyCode)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                (if (ajustarButton.isFocused) exitButton else ajustarButton).requestFocus()
+            } else {
+                showExitButton()
+            }
             return true
         }
         if (isOkKey(event.keyCode) && UpdateState.pendingConfirmation != null) {
             if (event.action == KeyEvent.ACTION_UP) openUpdateConfirmation()
             return true
         }
-        // Qualquer outra tecla do controle traz o botão de sair de volta.
+        // Qualquer outra tecla do controle traz o menu de volta.
         if (event.action == KeyEvent.ACTION_UP && event.keyCode != KeyEvent.KEYCODE_BACK) {
             showExitButton()
         }
@@ -192,11 +229,67 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     private fun isOkKey(keyCode: Int) = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
         keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
 
+    private fun isSideKey(keyCode: Int) = keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+        keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+
     private fun showExitButton() {
         handler.removeCallbacks(hideExitButton)
         exitButton.visibility = View.VISIBLE
-        exitButton.requestFocus()
+        ajustarButton.visibility = View.VISIBLE
+        // Não tira o foco de "Ajustar imagem" se a pessoa já foi até ele.
+        if (!ajustarButton.isFocused) exitButton.requestFocus()
         handler.postDelayed(hideExitButton, EXIT_BUTTON_VISIBLE_MS)
+    }
+
+    private fun hideMenu() {
+        handler.removeCallbacks(hideExitButton)
+        exitButton.visibility = View.GONE
+        ajustarButton.visibility = View.GONE
+    }
+
+    /**
+     * Tela de ajuste de imagem, para o técnico acertar a resolução da box e o
+     * formato de imagem da TV na instalação. Fecha sozinha: esquecida aberta,
+     * ficaria cobrindo os anúncios.
+     */
+    private fun openAjuste() {
+        hideMenu()
+        showDiagnostico()
+        ajusteOverlay.visibility = View.VISIBLE
+        // Foco no Fechar: um OK a mais não joga a pessoa nas configurações.
+        ajusteFechar.requestFocus()
+        adiarFechamentoDoAjuste()
+    }
+
+    private fun closeAjuste() {
+        handler.removeCallbacks(fecharAjuste)
+        ajusteOverlay.visibility = View.GONE
+        webView?.requestFocus()
+    }
+
+    private fun adiarFechamentoDoAjuste() {
+        handler.removeCallbacks(fecharAjuste)
+        handler.postDelayed(fecharAjuste, AJUSTE_VISIBLE_MS)
+    }
+
+    private fun showDiagnostico() {
+        @Suppress("DEPRECATION")
+        val d = TelaInfo.ler(windowManager.defaultDisplay)
+        val conselho = when (d.situacao) {
+            SituacaoDaTela.HA_MODO_MAIOR -> getString(R.string.ajuste_ha_modo_maior, d.melhor.rotulo)
+            SituacaoDaTela.ABAIXO_DE_FULL_HD -> getString(R.string.ajuste_abaixo_de_full_hd)
+            SituacaoDaTela.RESOLUCAO_OK -> getString(R.string.ajuste_resolucao_ok)
+        }
+        ajusteInfo.text = getString(R.string.ajuste_resolucao, d.atual.rotulo, conselho)
+    }
+
+    private fun openDisplaySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            // Box sem atalho para a tela de vídeo: cai nas Configurações gerais.
+            openSystemSettings()
+        }
     }
 
     /**
@@ -206,8 +299,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
      * segurar Voltar por 5 s (ver README).
      */
     private fun exitFullscreen() {
-        handler.removeCallbacks(hideExitButton)
-        exitButton.visibility = View.GONE
+        hideMenu()
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         movedToBack = moveTaskToBack(true)
@@ -340,6 +432,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
 
         /** Quanto o botão de sair fica na tela sem ninguém usar. */
         const val EXIT_BUTTON_VISIBLE_MS = 8_000L
+
+        /** Quanto a tela de ajuste fica aberta sem ninguém mexer no controle. */
+        const val AJUSTE_VISIBLE_MS = 300_000L
 
         const val UPDATE_FIRST_CHECK_MS = 120_000L
         const val UPDATE_INTERVAL_MS = 21_600_000L
