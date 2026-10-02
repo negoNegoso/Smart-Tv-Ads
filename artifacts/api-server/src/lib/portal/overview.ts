@@ -2,20 +2,10 @@
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { advertisersTable, clientsTable, companiesTable, db, campaignsTable, devicesTable, playsTable, scansTable } from "@workspace/db";
 import { BUSINESS_TIME_ZONE } from "../ad-eligibility";
+import { onlineSince } from "../device-presence";
 import { scanRate } from "../scan-rate";
 import { fillSeries } from "./series";
 import { portalPeriod, previousPortalPeriod, type PortalDays, type PortalPeriod } from "./period";
-
-/**
- * "TVs online agora" é presença, não histórico: cinco minutos é o intervalo
- * em que uma tela saudável reporta. O card diz "agora" e o número precisa
- * concordar com isso, independente do período escolhido no filtro.
- */
-export const DEVICE_ONLINE_WINDOW_MINUTES = 5;
-
-export function onlineSince(now: Date): Date {
-  return new Date(now.getTime() - DEVICE_ONLINE_WINDOW_MINUTES * 60 * 1000);
-}
 
 /**
  * Data local do negócio dentro do SQL, para agrupar a série por dia.

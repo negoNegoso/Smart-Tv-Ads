@@ -4,7 +4,7 @@ import {
   db, campaignsTable, playsTable, scansTable, devicesTable, advertisersTable, clientsTable, companiesTable,
 } from "@workspace/db";
 import { countReachedDevices } from "../ad-eligibility";
-import { onlineSince } from "./overview";
+import { onlineSince } from "../device-presence";
 import { portalPeriod, type PortalDays } from "./period";
 import type { FeedDevice } from "../device-feed";
 
