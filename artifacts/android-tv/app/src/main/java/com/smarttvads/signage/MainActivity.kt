@@ -67,6 +67,12 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     // sem isto, entraria no handler já limpo e checaria numa Activity morta.
     private var destruida = false
 
+    // Depois de uma falha de instalação (disco cheio, assinatura diferente) o
+    // sinal do feed continua, e a página repete o aviso a cada 10 min: sem
+    // este freio a box refaria download e sessão nesse ritmo, em vez de a cada
+    // 6 h. Só a checagem periódica volta a liberar os avisos da página.
+    private var avisoDaPaginaSuspenso = false
+
     private val retry = Runnable { loadTv() }
     private val dailyReload = Runnable {
         loadTv()
@@ -81,6 +87,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     // sendo confirmada.
     private val updateCheck = object : Runnable {
         override fun run() {
+            avisoDaPaginaSuspenso = false
             checarAtualizacao()
             handler.postDelayed(this, UPDATE_INTERVAL_MS)
         }
@@ -103,7 +110,8 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
      * Freio do retry após cancelamento (I-4): sem isso, um ABORTED vindo do
      * sistema (sessão abandonada, pouco espaço) vira laço quente de checagem +
      * sessão nova a cada volta. Só a primeira ABORTED de uma sequência refaz a
-     * checagem na hora; as seguintes esperam a checagem periódica normal.
+     * checagem na hora; as seguintes esperam a checagem periódica normal
+     * (os avisos da página ficam suspensos até ela, ver avisoDaPaginaSuspenso).
      * Reseta quando uma atualização fica pronta de novo (a checagem funcionou).
      */
     private var retryImediatoUsado = false
@@ -133,7 +141,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         findViewById<View>(R.id.ajuste_configuracoes).setOnClickListener { openDisplaySettings() }
         updateController = updateControllerFactory(this)
         musica = MusicaDeFundo(this)
-        atualizacaoPelaPagina = AtualizacaoPelaPagina(handler) { checarAtualizacao() }
+        atualizacaoPelaPagina = AtualizacaoPelaPagina(handler) {
+            if (!avisoDaPaginaSuspenso) checarAtualizacao()
+        }
         UpdateState.listener = this
         UpdateState.pendingVersion?.let { onUpdateReady(it) }
         handler.postDelayed(updateCheck, UPDATE_FIRST_CHECK_MS)
@@ -337,6 +347,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     }
 
     override fun onUpdateFailed(aborted: Boolean) {
+        avisoDaPaginaSuspenso = true
         handler.removeCallbacks(hideUpdateBanner)
         if (aborted) {
             updateBanner.visibility = View.GONE

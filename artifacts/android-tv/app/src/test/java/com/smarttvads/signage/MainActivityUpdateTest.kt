@@ -124,6 +124,53 @@ class MainActivityUpdateTest {
         assertEquals(0, checagens)
     }
 
+    // Box que não consegue instalar (disco cheio, assinatura diferente): sem
+    // isto a página reabriria a sessão a cada 10 min, em vez de a cada 6 h.
+    @Test
+    fun `depois de falha de instalacao o aviso da pagina nao checa de novo`() {
+        val a = abrir()
+        UpdateState.sessionStarted(7)
+        UpdateState.failed(aborted = false)
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(0, checagens)
+    }
+
+    @Test
+    fun `depois de cancelamento no dialogo o aviso da pagina nao refaz a sessao`() {
+        val a = abrir()
+        UpdateState.sessionStarted(7)
+        UpdateState.failed(aborted = true)
+        // O retry imediato único do cancelamento continua valendo.
+        assertEquals(1, checagens)
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(1, checagens)
+    }
+
+    @Test
+    fun `a checagem periodica libera de novo o aviso da pagina`() {
+        val a = abrir()
+        UpdateState.sessionStarted(7)
+        UpdateState.failed(aborted = false)
+        passar(MainActivity.UPDATE_FIRST_CHECK_MS)
+        assertEquals(1, checagens)
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(2, checagens)
+    }
+
+    // Falha de download não passa por onUpdateFailed: a repetição da página segue.
+    @Test
+    fun `falha de download nao suspende o aviso da pagina`() {
+        val a = abrir()
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(2, checagens)
+    }
+
     @Test
     fun `atualizacao pronta mostra o aviso com a versao`() {
         val a = abrir()
