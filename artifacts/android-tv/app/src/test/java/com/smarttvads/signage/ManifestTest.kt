@@ -63,6 +63,14 @@ class ManifestTest {
         assertTrue(info.requestedPermissions!!.contains("android.permission.REQUEST_INSTALL_PACKAGES"))
     }
 
+    // Sem esta permissão o Android 12+ ignora o USER_ACTION_NOT_REQUIRED do
+    // UpdateInstaller e toda atualização para na confirmação.
+    @Test
+    fun `pode atualizar a si mesmo sem confirmacao no Android 12 ou mais novo`() {
+        val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        assertTrue(info.requestedPermissions!!.contains("android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"))
+    }
+
     @Test
     fun `receiver do instalador registrado e nao exportado`() {
         val info = context.packageManager.getReceiverInfo(

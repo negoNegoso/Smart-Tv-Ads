@@ -190,18 +190,24 @@ temporizador do sistema, só o de suspensão geral.
 O app se atualiza sozinho a partir das releases do GitHub:
 
 - Checa 2 minutos depois de abrir e depois a cada 6 horas.
-- Achou versão nova: baixa, confere o SHA-256 e mostra no canto
-  "Atualização X pronta — aperte OK para instalar". O painel segue normal.
-- Alguém aperta **OK** no controle → o Android pergunta "Atualizar?" →
-  confirmar. O app é reinstalado e reiniciado, com a mesma key (TV continua
+- Achou versão nova: baixa e confere o SHA-256.
+- **Android 12 ou mais novo:** instala sozinho, sem aviso e sem ninguém
+  apertar nada. O painel some por alguns segundos enquanto o app reinicia.
+  Vale a partir da versão 1.15.1, a primeira com a permissão
+  `UPDATE_PACKAGES_WITHOUT_USER_ACTION`: quem está numa versão anterior ainda
+  confirma uma vez com OK para chegar nela.
+- **Android 10/11:** o sistema sempre pede confirmação. Aparece no canto
+  "Atualização X pronta — aperte OK para instalar", o painel segue normal, e
+  alguém aperta **OK** no controle → o Android pergunta "Atualizar?" →
+  confirmar. O mesmo aviso aparece no Android 12+ se o sistema recusar a
+  instalação silenciosa.
+- Nos dois casos o app é reinstalado e reiniciado, com a mesma key (TV continua
   vinculada). Em TV box com Android comum onde o Signage TV é a tela inicial,
   o sistema traz o painel de volta sozinho. Em Android TV / Google TV
   certificado, e no Android 10+ em geral, essa reabertura automática pode ser
   bloqueada pelo sistema — a TV fica no launcher até alguém apertar Home ou
   abrir o app (não é defeito; ver a seção "Android TV / Google TV
   certificado").
-- Android 10/11 sempre pede essa confirmação. No Android 12+, a partir da
-  segunda atualização feita pelo próprio app, instala sem perguntar.
 - Cancelou o diálogo: o aviso volta; OK tenta de novo.
 
 TVs com a versão **1.0.1** ainda não têm o atualizador: instale uma vez à mão
@@ -264,10 +270,12 @@ deploy web.
 - [ ] Voltar no controle não sai do painel; Home volta ao painel em TV box
       com Android comum (em Android TV / Google TV certificado, só depois
       do procedimento da seção "Android TV certificado").
-- [ ] Com versão nova na última release, o aviso aparece no canto em até
-      2 minutos depois de abrir.
-- [ ] OK abre a confirmação do sistema; confirmar instala e o painel volta com
-      a mesma key.
+- [ ] Android 10/11: com versão nova na última release, o aviso aparece no
+      canto em até 2 minutos depois de abrir.
+- [ ] Android 10/11: OK abre a confirmação do sistema; confirmar instala e o
+      painel volta com a mesma key.
+- [ ] Android 12+, já na 1.15.1 ou mais nova: com versão nova na release, o
+      app se atualiza sem aviso nem OK e volta com a mesma key.
 - [ ] Com o Signage TV como tela inicial numa TV box com Android comum, o
       painel volta sozinho depois de atualizar.
 - [ ] Se a TV ficar no launcher do sistema depois de atualizar (comum em

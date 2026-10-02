@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- O app baixa e instala a própria versão nova (ver UpdateInstaller). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12+: deixa o app atualizar a si mesmo sem o diálogo
+         "Atualizar?". Sem ela o sistema ignora o USER_ACTION_NOT_REQUIRED da
+         sessão e a atualização fica esperando alguém apertar OK no controle. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- Roda em Android TV e em TV box com Android comum (sem leanback nem toque). -->
     <uses-feature android:name="android.software.leanback" android:required="false" />

@@ -12,7 +12,9 @@ import java.io.File
 /**
  * Entrega o APK conferido ao PackageInstaller. O sistema responde no
  * UpdateStatusReceiver: no Android 10/11 sempre pede confirmação; no 12+
- * pode instalar sem perguntar quando o próprio app instalou a versão atual.
+ * instala sem perguntar, desde que a versão instalada já declare
+ * UPDATE_PACKAGES_WITHOUT_USER_ACTION no manifest (quem conta é a versão que
+ * está instalando, não a que chega).
  */
 class UpdateInstaller(private val context: Context) : UpdateController.Installer {
 
