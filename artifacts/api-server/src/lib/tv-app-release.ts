@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 /**
  * Última versão publicada do app da TV, lida do `update.json` que a pipeline de
  * release anexa junto do APK. O nome do arquivo carrega a versão
@@ -113,7 +115,14 @@ export async function latestTvAppReleaseForFeed(): Promise<TvAppRelease | null> 
   feedAttemptAt = Date.now();
   try {
     return await refreshForFeed();
-  } catch {
+  } catch (err) {
+    // Sem este aviso, um GitHub inalcançável de forma persistente deixaria a
+    // frota na checagem de 6 h sem ninguém saber. O freio de 1 tentativa por
+    // minuto já limita a um log por minuto por instância.
+    logger.warn(
+      { err },
+      "Consulta da última release pelo feed falhou; TVs sem aviso automático neste minuto",
+    );
     return stale;
   }
 }

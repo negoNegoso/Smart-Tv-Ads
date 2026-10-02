@@ -8,6 +8,10 @@ const UPDATE_JSON = {
 };
 
 const fetchMock = vi.fn();
+// O módulo é recarregado a cada teste (resetModules); o espião fica fora para
+// sobreviver às recargas.
+const warnMock = vi.fn();
+vi.mock("../logger", () => ({ logger: { warn: warnMock } }));
 
 function ok(body: unknown = UPDATE_JSON) {
   return { ok: true, status: 200, json: async () => body } as unknown as Response;
@@ -23,6 +27,7 @@ beforeEach(() => {
   // O cache vive no módulo: sem zerar, um teste herdaria a resposta do outro.
   vi.resetModules();
   fetchMock.mockReset();
+  warnMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   // Só o relógio: o código usa Date.now() para a idade do cache.
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -102,6 +107,30 @@ describe("latestTvAppReleaseForFeed", () => {
     vi.setSystemTime(Date.now() + MINUTO);
     await latestTvAppReleaseForFeed();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // Sem o log, um GitHub inalcançável de forma persistente deixaria a frota sem
+  // aviso automático sem ninguém saber.
+  it("falha da consulta registra um aviso só, e o minuto de freio não registra outro", async () => {
+    fetchMock.mockRejectedValue(new Error("ECONNRESET"));
+    const { latestTvAppReleaseForFeed } = await carregar();
+    await latestTvAppReleaseForFeed();
+    expect(warnMock).toHaveBeenCalledTimes(1);
+    expect(warnMock.mock.calls[0][0]).toHaveProperty("err");
+    expect(warnMock.mock.calls[0][1]).toBe(
+      "Consulta da última release pelo feed falhou; TVs sem aviso automático neste minuto",
+    );
+
+    vi.setSystemTime(Date.now() + 30 * 1000);
+    await latestTvAppReleaseForFeed();
+    expect(warnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("consulta bem-sucedida não registra aviso", async () => {
+    fetchMock.mockResolvedValue(ok());
+    const { latestTvAppReleaseForFeed } = await carregar();
+    await latestTvAppReleaseForFeed();
+    expect(warnMock).not.toHaveBeenCalled();
   });
 
   // Várias TVs batem no mesmo instante com o cache vencido.
