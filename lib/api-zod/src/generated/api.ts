@@ -812,6 +812,42 @@ export const GetDevicePreviewResponse = zod.array(GetDevicePreviewResponseItem)
 
 
 /**
+ * @summary Períodos em que a TV esteve conectada nos últimos 30 dias
+ */
+export const GetDeviceSessionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDeviceSessionsResponse = zod.object({
+  "isOnline": zod.boolean(),
+  "sessions": zod.array(zod.object({
+  "startedAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Parque de TVs — presença e versão do app de todas as telas
+ */
+export const GetFleetResponse = zod.object({
+  "latestVersion": zod.string().nullable(),
+  "devices": zod.array(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "name": zod.string(),
+  "location": zod.string().nullable(),
+  "showcase": zod.boolean(),
+  "lastSeenAt": zod.coerce.date().nullable(),
+  "isOnline": zod.boolean(),
+  "appVersion": zod.string().nullable(),
+  "outdated": zod.boolean()
+}))
+})
+
+
+/**
  * @summary Assign an announcement to a device
  */
 export const AddToDevicePlaylistParams = zod.object({

@@ -10,6 +10,7 @@ import cepRouter from "./cep";
 import companiesRouter from "./companies";
 import clientsRouter from "./clients";
 import devicesRouter from "./devices";
+import fleetRouter from "./fleet";
 import displayRouter from "./display";
 import telemetryRouter from "./telemetry";
 import analyticsRouter from "./analytics";
@@ -54,6 +55,7 @@ router.use(cepRouter);
 router.use(companiesRouter);
 router.use(clientsRouter);
 router.use(devicesRouter);
+router.use(fleetRouter);
 router.use(analyticsRouter);
 router.use(advertisersRouter);
 

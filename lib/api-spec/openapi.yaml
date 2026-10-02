@@ -595,6 +595,36 @@ paths:
         "404":
           description: Not found
 
+  /devices/{id}/sessions:
+    get:
+      operationId: getDeviceSessions
+      tags: [devices]
+      summary: Períodos em que a TV esteve conectada nos últimos 30 dias
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceSessions"
+        "404":
+          description: Not found
+
+  /fleet:
+    get:
+      operationId: getFleet
+      tags: [devices]
+      summary: Parque de TVs — presença e versão do app de todas as telas
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fleet"
+
   /devices/{id}/playlist/add:
     post:
       operationId: addToDevicePlaylist
@@ -1533,6 +1563,54 @@ components:
         showcase: { type: boolean }
         # Link de vídeo ou playlist do YouTube. null ou vazio tira a música.
         musicUrl: { type: ["string", "null"] }
+
+    # ── Parque de TVs ────────────────────────────────────────────────────────
+    FleetDevice:
+      type: object
+      required: [id, clientId, clientName, name, location, showcase, lastSeenAt, isOnline, appVersion, outdated]
+      properties:
+        id: { type: integer }
+        clientId: { type: integer }
+        clientName: { type: string }
+        name: { type: string }
+        location: { type: ["string", "null"] }
+        showcase: { type: boolean }
+        lastSeenAt: { type: ["string", "null"], format: date-time }
+        # Calculado no servidor: falou nos últimos 5 minutos.
+        isOnline: { type: boolean }
+        # Versão do app no último contato. Nulo = navegador, ou nunca conectou.
+        appVersion: { type: ["string", "null"] }
+        # Versão X.Y.Z menor que a da última release.
+        outdated: { type: boolean }
+
+    Fleet:
+      type: object
+      required: [latestVersion, devices]
+      properties:
+        # Nulo quando o GitHub não respondeu: nenhuma TV sai marcada.
+        latestVersion: { type: ["string", "null"] }
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetDevice"
+
+    DeviceSession:
+      type: object
+      required: [startedAt, lastSeenAt]
+      properties:
+        startedAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+
+    DeviceSessions:
+      type: object
+      required: [isOnline, sessions]
+      properties:
+        # Do relógio do servidor: diz se a sessão mais recente segue em andamento.
+        isOnline: { type: boolean }
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeviceSession"
 
     # ── Playlist ─────────────────────────────────────────────────────────────
     PlaylistItem:
