@@ -3,6 +3,7 @@ export * from "./companies";
 export * from "./announcements";
 export * from "./clients";
 export * from "./devices";
+export * from "./device_sessions";
 export * from "./device_playlist";
 export * from "./plays";
 export * from "./advertisers";
