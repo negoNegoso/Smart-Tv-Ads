@@ -13,6 +13,7 @@ export interface FleetRow {
   isOnline: boolean;
   appVersion: string | null;
   outdated: boolean;
+  updateRequestedAt: string | null;
 }
 
 export type FleetFilter = 'all' | 'online' | 'offline' | 'outdated';
@@ -97,4 +98,19 @@ export function lastSeenLabel(lastSeenAt: string | null, now: Date): string {
   if (hours < 24) return `há ${hours} h`;
   const days = Math.floor(hours / 24);
   return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+}
+
+/** Mesmo prazo do servidor (lib/tv-app-update.ts): depois disso ele para de avisar a TV. */
+const UPDATE_REQUEST_TTL_MINUTES = 15;
+
+/** Rótulo do pedido de atualização, enquanto ele ainda vale. Nulo = sem rótulo. */
+export function updateRequestedLabel(updateRequestedAt: string | null, now: Date): string | null {
+  if (!updateRequestedAt) return null;
+  const ms = now.getTime() - new Date(updateRequestedAt).getTime();
+  if (!Number.isFinite(ms)) return null;
+  const minutes = Math.floor(ms / 60000);
+  if (minutes >= UPDATE_REQUEST_TTL_MINUTES) return null;
+  // Inclui pedido "no futuro": relógio do banco à frente do navegador.
+  if (minutes < 1) return 'atualização pedida agora';
+  return `atualização pedida há ${minutes} min`;
 }

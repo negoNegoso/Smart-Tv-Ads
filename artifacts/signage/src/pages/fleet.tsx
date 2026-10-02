@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { CircleAlert, Monitor, Wifi, WifiOff } from 'lucide-react';
-import { useGetFleet, getGetFleetQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CircleAlert, Monitor, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useGetFleet, useRequestFleetUpdate, getGetFleetQueryKey } from '@workspace/api-client-react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { filterFleet, fleetCounts, lastSeenLabel, versionsInUse, type FleetFilter, type FleetRow } from '@/lib/fleet';
+import { filterFleet, fleetCounts, lastSeenLabel, updateRequestedLabel, versionsInUse, type FleetFilter, type FleetRow } from '@/lib/fleet';
 
 const selectClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
@@ -23,6 +26,29 @@ export default function Fleet() {
     query: { queryKey: getGetFleetQueryKey(), refetchInterval: 60_000 },
   });
 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  // O servidor só marca o pedido; a TV recebe o aviso no próximo feed (60 s),
+  // checa, baixa e — onde o Android exige — espera o OK no controle.
+  const requestUpdate = useRequestFleetUpdate({
+    mutation: {
+      onSuccess: (_result, variables) => {
+        queryClient.invalidateQueries({ queryKey: getGetFleetQueryKey() });
+        toast({
+          title: variables.data.deviceIds
+            ? 'Pedido enviado. A TV checa no próximo minuto.'
+            : 'Pedido enviado. As TVs checam no próximo minuto.',
+        });
+      },
+      onError: () => toast({ title: 'Não foi possível enviar o pedido.', variant: 'destructive' }),
+    },
+  });
+
+  function atualizarTodas() {
+    if (!window.confirm('Mandar todas as TVs checarem atualização agora?')) return;
+    requestUpdate.mutate({ data: {} });
+  }
+
   const devices: FleetRow[] = data?.devices ?? [];
   const latestVersion = data?.latestVersion ?? null;
   const counts = fleetCounts(devices);
@@ -32,9 +58,16 @@ export default function Fleet() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Parque de TVs</h1>
-        <p className="mt-1 text-muted-foreground">Quem está no ar agora e que versão do app cada TV roda.</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Parque de TVs</h1>
+          <p className="mt-1 text-muted-foreground">Quem está no ar agora e que versão do app cada TV roda.</p>
+        </div>
+        {devices.length > 0 ? (
+          <Button variant="outline" onClick={atualizarTodas} disabled={requestUpdate.isPending}>
+            <RefreshCw className="mr-2 h-4 w-4" />Atualizar todas
+          </Button>
+        ) : null}
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -61,6 +94,10 @@ export default function Fleet() {
                 {latestVersion
                   ? `Última versão publicada: ${latestVersion}.`
                   : 'Não foi possível consultar a última versão publicada; nenhuma TV é marcada como desatualizada.'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                As TVs se atualizam sozinhas em poucos minutos depois de cada release. Em Android 11 ou anterior,
+                alguém precisa apertar OK no controle.
               </p>
             </CardHeader>
             <CardContent>
@@ -118,10 +155,13 @@ export default function Fleet() {
                       <th className="pb-2 font-medium">Local</th>
                       <th className="pb-2 font-medium">Visto por último</th>
                       <th className="pb-2 font-medium">Versão</th>
+                      <th className="pb-2 font-medium"><span className="sr-only">Ações</span></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((d) => (
+                    {rows.map((d) => {
+                      const pedido = updateRequestedLabel(d.updateRequestedAt, now);
+                      return (
                       <tr key={d.id} data-testid={`fleet-row-${d.id}`} className="border-b last:border-0">
                         <td className="py-3">
                           <span className="flex items-center gap-2">
@@ -146,9 +186,23 @@ export default function Fleet() {
                             {d.appVersion ?? 'navegador'}
                             {d.outdated ? <Badge variant="outline">Desatualizada</Badge> : null}
                           </span>
+                          {pedido ? <span className="block text-xs text-muted-foreground">{pedido}</span> : null}
+                        </td>
+                        <td className="py-3 text-right">
+                          {/* Só TV que roda o app: no navegador não há o que atualizar. */}
+                          {d.appVersion !== null ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={requestUpdate.isPending}
+                              onClick={() => requestUpdate.mutate({ data: { deviceIds: [d.id] } })}
+                            >
+                              Atualizar agora
+                            </Button>
+                          ) : null}
                         </td>
                       </tr>
-                    ))}
+                      ); })}
                   </tbody>
                 </table>
               </CardContent>

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { filterFleet, fleetCounts, lastSeenLabel, versionsInUse, type FleetRow } from '../fleet';
+import { filterFleet, fleetCounts, lastSeenLabel, updateRequestedLabel, versionsInUse, type FleetRow } from '../fleet';
 
 function tv(over: Partial<FleetRow>): FleetRow {
   return {
     id: 1, clientName: 'Padaria Central', name: 'TV', location: null, showcase: false,
     lastSeenAt: '2026-10-02T14:59:00.000Z', isOnline: true, appVersion: '1.9.0', outdated: false,
+    updateRequestedAt: null,
     ...over,
   };
 }
@@ -94,5 +95,34 @@ describe('lastSeenLabel', () => {
 
   it('data inválida não vira "há NaN min"', () => {
     expect(lastSeenLabel('não é data', NOW)).toBe('nunca conectou');
+  });
+});
+
+describe('updateRequestedLabel', () => {
+  const NOW = new Date('2026-10-02T15:00:00.000Z');
+
+  it('TV sem pedido não tem rótulo', () => {
+    expect(updateRequestedLabel(null, NOW)).toBeNull();
+  });
+
+  it('diz há quanto tempo o admin pediu', () => {
+    expect(updateRequestedLabel('2026-10-02T14:59:40.000Z', NOW)).toBe('atualização pedida agora');
+    expect(updateRequestedLabel('2026-10-02T14:58:00.000Z', NOW)).toBe('atualização pedida há 2 min');
+    expect(updateRequestedLabel('2026-10-02T14:46:00.000Z', NOW)).toBe('atualização pedida há 14 min');
+  });
+
+  // O servidor para de avisar a TV depois de 15 minutos; o rótulo some junto,
+  // senão o admin acharia que o pedido ainda está valendo.
+  it('pedido de 15 minutos ou mais não aparece', () => {
+    expect(updateRequestedLabel('2026-10-02T14:45:00.000Z', NOW)).toBeNull();
+    expect(updateRequestedLabel('2026-10-01T15:00:00.000Z', NOW)).toBeNull();
+  });
+
+  it('pedido alguns segundos no futuro é "agora"', () => {
+    expect(updateRequestedLabel('2026-10-02T15:00:20.000Z', NOW)).toBe('atualização pedida agora');
+  });
+
+  it('data inválida não tem rótulo', () => {
+    expect(updateRequestedLabel('não é data', NOW)).toBeNull();
   });
 });
