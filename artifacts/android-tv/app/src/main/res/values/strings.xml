@@ -6,4 +6,13 @@
     <string name="update_ready">Atualização %1$s pronta — aperte OK para instalar</string>
     <string name="update_failed">Falha ao atualizar</string>
     <string name="exit_fullscreen">Sair da tela cheia</string>
+    <string name="ajustar_imagem">Ajustar imagem</string>
+    <string name="ajuste_titulo">Ajuste de imagem</string>
+    <string name="ajuste_resolucao">O Android está desenhando em %1$s. %2$s</string>
+    <string name="ajuste_ha_modo_maior">Este aparelho oferece %1$s: mude a resolução nas configurações de tela.</string>
+    <string name="ajuste_abaixo_de_full_hd">Está abaixo de Full HD (1920x1080): veja se há resolução maior nas configurações de tela.</string>
+    <string name="ajuste_resolucao_ok">A resolução do aparelho está boa.</string>
+    <string name="ajuste_como_ler">Olhe o fundo. De perto, linhas finas e nítidas (em pé à esquerda, deitadas à direita); de longe, um cinza liso. Se aparecerem faixas, ondas ou borrão, a saída HDMI do aparelho ou a TV está reescalando a imagem: confira a resolução do aparelho e, na TV, use o formato \"Ajustar à tela\" e baixe a nitidez. A moldura branca precisa aparecer inteira nas quatro bordas; cortada, a TV está com overscan.</string>
+    <string name="ajuste_abrir_configuracoes">Abrir configurações de tela</string>
+    <string name="ajuste_fechar">Fechar</string>
 </resources>

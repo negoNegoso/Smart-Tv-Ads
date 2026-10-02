@@ -52,21 +52,121 @@
         android:textSize="18sp"
         android:visibility="gone" />
 
-    <!-- Saída da tela cheia. Só aparece quando alguém mexe no controle, para
-         não cobrir os anúncios, e recebe o foco para o OK ativá-lo. -->
-    <Button
-        android:id="@+id/exit_fullscreen"
+    <!-- Menu do controle. Só aparece quando alguém mexe no controle, para
+         não cobrir os anúncios. Cada botão some por conta própria (o grupo
+         fica vazio na tela); o foco entra no de sair, e esquerda/direita
+         alternam entre os dois. -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="24dp"
-        android:background="#CC000000"
-        android:paddingLeft="16dp"
-        android:paddingTop="10dp"
-        android:paddingRight="16dp"
-        android:paddingBottom="10dp"
-        android:text="@string/exit_fullscreen"
-        android:textColor="@android:color/white"
-        android:textSize="18sp"
-        android:visibility="gone" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/exit_fullscreen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#CC000000"
+            android:paddingLeft="16dp"
+            android:paddingTop="10dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="10dp"
+            android:text="@string/exit_fullscreen"
+            android:textColor="@color/texto_do_botao"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/ajustar_imagem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="12dp"
+            android:background="#CC000000"
+            android:paddingLeft="16dp"
+            android:paddingTop="10dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="10dp"
+            android:text="@string/ajustar_imagem"
+            android:textColor="@color/texto_do_botao"
+            android:textSize="18sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Tela de ajuste de imagem: padrão de teste ao fundo e, no meio, a
+         resolução atual com o caminho para as configurações de tela. Por
+         último no arquivo para ficar por cima de tudo. -->
+    <FrameLayout
+        android:id="@+id/ajuste_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <com.smarttvads.signage.PadraoDeTesteView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:layout_width="520dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@android:color/black"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ajuste_titulo"
+                android:textColor="@android:color/white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/ajuste_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:textColor="@android:color/white"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/ajuste_como_ler"
+                android:textColor="#CCCCCC"
+                android:textSize="15sp" />
+
+            <!-- nextFocus prende o foco entre os dois botões: sem isso a
+                 seta leva o foco para a WebView escondida atrás. -->
+            <Button
+                android:id="@+id/ajuste_configuracoes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="#333333"
+                android:nextFocusLeft="@id/ajuste_configuracoes"
+                android:nextFocusRight="@id/ajuste_configuracoes"
+                android:nextFocusUp="@+id/ajuste_fechar"
+                android:nextFocusDown="@+id/ajuste_fechar"
+                android:text="@string/ajuste_abrir_configuracoes"
+                android:textColor="@color/texto_do_botao"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/ajuste_fechar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#333333"
+                android:nextFocusLeft="@id/ajuste_fechar"
+                android:nextFocusRight="@id/ajuste_fechar"
+                android:nextFocusUp="@id/ajuste_configuracoes"
+                android:nextFocusDown="@id/ajuste_configuracoes"
+                android:text="@string/ajuste_fechar"
+                android:textColor="@color/texto_do_botao"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>

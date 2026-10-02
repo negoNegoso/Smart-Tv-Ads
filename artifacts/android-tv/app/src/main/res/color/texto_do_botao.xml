@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O botão em foco fica amarelo: com dois botões lado a lado é o que diz em
+     qual deles o OK vai cair. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="#FFD600" android:state_focused="true" />
+    <item android:color="@android:color/white" />
+</selector>
