@@ -226,6 +226,21 @@ describe('Parque de TVs', () => {
     expect(screen.getByTestId('fleet-row-2')).not.toHaveTextContent('atualização pedida');
   });
 
+  // "Atualizar todas" carimba também as TVs no navegador, que não têm app para
+  // atualizar: o rótulo do pedido só faz sentido para quem tem app.
+  it('TV no navegador não mostra atualização pedida', async () => {
+    stubFleet({
+      latestVersion: '1.9.0',
+      devices: [
+        tv({ id: 1, name: 'Balcão', updateRequestedAt: minutosAtras(2) }),
+        tv({ id: 2, name: 'Vitrine', appVersion: null, updateRequestedAt: minutosAtras(2) }),
+      ],
+    });
+    renderPage();
+    expect(await screen.findByTestId('fleet-row-1')).toHaveTextContent('atualização pedida há 2 min');
+    expect(screen.getByTestId('fleet-row-2')).not.toHaveTextContent('atualização pedida');
+  });
+
   it('erro no pedido mostra o aviso', async () => {
     stubComPedido(PARQUE, 500);
     renderPage();

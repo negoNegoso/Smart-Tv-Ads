@@ -160,7 +160,9 @@ export default function Fleet() {
                   </thead>
                   <tbody>
                     {rows.map((d) => {
-                      const pedido = updateRequestedLabel(d.updateRequestedAt, now);
+                      // TV no navegador (sem app) também recebe o carimbo de "Atualizar todas",
+                      // mas não tem o que atualizar: não mostra o rótulo do pedido.
+                      const pedido = d.appVersion !== null ? updateRequestedLabel(d.updateRequestedAt, now) : null;
                       return (
                       <tr key={d.id} data-testid={`fleet-row-${d.id}`} className="border-b last:border-0">
                         <td className="py-3">
