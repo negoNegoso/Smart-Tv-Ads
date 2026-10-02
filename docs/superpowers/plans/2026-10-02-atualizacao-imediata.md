@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-02-atualizacao-imediata-design.md`
 
+> **Nota pós-execução (2026-10-02):** duas partes do código deste plano foram trocadas durante a execução, por decisão registrada depois de achados da revisão. Vale o que está na spec e no código, não o texto das tarefas:
+> - **Task 2:** a consulta em andamento compartilhada (`inFlight`) é só do feed (`refreshForFeed`); `latestTvAppRelease()` faz a própria consulta de 5 s. O `refresh(timeoutMs)` compartilhado do Step 3 deixaria um feed esperando a consulta de 5 s da página do APK.
+> - **Task 5:** depois de qualquer falha de instalação (`onUpdateFailed`), o app ignora os avisos da página até a próxima checagem periódica (`avisoDaPaginaSuspenso` em `MainActivity`). Sem isso, uma box que não consegue instalar refaria a sessão e mostraria "Falha ao atualizar" a cada 10 minutos.
+
 ## Global Constraints
 
 - Branch `feat/atualizacao-imediata`. Nunca commitar na `main`.
