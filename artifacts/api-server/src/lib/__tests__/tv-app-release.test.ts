@@ -32,6 +32,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("latestTvAppReleaseForFeed", () => {
@@ -117,12 +118,36 @@ describe("latestTvAppReleaseForFeed", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("a consulta do feed vai com sinal de cancelamento (teto de tempo)", async () => {
+  it("a consulta do feed usa o teto de 1,5 s e a da página, o de 5 s", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
     fetchMock.mockResolvedValue(ok());
-    const { latestTvAppReleaseForFeed } = await carregar();
+    const { latestTvAppRelease, latestTvAppReleaseForFeed } = await carregar();
     await latestTvAppReleaseForFeed();
-    const init = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(timeout).toHaveBeenLastCalledWith(1500);
+
+    vi.setSystemTime(Date.now() + 2 * MINUTO);
+    await latestTvAppRelease();
+    expect(timeout).toHaveBeenLastCalledWith(5000);
+  });
+
+  // A consulta da página tem teto de 5 s; o feed não pode entrar nela.
+  it("feed não espera uma consulta lenta da página", async () => {
+    fetchMock.mockReturnValueOnce(new Promise<Response>(() => {}));
+    const { latestTvAppRelease, latestTvAppReleaseForFeed } = await carregar();
+    latestTvAppRelease().catch(() => {});
+    fetchMock.mockResolvedValueOnce(ok());
+    expect((await latestTvAppReleaseForFeed())?.versionName).toBe("1.16.0");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // Se herdasse a consulta do feed, a página falharia em 1,5 s.
+  it("página não herda o teto curto do feed", async () => {
+    fetchMock.mockReturnValueOnce(new Promise<Response>(() => {}));
+    const { latestTvAppRelease, latestTvAppReleaseForFeed } = await carregar();
+    latestTvAppReleaseForFeed().catch(() => {});
+    fetchMock.mockResolvedValueOnce(ok());
+    expect((await latestTvAppRelease()).versionName).toBe("1.16.0");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

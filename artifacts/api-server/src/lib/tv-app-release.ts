@@ -37,7 +37,10 @@ export interface TvAppRelease {
 export class TvAppReleaseUnavailableError extends Error {}
 
 let cache: { at: number; release: TvAppRelease } | null = null;
-/** Consulta em andamento, para chamadas simultâneas não irem todas ao GitHub. */
+/** Consulta do feed em andamento, para as TVs que batem juntas não irem todas
+ *  ao GitHub. Exclusiva do feed: a página do APK tem teto de 5 s, e se o feed
+ *  entrasse nela esperaria mais que 1,5 s; se a página entrasse na do feed,
+ *  falharia cedo demais. */
 let inFlight: Promise<TvAppRelease> | null = null;
 /** Quando o feed tentou pela última vez, tenha dado certo ou não. */
 let feedAttemptAt = 0;
@@ -76,9 +79,9 @@ async function fetchRelease(timeoutMs: number): Promise<TvAppRelease> {
   return release;
 }
 
-function refresh(timeoutMs: number): Promise<TvAppRelease> {
+function refreshForFeed(): Promise<TvAppRelease> {
   if (!inFlight) {
-    inFlight = fetchRelease(timeoutMs).finally(() => {
+    inFlight = fetchRelease(FEED_TIMEOUT_MS).finally(() => {
       inFlight = null;
     });
   }
@@ -89,9 +92,10 @@ function freshCache(): TvAppRelease | null {
   return cache && Date.now() - cache.at < CACHE_MS ? cache.release : null;
 }
 
-/** Página de download e redirect do APK: tenta agora e lança se não der. */
+/** Página de download e redirect do APK: tenta agora, com a própria consulta e
+ *  o próprio teto (sem compartilhar com o feed), e lança se não der. */
 export async function latestTvAppRelease(): Promise<TvAppRelease> {
-  return freshCache() ?? refresh(TIMEOUT_MS);
+  return freshCache() ?? fetchRelease(TIMEOUT_MS);
 }
 
 /**
@@ -108,7 +112,7 @@ export async function latestTvAppReleaseForFeed(): Promise<TvAppRelease | null> 
   if (!inFlight && Date.now() - feedAttemptAt < CACHE_MS) return stale;
   feedAttemptAt = Date.now();
   try {
-    return await refresh(FEED_TIMEOUT_MS);
+    return await refreshForFeed();
   } catch {
     return stale;
   }
