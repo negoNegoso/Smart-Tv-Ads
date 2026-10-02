@@ -34,6 +34,9 @@ let statusDaLista = 200;
 let orientacao = "landscape";
 // Música de fundo que o /feed devolve (null = TV sem música).
 let musica: unknown = null;
+// Aviso de atualização do app que o /feed devolve (undefined = servidor
+// antigo, sem o campo).
+let atualizacao: unknown = undefined;
 let gets: string[] = [];
 // Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
 // O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
@@ -153,6 +156,7 @@ beforeEach(() => {
   statusDaLista = 200;
   orientacao = "landscape";
   musica = null;
+  atualizacao = undefined;
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
@@ -206,7 +210,7 @@ beforeEach(() => {
       if (statusDaLista === 200) {
         // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
         this.responseText = this.url.indexOf("/feed") >= 0
-          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, slides: listaDeSlides })
+          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, slides: listaDeSlides })
           : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
@@ -1702,5 +1706,105 @@ describe("tv.html: música de fundo do painel", () => {
 
       expect(daMusica()).toHaveLength(1);
     });
+  });
+});
+
+describe("tv.html: aviso de atualização do app", () => {
+  // O app Android expõe `window.SignageUpdate`. O feed diz quando há versão
+  // nova (ou quando o admin pediu) e a página repassa: é o que faz a box se
+  // atualizar em minutos em vez de esperar a checagem de 6 horas.
+  let checagens = 0;
+
+  const SINAL = { version: "1.16.0", forcedAt: null };
+  const MINUTO = 60000;
+
+  beforeEach(() => {
+    checagens = 0;
+    vi.stubGlobal("SignageUpdate", { check: () => { checagens += 1; } });
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+  });
+
+  it("avisa o app quando o feed traz o sinal", () => {
+    atualizacao = SINAL;
+    carregarTv();
+    expect(checagens).toBe(1);
+  });
+
+  it("feed sem o sinal não avisa", () => {
+    atualizacao = null;
+    carregarTv();
+    vi.advanceTimersByTime(3 * MINUTO);
+    expect(checagens).toBe(0);
+  });
+
+  it("servidor antigo (sem o campo) não avisa", () => {
+    atualizacao = undefined;
+    carregarTv();
+    expect(checagens).toBe(0);
+  });
+
+  it("o mesmo sinal no feed seguinte não repete o aviso", () => {
+    atualizacao = SINAL;
+    carregarTv();
+    vi.advanceTimersByTime(3 * MINUTO);
+    expect(checagens).toBe(1);
+  });
+
+  // Download que falhou na box: o sinal continua vindo, e o app precisa de
+  // outra chance sem esperar a checagem de 6 horas.
+  it("repete o aviso depois de 10 minutos com o sinal ainda no ar", () => {
+    atualizacao = SINAL;
+    carregarTv();
+    vi.advanceTimersByTime(9 * MINUTO);
+    expect(checagens).toBe(1);
+    vi.advanceTimersByTime(2 * MINUTO);
+    expect(checagens).toBe(2);
+  });
+
+  it("pedido do admin (forcedAt novo) avisa de novo no próximo feed", () => {
+    atualizacao = SINAL;
+    carregarTv();
+    atualizacao = { version: "1.16.0", forcedAt: "2026-10-02T15:00:00.000Z" };
+    vi.advanceTimersByTime(MINUTO);
+    expect(checagens).toBe(2);
+  });
+
+  it("versão nova avisa de novo no próximo feed", () => {
+    atualizacao = SINAL;
+    carregarTv();
+    atualizacao = { version: "1.17.0", forcedAt: null };
+    vi.advanceTimersByTime(MINUTO);
+    expect(checagens).toBe(2);
+  });
+
+  // TV sem campanha nenhuma também tem de se atualizar: o aviso não pode
+  // ficar atrás do retorno antecipado da lista vazia.
+  it("TV sem peças também avisa o app", () => {
+    listaDeSlides = [];
+    atualizacao = SINAL;
+    carregarTv();
+    expect(checagens).toBe(1);
+  });
+
+  it("navegador sem o app ignora o sinal e segue exibindo", () => {
+    vi.stubGlobal("SignageUpdate", undefined);
+    atualizacao = SINAL;
+    expect(() => carregarTv()).not.toThrow();
+    responder("https://blob/a.png", true);
+    expect(noAr()).toContain("https://blob/a.png");
+  });
+
+  it("ponte que lança não interrompe o rodízio", () => {
+    vi.stubGlobal("SignageUpdate", { check: () => { throw new Error("ponte quebrada"); } });
+    atualizacao = SINAL;
+    expect(() => carregarTv()).not.toThrow();
+    responder("https://blob/a.png", true);
+    expect(noAr()).toContain("https://blob/a.png");
+  });
+
+  it("objeto sem o método check é ignorado", () => {
+    vi.stubGlobal("SignageUpdate", {});
+    atualizacao = SINAL;
+    expect(() => carregarTv()).not.toThrow();
   });
 });

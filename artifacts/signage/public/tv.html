@@ -1301,6 +1301,30 @@
         if (pairTimer) { clearInterval(pairTimer); pairTimer = null; }
       }
 
+      // ---- Atualização do app Android (aviso do servidor) ----
+      // O feed diz quando há versão nova do app ou quando o admin pediu a
+      // checagem. A página só repassa ao app (window.SignageUpdate); quem
+      // baixa, confere e instala é ele. Sem isso a box só descobriria a
+      // versão nova na checagem própria, a cada 6 horas.
+      var ATUALIZACAO_REPETIR_MS = 600000; // 10 min: outra chance se o download falhou
+      var atualizacaoChave = null;         // version + '|' + forcedAt do último aviso repassado
+      var atualizacaoEm = 0;               // quando o app foi avisado pela última vez
+
+      function avisarAtualizacao(appUpdate) {
+        try {
+          if (!appUpdate) { return; }
+          var ponte = window.SignageUpdate;
+          if (!ponte || !ponte.check) { return; }
+          var chave = String(appUpdate.version) + '|' + String(appUpdate.forcedAt);
+          var agora = Date.now();
+          if (chave === atualizacaoChave && agora - atualizacaoEm < ATUALIZACAO_REPETIR_MS) { return; }
+          // Marca antes de chamar: ponte que lança não vira aviso a cada feed.
+          atualizacaoChave = chave;
+          atualizacaoEm = agora;
+          ponte.check();
+        } catch (e) {}
+      }
+
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/feed';
         xhrGet(url, function (err, data, status, body) {
@@ -1324,6 +1348,8 @@
 
           // Antes do teste de lista vazia: a música vale mesmo sem peças.
           aplicarMusica(data.music);
+          // Também antes do teste de lista vazia: TV sem peças se atualiza igual.
+          avisarAtualizacao(data.appUpdate);
 
           var girou = applyOrientation(data.screen && data.screen.orientation);
 
