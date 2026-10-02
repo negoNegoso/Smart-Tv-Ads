@@ -255,6 +255,15 @@ describe("POST /fleet/update-requests", () => {
     expect(setMock).not.toHaveBeenCalled();
   });
 
+  // O zod gerado aceita qualquer número; sem a checagem da rota o Postgres
+  // recusaria na consulta e o cliente receberia 500 em vez de 400.
+  it.each([[1.5], [0], [-3], [2147483648]])("id %s não é id de TV válido: 400", async (id) => {
+    const res = await post({ deviceIds: [id] });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "deviceIds deve conter só ids inteiros de TV" });
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
   it("id de TV que não existe conta zero, sem erro", async () => {
     updated = [];
     const res = await post({ deviceIds: [999] });

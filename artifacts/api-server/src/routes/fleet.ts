@@ -74,6 +74,14 @@ router.post("/fleet/update-requests", async (req, res): Promise<void> => {
     return;
   }
 
+  // O zod gerado aceita qualquer número; sem esta checagem 1.5 ou um valor
+  // acima do int4 chegaria ao Postgres e viraria 500 em vez de 400.
+  const INT4_MAX = 2147483647;
+  if (body.data.deviceIds?.some((id) => !Number.isInteger(id) || id <= 0 || id > INT4_MAX)) {
+    res.status(400).json({ error: "deviceIds deve conter só ids inteiros de TV" });
+    return;
+  }
+
   const marcar = db.update(devicesTable).set({ updateRequestedAt: new Date() });
   const ids = body.data.deviceIds;
   const rows = await (ids ? marcar.where(inArray(devicesTable.id, ids)) : marcar).returning({
