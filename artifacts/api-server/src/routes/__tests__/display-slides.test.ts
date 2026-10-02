@@ -15,6 +15,8 @@ import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-
 const dbSelect = vi.fn();
 const dbUpdate = vi.fn();
 const panelSlidesForClientMock = vi.fn();
+const setMock = vi.fn();
+const touchDeviceSessionMock = vi.fn();
 
 let selectResults: unknown[] = [];
 let selectCallIndex = 0;
@@ -25,7 +27,7 @@ function makeChain(result: unknown) {
     innerJoin: () => typeof chain;
     where: () => typeof chain;
     orderBy: () => typeof chain;
-    set: () => typeof chain;
+    set: (values?: unknown) => typeof chain;
     then: (
       resolve: (value: unknown) => void,
       reject?: (reason: unknown) => void,
@@ -35,7 +37,10 @@ function makeChain(result: unknown) {
     innerJoin: () => chain,
     where: () => chain,
     orderBy: () => chain,
-    set: () => chain,
+    set: (values) => {
+      setMock(values);
+      return chain;
+    },
     then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
   };
   return chain;
@@ -70,6 +75,12 @@ vi.mock("../../lib/panels/device-slides", async (importOriginal) => {
     panelSlidesForClient: (...args: unknown[]) => panelSlidesForClientMock(...args),
   };
 });
+
+// O histórico de conexão tem teste próprio (lib/__tests__/device-sessions*);
+// aqui só interessa que a rota o chame e sobreviva à falha dele.
+vi.mock("../../lib/device-sessions", () => ({
+  touchDeviceSession: (...args: unknown[]) => touchDeviceSessionMock(...args),
+}));
 
 async function buildApp(): Promise<Express> {
   const { default: express } = await import("express");
@@ -435,5 +446,79 @@ describe("GET /display/:deviceKey/feed — música de fundo", () => {
     const res = await request(app).get("/display/tv-1/slides");
 
     expect(Array.isArray(res.body)).toBe(true);
+  });
+});
+
+describe("GET /display/:deviceKey/feed — presença e versão do app", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    setMock.mockReset();
+    touchDeviceSessionMock.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], []];
+    selectCallIndex = 0;
+  });
+
+  it("grava a versão do app lida do User-Agent", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .get("/display/tv-1/feed")
+      .set("User-Agent", "Mozilla/5.0 (Linux; Android 11) SignageApp/1.9.0");
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ lastSeenAt: expect.any(Date), appVersion: "1.9.0" });
+  });
+
+  // TV aberta em navegador: a versão anterior não pode ficar parada na tela
+  // do admin como se o app ainda estivesse lá.
+  it("contato sem o marcador do app grava versão nula", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    await request(app).get("/display/tv-1/feed").set("User-Agent", "Mozilla/5.0 (SmartTV)");
+
+    expect(setMock).toHaveBeenCalledWith({ lastSeenAt: expect.any(Date), appVersion: null });
+  });
+
+  it("registra a sessão com o mesmo instante do lastSeenAt", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    await request(app).get("/display/tv-1/feed");
+
+    const gravado = setMock.mock.calls[0][0] as { lastSeenAt: Date };
+    expect(touchDeviceSessionMock).toHaveBeenCalledWith(DEVICE_ROW.id, gravado.lastSeenAt);
+  });
+
+  it("falha ao gravar a sessão não derruba o feed", async () => {
+    touchDeviceSessionMock.mockRejectedValue(new Error('relation "device_sessions" does not exist'));
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    expect(res.status).toBe(200);
+    expect((res.body.slides as unknown[]).length).toBe(1);
+  });
+
+  it("/slides (tv.html antigo) também registra presença", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    await request(app).get("/display/tv-1/slides").set("User-Agent", "Mozilla/5.0 SignageApp/1.4.2");
+
+    expect(setMock).toHaveBeenCalledWith({ lastSeenAt: expect.any(Date), appVersion: "1.4.2" });
+    expect(touchDeviceSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("key desconhecida não grava nada", async () => {
+    selectResults = [[]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/nao-existe/feed");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Device not found" });
+    expect(setMock).not.toHaveBeenCalled();
+    expect(touchDeviceSessionMock).not.toHaveBeenCalled();
   });
 });
