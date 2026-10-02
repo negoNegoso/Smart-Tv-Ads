@@ -22,7 +22,10 @@ function renderHistory() {
   );
 }
 
-const horasAtras = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+// Uma base só para o arquivo: com `Date.now()` a cada chamada, o milissegundo
+// podia virar entre duas datas e um buraco de 10 h saía como 9h59.
+const BASE = Date.now();
+const horasAtras = (h: number) => new Date(BASE - h * 60 * 60 * 1000).toISOString();
 
 afterEach(() => vi.unstubAllGlobals());
 
