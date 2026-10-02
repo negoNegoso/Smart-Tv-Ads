@@ -78,4 +78,11 @@ describe("porteiro de rotas", () => {
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ error: "Não autenticado." });
   });
+
+  it("protege POST /api/fleet/update-requests sem login", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/api/fleet/update-requests").send({});
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Não autenticado." });
+  });
 });

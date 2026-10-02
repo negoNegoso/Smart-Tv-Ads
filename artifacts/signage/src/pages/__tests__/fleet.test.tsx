@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Toaster } from '@/components/ui/toaster';
 import Fleet from '../fleet';
 
 function json(body: unknown, status = 200) {
@@ -14,6 +15,7 @@ function tv(over: Record<string, unknown>) {
   return {
     id: 1, clientId: 7, clientName: 'Padaria Central', name: 'TV', location: null, showcase: false,
     lastSeenAt: minutosAtras(1), isOnline: true, appVersion: '1.9.0', outdated: false,
+    updateRequestedAt: null,
     ...over,
   };
 }
@@ -34,18 +36,40 @@ function stubFleet(body: unknown, status = 200) {
   return fetchMock;
 }
 
+/** GET devolve o parque; POST do pedido responde com o status pedido e fica registrado. */
+function stubComPedido(parque: unknown, statusDoPedido = 200) {
+  const pedidos: unknown[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+      const method = init?.method ?? (typeof input === 'string' ? 'GET' : (input as Request).method ?? 'GET');
+      if (method === 'POST' && url.includes('/fleet/update-requests')) {
+        pedidos.push(JSON.parse(String(init?.body ?? '{}')));
+        return statusDoPedido === 200 ? json({ requested: 1 }) : json({ error: 'boom' }, statusDoPedido);
+      }
+      return json(parque);
+    }),
+  );
+  return pedidos;
+}
+
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <Fleet />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
 
 const contagem = (id: string) => screen.getByTestId(`fleet-count-${id}`);
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('Parque de TVs', () => {
   it('busca o parque na API', async () => {
@@ -147,5 +171,95 @@ describe('Parque de TVs', () => {
     stubFleet({ error: 'boom' }, 500);
     renderPage();
     expect(await screen.findByText('Não foi possível carregar o parque.')).toBeInTheDocument();
+  });
+
+  it('TV com app tem o botão de atualizar; TV no navegador não', async () => {
+    stubFleet(PARQUE);
+    renderPage();
+    const balcao = await screen.findByTestId('fleet-row-1');
+    expect(within(balcao).getByRole('button', { name: 'Atualizar agora' })).toBeInTheDocument();
+    expect(within(screen.getByTestId('fleet-row-3')).queryByRole('button', { name: 'Atualizar agora' })).not.toBeInTheDocument();
+  });
+
+  it('"Atualizar agora" pede a atualização só daquela TV', async () => {
+    const pedidos = stubComPedido(PARQUE);
+    renderPage();
+    const acougue = await screen.findByTestId('fleet-row-2');
+    await userEvent.click(within(acougue).getByRole('button', { name: 'Atualizar agora' }));
+
+    await waitFor(() => expect(pedidos).toEqual([{ deviceIds: [2] }]));
+    expect(await screen.findByText('Pedido enviado. A TV checa no próximo minuto.')).toBeInTheDocument();
+  });
+
+  it('"Atualizar todas" pede confirmação e manda sem lista', async () => {
+    const pedidos = stubComPedido(PARQUE);
+    const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPage();
+    await screen.findByText('Balcão');
+    await userEvent.click(screen.getByRole('button', { name: 'Atualizar todas' }));
+
+    expect(confirmar).toHaveBeenCalledWith('Mandar todas as TVs checarem atualização agora?');
+    await waitFor(() => expect(pedidos).toEqual([{}]));
+    expect(await screen.findByText('Pedido enviado. As TVs checam no próximo minuto.')).toBeInTheDocument();
+  });
+
+  it('"Atualizar todas" cancelado não manda nada', async () => {
+    const pedidos = stubComPedido(PARQUE);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderPage();
+    await screen.findByText('Balcão');
+    await userEvent.click(screen.getByRole('button', { name: 'Atualizar todas' }));
+    expect(pedidos).toEqual([]);
+  });
+
+  it('mostra há quanto tempo a atualização foi pedida', async () => {
+    stubFleet({
+      latestVersion: '1.9.0',
+      devices: [
+        tv({ id: 1, name: 'Balcão', updateRequestedAt: minutosAtras(2) }),
+        tv({ id: 2, name: 'Açougue', updateRequestedAt: minutosAtras(40) }),
+      ],
+    });
+    renderPage();
+    const balcao = await screen.findByTestId('fleet-row-1');
+    expect(balcao).toHaveTextContent('atualização pedida há 2 min');
+    expect(screen.getByTestId('fleet-row-2')).not.toHaveTextContent('atualização pedida');
+  });
+
+  // "Atualizar todas" carimba também as TVs no navegador, que não têm app para
+  // atualizar: o rótulo do pedido só faz sentido para quem tem app.
+  it('TV no navegador não mostra atualização pedida', async () => {
+    stubFleet({
+      latestVersion: '1.9.0',
+      devices: [
+        tv({ id: 1, name: 'Balcão', updateRequestedAt: minutosAtras(2) }),
+        tv({ id: 2, name: 'Vitrine', appVersion: null, updateRequestedAt: minutosAtras(2) }),
+      ],
+    });
+    renderPage();
+    expect(await screen.findByTestId('fleet-row-1')).toHaveTextContent('atualização pedida há 2 min');
+    expect(screen.getByTestId('fleet-row-2')).not.toHaveTextContent('atualização pedida');
+  });
+
+  it('erro no pedido mostra o aviso', async () => {
+    stubComPedido(PARQUE, 500);
+    renderPage();
+    const balcao = await screen.findByTestId('fleet-row-1');
+    await userEvent.click(within(balcao).getByRole('button', { name: 'Atualizar agora' }));
+    expect(await screen.findByText('Não foi possível enviar o pedido.')).toBeInTheDocument();
+  });
+
+  it('explica que as TVs se atualizam sozinhas e onde é preciso o OK', async () => {
+    stubFleet(PARQUE);
+    renderPage();
+    expect(await screen.findByText(/As TVs se atualizam sozinhas em poucos minutos depois de cada release/)).toBeInTheDocument();
+    expect(screen.getByText(/Em Android 11 ou anterior, alguém precisa apertar OK no controle/)).toBeInTheDocument();
+  });
+
+  it('parque vazio não oferece "Atualizar todas"', async () => {
+    stubFleet({ latestVersion: '1.9.0', devices: [] });
+    renderPage();
+    await screen.findByText('Nenhuma TV cadastrada.');
+    expect(screen.queryByRole('button', { name: 'Atualizar todas' })).not.toBeInTheDocument();
   });
 });

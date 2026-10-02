@@ -38,6 +38,14 @@ object UpdateState {
         private set
     var listener: Listener? = null
 
+    /**
+     * Pode checar atualização agora? Não com confirmação esperando o OK nem
+     * com sessão do instalador em andamento: uma checagem nova chamaria
+     * prepare() de novo, e a varredura de sessões velhas mataria a que está
+     * sendo confirmada. Vale para a checagem periódica e para o aviso da página.
+     */
+    fun canCheck(): Boolean = pendingConfirmation == null && activeSessionId == null
+
     fun sessionStarted(sessionId: Int) {
         activeSessionId = sessionId
     }

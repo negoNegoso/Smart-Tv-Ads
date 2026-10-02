@@ -60,6 +60,10 @@ export const GetVitrineFeedResponse = zod.object({
   "kind": zod.enum(['youtube_video', 'youtube_playlist']),
   "youtubeId": zod.string()
 }).nullish(),
+  "appUpdate": zod.object({
+  "version": zod.string().nullable(),
+  "forcedAt": zod.coerce.date().nullable()
+}).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
@@ -842,8 +846,24 @@ export const GetFleetResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullable(),
   "isOnline": zod.boolean(),
   "appVersion": zod.string().nullable(),
-  "outdated": zod.boolean()
+  "outdated": zod.boolean(),
+  "updateRequestedAt": zod.coerce.date().nullable()
 }))
+})
+
+
+/**
+ * @summary Manda as TVs escolhidas (ou todas) checarem atualização do app agora
+ */
+
+
+
+export const RequestFleetUpdateBody = zod.object({
+  "deviceIds": zod.array(zod.number()).min(1).optional()
+})
+
+export const RequestFleetUpdateResponse = zod.object({
+  "requested": zod.number()
 })
 
 
@@ -957,6 +977,10 @@ export const GetDisplayFeedResponse = zod.object({
   "music": zod.object({
   "kind": zod.enum(['youtube_video', 'youtube_playlist']),
   "youtubeId": zod.string()
+}).nullish(),
+  "appUpdate": zod.object({
+  "version": zod.string().nullable(),
+  "forcedAt": zod.coerce.date().nullable()
 }).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),

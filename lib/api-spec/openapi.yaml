@@ -625,6 +625,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Fleet"
 
+  /fleet/update-requests:
+    post:
+      operationId: requestFleetUpdate
+      tags: [devices]
+      summary: Manda as TVs escolhidas (ou todas) checarem atualização do app agora
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FleetUpdateRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetUpdateResult"
+        "400":
+          description: Bad request
+
   /devices/{id}/playlist/add:
     post:
       operationId: addToDevicePlaylist
@@ -1567,7 +1588,7 @@ components:
     # ── Parque de TVs ────────────────────────────────────────────────────────
     FleetDevice:
       type: object
-      required: [id, clientId, clientName, name, location, showcase, lastSeenAt, isOnline, appVersion, outdated]
+      required: [id, clientId, clientName, name, location, showcase, lastSeenAt, isOnline, appVersion, outdated, updateRequestedAt]
       properties:
         id: { type: integer }
         clientId: { type: integer }
@@ -1582,6 +1603,8 @@ components:
         appVersion: { type: ["string", "null"] }
         # Versão X.Y.Z menor que a da última release.
         outdated: { type: boolean }
+        # Quando o admin mandou esta TV checar atualização. Nulo = nunca pediu.
+        updateRequestedAt: { type: ["string", "null"], format: date-time }
 
     Fleet:
       type: object
@@ -1611,6 +1634,21 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeviceSession"
+
+    FleetUpdateRequest:
+      type: object
+      properties:
+        # Sem a lista = todas as TVs.
+        deviceIds:
+          type: array
+          minItems: 1
+          items: { type: integer }
+
+    FleetUpdateResult:
+      type: object
+      required: [requested]
+      properties:
+        requested: { type: integer }
 
     # ── Playlist ─────────────────────────────────────────────────────────────
     PlaylistItem:
@@ -1698,6 +1736,16 @@ components:
           properties:
             kind: { type: string, enum: [youtube_video, youtube_playlist] }
             youtubeId: { type: string }
+        # Aviso para o app Android checar atualização agora. O servidor só
+        # avisa: o app segue lendo o update.json e conferindo o APK.
+        appUpdate:
+          type: ["object", "null"]
+          required: [version, forcedAt]
+          properties:
+            # Última release conhecida; nulo quando o servidor não conseguiu ler.
+            version: { type: ["string", "null"] }
+            # Quando o admin pediu, enquanto o pedido tem menos de 15 minutos.
+            forcedAt: { type: ["string", "null"], format: date-time }
         slides:
           type: array
           items:

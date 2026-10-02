@@ -20,4 +20,6 @@ export interface FleetDevice {
   /** @nullable */
   appVersion: string | null;
   outdated: boolean;
+  /** @nullable */
+  updateRequestedAt: Date | null;
 }
