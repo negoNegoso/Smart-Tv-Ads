@@ -18,6 +18,9 @@ export const devicesTable = pgTable(
     // Versão do app Android no último contato, lida do User-Agent
     // (`SignageApp/<versão>`). Nulo = TV aberta em navegador, ou que nunca falou.
     appVersion: text("app_version"),
+    // Quando o admin mandou esta TV checar atualização do app. O feed leva o
+    // aviso à TV enquanto o pedido tem menos de 15 minutos. Nulo = nunca pediu.
+    updateRequestedAt: timestamp("update_requested_at", { withTimezone: true }),
     // TV vitrine da landing: recebe toda campanha no ar, sem alvo nem
     // concorrência, e é espelhada na página pública. Uma por orientação de
     // tela — a regra fica no PATCH /devices/:id (retrato tem dois valores).

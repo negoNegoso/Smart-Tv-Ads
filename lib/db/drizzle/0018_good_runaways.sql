@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD COLUMN "update_requested_at" timestamp with time zone;
