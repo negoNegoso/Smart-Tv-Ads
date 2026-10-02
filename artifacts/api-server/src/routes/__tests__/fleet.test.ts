@@ -8,6 +8,9 @@ import { GetDeviceSessionsResponse, GetFleetResponse } from "@workspace/api-zod"
  * device-update.test.ts; cada select consome um item da fila.
  */
 let selectQueue: unknown[][] = [];
+const setMock = vi.fn();
+const whereMock = vi.fn();
+let updated: unknown[] = [];
 const latestTvAppReleaseMock = vi.fn();
 const listDeviceSessionsMock = vi.fn();
 
@@ -15,8 +18,16 @@ function makeChain(result: unknown) {
   const chain: Record<string, unknown> = {
     from: () => chain,
     innerJoin: () => chain,
-    where: () => chain,
+    where: (cond: unknown) => {
+      whereMock(cond);
+      return chain;
+    },
     orderBy: () => chain,
+    set: (values: unknown) => {
+      setMock(values);
+      return chain;
+    },
+    returning: () => chain,
     then: (resolve: (v: unknown) => void, reject?: (r: unknown) => void) =>
       Promise.resolve(result).then(resolve, reject),
   };
@@ -24,10 +35,14 @@ function makeChain(result: unknown) {
 }
 
 vi.mock("@workspace/db", () => ({
-  db: { select: () => makeChain(selectQueue.shift() ?? []) },
+  db: {
+    select: () => makeChain(selectQueue.shift() ?? []),
+    update: () => makeChain(updated),
+  },
   devicesTable: {
     id: "id", clientId: "clientId", name: "name", location: "location",
     showcase: "showcase", lastSeenAt: "lastSeenAt", appVersion: "appVersion",
+    updateRequestedAt: "updateRequestedAt",
   },
   clientsTable: { id: "id", companyId: "companyId" },
   companiesTable: { id: "id", name: "name" },
@@ -47,6 +62,7 @@ async function buildApp(): Promise<Express> {
   const { default: router } = await import("../fleet");
   const app = express();
   app.use(pinoHttp({ enabled: false }));
+  app.use(express.json());
   app.use(router);
   return app;
 }
@@ -56,7 +72,7 @@ const minutosAtras = (min: number) => new Date(Date.now() - min * 60 * 1000);
 function tv(over: Record<string, unknown>) {
   return {
     id: 1, clientId: 7, clientName: "Padaria Central", name: "TV do balcão", location: null,
-    showcase: false, lastSeenAt: minutosAtras(1), appVersion: "1.9.0",
+    showcase: false, lastSeenAt: minutosAtras(1), appVersion: "1.9.0", updateRequestedAt: null,
     ...over,
   };
 }
@@ -71,6 +87,9 @@ beforeEach(() => {
   selectQueue = [];
   latestTvAppReleaseMock.mockReset();
   listDeviceSessionsMock.mockReset();
+  setMock.mockReset();
+  whereMock.mockReset();
+  updated = [];
   latestTvAppReleaseMock.mockResolvedValue({ versionName: "1.9.0" });
 });
 
@@ -128,6 +147,17 @@ describe("GET /fleet", () => {
     expect(res.body.devices[0].showcase).toBe(true);
   });
 
+  it("devolve quando o admin pediu atualização de cada TV", async () => {
+    const pedido = minutosAtras(2);
+    selectQueue = [[tv({ id: 1, updateRequestedAt: pedido }), tv({ id: 2 })]];
+    const res = await get("/fleet");
+    expect(res.body.devices.map((d: { updateRequestedAt: string | null }) => d.updateRequestedAt)).toEqual([
+      pedido.toISOString(),
+      null,
+    ]);
+    expect(() => GetFleetResponse.parse(res.body)).not.toThrow();
+  });
+
   it("parque vazio responde lista vazia", async () => {
     selectQueue = [[]];
     const res = await get("/fleet");
@@ -172,5 +202,63 @@ describe("GET /devices/:id/sessions", () => {
     const res = await get("/devices/abc/sessions");
     expect(res.status).toBe(400);
     expect(listDeviceSessionsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /fleet/update-requests", () => {
+  async function post(body?: unknown) {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const req = request(app).post("/fleet/update-requests");
+    return body === undefined ? req : req.send(body as object);
+  }
+
+  it("marca o pedido nas TVs escolhidas", async () => {
+    updated = [{ id: 1 }, { id: 3 }];
+    const res = await post({ deviceIds: [1, 3] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ requested: 2 });
+    expect(setMock).toHaveBeenCalledWith({ updateRequestedAt: expect.any(Date) });
+    expect(whereMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sem lista, marca todas (sem filtro)", async () => {
+    updated = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    const res = await post({});
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ requested: 3 });
+    expect(setMock).toHaveBeenCalledWith({ updateRequestedAt: expect.any(Date) });
+    expect(whereMock).not.toHaveBeenCalled();
+  });
+
+  it("requisição sem corpo vale como todas", async () => {
+    updated = [{ id: 1 }];
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ requested: 1 });
+    expect(whereMock).not.toHaveBeenCalled();
+  });
+
+  // Lista vazia não pode virar "todas" por engano: quem mandou [] quis
+  // escolher e não escolheu nada.
+  it("lista vazia é erro, não 'todas'", async () => {
+    const res = await post({ deviceIds: [] });
+    expect(res.status).toBe(400);
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("id que não é inteiro é erro", async () => {
+    const res = await post({ deviceIds: ["abc"] });
+    expect(res.status).toBe(400);
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("id de TV que não existe conta zero, sem erro", async () => {
+    updated = [];
+    const res = await post({ deviceIds: [999] });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ requested: 0 });
   });
 });

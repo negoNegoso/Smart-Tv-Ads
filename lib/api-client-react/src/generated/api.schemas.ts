@@ -339,6 +339,8 @@ export interface FleetDevice {
   /** @nullable */
   appVersion: string | null;
   outdated: boolean;
+  /** @nullable */
+  updateRequestedAt: string | null;
 }
 
 export interface Fleet {
@@ -355,6 +357,15 @@ export interface DeviceSession {
 export interface DeviceSessions {
   isOnline: boolean;
   sessions: DeviceSession[];
+}
+
+export interface FleetUpdateRequest {
+  /** @minItems 1 */
+  deviceIds?: number[];
+}
+
+export interface FleetUpdateResult {
+  requested: number;
 }
 
 export interface PlaylistItem {
@@ -435,10 +446,22 @@ export type DisplayFeedMusic = {
   youtubeId: string;
 } | null;
 
+/**
+ * @nullable
+ */
+export type DisplayFeedAppUpdate = {
+  /** @nullable */
+  version: string | null;
+  /** @nullable */
+  forcedAt: string | null;
+} | null;
+
 export interface DisplayFeed {
   screen: DisplayFeedScreen;
   /** @nullable */
   music?: DisplayFeedMusic;
+  /** @nullable */
+  appUpdate?: DisplayFeedAppUpdate;
   slides: DisplaySlide[];
 }
 

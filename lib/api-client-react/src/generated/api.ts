@@ -46,6 +46,8 @@ import type {
   DisplayFeed,
   DisplaySlide,
   Fleet,
+  FleetUpdateRequest,
+  FleetUpdateResult,
   GetYouTubeMetaParams,
   HealthStatus,
   ListClientPanelsParams,
@@ -2800,6 +2802,77 @@ export function useGetFleet<TData = Awaited<ReturnType<typeof getFleet>>, TError
 
 
 
+
+export const getRequestFleetUpdateUrl = () => {
+
+
+
+
+  return `/api/fleet/update-requests`
+}
+
+/**
+ * @summary Manda as TVs escolhidas (ou todas) checarem atualização do app agora
+ */
+export const requestFleetUpdate = async (fleetUpdateRequest: FleetUpdateRequest, options?: RequestInit): Promise<FleetUpdateResult> => {
+
+  return customFetch<FleetUpdateResult>(getRequestFleetUpdateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fleetUpdateRequest)
+  }
+);}
+
+
+
+
+
+export const getRequestFleetUpdateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestFleetUpdate>>, TError,{data: BodyType<FleetUpdateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestFleetUpdate>>, TError,{data: BodyType<FleetUpdateRequest>}, TContext> => {
+
+const mutationKey = ['requestFleetUpdate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestFleetUpdate>>, {data: BodyType<FleetUpdateRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestFleetUpdate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestFleetUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof requestFleetUpdate>>>
+    export type RequestFleetUpdateMutationBody = BodyType<FleetUpdateRequest>
+    export type RequestFleetUpdateMutationError = ErrorType<void>
+
+    /**
+ * @summary Manda as TVs escolhidas (ou todas) checarem atualização do app agora
+ */
+export const useRequestFleetUpdate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestFleetUpdate>>, TError,{data: BodyType<FleetUpdateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestFleetUpdate>>,
+        TError,
+        {data: BodyType<FleetUpdateRequest>},
+        TContext
+      > => {
+      return useMutation(getRequestFleetUpdateMutationOptions(options));
+    }
 
 export const getAddToDevicePlaylistUrl = (id: number,) => {
 

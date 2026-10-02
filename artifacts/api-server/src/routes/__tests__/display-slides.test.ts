@@ -17,6 +17,7 @@ const dbUpdate = vi.fn();
 const panelSlidesForClientMock = vi.fn();
 const setMock = vi.fn();
 const touchDeviceSessionMock = vi.fn();
+const latestTvAppReleaseForFeedMock = vi.fn();
 
 let selectResults: unknown[] = [];
 let selectCallIndex = 0;
@@ -80,6 +81,11 @@ vi.mock("../../lib/panels/device-slides", async (importOriginal) => {
 // aqui só interessa que a rota o chame e sobreviva à falha dele.
 vi.mock("../../lib/device-sessions", () => ({
   touchDeviceSession: (...args: unknown[]) => touchDeviceSessionMock(...args),
+}));
+
+// Sem este mock o feed iria ao GitHub de verdade a cada teste.
+vi.mock("../../lib/tv-app-release", () => ({
+  latestTvAppReleaseForFeed: (...args: unknown[]) => latestTvAppReleaseForFeedMock(...args),
 }));
 
 async function buildApp(): Promise<Express> {
@@ -520,5 +526,86 @@ describe("GET /display/:deviceKey/feed — presença e versão do app", () => {
     expect(res.body).toEqual({ error: "Device not found" });
     expect(setMock).not.toHaveBeenCalled();
     expect(touchDeviceSessionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /display/:deviceKey/feed — aviso de atualização do app", () => {
+  const APP = (versao: string) => `Mozilla/5.0 (Linux; Android 11) SignageApp/${versao}`;
+
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    setMock.mockReset();
+    touchDeviceSessionMock.mockReset();
+    latestTvAppReleaseForFeedMock.mockReset();
+    latestTvAppReleaseForFeedMock.mockResolvedValue({ versionName: "1.16.0" });
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], []];
+    selectCallIndex = 0;
+  });
+
+  async function feed(userAgent: string) {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    return request(app).get("/display/tv-1/feed").set("User-Agent", userAgent);
+  }
+
+  it("TV em versão antiga recebe o aviso com a última release", async () => {
+    const res = await feed(APP("1.15.1"));
+    expect(res.status).toBe(200);
+    expect(res.body.appUpdate).toEqual({ version: "1.16.0", forcedAt: null });
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV em dia não recebe aviso", async () => {
+    const res = await feed(APP("1.16.0"));
+    expect(res.body.appUpdate).toBeNull();
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV no navegador não recebe aviso", async () => {
+    const res = await feed("Mozilla/5.0 (SmartTV)");
+    expect(res.body.appUpdate).toBeNull();
+  });
+
+  it("pedido recente do admin vai no aviso, mesmo com a TV em dia", async () => {
+    const pedido = new Date(Date.now() - 60 * 1000);
+    selectResults = [[{ ...DEVICE_ROW, updateRequestedAt: pedido }], [PLAYLIST_ROW], []];
+    const res = await feed(APP("1.16.0"));
+    expect(res.body.appUpdate).toEqual({ version: "1.16.0", forcedAt: pedido.toISOString() });
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("pedido de mais de 15 minutos não vai", async () => {
+    const pedido = new Date(Date.now() - 16 * 60 * 1000);
+    selectResults = [[{ ...DEVICE_ROW, updateRequestedAt: pedido }], [PLAYLIST_ROW], []];
+    const res = await feed(APP("1.16.0"));
+    expect(res.body.appUpdate).toBeNull();
+  });
+
+  it("sem release conhecida, o pedido do admin vai com versão nula", async () => {
+    latestTvAppReleaseForFeedMock.mockResolvedValue(null);
+    const pedido = new Date(Date.now() - 60 * 1000);
+    selectResults = [[{ ...DEVICE_ROW, updateRequestedAt: pedido }], [PLAYLIST_ROW], []];
+    const res = await feed(APP("1.0.0"));
+    expect(res.status).toBe(200);
+    expect(res.body.appUpdate).toEqual({ version: null, forcedAt: pedido.toISOString() });
+    expect(() => GetDisplayFeedResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV sem peças também recebe o aviso", async () => {
+    selectResults = [[DEVICE_ROW], [], []];
+    const res = await feed(APP("1.15.1"));
+    expect(res.body.slides).toEqual([]);
+    expect(res.body.appUpdate).toEqual({ version: "1.16.0", forcedAt: null });
+  });
+
+  it("/slides (tv.html antigo) segue sendo só a lista e não consulta a release", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/slides").set("User-Agent", APP("1.15.1"));
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(latestTvAppReleaseForFeedMock).not.toHaveBeenCalled();
   });
 });

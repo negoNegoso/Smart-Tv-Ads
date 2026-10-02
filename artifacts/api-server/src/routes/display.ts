@@ -5,6 +5,8 @@ import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-
 import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
 import { touchDeviceSession } from "../lib/device-sessions";
+import { latestTvAppReleaseForFeed } from "../lib/tv-app-release";
+import { appUpdateSignal } from "../lib/tv-app-update";
 import { tvAppVersionFromUserAgent } from "../lib/tv-app-version";
 import { musicRefFromUrl } from "../lib/youtube/music";
 
@@ -28,6 +30,7 @@ async function loadForTv(req: Request) {
       orientation: devicesTable.orientation,
       showcase: devicesTable.showcase,
       musicUrl: devicesTable.musicUrl,
+      updateRequestedAt: devicesTable.updateRequestedAt,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -39,12 +42,13 @@ async function loadForTv(req: Request) {
   // Um instante só para a TV e para a sessão: a linha do tempo e o "visto por
   // último" têm de contar a mesma história.
   const now = new Date();
+  const appVersion = tvAppVersionFromUserAgent(req.get("user-agent"));
 
   // A versão é a do último contato, mesmo quando é nula: TV que passou a
   // abrir no navegador não pode seguir mostrando a versão antiga do app.
   await db
     .update(devicesTable)
-    .set({ lastSeenAt: now, appVersion: tvAppVersionFromUserAgent(req.get("user-agent")) })
+    .set({ lastSeenAt: now, appVersion })
     .where(eq(devicesTable.id, device.id));
 
   // Histórico é acessório: a TV recebe a rotação mesmo que ele falhe.
@@ -56,7 +60,7 @@ async function loadForTv(req: Request) {
 
   const slides = await loadDeviceSlides(device, req.log);
   // A origem do slide é só para a prévia do admin; a TV não precisa dela.
-  return { device, slides: slides.map(({ source, ...slide }) => slide) };
+  return { device, appVersion, now, slides: slides.map(({ source, ...slide }) => slide) };
 }
 
 // Mantida para TVs com tv.html antigo em cache: mesma lista, sem o giro.
@@ -75,12 +79,22 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Device not found" });
     return;
   }
+  // Nunca lança e nunca segura o feed além do teto (lib/tv-app-release.ts).
+  const latest = await latestTvAppReleaseForFeed();
   res.json(
     GetDisplayFeedResponse.parse({
       screen: { orientation: deviceOrientationOf(tv.device.orientation) },
       // Fora de `slides`: música não é peça e não conta exibição. Link que o
       // parser não reconhece vira null, e a TV segue só com as peças.
       music: musicRefFromUrl(tv.device.musicUrl),
+      // Aviso para o app checar atualização agora: versão nova no ar ou
+      // pedido do admin. Só avisa; o app decide o que instalar.
+      appUpdate: appUpdateSignal({
+        appVersion: tv.appVersion,
+        latestVersion: latest?.versionName ?? null,
+        updateRequestedAt: tv.device.updateRequestedAt,
+        now: tv.now,
+      }),
       slides: tv.slides,
     }),
   );
