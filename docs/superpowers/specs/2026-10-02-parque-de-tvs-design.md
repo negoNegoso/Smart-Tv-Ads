@@ -109,8 +109,17 @@ As duas rotas ficam depois de `requireAdmin`.
 
 ### `GET /devices/{id}/sessions`
 
-Lista `{ startedAt, lastSeenAt }` dos últimos 30 dias, da mais nova para a mais
-antiga. TV inexistente → `404`.
+```
+{
+  isOnline: boolean,
+  sessions: [{ startedAt, lastSeenAt }]
+}
+```
+
+`sessions` cobre os últimos 30 dias, da mais nova para a mais antiga.
+`isOnline` vem do relógio do servidor, como em `/fleet`: é ele que diz se a
+sessão mais recente segue em andamento, sem depender do relógio do navegador.
+TV inexistente → `404`.
 
 ## 4. Tela
 
