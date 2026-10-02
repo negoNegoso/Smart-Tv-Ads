@@ -44,6 +44,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         private set
     private lateinit var updateController: UpdateController
     private lateinit var musica: MusicaDeFundo
+    internal lateinit var atualizacaoPelaPagina: AtualizacaoPelaPagina
 
     /**
      * Executor da checagem de atualização, um por instância. Sem shutdown no
@@ -62,6 +63,10 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     internal var loadAttempts = 0
         private set
 
+    // Aviso da página pode chegar depois do onDestroy (thread da WebView):
+    // sem isto, entraria no handler já limpo e checaria numa Activity morta.
+    private var destruida = false
+
     private val retry = Runnable { loadTv() }
     private val dailyReload = Runnable {
         loadTv()
@@ -76,11 +81,15 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     // sendo confirmada.
     private val updateCheck = object : Runnable {
         override fun run() {
-            if (UpdateState.pendingConfirmation == null && UpdateState.activeSessionId == null) {
-                updateController.check()
-            }
+            checarAtualizacao()
             handler.postDelayed(this, UPDATE_INTERVAL_MS)
         }
+    }
+
+    /** Um caminho só para a checagem periódica e para o aviso da página. */
+    private fun checarAtualizacao() {
+        if (destruida) return
+        if (UpdateState.canCheck()) updateController.check()
     }
     private val hideUpdateBanner = Runnable { updateBanner.visibility = View.GONE }
     private val hideExitButton = Runnable {
@@ -124,6 +133,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         findViewById<View>(R.id.ajuste_configuracoes).setOnClickListener { openDisplaySettings() }
         updateController = updateControllerFactory(this)
         musica = MusicaDeFundo(this)
+        atualizacaoPelaPagina = AtualizacaoPelaPagina(handler) { checarAtualizacao() }
         UpdateState.listener = this
         UpdateState.pendingVersion?.let { onUpdateReady(it) }
         handler.postDelayed(updateCheck, UPDATE_FIRST_CHECK_MS)
@@ -159,6 +169,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     }
 
     override fun onDestroy() {
+        destruida = true
         if (live?.get() === this) live = null
         if (UpdateState.listener === this) UpdateState.listener = null
         handler.removeCallbacksAndMessages(null)
@@ -398,6 +409,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         view.webViewClient = TvWebViewClient(this)
         // Antes do loadUrl: a ponte só existe em página carregada depois dela.
         view.addJavascriptInterface(musica, MusicaDeFundo.NOME_NA_PAGINA)
+        view.addJavascriptInterface(atualizacaoPelaPagina, AtualizacaoPelaPagina.NOME_NA_PAGINA)
         container.addView(
             view,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),

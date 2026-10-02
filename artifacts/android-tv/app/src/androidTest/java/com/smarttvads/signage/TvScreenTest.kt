@@ -72,4 +72,10 @@ class TvScreenTest {
         assertEquals("true", js("navigator.userAgent.indexOf('SignageApp/') >= 0"))
         assertEquals("\"none\"", js("document.getElementById('fs-hint').style.display"))
     }
+
+    @Test
+    fun paginaEnxergaAPonteDeAtualizacao() {
+        waitFor(pareando)
+        assertEquals("\"function\"", js("typeof window.SignageUpdate.check"))
+    }
 }

@@ -74,6 +74,57 @@ class MainActivityUpdateTest {
     }
 
     @Test
+    fun `aviso da pagina checa na hora, sem esperar os 2 min`() {
+        val a = abrir()
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(1, checagens)
+    }
+
+    @Test
+    fun `aviso da pagina nao tira a checagem periodica do lugar`() {
+        val a = abrir()
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        passar(MainActivity.UPDATE_FIRST_CHECK_MS)
+        assertEquals(2, checagens)
+    }
+
+    // Atualização já baixada, esperando o OK: checar de novo refaria a sessão
+    // e a pessoa perderia a confirmação que está na tela.
+    @Test
+    fun `aviso da pagina nao checa com atualizacao esperando o OK`() {
+        val a = abrir()
+        UpdateState.ready("1.2.0", Intent("confirmar"))
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(0, checagens)
+        assertEquals("confirmar", UpdateState.pendingConfirmation?.action)
+    }
+
+    @Test
+    fun `aviso da pagina nao checa com sessao do instalador em andamento`() {
+        val a = abrir()
+        UpdateState.sessionStarted(7)
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(0, checagens)
+    }
+
+    @Test
+    fun `aviso que chega depois de a Activity fechar nao checa nem quebra`() {
+        val c = Robolectric.buildActivity(MainActivity::class.java)
+        MainActivity.updateControllerFactory = {
+            UpdateController(1, semVersaoNova, UpdateController.Installer { _, _ -> }, Executor { it.run() })
+        }
+        val a = c.setup().get()
+        c.pause().stop().destroy()
+        a.atualizacaoPelaPagina.check()
+        passar(0)
+        assertEquals(0, checagens)
+    }
+
+    @Test
     fun `atualizacao pronta mostra o aviso com a versao`() {
         val a = abrir()
         UpdateState.ready("1.2.0", Intent("confirmar"))
