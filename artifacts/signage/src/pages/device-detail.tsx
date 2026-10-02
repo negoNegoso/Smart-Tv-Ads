@@ -38,6 +38,7 @@ import {
 import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientation';
 import { DevicePreview } from '@/components/device-preview';
 import { DeviceMusicField } from '@/components/device-music-field';
+import { DeviceConnectionHistory } from '@/components/device-connection-history';
 import { tvFrameClass } from '@/components/piece-preview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -592,6 +593,12 @@ export default function DeviceDetail() {
             <DevicePreview slides={preview.data ?? []} orientation={screen} />
           )}
         </div>
+      </div>
+
+      {/* No fim da página: é consulta, não ajuste — não pode empurrar a
+          playlist e a prévia para baixo. */}
+      <div className="mt-8">
+        <DeviceConnectionHistory deviceId={deviceId} />
       </div>
     </div>
   );

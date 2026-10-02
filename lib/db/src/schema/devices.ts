@@ -15,6 +15,9 @@ export const devicesTable = pgTable(
     orientation: text("orientation").notNull().default("landscape"),
     deviceKey: text("device_key").notNull().unique(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    // Versão do app Android no último contato, lida do User-Agent
+    // (`SignageApp/<versão>`). Nulo = TV aberta em navegador, ou que nunca falou.
+    appVersion: text("app_version"),
     // TV vitrine da landing: recebe toda campanha no ar, sem alvo nem
     // concorrência, e é espelhada na página pública. Uma por orientação de
     // tela — a regra fica no PATCH /devices/:id (retrato tem dois valores).

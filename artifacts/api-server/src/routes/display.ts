@@ -4,13 +4,15 @@ import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
+import { touchDeviceSession } from "../lib/device-sessions";
+import { tvAppVersionFromUserAgent } from "../lib/tv-app-version";
 import { musicRefFromUrl } from "../lib/youtube/music";
 
 const router: IRouter = Router();
 
 /**
  * O que as duas rotas da TV fazem igual: acha o device pela key, marca a TV
- * como vista e monta a rotação. Null = key desconhecida (o player abre o
+ * como vista (presença, versão do app e sessão de conexão) e monta a rotação. Null = key desconhecida (o player abre o
  * pareamento pelo corpo exato do 404).
  */
 async function loadForTv(req: Request) {
@@ -34,10 +36,23 @@ async function loadForTv(req: Request) {
 
   if (!device) return null;
 
+  // Um instante só para a TV e para a sessão: a linha do tempo e o "visto por
+  // último" têm de contar a mesma história.
+  const now = new Date();
+
+  // A versão é a do último contato, mesmo quando é nula: TV que passou a
+  // abrir no navegador não pode seguir mostrando a versão antiga do app.
   await db
     .update(devicesTable)
-    .set({ lastSeenAt: new Date() })
+    .set({ lastSeenAt: now, appVersion: tvAppVersionFromUserAgent(req.get("user-agent")) })
     .where(eq(devicesTable.id, device.id));
+
+  // Histórico é acessório: a TV recebe a rotação mesmo que ele falhe.
+  try {
+    await touchDeviceSession(device.id, now);
+  } catch (err) {
+    req.log.error({ err, deviceId: device.id }, "Falha ao registrar a sessão de conexão da TV");
+  }
 
   const slides = await loadDeviceSlides(device, req.log);
   // A origem do slide é só para a prévia do admin; a TV não precisa dela.

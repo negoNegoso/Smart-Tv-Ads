@@ -41,9 +41,11 @@ import type {
   DeviceAnalytics,
   DeviceInput,
   DevicePreviewSlide,
+  DeviceSessions,
   DeviceUpdate,
   DisplayFeed,
   DisplaySlide,
+  Fleet,
   GetYouTubeMetaParams,
   HealthStatus,
   ListClientPanelsParams,
@@ -2633,6 +2635,160 @@ export function useGetDevicePreview<TData = Awaited<ReturnType<typeof getDeviceP
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDevicePreviewQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDeviceSessionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/devices/${id}/sessions`
+}
+
+/**
+ * @summary Períodos em que a TV esteve conectada nos últimos 30 dias
+ */
+export const getDeviceSessions = async (id: number, options?: RequestInit): Promise<DeviceSessions> => {
+
+  return customFetch<DeviceSessions>(getGetDeviceSessionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeviceSessionsQueryKey = (id: number,) => {
+    return [
+    `/api/devices/${id}/sessions`
+    ] as const;
+    }
+
+
+export const getGetDeviceSessionsQueryOptions = <TData = Awaited<ReturnType<typeof getDeviceSessions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeviceSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeviceSessionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeviceSessions>>> = ({ signal }) => getDeviceSessions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeviceSessions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeviceSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof getDeviceSessions>>>
+export type GetDeviceSessionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Períodos em que a TV esteve conectada nos últimos 30 dias
+ */
+
+export function useGetDeviceSessions<TData = Awaited<ReturnType<typeof getDeviceSessions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeviceSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeviceSessionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFleetUrl = () => {
+
+
+
+
+  return `/api/fleet`
+}
+
+/**
+ * @summary Parque de TVs — presença e versão do app de todas as telas
+ */
+export const getFleet = async ( options?: RequestInit): Promise<Fleet> => {
+
+  return customFetch<Fleet>(getGetFleetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFleetQueryKey = () => {
+    return [
+    `/api/fleet`
+    ] as const;
+    }
+
+
+export const getGetFleetQueryOptions = <TData = Awaited<ReturnType<typeof getFleet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFleet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFleetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFleet>>> = ({ signal }) => getFleet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFleet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFleetQueryResult = NonNullable<Awaited<ReturnType<typeof getFleet>>>
+export type GetFleetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Parque de TVs — presença e versão do app de todas as telas
+ */
+
+export function useGetFleet<TData = Awaited<ReturnType<typeof getFleet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFleet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFleetQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

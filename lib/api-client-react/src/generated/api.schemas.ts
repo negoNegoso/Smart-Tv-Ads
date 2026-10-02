@@ -325,6 +325,38 @@ export interface DeviceUpdate {
   musicUrl?: string | null;
 }
 
+export interface FleetDevice {
+  id: number;
+  clientId: number;
+  clientName: string;
+  name: string;
+  /** @nullable */
+  location: string | null;
+  showcase: boolean;
+  /** @nullable */
+  lastSeenAt: string | null;
+  isOnline: boolean;
+  /** @nullable */
+  appVersion: string | null;
+  outdated: boolean;
+}
+
+export interface Fleet {
+  /** @nullable */
+  latestVersion: string | null;
+  devices: FleetDevice[];
+}
+
+export interface DeviceSession {
+  startedAt: string;
+  lastSeenAt: string;
+}
+
+export interface DeviceSessions {
+  isOnline: boolean;
+  sessions: DeviceSession[];
+}
+
 export interface PlaylistItem {
   id: number;
   deviceId: number;
