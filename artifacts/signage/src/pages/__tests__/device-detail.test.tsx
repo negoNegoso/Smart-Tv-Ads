@@ -316,3 +316,31 @@ describe('música de fundo', () => {
     expect(campo.value).toBe('https://exemplo.com/musica');
   });
 });
+
+describe('histórico de conexão', () => {
+  it('a página da TV mostra a linha do tempo de conexão', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+        // Antes de '/devices/1': a URL das sessões também contém esse trecho.
+        if (url.includes('/sessions')) {
+          return json({
+            isOnline: false,
+            sessions: [{ startedAt: '2026-10-01T08:00:00.000Z', lastSeenAt: '2026-10-01T22:00:00.000Z' }],
+          });
+        }
+        if (url.includes('/playlist')) return json([]);
+        if (url.includes('/preview')) return json([]);
+        if (url.includes('/announcements')) return json([]);
+        if (url.includes('/devices/1')) return json(DEVICE);
+        return json([]);
+      }),
+    );
+    renderPagina();
+
+    expect(await screen.findByText('Histórico de conexão')).toBeInTheDocument();
+    expect(await screen.findByText('No ar')).toBeInTheDocument();
+    expect(screen.getByText('Fora do ar')).toBeInTheDocument();
+  });
+});
