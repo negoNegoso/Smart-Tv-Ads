@@ -22,5 +22,8 @@ export function mensagemDeErro(err: unknown, fallback: string): string {
   // O 409 da vitrine já sai do servidor em português e nomeia a outra TV.
   if (mensagem.startsWith("Já existe uma vitrine")) return mensagem;
 
+  // O 400 da música de fundo também já sai do servidor em português.
+  if (mensagem === "Link do YouTube inválido") return mensagem;
+
   return fallback;
 }

@@ -16,6 +16,20 @@ describe("parseYouTubeUrl", () => {
     });
   });
 
+  it("reconhece link do YouTube Music", () => {
+    expect(parseYouTubeUrl("https://music.youtube.com/watch?v=dQw4w9WgXcQ")).toEqual({
+      kind: "youtube_video",
+      id: "dQw4w9WgXcQ",
+    });
+  });
+
+  it("reconhece link de live", () => {
+    expect(parseYouTubeUrl("https://www.youtube.com/live/jfKfPfyJRdk?si=abc")).toEqual({
+      kind: "youtube_video",
+      id: "jfKfPfyJRdk",
+    });
+  });
+
   it("reconhece playlist?list=", () => {
     expect(parseYouTubeUrl("https://www.youtube.com/playlist?list=PL1234567890abc")).toEqual({
       kind: "youtube_playlist",

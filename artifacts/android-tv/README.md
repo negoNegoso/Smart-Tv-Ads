@@ -211,6 +211,10 @@ deploy web.
   música em 2 s, o app manda o play direto ao Spotify, uma vez, e para por aí.
   O uso do Spotify em estabelecimento é responsabilidade de quem assina a
   conta: os termos do Spotify são de uso pessoal.
+- Música de fundo do painel (link do YouTube configurado na TV, no admin): toca
+  dentro do próprio `tv.html` e não depende do app. Com ela ligada, o `tv.html`
+  não chama `somIniciou`/`somTerminou`, então o app não mexe no Spotify. É uma
+  ou outra: Spotify e música do painel na mesma TV disputam o áudio.
 
 ## Checklist de teste manual
 

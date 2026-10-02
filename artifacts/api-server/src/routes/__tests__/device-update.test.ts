@@ -34,7 +34,7 @@ vi.mock("@workspace/db", () => ({
     select: () => makeChain(selectQueue.shift() ?? []),
     update: () => makeChain(updateResult),
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
   devicePlaylistTable: {},
   announcementsTable: {},
   clientsTable: { id: "id", companyId: "companyId" },
@@ -166,5 +166,70 @@ describe("PATCH /devices/:id — vitrine", () => {
     const res = await request(app).patch("/devices/99").send({ showcase: true });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /devices/:id — música de fundo", () => {
+  it("grava link de vídeo e devolve musicUrl", async () => {
+    const link = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [{ ...DEVICE, musicUrl: link }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ musicUrl: link });
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ musicUrl: link });
+    expect(res.body.musicUrl).toBe(link);
+  });
+
+  it("grava link de playlist sem os espaços das pontas", async () => {
+    const link = "https://www.youtube.com/playlist?list=PL1234567890abc";
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [{ ...DEVICE, musicUrl: link }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ musicUrl: `  ${link}  ` });
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ musicUrl: link });
+  });
+
+  it("link inválido é 400 e não toca no banco", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ musicUrl: "https://open.spotify.com/playlist/abc" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Link do YouTube inválido" });
+    expect(setMock).not.toHaveBeenCalled();
+  });
+
+  it("null tira a música", async () => {
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [{ ...DEVICE, musicUrl: null }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ musicUrl: null });
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ musicUrl: null });
+    expect(res.body.musicUrl).toBeNull();
+  });
+
+  it("string vazia também tira a música", async () => {
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [{ ...DEVICE, musicUrl: null }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ musicUrl: "   " });
+
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith({ musicUrl: null });
+  });
+
+  it("PATCH de outro campo não mexe na música", async () => {
+    selectQueue = [[{ id: 1, showcase: false, orientation: "landscape" }], [DEVICE]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    await request(app).patch("/devices/1").send({ name: "TV nova" });
+
+    expect(setMock).toHaveBeenCalledWith({ name: "TV nova" });
   });
 });

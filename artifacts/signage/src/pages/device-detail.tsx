@@ -37,6 +37,7 @@ import {
 } from '@workspace/api-client-react';
 import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientation';
 import { DevicePreview } from '@/components/device-preview';
+import { DeviceMusicField } from '@/components/device-music-field';
 import { tvFrameClass } from '@/components/piece-preview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -551,6 +552,8 @@ export default function DeviceDetail() {
           </p>
         </div>
       </div>
+
+      <DeviceMusicField deviceId={deviceId} musicUrl={device.musicUrl ?? null} />
 
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
           ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a

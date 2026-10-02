@@ -39,6 +39,7 @@ import {
 import { loadDeviceSlides } from "../lib/device-feed";
 import { normalizeDeviceKey, parseDeviceKey } from "../lib/device-key";
 import { isUniqueViolation } from "../lib/pg-errors";
+import { musicRefFromUrl } from "../lib/youtube/music";
 
 const router: IRouter = Router();
 
@@ -54,6 +55,7 @@ async function getDeviceWithClient(where: SQL) {
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
       showcase: devicesTable.showcase,
+      musicUrl: devicesTable.musicUrl,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -82,6 +84,7 @@ router.get("/devices", async (req, res): Promise<void> => {
       deviceKey: devicesTable.deviceKey,
       lastSeenAt: devicesTable.lastSeenAt,
       showcase: devicesTable.showcase,
+      musicUrl: devicesTable.musicUrl,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -167,6 +170,21 @@ router.patch("/devices/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  // Música de fundo: vazio tira a música; link que o player da TV não
+  // consegue tocar é recusado aqui, senão a loja ficaria em silêncio sem
+  // ninguém saber por quê.
+  const data = { ...parsed.data };
+  if (data.musicUrl !== undefined) {
+    const link = (data.musicUrl ?? "").trim();
+    if (!link) {
+      data.musicUrl = null;
+    } else if (!musicRefFromUrl(link)) {
+      res.status(400).json({ error: "Link do YouTube inválido" });
+      return;
+    } else {
+      data.musicUrl = link;
+    }
+  }
   const [current] = await db
     .select({ id: devicesTable.id, showcase: devicesTable.showcase, orientation: devicesTable.orientation })
     .from(devicesTable)
@@ -195,7 +213,7 @@ router.patch("/devices/:id", async (req, res): Promise<void> => {
   }
   const [updated] = await db
     .update(devicesTable)
-    .set(parsed.data)
+    .set(data)
     .where(eq(devicesTable.id, params.data.id))
     .returning();
   if (!updated) {

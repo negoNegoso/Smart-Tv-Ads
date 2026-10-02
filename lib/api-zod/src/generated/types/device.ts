@@ -18,5 +18,7 @@ export interface Device {
   /** @nullable */
   lastSeenAt?: Date | null;
   showcase: boolean;
+  /** @nullable */
+  musicUrl?: string | null;
   createdAt: Date;
 }

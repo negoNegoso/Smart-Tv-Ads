@@ -249,6 +249,11 @@
     </div>
   </div>
 
+  <!-- Player da música de fundo. Fora do palco (não gira com a TV) e fora da
+       área visível, mas com tamanho de verdade: player com display:none pode
+       não iniciar. -->
+  <div id="musica-slot" aria-hidden="true" style="position:fixed;left:-400px;top:0;width:200px;height:200px;overflow:hidden;"></div>
+
   <div id="fs-hint">Pressione OK para tela cheia</div>
 
   <div id="pair-screen">
@@ -289,6 +294,8 @@
       var ytApiLoading  = false;
       var ytApiUnavailable = false;   // API do YouTube desistiu de carregar
       var YT_API_TIMEOUT_MS = 6000;   // limite p/ a IFrame API ficar pronta
+      var ytApiFalhouEm = 0;          // quando a API desistiu (ms)
+      var YT_API_RETRY_MS = 300000;   // espera antes de pedir a API de novo
       var ytInitTimer   = null;
       var ytEndWatch    = null;   // vigia do fim do vídeo (Shorts não dão ENDED)
       var YT_END_WATCH_MS = 500;
@@ -301,6 +308,21 @@
       var playlistCursor = {};   // announcementId -> índice atual
       var videoPositions = {};   // (announcementId + '-' + videoId) -> segundos
       var ytSlot        = document.getElementById('yt-slot');
+
+      // Música de fundo do painel: um segundo player do YouTube, só áudio,
+      // que vive entre os slides. Não é peça: não conta exibição.
+      var musicaSlot    = document.getElementById('musica-slot');
+      var musicaRef     = null;    // kind + ':' + youtubeId do que está carregado
+      var musicaPlayer  = null;
+      var musicaPronta  = false;   // o player já avisou onReady
+      var musicaPausada = false;   // há peça com som no ar
+      var musicaVigia   = null;
+      var MUSICA_VIGIA_MS = 30000;
+      var musicaErros   = 0;       // erros seguidos, sem nenhum vídeo tocar
+      var MUSICA_MAX_ERROS = 5;
+      var musicaRetomada = null;   // timer da retomada depois da peça com som
+      var MUSICA_RETOMAR_MS = 500;
+      var appAvisado    = false;   // somIniciou foi mandado para esta peça
 
       // ─── DOM refs ─────────────────────────────────────────────────────────────
       var slotA        = document.getElementById('slot-a');
@@ -609,14 +631,27 @@
       }
 
       // ─── YouTube IFrame API (ES5) ───────────────────────────────────────────
-      function loadYtApi(cb, onFail) {
+      // tentarDeNovo: quem chama aceita pedir a API outra vez depois de uma
+      // falha antiga. Só a música usa: ela não segura nada na tela enquanto
+      // espera, e sem isso um tropeço de rede na hora de ligar a TV deixava a
+      // loja sem música até a página recarregar. As peças seguem desistindo
+      // na hora (vão direto para a miniatura) e aproveitam a API se ela voltar.
+      function loadYtApi(cb, onFail, tentarDeNovo) {
         if (window.YT && window.YT.Player) { cb(); return; }
-        if (ytApiUnavailable) { if (onFail) onFail(); return; }
+        if (ytApiUnavailable) {
+          if (!tentarDeNovo || new Date().getTime() - ytApiFalhouEm < YT_API_RETRY_MS) {
+            if (onFail) onFail();
+            return;
+          }
+          ytApiUnavailable = false;
+          ytApiLoading = false;
+        }
 
         var failed = false;
         var giveUp = setTimeout(function () {
           failed = true;
           ytApiUnavailable = true;
+          ytApiFalhouEm = new Date().getTime();
           if (onFail) onFail();
         }, YT_API_TIMEOUT_MS);
 
@@ -645,10 +680,141 @@
           if (failed) { return; }
           failed = true;
           ytApiUnavailable = true;
+          ytApiFalhouEm = new Date().getTime();
           clearTimeout(giveUp);
           if (onFail) onFail();
         };
         document.head.appendChild(tag);
+      }
+
+      // ─── Música de fundo ───────────────────────────────────────────────────
+      // Tudo aqui em try/catch: música com defeito nunca para as peças.
+      function desligarMusica() {
+        musicaRef = null;
+        musicaPronta = false;
+        musicaErros = 0;
+        if (musicaVigia) { clearInterval(musicaVigia); musicaVigia = null; }
+        if (musicaPlayer) {
+          try { musicaPlayer.destroy(); } catch (e) {}
+          musicaPlayer = null;
+        }
+        musicaSlot.innerHTML = '';
+      }
+
+      // A música para sozinha por vários motivos: erro passageiro, vídeo que
+      // o YouTube travou, autoplay negado. De tempos em tempos, dá o play de
+      // novo. Nunca põe no mudo: música muda não serve para nada.
+      function vigiarMusica() {
+        if (!musicaPlayer || !musicaPronta || musicaPausada) { return; }
+        try {
+          var estado = musicaPlayer.getPlayerState();
+          var S = window.YT.PlayerState;
+          if (estado === S.PLAYING || estado === S.BUFFERING) { return; }
+          // Nova rodada: a playlist ganha outra chance de pular os vídeos
+          // que não tocam.
+          musicaErros = 0;
+          musicaPlayer.playVideo();
+        } catch (e) {}
+      }
+
+      function criarPlayerDaMusica(music) {
+        var holder = document.createElement('div');
+        musicaSlot.innerHTML = '';
+        musicaSlot.appendChild(holder);
+
+        // autoplay 0: quem dá o play é o onReady, que sabe se há peça com
+        // som no ar.
+        var vars = {
+          autoplay: 0, loop: 1, controls: 0, rel: 0,
+          playsinline: 1, disablekb: 1, fs: 0
+        };
+        var opts = { width: '200', height: '200', playerVars: vars };
+        if (music.kind === 'youtube_playlist') {
+          // O player carrega a playlist pelo ID: não depende da API key do
+          // servidor nem gasta cota.
+          vars.listType = 'playlist';
+          vars.list = music.youtubeId;
+        } else {
+          opts.videoId = music.youtubeId;
+          // O laço de vídeo único só vale com o próprio ID em `playlist`.
+          vars.playlist = music.youtubeId;
+        }
+        opts.events = {
+          onReady: function (e) {
+            musicaPronta = true;
+            try {
+              e.target.unMute();
+              e.target.setVolume(100);
+              if (!musicaPausada) { e.target.playVideo(); }
+            } catch (err) {}
+          },
+          onStateChange: function (e) {
+            if (e.data === window.YT.PlayerState.PLAYING) { musicaErros = 0; }
+          },
+          onError: function (e) {
+            // Vídeo da playlist que não toca (embed bloqueado, removido):
+            // segue para o próximo. Vídeo único fica para a vigia.
+            // Com limite: playlist em que nada toca ficaria pulando de vídeo
+            // sem parar, disputando a box com as peças. Passou do limite,
+            // para e espera a vigia.
+            // Com peça com som no ar, não pula: nextVideo dá play e a música
+            // tocaria por cima da peça.
+            musicaErros += 1;
+            if (music.kind !== 'youtube_playlist') { return; }
+            if (musicaPausada || musicaErros > MUSICA_MAX_ERROS) { return; }
+            try { e.target.nextVideo(); } catch (err) {}
+          }
+        };
+        musicaPlayer = new window.YT.Player(holder, opts);
+        musicaVigia = setInterval(vigiarMusica, MUSICA_VIGIA_MS);
+      }
+
+      // Chamada a cada feed lido com sucesso. `music` é o que o servidor
+      // mandou: { kind, youtubeId }, null (TV sem música) ou undefined
+      // (servidor antigo).
+      function aplicarMusica(music) {
+        var valida = music && music.youtubeId &&
+          (music.kind === 'youtube_video' || music.kind === 'youtube_playlist');
+        var ref = valida ? music.kind + ':' + music.youtubeId : null;
+        if (ref === musicaRef) { return; }
+        desligarMusica();
+        if (!ref) { return; }
+        musicaRef = ref;
+        loadYtApi(function () {
+          // O feed pode ter trocado a música enquanto a API carregava.
+          if (musicaRef !== ref || musicaPlayer) { return; }
+          try { criarPlayerDaMusica(music); } catch (e) { desligarMusica(); }
+        }, function () {
+          // Sem a API do YouTube não há música. Zera a referência para a
+          // ponte com o app Android (Spotify) voltar a valer e para um feed
+          // seguinte tentar de novo — a API é pedida outra vez depois de
+          // YT_API_RETRY_MS.
+          if (musicaRef === ref) { musicaRef = null; }
+        }, true);
+      }
+
+      // Peça com som entrou: a música cede a vez. Vale mesmo sem música
+      // configurada, para a que for ligada no meio da peça não tocar por cima.
+      function pausarMusica() {
+        if (musicaRetomada) { clearTimeout(musicaRetomada); musicaRetomada = null; }
+        musicaPausada = true;
+        if (musicaPlayer && musicaPronta) {
+          try { musicaPlayer.pauseVideo(); } catch (e) {}
+        }
+      }
+
+      // Peça com som saiu. Com atraso: showSlide derruba um player e logo
+      // cria o seguinte; duas peças com som em sequência dariam um estalo de
+      // música entre elas. A segunda cancela esta retomada antes de ela valer.
+      function retomarMusica() {
+        if (musicaRetomada) { clearTimeout(musicaRetomada); }
+        musicaRetomada = setTimeout(function () {
+          musicaRetomada = null;
+          musicaPausada = false;
+          if (musicaPlayer && musicaPronta) {
+            try { musicaPlayer.playVideo(); } catch (e) {}
+          }
+        }, MUSICA_RETOMAR_MS);
       }
 
       // App Android (window.SignageNative): a peça com som toma o áudio da TV
@@ -663,7 +829,13 @@
 
       function teardownYt() {
         ytActive = false;
-        if (somNoAr) { somNoAr = false; avisarApp('somTerminou'); }
+        if (somNoAr) {
+          somNoAr = false;
+          retomarMusica();
+          // Só fecha o que foi aberto: o app que não ouviu o começo guardaria
+          // um "havia música" velho e ligaria o Spotify sem motivo.
+          if (appAvisado) { appAvisado = false; avisarApp('somTerminou'); }
+        }
         if (ytInitTimer) { clearTimeout(ytInitTimer); ytInitTimer = null; }
         if (ytEndWatch) { clearInterval(ytEndWatch); ytEndWatch = null; }
         if (ytSoundTimer) { clearTimeout(ytSoundTimer); ytSoundTimer = null; }
@@ -759,9 +931,17 @@
       // Toca um vídeo do YouTube; se não inicializar em 5s ou der erro, chama
       // onFail() para o chamador cair no fallback de imagem.
       function playYouTube(slide, videoId, onEnded, onFail) {
-        // Avisa antes de criar o player: é o momento em que nada nosso toca,
-        // então o app consegue ver se havia música de fundo.
-        if (slide.audioMode === 'sound') { somNoAr = true; avisarApp('somIniciou'); }
+        if (slide.audioMode === 'sound') {
+          somNoAr = true;
+          // Com música do painel, o app fica de fora: ele veria a nossa
+          // música como "havia música antes" e, no fim da peça, mandaria
+          // play ao Spotify por cima dela.
+          // Sem música do painel, avisa antes de criar o player: é o momento
+          // em que nada nosso toca, então o app consegue ver se havia música
+          // de fundo (Spotify).
+          if (!musicaRef) { appAvisado = true; avisarApp('somIniciou'); }
+          pausarMusica();
+        }
         loadYtApi(function () {
           var holder = document.createElement('div');
           ytSlot.innerHTML = '';
@@ -1104,6 +1284,8 @@
       // tudo do ar, mostra o QR e pergunta de novo a cada 5 s.
       function showPairing(key) {
         showEmpty();
+        // TV que o servidor não conhece não toca nada, nem música.
+        desligarMusica();
         emptyEl.className = '';
         document.getElementById('pair-qr').src = apiBase() + '/api/qr/pair/' + encodeURIComponent(key) + '.png';
         document.getElementById('pair-key').textContent = formatKey(key);
@@ -1139,6 +1321,9 @@
             return;
           }
           hidePairing();
+
+          // Antes do teste de lista vazia: a música vale mesmo sem peças.
+          aplicarMusica(data.music);
 
           var girou = applyOrientation(data.screen && data.screen.orientation);
 

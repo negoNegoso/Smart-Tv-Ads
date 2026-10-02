@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD COLUMN "music_url" text;

@@ -34,6 +34,11 @@ describe('mensagemDeErro', () => {
     expect(mensagemDeErro(undefined, FALLBACK)).toBe(FALLBACK);
   });
 
+  it('deixa passar o erro do link de música, que já vem em português', () => {
+    const err = { status: 400, data: { error: 'Link do YouTube inválido' } };
+    expect(mensagemDeErro(err, FALLBACK)).toBe('Link do YouTube inválido');
+  });
+
   it('ignora corpo com formato inesperado', () => {
     expect(mensagemDeErro({ data: { error: 42 } }, FALLBACK)).toBe(FALLBACK);
     expect(mensagemDeErro({ data: 'texto solto' }, FALLBACK)).toBe(FALLBACK);

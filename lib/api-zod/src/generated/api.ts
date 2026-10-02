@@ -56,6 +56,10 @@ export const GetVitrineFeedResponse = zod.object({
   "screen": zod.object({
   "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left'])
 }),
+  "music": zod.object({
+  "kind": zod.enum(['youtube_video', 'youtube_playlist']),
+  "youtubeId": zod.string()
+}).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
@@ -646,6 +650,7 @@ export const ListDevicesResponseItem = zod.object({
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
+  "musicUrl": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
@@ -675,6 +680,7 @@ export const CreateDeviceResponse = zod.object({
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
+  "musicUrl": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -696,6 +702,7 @@ export const GetDeviceByKeyResponse = zod.object({
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
+  "musicUrl": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -714,6 +721,7 @@ export const GetDeviceResponse = zod.object({
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
+  "musicUrl": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -729,7 +737,8 @@ export const UpdateDeviceBody = zod.object({
   "name": zod.string().min(1).optional(),
   "location": zod.string().nullish(),
   "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional(),
-  "showcase": zod.boolean().optional()
+  "showcase": zod.boolean().optional(),
+  "musicUrl": zod.string().nullish()
 })
 
 export const UpdateDeviceResponse = zod.object({
@@ -742,6 +751,7 @@ export const UpdateDeviceResponse = zod.object({
   "deviceKey": zod.string(),
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
+  "musicUrl": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -908,6 +918,10 @@ export const GetDisplayFeedResponse = zod.object({
   "screen": zod.object({
   "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left'])
 }),
+  "music": zod.object({
+  "kind": zod.enum(['youtube_video', 'youtube_playlist']),
+  "youtubeId": zod.string()
+}).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
