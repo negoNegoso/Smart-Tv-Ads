@@ -95,6 +95,12 @@ O feed é a rota mais chamada do sistema e não pode esperar o GitHub.
   `null`. Nunca lança.
 - Sem release conhecida → sem sinal automático neste feed; o próximo tenta de
   novo.
+- Chamadas simultâneas do feed compartilham uma consulta só. A página de
+  download do APK (`latestTvAppRelease`, teto de 5 s) faz a própria consulta e
+  não compartilha nada com o feed: se compartilhasse, um feed poderia ficar
+  esperando os 5 s dela.
+- Depois de uma tentativa que falhou, o feed só tenta de novo passado 1 minuto;
+  até lá responde na hora com o último valor conhecido.
 
 Atraso depois da release: até 1 min do cache + até 60 s do feed.
 
@@ -128,6 +134,13 @@ Navegador sem o app nunca tem `window.SignageUpdate` e ignora o campo.
 - A ponte fica exposta a todo frame da página, inclusive o iframe do YouTube.
   Aceitável: o único efeito possível é uma checagem contra a URL fixa do
   build, com APK conferido por SHA-256.
+- **Recuo depois de falha de instalação.** Toda vez que o instalador devolve
+  falha (disco cheio, assinatura diferente, pessoa cancelou o diálogo), o app
+  passa a ignorar os avisos da página até a próxima checagem periódica, que é
+  quem os libera de novo. Sem isso, uma box que não consegue instalar
+  refaria a sessão, copiaria o APK e mostraria "Falha ao atualizar" a cada
+  10 minutos, para sempre. Falha de download (sem rede, hash errado) não
+  entra nessa regra e segue com a repetição de 10 minutos da página.
 - A checagem periódica (2 min após abrir, depois a cada 6 h) não muda.
 
 ## 5. Admin
@@ -161,6 +174,9 @@ Cada TV ganha `updateRequestedAt: string | null`.
 - **O primeiro salto é lento.** Só reage ao sinal a box que já tem a versão
   com `window.SignageUpdate`. A atualização que traz essa versão ainda chega
   pela checagem de 6 horas (e pelo OK, onde o Android exige).
+- **Box que falhou uma instalação fica até 6 horas sem reagir** ao aviso do
+  servidor e ao botão "Atualizar agora": ela volta ao ritmo da checagem
+  periódica até conseguir instalar.
 - **Box desligada** se atualiza ~2 minutos depois de ligar, como hoje.
 - **Release com defeito chega a todas em ~2 minutos.** O conserto é uma nova
   release, que chega no mesmo prazo.
