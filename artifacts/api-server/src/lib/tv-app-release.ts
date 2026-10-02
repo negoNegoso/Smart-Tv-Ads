@@ -11,10 +11,15 @@ const BASE_URL =
   process.env.TV_APP_RELEASE_BASE_URL ??
   "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/";
 
+/** Teto da consulta feita pela página de download. */
 const TIMEOUT_MS = 5000;
-/** O instalador costuma abrir a página várias vezes seguidas; 5 min já evita
- *  bater no GitHub a cada visita sem atrasar uma release nova de forma sentida. */
-const CACHE_MS = 5 * 60 * 1000;
+/** Teto da consulta feita pelo feed da TV: a rota mais chamada do sistema não
+ *  pode ficar esperando o GitHub. */
+const FEED_TIMEOUT_MS = 1500;
+/** 1 minuto: o feed usa este valor para avisar as TVs de uma release nova, e
+ *  o atraso do aviso é este cache mais os 60 s do próprio feed. Uma consulta
+ *  por minuto por instância ao link de download (sem limite de API). */
+const CACHE_MS = 60 * 1000;
 
 /** Nome que a pipeline gera. Como o destino do redirect é montado com um campo
  *  vindo de fora, qualquer outra coisa é recusada — senão o `update.json` viraria
@@ -32,6 +37,10 @@ export interface TvAppRelease {
 export class TvAppReleaseUnavailableError extends Error {}
 
 let cache: { at: number; release: TvAppRelease } | null = null;
+/** Consulta em andamento, para chamadas simultâneas não irem todas ao GitHub. */
+let inFlight: Promise<TvAppRelease> | null = null;
+/** Quando o feed tentou pela última vez, tenha dado certo ou não. */
+let feedAttemptAt = 0;
 
 function parse(body: unknown): TvAppRelease | null {
   if (!body || typeof body !== "object") return null;
@@ -47,13 +56,11 @@ function parse(body: unknown): TvAppRelease | null {
  * Só o resultado bom entra no cache: guardar falha faria uma queda passageira do
  * GitHub derrubar o download pelos minutos seguintes.
  */
-export async function latestTvAppRelease(): Promise<TvAppRelease> {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.release;
-
+async function fetchRelease(timeoutMs: number): Promise<TvAppRelease> {
   let body: unknown;
   try {
     const res = await fetch(`${BASE_URL}update.json`, {
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
       redirect: "follow",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -67,4 +74,42 @@ export async function latestTvAppRelease(): Promise<TvAppRelease> {
 
   cache = { at: Date.now(), release };
   return release;
+}
+
+function refresh(timeoutMs: number): Promise<TvAppRelease> {
+  if (!inFlight) {
+    inFlight = fetchRelease(timeoutMs).finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+function freshCache(): TvAppRelease | null {
+  return cache && Date.now() - cache.at < CACHE_MS ? cache.release : null;
+}
+
+/** Página de download e redirect do APK: tenta agora e lança se não der. */
+export async function latestTvAppRelease(): Promise<TvAppRelease> {
+  return freshCache() ?? refresh(TIMEOUT_MS);
+}
+
+/**
+ * Para o feed da TV. Nunca lança e nunca segura o feed além do teto: com o
+ * GitHub fora, devolve o último valor conhecido (mesmo vencido) ou null, e só
+ * volta a tentar depois de 1 minuto — senão cada feed de cada TV esperaria o
+ * teto inteiro enquanto durasse a queda.
+ */
+export async function latestTvAppReleaseForFeed(): Promise<TvAppRelease | null> {
+  const fresh = freshCache();
+  if (fresh) return fresh;
+
+  const stale = cache?.release ?? null;
+  if (!inFlight && Date.now() - feedAttemptAt < CACHE_MS) return stale;
+  feedAttemptAt = Date.now();
+  try {
+    return await refresh(FEED_TIMEOUT_MS);
+  } catch {
+    return stale;
+  }
 }
