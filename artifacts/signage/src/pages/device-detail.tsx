@@ -477,7 +477,7 @@ export default function DeviceDetail() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-3xl text-center">
         <p className="text-muted-foreground">Dispositivo não encontrado.</p>
-        <Link href="/clients"><Button variant="link" className="mt-2">Voltar para clientes</Button></Link>
+        <Link href="/parque"><Button variant="link" className="mt-2">Voltar para o Parque de TVs</Button></Link>
       </div>
     );
   }

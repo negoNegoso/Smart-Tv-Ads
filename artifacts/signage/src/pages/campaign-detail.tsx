@@ -179,7 +179,7 @@ export default function CampaignDetail() {
       <PageHeader
         trail={[
           { label: 'Empresas', href: '/companies' },
-          { label: data.company || data.advertiserName, href: `/companies/${data.companyId}` },
+          { label: data.advertiserName, href: `/companies/${data.companyId}` },
           { label: data.name },
         ]}
       />

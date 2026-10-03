@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Router } from 'wouter';
@@ -25,6 +25,7 @@ function renderShell(path: string) {
 
 afterEach(() => {
   window.innerWidth = DESKTOP_WIDTH;
+  document.cookie = 'sidebar_state=; max-age=0; path=/';
 });
 
 describe('AppShell no desktop', () => {
@@ -52,8 +53,37 @@ describe('AppShell no desktop', () => {
     const { container } = renderShell('/');
     const sidebar = container.querySelector('[data-slot="sidebar"]');
     expect(sidebar?.closest('.print\\:hidden')).not.toBeNull();
-    const topo = screen.getByRole('button', { name: 'Abrir menu' }).closest('header');
+    const topo = screen.getByRole('button', { name: 'Menu' }).closest('header');
     expect(topo).toHaveClass('print:hidden');
+  });
+});
+
+describe('AppShell e o estado recolhido', () => {
+  it('sem cookie a sidebar abre expandida', () => {
+    const { container } = renderShell('/');
+    expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-state', 'expanded');
+  });
+
+  it('com sidebar_state=false a sidebar nasce recolhida', () => {
+    document.cookie = 'sidebar_state=false; path=/';
+    const { container } = renderShell('/');
+    expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-state', 'collapsed');
+  });
+
+  it('recolhida no desktop, o logo aparece na barra do topo; aberta, só o texto', () => {
+    // A sidebar recolhida continua no DOM (some por CSS), então o logo dela
+    // também; o que muda é o que a barra do topo mostra.
+    document.cookie = 'sidebar_state=false; path=/';
+    const recolhida = renderShell('/');
+    const topo = screen.getByRole('button', { name: 'Menu' }).closest('header') as HTMLElement;
+    expect(within(topo).getAllByRole('img', { name: 'Smart Vale TV' })).toHaveLength(1);
+    recolhida.unmount();
+
+    document.cookie = 'sidebar_state=; max-age=0; path=/';
+    renderShell('/');
+    const topoAberto = screen.getByRole('button', { name: 'Menu' }).closest('header') as HTMLElement;
+    expect(within(topoAberto).queryByRole('img', { name: 'Smart Vale TV' })).not.toBeInTheDocument();
+    expect(within(topoAberto).getByText('Painel de Anúncios')).toBeInTheDocument();
   });
 });
 
@@ -65,7 +95,7 @@ describe('AppShell no celular', () => {
     // Gaveta fechada: os itens não estão na tela.
     await waitFor(() => expect(screen.queryByRole('link', { name: /Parque de TVs/ })).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: 'Abrir menu' }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
     const item = await screen.findByRole('link', { name: /Parque de TVs/ });
 
     await user.click(item);

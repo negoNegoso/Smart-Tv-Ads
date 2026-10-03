@@ -22,6 +22,15 @@ import {
 } from '@/components/ui/sidebar';
 import { isNavItemActive, type NavGroup } from '@/components/nav-config';
 
+/**
+ * O `sidebar.tsx` grava o cookie `sidebar_state` a cada troca, mas nunca o lê:
+ * sem isto o menu recolhido reabria a cada F5. Aberto, salvo `false` gravado.
+ */
+function lerSidebarAberta(): boolean {
+  if (typeof document === 'undefined') return true;
+  return !document.cookie.split('; ').includes('sidebar_state=false');
+}
+
 function NavMenu({ groups }: { groups: NavGroup[] }) {
   const [location] = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -63,13 +72,13 @@ function NavMenu({ groups }: { groups: NavGroup[] }) {
 }
 
 function TopBar() {
-  const { isMobile } = useSidebar();
+  const { isMobile, state } = useSidebar();
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden">
-      <SidebarTrigger aria-label="Abrir menu" />
-      {/* No desktop o logo já está na sidebar; no celular a sidebar vira
-          gaveta fechada, então o logo vem para a barra. */}
-      {isMobile ? (
+      <SidebarTrigger aria-label="Menu" />
+      {/* Com a sidebar aberta o logo já está nela; na gaveta fechada (celular)
+          ou recolhida (desktop) ninguém o vê, então o logo vem para a barra. */}
+      {isMobile || state === 'collapsed' ? (
         <Logo className="h-7" />
       ) : (
         <span className="text-sm font-medium text-muted-foreground">Painel de Anúncios</span>
@@ -86,7 +95,7 @@ export function AppShell({ navGroups, children }: { navGroups: NavGroup[]; child
   const queryClient = useQueryClient();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={lerSidebarAberta()}>
       {/* `contents` não cria caixa na tela; na impressão o print:hidden some
           com a sidebar inteira, inclusive o espaço reservado dela. */}
       <div className="contents print:hidden">
