@@ -21,9 +21,10 @@ A navegação vem primeiro porque define as URLs onde os outros dois entram.
   do navegador sai do sistema e não há link para mandar a alguém. Quem é
   anunciante e cliente alterna por um botão. Não existe tela para trocar a
   senha depois do primeiro login.
-- **Detalhes sem caminho de volta:** `device-detail` e `company-detail` não
-  têm link de volta; `campaign-detail.tsx:177` volta para `/advertisers/:id`,
-  rota legada que redireciona — dois saltos.
+- **Caminho de volta errado:** `device-detail` volta para `/clients/:id` e
+  `campaign-detail.tsx:177` para `/advertisers/:id` — rotas legadas que
+  redirecionam, dois saltos. Nenhuma página de detalhe mostra onde o usuário
+  está.
 - A raiz do admin cai em `/companies`, que não diz nada sobre o estado da
   rede.
 
@@ -94,7 +95,7 @@ Novos, em `artifacts/signage/src/components/`:
 | Arquivo | Contrato |
 |---|---|
 | `app-shell.tsx` | Recebe `navGroups: { label?: string; items: { href: string; label: string; icon: LucideIcon }[] }[]` e `children`. Monta o `SidebarProvider` de `components/ui/sidebar.tsx`: sidebar fixa no desktop, gaveta no celular (`useIsMobile`). Item ativo: `location === href` ou `location` começa com `href + '/'`; o item `/` só é ativo na raiz exata. Rodapé com Sair (`lib/logout`). |
-| `page-header.tsx` | `<PageHeader trail={{ label: string; href?: string }[]} title={ReactNode} actions?={ReactNode} />`. Breadcrumb com `components/ui/breadcrumb.tsx`. No celular mostra só "‹ {último item com href}", para não quebrar linha. |
+| `page-header.tsx` | `<PageHeader trail={{ label: string; href?: string }[]} />`. Só o caminho; o título continua na página, porque cada uma tem o seu (input de edição na campanha, ícone na TV). Breadcrumb com `components/ui/breadcrumb.tsx` a partir de `md`; abaixo disso, só "‹ {último item com href}", para não quebrar linha. A troca é por CSS (`hidden md:flex` / `md:hidden`). |
 | `nav-config.ts` | `adminNav` (constante) e `portalNav(roles: string[])` (função pura). Separado para testar sem renderizar. |
 
 Regras de comportamento:
@@ -114,17 +115,21 @@ Regras de comportamento:
 - `App.tsx`: saem `PortalSwitch` e `ClientArea`; entra `PortalRoutes` (um
   `Switch` com as rotas acima, no mesmo molde de `AdminRoutes`). Em
   `AdminRoutes`, `/` renderiza a Visão geral e `/analytics` redireciona.
-- `pages/portal-panel-editor.tsx`: mantém a prop `panelId` (testes existentes
-  continuam valendo); a rota `/portal/paineis/:id` converte o `:id` e passa a
-  prop. `:id` não inteiro redireciona para `/portal/paineis`. O `onBack` sai e
-  o caminho de volta passa a ser o `PageHeader` (link para `/portal/paineis`).
-- `pages/portal-panels.tsx`: `onEdit(id)` vira link para `/portal/paineis/:id`.
-- `pages/campaign-detail.tsx`, `device-detail.tsx`, `company-detail.tsx`,
-  `portal-panel-editor.tsx`: adotam `PageHeader`. Trails:
+- `pages/portal-panels.tsx` e `pages/portal-panel-editor.tsx`: **sem
+  mudança.** Os dois também servem o admin (`panels-admin.tsx`), que já passa
+  `onEdit`/`onBack` navegando por URL. O portal faz igual: a rota
+  `/portal/paineis` passa `onEdit={(id) => navigate('/portal/paineis/' + id)}`
+  e a rota `/portal/paineis/:id` converte o `:id` e passa
+  `onBack={() => navigate('/portal/paineis')}`. `:id` que não é inteiro
+  positivo redireciona para `/portal/paineis`.
+- `pages/campaign-detail.tsx`, `device-detail.tsx`, `company-detail.tsx`:
+  trocam o botão "‹ voltar" por `PageHeader`. Trails:
   - Campanha: Empresas › {empresa} › {campanha}
   - TV: Parque de TVs › {nome da TV}
   - Empresa: Empresas › {empresa}
-  - Painel do portal: Meus painéis › {painel}
+
+  Depois de excluir a campanha, o `navigate` também vai para
+  `/companies/:companyId`.
 - `pages/analytics.tsx`: título "Visão geral"; conteúdo inalterado neste
   sub-projeto.
 - `pages/change-password.tsx`: o formulário sai para
@@ -168,9 +173,8 @@ Vitest + Testing Library, padrão do repo.
   `/portal/tvs` vai para `/portal/anunciante`; cliente em `/` vai para
   `/portal/tvs`; admin em `/analytics` vai para `/`.
 - API: `GET /campaigns/:id` devolve `companyId`.
-- Ajustar os testes existentes de `portal-panels`, `portal-panel-editor`,
-  `portal-client` e `portal-advertiser` que dependem das abas ou das props
-  `onEdit` / `onBack`.
+- Ajustar `components/__tests__/marca-cabecalhos.test.tsx`, que monta
+  `PortalShell` sem papéis.
 
 ## Fora do escopo
 
