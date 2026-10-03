@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, sql, desc, inArray, type SQL } from "drizzle-orm";
 import {
   db,
@@ -13,6 +13,7 @@ import {
   advertisersTable,
 } from "@workspace/db";
 import {
+  GetAnalyticsOverviewResponse,
   GetAnalyticsSummaryResponse,
   GetClientAnalyticsParams,
   GetClientAnalyticsResponse,
@@ -24,6 +25,8 @@ import {
   GetCampaignAnalyticsResponse,
 } from "@workspace/api-zod";
 import { scanRate } from "../lib/scan-rate";
+import { adminOverview } from "../lib/admin-overview/queries";
+import { parseDays, type PortalDays } from "../lib/portal/period";
 
 const router: IRouter = Router();
 
@@ -94,6 +97,26 @@ router.get("/analytics/summary", async (_req, res): Promise<void> => {
       }),
     })
   );
+});
+
+/**
+ * Resolve o período pedido ou responde 400. Mesmo enum fechado do portal:
+ * mantém a varredura limitada e o cache previsível.
+ */
+function daysOr400(req: Request, res: Response): PortalDays | null {
+  const days = parseDays(req.query.days);
+  if (days === null) {
+    res.status(400).json({ error: "Período inválido. Use days=7, 30 ou 90." });
+    return null;
+  }
+  return days;
+}
+
+// Visão geral: cards do período, série diária e TVs que funcionaram por dia.
+router.get("/analytics/overview", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsOverviewResponse.parse(await adminOverview(days)));
 });
 
 // Client analytics
