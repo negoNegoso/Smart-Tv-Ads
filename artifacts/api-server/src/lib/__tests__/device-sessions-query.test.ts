@@ -24,6 +24,7 @@ const {
 const NOW = new Date("2026-10-02T15:00:00.000Z");
 const CINCO_MIN = 5 * 60 * 1000;
 const TRINTA_DIAS = 30 * 24 * 60 * 60 * 1000;
+const NOVENTA_DIAS = 90 * 24 * 60 * 60 * 1000;
 
 // O drizzle entrega o timestamp como Date ou como texto ISO, conforme a
 // versão; o que importa aqui é o instante.
@@ -48,13 +49,14 @@ describe("consultas das sessões de conexão", () => {
   });
 
   // "Não toca nas de outra TV": o filtro por device_id tem de estar no DELETE.
-  it("limpar: só as sessões desta TV com mais de 30 dias", () => {
+  // 90 dias porque a Visão geral desenha a disponibilidade de até 90 dias.
+  it("limpar: só as sessões desta TV com mais de 90 dias", () => {
     const { sql, params } = buildPruneSessionsQuery(7, NOW).toSQL();
     expect(sql).toContain('delete from "device_sessions"');
     expect(sql).toContain('"device_sessions"."device_id" = $1');
     expect(sql).toContain('"device_sessions"."last_seen_at" < $2');
     expect(params[0]).toBe(7);
-    expect(instante(params[1])).toBe(NOW.getTime() - TRINTA_DIAS);
+    expect(instante(params[1])).toBe(NOW.getTime() - NOVENTA_DIAS);
   });
 
   it("listar: últimos 30 dias desta TV, da mais nova para a mais antiga", () => {
