@@ -86,5 +86,7 @@ describe('PortalAdvertiser', () => {
     renderPage();
     expect(await screen.findByRole('columnheader', { name: 'TVs no alvo' })).toBeInTheDocument();
     expect(screen.getByText('3 TVs alcançadas')).toBeInTheDocument();
+    // O nome da campanha abre o relatório dela.
+    expect(screen.getByRole('link', { name: 'Campanha X' })).toHaveAttribute('href', '/portal/anunciante/campanhas/1');
   });
 });

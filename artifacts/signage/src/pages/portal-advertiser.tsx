@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Play, QrCode, Users, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -217,7 +218,14 @@ export default function PortalAdvertiser() {
                 <tbody>
                   {campaigns.data.map((c) => (
                     <tr key={c.id} className="break-inside-avoid border-b last:border-0">
-                      <td className="py-3 font-medium">{c.name}</td>
+                      <td className="py-3 font-medium">
+                        <Link
+                          href={`/portal/anunciante/campanhas/${c.id}`}
+                          className="underline-offset-4 hover:underline print:no-underline"
+                        >
+                          {c.name}
+                        </Link>
+                      </td>
                       <td className="py-3 text-muted-foreground">
                         {day(c.startsAt)} – {day(c.endsAt)}
                       </td>

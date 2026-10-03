@@ -29,6 +29,7 @@ import Divulgacao from './pages/divulgacao';
 import Fleet from './pages/fleet';
 import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
+import PortalCampaignReport from './pages/portal-campaign-report';
 import PortalClient from './pages/portal-client';
 import PortalPanels from './pages/portal-panels';
 import PortalPanelEditor from './pages/portal-panel-editor';
@@ -141,6 +142,13 @@ function PortalPanelRoute({ id }: { id: string }) {
   return <PortalPanelEditor panelId={panelId} onBack={() => navigate('/portal/paineis')} />;
 }
 
+/** `:id` que não é inteiro positivo volta para a lista em vez de pedir um relatório de NaN. */
+function PortalCampaignRoute({ id }: { id: string }) {
+  const campaignId = Number(id);
+  if (!Number.isInteger(campaignId) || campaignId <= 0) return <Redirect to="/portal/anunciante" replace />;
+  return <PortalCampaignReport id={campaignId} />;
+}
+
 /**
  * Cada tela do portal tem URL própria: F5, voltar do navegador e link
  * mandado a alguém abrem a mesma tela. Rota de papel que o usuário não tem
@@ -155,6 +163,9 @@ function PortalRoutes({ me }: { me: Me }) {
   return (
     <PortalShell roles={me.roles}>
       <Switch>
+        {isAdv ? (
+          <Route path="/portal/anunciante/campanhas/:id">{(params) => <PortalCampaignRoute id={params.id} />}</Route>
+        ) : null}
         {isAdv ? (
           <Route path="/portal/anunciante">
             <PortalAdvertiser />
