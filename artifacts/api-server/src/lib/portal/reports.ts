@@ -7,16 +7,20 @@ import {
   clientsTable,
   companiesTable,
   db,
+  deviceSessionsTable,
   devicesTable,
   playsTable,
   scansTable,
 } from "@workspace/db";
 import { countReachedDevices } from "../ad-eligibility";
 import { fillHours, type HourPoint } from "../admin-overview/hours";
+import { historyStartKey } from "../admin-overview/history";
+import { isOnlineAt } from "../device-presence";
 import { scanRate } from "../scan-rate";
 import { dayKeySql, hourOfDaySql } from "../sql-time";
 import { campaignWindow, type CampaignStatus } from "./campaign-window";
-import { businessDayKey } from "./period";
+import { countOnlineDays, deviceOnlineDays } from "./device-days";
+import { businessDayKey, portalPeriod, previousPortalPeriod, type PortalDays } from "./period";
 import { campaignTargetColumns, loadNetwork } from "./queries";
 import { fillSeries } from "./series";
 
@@ -224,5 +228,104 @@ export async function campaignReport(campaignId: number, now: Date = new Date())
       lastPlayedAt: new Date(device.lastPlayedAt),
     })),
     announcements,
+  };
+}
+
+/** Loja dona da TV, para a rota conferir o escopo antes de qualquer cálculo. */
+export async function deviceOwner(deviceId: number): Promise<number | null> {
+  const [row] = await db.select({ clientId: devicesTable.clientId }).from(devicesTable).where(eq(devicesTable.id, deviceId));
+  return row?.clientId ?? null;
+}
+
+export interface DeviceReport {
+  device: { id: number; name: string; location: string | null; isOnline: boolean };
+  period: { days: PortalDays; from: string; to: string };
+  totals: { plays: number; durationSeconds: number; daysOnline: number; daysWithHistory: number; previous: { plays: number } };
+  series: Array<{ date: string; plays: number; online: boolean | null }>;
+  hours: HourPoint[];
+  campaigns: Array<{ campaignId: number | null; campaignName: string | null; advertiserName: string | null; plays: number }>;
+}
+
+/** O que a TV fez no período: se ficou no ar e o que passou nela. */
+export async function deviceReport(deviceId: number, days: PortalDays, now: Date = new Date()): Promise<DeviceReport | null> {
+  const [device] = await db
+    .select({
+      id: devicesTable.id,
+      name: devicesTable.name,
+      location: devicesTable.location,
+      lastSeenAt: devicesTable.lastSeenAt,
+      createdAt: devicesTable.createdAt,
+    })
+    .from(devicesTable)
+    .where(eq(devicesTable.id, deviceId));
+  if (!device) return null;
+
+  const period = portalPeriod(days, now);
+  const previous = previousPortalPeriod(days, now);
+  const playsIn = (from: Date, to: Date) =>
+    and(eq(playsTable.deviceId, deviceId), gte(playsTable.createdAt, from), lt(playsTable.createdAt, to));
+  const current = playsIn(period.from, period.to);
+
+  const [totals] = await db
+    .select({ n: PLAY_COUNT, duration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int` })
+    .from(playsTable)
+    .where(current);
+  const [before] = await db.select({ n: PLAY_COUNT }).from(playsTable).where(playsIn(previous.from, previous.to));
+
+  const playDays = await db
+    .select({ day: dayKeySql(playsTable.createdAt), plays: PLAY_COUNT })
+    .from(playsTable)
+    .where(current)
+    .groupBy(dayKeySql(playsTable.createdAt));
+
+  const hourRows = await db
+    .select({ hour: hourOfDaySql(playsTable.createdAt), plays: PLAY_COUNT })
+    .from(playsTable)
+    .where(current)
+    .groupBy(hourOfDaySql(playsTable.createdAt));
+
+  const sessions = await db
+    .select({ startedAt: deviceSessionsTable.startedAt, lastSeenAt: deviceSessionsTable.lastSeenAt })
+    .from(deviceSessionsTable)
+    .where(
+      and(
+        eq(deviceSessionsTable.deviceId, deviceId),
+        lt(deviceSessionsTable.startedAt, period.to),
+        gte(deviceSessionsTable.lastSeenAt, period.from),
+      ),
+    );
+
+  // Conteúdo sem campanha (playlist e encartes da loja) cai na linha de
+  // campanha nula: LEFT JOIN, para ele não sumir do total.
+  const campaigns = await db
+    .select({
+      campaignId: playsTable.campaignId,
+      campaignName: campaignsTable.name,
+      advertiserName: companiesTable.name,
+      plays: PLAY_COUNT,
+    })
+    .from(playsTable)
+    .leftJoin(campaignsTable, eq(campaignsTable.id, playsTable.campaignId))
+    .leftJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
+    .leftJoin(companiesTable, eq(companiesTable.id, advertisersTable.companyId))
+    .where(current)
+    .groupBy(playsTable.campaignId, campaignsTable.name, companiesTable.name)
+    .orderBy(desc(PLAY_COUNT), sql`${playsTable.campaignId} ASC NULLS LAST`);
+
+  const onlineDays = deviceOnlineDays(period.keys, sessions, device, await historyStartKey());
+  const plays = fillSeries(period.keys, playDays, ["plays"]);
+
+  return {
+    device: { id: device.id, name: device.name, location: device.location, isOnline: isOnlineAt(device.lastSeenAt, now) },
+    period: { days, from: period.keys[0], to: period.keys[period.keys.length - 1] },
+    totals: {
+      plays: totals?.n ?? 0,
+      durationSeconds: totals?.duration ?? 0,
+      ...countOnlineDays(onlineDays),
+      previous: { plays: before?.n ?? 0 },
+    },
+    series: period.keys.map((date, index) => ({ date, plays: plays[index].plays, online: onlineDays[index].online })),
+    hours: fillHours(hourRows),
+    campaigns,
   };
 }

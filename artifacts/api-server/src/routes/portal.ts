@@ -5,7 +5,7 @@ import { advertiserCampaigns, clientDevices, clientsOf, previewDevice } from "..
 import { loadDeviceSlides } from "../lib/device-feed";
 import { advertiserOverview, clientOverview } from "../lib/portal/overview";
 import { parseDays, type PortalDays } from "../lib/portal/period";
-import { campaignOwner, campaignReport } from "../lib/portal/reports";
+import { campaignOwner, campaignReport, deviceOwner, deviceReport } from "../lib/portal/reports";
 import panelsRouter from "./panels";
 
 const router: IRouter = Router();
@@ -110,6 +110,32 @@ router.get("/client/devices/:id/preview", requireClient, async (req, res) => {
     return;
   }
   res.json(await loadDeviceSlides(device, req.log));
+});
+
+/**
+ * Relatório de uma TV da loja. Mesma regra da prévia: TV de outra loja
+ * responde igual a TV inexistente.
+ */
+router.get("/client/devices/:id/report", requireClient, async (req, res) => {
+  const deviceId = Number(req.params.id);
+  if (!Number.isInteger(deviceId) || deviceId <= 0) {
+    res.status(400).json({ error: "TV inválida." });
+    return;
+  }
+  const days = resolvePeriod(req, res);
+  if (days === null) return;
+  const scope = clientScope(req);
+  const owner = scope.length === 0 ? null : await deviceOwner(deviceId);
+  if (owner === null || !scope.includes(owner)) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  const report = await deviceReport(deviceId, days);
+  if (!report) {
+    res.status(404).json({ error: "Device not found" });
+    return;
+  }
+  res.json(report);
 });
 
 router.get("/client/overview", requireClient, async (req, res) => {

@@ -86,3 +86,45 @@ describe("GET /portal/advertiser/campaigns/:id/report", () => {
     expect(campaignReport).toHaveBeenCalledWith(5);
   });
 });
+
+describe("GET /portal/client/devices/:id/report", () => {
+  it("id inválido responde 400", async () => {
+    loadAuthContext.mockResolvedValue(clientCtx);
+    const res = await get("/portal/client/devices/0/report", "8");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "TV inválida." });
+  });
+
+  it("days inválido responde 400", async () => {
+    loadAuthContext.mockResolvedValue(clientCtx);
+    const res = await get("/portal/client/devices/2/report?days=15", "8");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Período inválido. Use days=7, 30 ou 90." });
+  });
+
+  it("TV de outra loja responde 404 sem calcular o relatório", async () => {
+    loadAuthContext.mockResolvedValue(clientCtx);
+    deviceOwner.mockResolvedValue(99);
+    const res = await get("/portal/client/devices/2/report", "8");
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Device not found" });
+    expect(deviceReport).not.toHaveBeenCalled();
+  });
+
+  it("TV da loja devolve o relatório com 30 dias por padrão", async () => {
+    loadAuthContext.mockResolvedValue(clientCtx);
+    deviceOwner.mockResolvedValue(4);
+    deviceReport.mockResolvedValue({ device: { id: 2 } });
+    const res = await get("/portal/client/devices/2/report", "8");
+    expect(res.status).toBe(200);
+    expect(deviceReport).toHaveBeenCalledWith(2, 30);
+  });
+
+  it("repassa days=7", async () => {
+    loadAuthContext.mockResolvedValue(clientCtx);
+    deviceOwner.mockResolvedValue(4);
+    deviceReport.mockResolvedValue({ device: { id: 2 } });
+    await get("/portal/client/devices/2/report?days=7", "8");
+    expect(deviceReport).toHaveBeenCalledWith(2, 7);
+  });
+});

@@ -32,6 +32,8 @@ vi.mock("../../lib/portal/overview", () => ({
 vi.mock("../../lib/portal/reports", () => ({
   campaignOwner: vi.fn(),
   campaignReport: vi.fn(),
+  deviceOwner: vi.fn(),
+  deviceReport: vi.fn(),
 }));
 // portal.ts também monta panels.ts, que puxa lib/panels/queries e por tabela
 // @workspace/db. Este arquivo nunca chega às rotas de painéis — mockar evita
