@@ -101,6 +101,18 @@ describe('rotas do portal', () => {
     await abrir('/portal/anunciante/campanhas/4');
     await waitFor(() => expect(window.location.pathname).toBe('/portal/tvs'));
   });
+
+  it('relatório de TV com id inválido volta para Minhas TVs', async () => {
+    stubSessao({ roles: ['client'] });
+    await abrir('/portal/tvs/abc');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/tvs'));
+  });
+
+  it('anunciante sem papel de cliente não abre relatório de TV', async () => {
+    stubSessao({ roles: ['advertiser'] });
+    await abrir('/portal/tvs/2');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/anunciante'));
+  });
 });
 
 describe('rotas do admin', () => {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Monitor, Play, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -170,7 +171,11 @@ export default function PortalClient() {
                 <tbody>
                   {devices.data.map((d) => (
                     <tr key={d.id} className="break-inside-avoid border-b last:border-0">
-                      <td className="py-3 font-medium">{d.name}</td>
+                      <td className="py-3 font-medium">
+                      <Link href={`/portal/tvs/${d.id}`} className="underline-offset-4 hover:underline print:no-underline">
+                        {d.name}
+                      </Link>
+                    </td>
                       <td className="py-3 text-muted-foreground">{d.location ?? '—'}</td>
                       <td className="py-3">
                         <span className="flex items-center gap-2">

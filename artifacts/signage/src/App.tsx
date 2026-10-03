@@ -30,6 +30,7 @@ import Fleet from './pages/fleet';
 import ChangePassword from './pages/change-password';
 import PortalAdvertiser from './pages/portal-advertiser';
 import PortalCampaignReport from './pages/portal-campaign-report';
+import PortalDeviceReport from './pages/portal-device-report';
 import PortalClient from './pages/portal-client';
 import PortalPanels from './pages/portal-panels';
 import PortalPanelEditor from './pages/portal-panel-editor';
@@ -149,6 +150,13 @@ function PortalCampaignRoute({ id }: { id: string }) {
   return <PortalCampaignReport id={campaignId} />;
 }
 
+/** `:id` que não é inteiro positivo volta para a lista em vez de pedir um relatório de NaN. */
+function PortalDeviceRoute({ id }: { id: string }) {
+  const deviceId = Number(id);
+  if (!Number.isInteger(deviceId) || deviceId <= 0) return <Redirect to="/portal/tvs" replace />;
+  return <PortalDeviceReport id={deviceId} />;
+}
+
 /**
  * Cada tela do portal tem URL própria: F5, voltar do navegador e link
  * mandado a alguém abrem a mesma tela. Rota de papel que o usuário não tem
@@ -170,6 +178,9 @@ function PortalRoutes({ me }: { me: Me }) {
           <Route path="/portal/anunciante">
             <PortalAdvertiser />
           </Route>
+        ) : null}
+        {isClient ? (
+          <Route path="/portal/tvs/:id">{(params) => <PortalDeviceRoute id={params.id} />}</Route>
         ) : null}
         {isClient ? (
           <Route path="/portal/tvs">
