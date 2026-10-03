@@ -13,7 +13,9 @@ import {
   advertisersTable,
 } from "@workspace/db";
 import {
+  GetAnalyticsHourlyResponse,
   GetAnalyticsOverviewResponse,
+  GetAnalyticsRankingsResponse,
   GetAnalyticsSummaryResponse,
   GetClientAnalyticsParams,
   GetClientAnalyticsResponse,
@@ -25,7 +27,7 @@ import {
   GetCampaignAnalyticsResponse,
 } from "@workspace/api-zod";
 import { scanRate } from "../lib/scan-rate";
-import { adminOverview } from "../lib/admin-overview/queries";
+import { adminHourly, adminOverview, adminRankings } from "../lib/admin-overview/queries";
 import { parseDays, type PortalDays } from "../lib/portal/period";
 
 const router: IRouter = Router();
@@ -117,6 +119,21 @@ router.get("/analytics/overview", async (req, res): Promise<void> => {
   const days = daysOr400(req, res);
   if (days === null) return;
   res.json(GetAnalyticsOverviewResponse.parse(await adminOverview(days)));
+});
+
+// Exibições por hora do dia no período: horário de pico da rede.
+router.get("/analytics/hourly", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsHourlyResponse.parse(await adminHourly(days)));
+});
+
+// Top campanhas, TVs e peças no período. Endpoint separado: é a consulta mais
+// cara, e o ranking fora do ar não pode segurar os gráficos.
+router.get("/analytics/rankings", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsRankingsResponse.parse(await adminRankings(days)));
 });
 
 // Client analytics

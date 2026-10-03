@@ -61,3 +61,46 @@ describe("GET /analytics/overview", () => {
     expect(adminOverview).not.toHaveBeenCalled();
   });
 });
+
+const HOURLY = { period: PERIOD, hours: Array.from({ length: 24 }, (_, hour) => ({ hour, plays: 0 })) };
+const RANKINGS = { period: PERIOD, campaigns: [], devices: [], announcements: [] };
+
+describe("GET /analytics/hourly", () => {
+  beforeEach(() => {
+    adminHourly.mockReset();
+    adminHourly.mockResolvedValue(HOURLY);
+  });
+
+  it("usa 30 dias quando days está ausente e devolve as 24 horas", async () => {
+    const res = await get("/analytics/hourly");
+    expect(res.status).toBe(200);
+    expect(adminHourly).toHaveBeenCalledWith(30);
+    expect(res.body.hours).toHaveLength(24);
+  });
+
+  it("days inválido responde 400", async () => {
+    const res = await get("/analytics/hourly?days=1");
+    expect(res.status).toBe(400);
+    expect(adminHourly).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /analytics/rankings", () => {
+  beforeEach(() => {
+    adminRankings.mockReset();
+    adminRankings.mockResolvedValue(RANKINGS);
+  });
+
+  it("repassa days=90", async () => {
+    const res = await get("/analytics/rankings?days=90");
+    expect(res.status).toBe(200);
+    expect(adminRankings).toHaveBeenCalledWith(90);
+    expect(res.body).toEqual(RANKINGS);
+  });
+
+  it("days inválido responde 400", async () => {
+    const res = await get("/analytics/rankings?days=365");
+    expect(res.status).toBe(400);
+    expect(adminRankings).not.toHaveBeenCalled();
+  });
+});
