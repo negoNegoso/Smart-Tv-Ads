@@ -67,6 +67,7 @@ describe('OnlineDaysStrip', () => {
     expect(screen.getByText('Funcionou')).toBeInTheDocument();
     expect(screen.getByText('Parada')).toBeInTheDocument();
     expect(screen.getByText('Sem dados')).toBeInTheDocument();
+    expect(screen.getByText('Hoje (em andamento)')).toBeInTheDocument();
   });
 });
 

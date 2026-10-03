@@ -43,6 +43,7 @@ export function OnlineDaysStrip({ days }: { days: OnlineDay[] }) {
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-emerald-500" />Funcionou</span>
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-red-500" />Parada</span>
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-muted-foreground/35" />Sem dados</span>
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm outline-dashed outline-1 outline-foreground" />Hoje (em andamento)</span>
       </div>
     </div>
   );
