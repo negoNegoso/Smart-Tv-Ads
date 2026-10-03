@@ -13,6 +13,28 @@ export interface PortalCampaignRow {
   deviceCount: number; totalPlays: number; totalScans: number; uniqueVisitors: number;
 }
 
+/**
+ * Colunas que descrevem o alvo de uma campanha, no formato que
+ * `countReachedDevices` espera. Compartilhadas pela lista de campanhas e pelo
+ * relatório, para "TVs no alvo" sair da mesma conta nos dois.
+ */
+export const campaignTargetColumns = {
+  targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
+  deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+  segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
+  advertiserSegmentId: companiesTable.segmentId,
+  advertiserCompanyId: advertisersTable.companyId,
+};
+
+/** A rede inteira, no formato que `countReachedDevices` espera. */
+export async function loadNetwork() {
+  return db
+    .select({ id: devicesTable.id, companyId: clientsTable.companyId, segmentId: companiesTable.segmentId })
+    .from(devicesTable)
+    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
+    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId));
+}
+
 /** Campanhas dos anunciantes vinculados. NUNCA expõe contractValue. */
 export async function advertiserCampaigns(advertiserIds: number[], days: PortalDays): Promise<PortalCampaignRow[]> {
   if (advertiserIds.length === 0) return [];
@@ -38,11 +60,7 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
       startsAt: campaignsTable.startsAt,
       endsAt: campaignsTable.endsAt,
       isActive: campaignsTable.isActive,
-      targetMode: sql<"all" | "devices" | "segments">`${campaignsTable.targetMode}`,
-      deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
-      advertiserSegmentId: companiesTable.segmentId,
-      advertiserCompanyId: advertisersTable.companyId,
+      ...campaignTargetColumns,
       totalPlays: sql<number>`(select count(*)::int from ${playsTable} where ${playsInWindow})`,
       totalScans: sql<number>`(select count(*)::int from ${scansTable} where ${humanScansInWindow})`,
       uniqueVisitors: sql<number>`(select count(distinct ${scansTable.fingerprint})::int from ${scansTable} where ${humanScansInWindow})`,
@@ -56,11 +74,7 @@ export async function advertiserCampaigns(advertiserIds: number[], days: PortalD
   // A cobertura depende do alvo e da regra de concorrência, então é contada
   // sobre a rede inteira — não dá para tirar de `campaign_devices`, que só tem
   // linha no modo "TVs escolhidas".
-  const network = await db
-    .select({ id: devicesTable.id, companyId: clientsTable.companyId, segmentId: companiesTable.segmentId })
-    .from(devicesTable)
-    .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
-    .innerJoin(companiesTable, eq(companiesTable.id, clientsTable.companyId));
+  const network = await loadNetwork();
 
   return rows.map(({ targetMode, deviceIds, segmentIds, advertiserSegmentId, advertiserCompanyId, ...campaign }) => ({
     ...campaign,

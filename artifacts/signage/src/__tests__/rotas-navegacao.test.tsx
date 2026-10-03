@@ -89,6 +89,30 @@ describe('rotas do portal', () => {
     expect(await screen.findByRole('heading', { name: 'Minha conta' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/portal/conta');
   });
+
+  it('relatório de campanha com id inválido volta para o desempenho', async () => {
+    stubSessao({ roles: ['advertiser'] });
+    await abrir('/portal/anunciante/campanhas/abc');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/anunciante'));
+  });
+
+  it('cliente sem papel de anunciante não abre relatório de campanha', async () => {
+    stubSessao({ roles: ['client'] });
+    await abrir('/portal/anunciante/campanhas/4');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/tvs'));
+  });
+
+  it('relatório de TV com id inválido volta para Minhas TVs', async () => {
+    stubSessao({ roles: ['client'] });
+    await abrir('/portal/tvs/abc');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/tvs'));
+  });
+
+  it('anunciante sem papel de cliente não abre relatório de TV', async () => {
+    stubSessao({ roles: ['advertiser'] });
+    await abrir('/portal/tvs/2');
+    await waitFor(() => expect(window.location.pathname).toBe('/portal/anunciante'));
+  });
 });
 
 describe('rotas do admin', () => {

@@ -24,6 +24,13 @@ describe('PortalClient', () => {
     expect(screen.queryByText(/nenhuma tv/i)).not.toBeInTheDocument();
   });
 
+  it('o nome da TV abre o relatório dela', async () => {
+    stubPortalFetch([TV_RECEPCAO]);
+    renderPage();
+    const link = await screen.findByRole('link', { name: 'TV Recepção' });
+    expect(link).toHaveAttribute('href', `/portal/tvs/${TV_RECEPCAO.id}`);
+  });
+
   it('mostra a TV e o total do período', async () => {
     stubPortalFetch([TV_RECEPCAO]);
     renderPage();

@@ -28,6 +28,14 @@ vi.mock("../../lib/device-feed", () => ({
 }));
 // Os mocks abaixo só existem para o import de portal.ts não exigir banco —
 // ver as notas em portal-scope.test.ts.
+// portal.ts importa os relatórios, que puxam @workspace/db; este arquivo não
+// chega a essas rotas.
+vi.mock("../../lib/portal/reports", () => ({
+  campaignOwner: vi.fn(),
+  campaignReport: vi.fn(),
+  deviceOwner: vi.fn(),
+  deviceReport: vi.fn(),
+}));
 vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: vi.fn(),
   clientOverview: vi.fn(),
