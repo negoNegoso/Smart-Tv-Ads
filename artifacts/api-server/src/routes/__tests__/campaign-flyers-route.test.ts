@@ -318,4 +318,15 @@ describe("rotas de campanha convivendo com encartes", () => {
     expect(unpublishCampaignFlyersSpy).toHaveBeenCalledWith(CAMPAIGN_ID);
     expect(state.callLog).toEqual([`unpublish:${CAMPAIGN_ID}`, "delete-campaign"]);
   });
+
+  it("GET devolve companyId para o caminho da campanha apontar para a empresa", async () => {
+    const { advertisersTable } = await import("@workspace/db/schema");
+    const { default: request } = await import("supertest");
+    const res = await request(app).get(`/campaigns/${CAMPAIGN_ID}`);
+    expect(res.status).toBe(200);
+    // A coluna selecionada é o que importa: o fake de banco devolve a linha
+    // pronta, então o que prova o campo é campaignWithStats pedir a coluna.
+    const cols = state.lastJoinedCampaignCols as Record<string, unknown>;
+    expect(cols.companyId).toBe(advertisersTable.companyId);
+  });
 });

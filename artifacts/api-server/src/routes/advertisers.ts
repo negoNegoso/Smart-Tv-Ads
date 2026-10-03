@@ -137,6 +137,10 @@ async function syncAnnouncementDestinations(campaignId: number, destinations: Re
 const campaignSelection = {
   id: campaignsTable.id,
   advertiserId: campaignsTable.advertiserId,
+  // O caminho da página da campanha (Empresas › empresa › campanha) aponta
+  // direto para /companies/:id; sem isso o link passava pela rota legada
+  // /advertisers/:id, que só redireciona.
+  companyId: advertisersTable.companyId,
   advertiserName: companiesTable.name,
   company: advertisersTable.company,
   deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id order by cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
