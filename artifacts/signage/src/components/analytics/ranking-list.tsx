@@ -21,7 +21,7 @@ export function RankingList({ items }: { items: RankingItem[] }) {
     <ol className="space-y-3">
       {items.map((item) => (
         <li key={item.key}>
-          <Link href={item.href} className="block rounded-md p-1 hover:bg-muted/40">
+          <Link href={item.href} className="block rounded-md p-1 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0 truncate font-medium">{item.label}</span>
               <span className="shrink-0 tabular-nums">{item.value.toLocaleString('pt-BR')}</span>
