@@ -11,26 +11,19 @@ import {
   playsTable,
   scansTable,
 } from "@workspace/db";
-import { BUSINESS_TIME_ZONE } from "../ad-eligibility";
 import { isOnlineAt } from "../device-presence";
 import { scanRate } from "../scan-rate";
 import {
-  businessDayKey,
   portalPeriod,
   previousPortalPeriod,
   type PortalDays,
   type PortalPeriod,
 } from "../portal/period";
-import { dailyAvailability, nextDayKey } from "./availability";
+import { hourOfDaySql, dayKeySql } from "../sql-time";
+import { dailyAvailability } from "./availability";
+import { historyStartKey } from "./history";
 import { fillHours, type HourPoint } from "./hours";
 import { overviewSeries, type AnalyticsDayPoint } from "./series";
-
-/**
- * Data local do negócio dentro do SQL. Só no SELECT e no GROUP BY; o WHERE
- * filtra pelo timestamp cru para usar os índices por `created_at`.
- */
-const DAY_KEY = (column: unknown) =>
-  sql<string>`to_char((${column} AT TIME ZONE ${sql.raw(`'${BUSINESS_TIME_ZONE}'`)})::date, 'YYYY-MM-DD')`;
 
 /** Scans de gente. */
 const HUMAN_SCAN = eq(scansTable.isBot, false);
@@ -99,16 +92,16 @@ export async function adminOverview(days: PortalDays, now: Date = new Date()): P
   const [current, before] = await Promise.all([overviewTotals(period), overviewTotals(previous)]);
 
   const playRows = await db
-    .select({ day: DAY_KEY(playsTable.createdAt), plays: sql<number>`COUNT(*)::int` })
+    .select({ day: dayKeySql(playsTable.createdAt), plays: sql<number>`COUNT(*)::int` })
     .from(playsTable)
     .where(playsIn(period))
-    .groupBy(DAY_KEY(playsTable.createdAt));
+    .groupBy(dayKeySql(playsTable.createdAt));
 
   const scanRows = await db
-    .select({ day: DAY_KEY(scansTable.createdAt), scans: sql<number>`COUNT(*)::int` })
+    .select({ day: dayKeySql(scansTable.createdAt), scans: sql<number>`COUNT(*)::int` })
     .from(scansTable)
     .where(humanScansIn(period))
-    .groupBy(DAY_KEY(scansTable.createdAt));
+    .groupBy(dayKeySql(scansTable.createdAt));
 
   const devices = await db
     .select({ id: devicesTable.id, createdAt: devicesTable.createdAt, lastSeenAt: devicesTable.lastSeenAt })
@@ -125,19 +118,11 @@ export async function adminOverview(days: PortalDays, now: Date = new Date()): P
     .from(deviceSessionsTable)
     .where(and(lt(deviceSessionsTable.startedAt, period.to), gte(deviceSessionsTable.lastSeenAt, period.from)));
 
-  // Começo do histórico: o dia SEGUINTE ao dia local da sessão mais antiga.
-  // A gravação começou no meio desse dia, então ele é parcial e mostraria uma
-  // queda falsa; tratamos como "sem dados", assim como os dias anteriores.
-  const [first] = await db
-    .select({ startedAt: sql<string | Date | null>`MIN(${deviceSessionsTable.startedAt})` })
-    .from(deviceSessionsTable);
-  const historyStartKey = first?.startedAt
-    ? nextDayKey(businessDayKey(new Date(first.startedAt)))
-    : null;
+  const historyStart = await historyStartKey();
 
   const [clients] = await db.select({ n: sql<number>`COUNT(*)::int` }).from(clientsTable);
 
-  const availability = dailyAvailability(period.keys, sessions, devices, historyStartKey);
+  const availability = dailyAvailability(period.keys, sessions, devices, historyStart);
 
   return {
     period: periodInfo(period),
@@ -153,10 +138,7 @@ export async function adminOverview(days: PortalDays, now: Date = new Date()): P
 
 const RANKING_SIZE = 10;
 
-/** Hora local do negócio, 0–23. */
-const HOUR_OF_DAY = sql<number>`EXTRACT(HOUR FROM (${playsTable.createdAt} AT TIME ZONE ${sql.raw(
-  `'${BUSINESS_TIME_ZONE}'`,
-)}))::int`;
+const HOUR_OF_DAY = hourOfDaySql(playsTable.createdAt);
 
 export async function adminHourly(
   days: PortalDays,
