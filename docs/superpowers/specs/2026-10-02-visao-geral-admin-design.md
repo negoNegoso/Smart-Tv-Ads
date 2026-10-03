@@ -53,8 +53,12 @@ De cima para baixo; no celular tudo empilha em uma coluna.
    - de agora, sem delta: TVs online agora ("12 de 14"), Clientes.
 3. **Exibições e scans por dia** — `TrendChart` com eixo duplo, igual ao
    portal.
-4. **TVs que funcionaram por dia** — barras "X de Y TVs". Dia sem histórico
-   (`activeDevices: null`) vira barra cinza com rótulo "sem dados". Tooltip:
+4. **TVs que funcionaram por dia** — barras empilhadas "X de Y TVs": TVs que
+   funcionaram e TVs paradas (`totalDevices − activeDevices`, em cor de
+   alerta). Dia sem histórico (`activeDevices: null`) vira barra cinza com
+   rótulo "sem dados". O dia de hoje está em andamento (as TVs desligam fora do
+   horário da loja): barra mais clara, tooltip "hoje (até agora)" e aviso
+   "A barra de hoje está em andamento." Tooltip dos outros dias:
    "X de Y TVs · N exibições".
 5. **Exibições por horário** — barras de 0h a 23h, horário de São Paulo.
 6. **Rankings**, lado a lado no desktop:
@@ -198,7 +202,7 @@ vêm os dados:
 
 | Arquivo | Contrato |
 |---|---|
-| `availability-chart.tsx` | Recebe a série do overview. Barras `activeDevices` de `totalDevices`; `null` vira barra cinza "sem dados"; tooltip com exibições do dia |
+| `availability-chart.tsx` | Recebe a série do overview. Barras empilhadas: funcionaram, paradas (`totalDevices − activeDevices`) e "sem dados" (cinza, altura total) quando `activeDevices` é `null`; o último dia (hoje) sai mais claro, com tooltip "hoje (até agora)"; tooltip com exibições do dia |
 | `hourly-chart.tsx` | Recebe os 24 pontos. Barras 0h–23h |
 | `ranking-list.tsx` | Recebe `{ key, label, sublabel, value, href }[]`. Barras horizontais em CSS (largura proporcional ao maior valor), cada linha um link de verdade — Recharts não faz link acessível. Serve campanhas e TVs |
 | `announcements-table.tsx` | Tabela de peças com a nota sobre scan |
