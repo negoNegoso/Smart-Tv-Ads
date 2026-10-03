@@ -801,19 +801,6 @@ paths:
           description: Device not found
 
   # ── Analytics ────────────────────────────────────────────────────────────────
-  /analytics/summary:
-    get:
-      operationId: getAnalyticsSummary
-      tags: [analytics]
-      summary: Overall platform analytics
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AnalyticsSummary"
-
   /analytics/overview:
     get:
       operationId: getAnalyticsOverview
@@ -1884,21 +1871,6 @@ components:
         totalDuration: { type: integer }
         scans: { type: integer }
         scanRate: { type: number }
-
-    AnalyticsSummary:
-      type: object
-      required: [totalClients, totalDevices, totalPlays, totalDuration]
-      properties:
-        totalClients: { type: integer }
-        totalDevices: { type: integer }
-        totalPlays: { type: integer }
-        totalDuration: { type: integer }
-        totalScans: { type: integer }
-        totalUniqueScans: { type: integer }
-        topAnnouncements:
-          type: array
-          items:
-            $ref: "#/components/schemas/AnnouncementPlayStat"
 
     AnalyticsPeriod:
       type: object

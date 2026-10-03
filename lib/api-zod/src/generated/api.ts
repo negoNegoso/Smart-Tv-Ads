@@ -1046,27 +1046,6 @@ export const RecordPlaysResponse = zod.object({
 
 
 /**
- * @summary Overall platform analytics
- */
-export const GetAnalyticsSummaryResponse = zod.object({
-  "totalClients": zod.number(),
-  "totalDevices": zod.number(),
-  "totalPlays": zod.number(),
-  "totalDuration": zod.number(),
-  "totalScans": zod.number().optional(),
-  "totalUniqueScans": zod.number().optional(),
-  "topAnnouncements": zod.array(zod.object({
-  "announcementId": zod.number(),
-  "title": zod.string(),
-  "plays": zod.number(),
-  "totalDuration": zod.number(),
-  "scans": zod.number().optional(),
-  "scanRate": zod.number().optional()
-})).optional()
-})
-
-
-/**
  * @summary Visão geral da rede no período — cards, série diária e TVs que funcionaram
  */
 export const GetAnalyticsOverviewQueryParams = zod.object({

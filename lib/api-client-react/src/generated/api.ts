@@ -23,7 +23,6 @@ import type {
   AnalyticsHourly,
   AnalyticsOverview,
   AnalyticsRankings,
-  AnalyticsSummary,
   Announcement,
   AnnouncementAnalytics,
   AnnouncementInput,
@@ -3466,83 +3465,6 @@ export const useRecordPlays = <TError = ErrorType<void>,
       > => {
       return useMutation(getRecordPlaysMutationOptions(options));
     }
-
-export const getGetAnalyticsSummaryUrl = () => {
-
-
-
-
-  return `/api/analytics/summary`
-}
-
-/**
- * @summary Overall platform analytics
- */
-export const getAnalyticsSummary = async ( options?: RequestInit): Promise<AnalyticsSummary> => {
-
-  return customFetch<AnalyticsSummary>(getGetAnalyticsSummaryUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetAnalyticsSummaryQueryKey = () => {
-    return [
-    `/api/analytics/summary`
-    ] as const;
-    }
-
-
-export const getGetAnalyticsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsSummaryQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsSummary>>> = ({ signal }) => getAnalyticsSummary({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetAnalyticsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsSummary>>>
-export type GetAnalyticsSummaryQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Overall platform analytics
- */
-
-export function useGetAnalyticsSummary<TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetAnalyticsSummaryQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getGetAnalyticsOverviewUrl = (params?: GetAnalyticsOverviewParams,) => {
   const normalizedParams = new URLSearchParams();

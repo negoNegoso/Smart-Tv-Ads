@@ -543,16 +543,6 @@ export interface VitrinePlaysInput {
   plays: PlayBatchItem[];
 }
 
-export interface AnalyticsSummary {
-  totalClients: number;
-  totalDevices: number;
-  totalPlays: number;
-  totalDuration: number;
-  totalScans?: number;
-  totalUniqueScans?: number;
-  topAnnouncements?: AnnouncementPlayStat[];
-}
-
 export type AnalyticsPeriodDays = typeof AnalyticsPeriodDays[keyof typeof AnalyticsPeriodDays];
 
 

@@ -18,7 +18,6 @@ export * from './analyticsOverviewTotals';
 export * from './analyticsPeriod';
 export * from './analyticsPeriodDays';
 export * from './analyticsRankings';
-export * from './analyticsSummary';
 export * from './analyticsTotals';
 export * from './announcement';
 export * from './announcementAnalytics';

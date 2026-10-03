@@ -16,7 +16,6 @@ import {
   GetAnalyticsHourlyResponse,
   GetAnalyticsOverviewResponse,
   GetAnalyticsRankingsResponse,
-  GetAnalyticsSummaryResponse,
   GetClientAnalyticsParams,
   GetClientAnalyticsResponse,
   GetDeviceAnalyticsParams,
@@ -47,59 +46,6 @@ async function scanTotals(where?: SQL) {
     .where(where);
   return { totalScans: row?.totalScans ?? 0, totalUniqueScans: row?.totalUniqueScans ?? 0 };
 }
-
-// Overall summary
-router.get("/analytics/summary", async (_req, res): Promise<void> => {
-  const [counts] = await db
-    .select({
-      totalClients: sql<number>`(SELECT COUNT(*)::int FROM ${clientsTable})`,
-      totalDevices: sql<number>`(SELECT COUNT(*)::int FROM ${devicesTable})`,
-      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
-    })
-    .from(playsTable);
-
-  const topAnnouncements = await db
-    .select({
-      announcementId: playsTable.announcementId,
-      title: announcementsTable.title,
-      plays: sql<number>`COUNT(${playsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
-    })
-    .from(playsTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
-    .groupBy(playsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${playsTable.id})`))
-    .limit(10);
-
-  const scanCounts = await scanTotals();
-
-  const scansByAnnouncement = await db
-    .select({
-      announcementId: scansTable.announcementId,
-      scans: sql<number>`COUNT(*)::int`,
-    })
-    .from(scansTable)
-    .where(eq(scansTable.isBot, false))
-    .groupBy(scansTable.announcementId);
-
-  const scansMap = new Map(scansByAnnouncement.map((row) => [row.announcementId, row.scans]));
-
-  res.json(
-    GetAnalyticsSummaryResponse.parse({
-      totalClients: counts?.totalClients ?? 0,
-      totalDevices: counts?.totalDevices ?? 0,
-      totalPlays: counts?.totalPlays ?? 0,
-      totalDuration: counts?.totalDuration ?? 0,
-      totalScans: scanCounts.totalScans,
-      totalUniqueScans: scanCounts.totalUniqueScans,
-      topAnnouncements: topAnnouncements.map((item) => {
-        const scans = scansMap.get(item.announcementId) ?? 0;
-        return { ...item, scans, scanRate: scanRate(scans, item.plays) };
-      }),
-    })
-  );
-});
 
 /**
  * Resolve o período pedido ou responde 400. Mesmo enum fechado do portal:
