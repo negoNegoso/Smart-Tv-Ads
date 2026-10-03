@@ -14,6 +14,14 @@ const clientDevices = vi.fn();
 vi.mock("../../lib/auth/user-store", () => ({
   loadAuthContext: (...a: unknown[]) => loadAuthContext(...a),
 }));
+// portal.ts importa os relatórios, que puxam @workspace/db; este arquivo não
+// chega a essas rotas.
+vi.mock("../../lib/portal/reports", () => ({
+  campaignOwner: vi.fn(),
+  campaignReport: vi.fn(),
+  deviceOwner: vi.fn(),
+  deviceReport: vi.fn(),
+}));
 vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: (...a: unknown[]) => advertiserOverview(...a),
   clientOverview: (...a: unknown[]) => clientOverview(...a),

@@ -27,6 +27,12 @@ vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: vi.fn(),
   clientOverview: vi.fn(),
 }));
+// portal.ts importa os relatórios, que puxam @workspace/db. Este arquivo só
+// testa o escopo das rotas de lista; mockar evita exigir DATABASE_URL no import.
+vi.mock("../../lib/portal/reports", () => ({
+  campaignOwner: vi.fn(),
+  campaignReport: vi.fn(),
+}));
 // portal.ts também monta panels.ts, que puxa lib/panels/queries e por tabela
 // @workspace/db. Este arquivo nunca chega às rotas de painéis — mockar evita
 // o mesmo problema de precisar de DATABASE_URL só para o import não falhar.

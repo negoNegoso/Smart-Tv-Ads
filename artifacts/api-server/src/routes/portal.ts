@@ -5,6 +5,7 @@ import { advertiserCampaigns, clientDevices, clientsOf, previewDevice } from "..
 import { loadDeviceSlides } from "../lib/device-feed";
 import { advertiserOverview, clientOverview } from "../lib/portal/overview";
 import { parseDays, type PortalDays } from "../lib/portal/period";
+import { campaignOwner, campaignReport } from "../lib/portal/reports";
 import panelsRouter from "./panels";
 
 const router: IRouter = Router();
@@ -44,6 +45,31 @@ router.get("/advertiser/overview", requireAdvertiser, async (req, res) => {
   const days = resolvePeriod(req, res);
   if (days === null) return;
   res.json(await advertiserOverview(advertiserScope(req), days));
+});
+
+/**
+ * Comprovante de uma campanha. O dono é conferido antes de calcular qualquer
+ * coisa: campanha de outro anunciante responde igual a inexistente, para não
+ * confirmar que ela existe nem vazar loja, peça ou volume de outro cliente.
+ */
+router.get("/advertiser/campaigns/:id/report", requireAdvertiser, async (req, res) => {
+  const campaignId = Number(req.params.id);
+  if (!Number.isInteger(campaignId) || campaignId <= 0) {
+    res.status(400).json({ error: "Campanha inválida." });
+    return;
+  }
+  const scope = advertiserScope(req);
+  const owner = scope.length === 0 ? null : await campaignOwner(campaignId);
+  if (owner === null || !scope.includes(owner)) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  const report = await campaignReport(campaignId);
+  if (!report) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  res.json(report);
 });
 
 /**

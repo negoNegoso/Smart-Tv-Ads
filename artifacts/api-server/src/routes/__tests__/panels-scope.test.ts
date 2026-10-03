@@ -62,6 +62,14 @@ vi.mock("../../lib/portal/queries", () => ({
   advertiserCampaigns: vi.fn(),
   clientDevices: vi.fn(),
 }));
+// portal.ts importa os relatórios, que puxam @workspace/db; este arquivo não
+// chega a essas rotas.
+vi.mock("../../lib/portal/reports", () => ({
+  campaignOwner: vi.fn(),
+  campaignReport: vi.fn(),
+  deviceOwner: vi.fn(),
+  deviceReport: vi.fn(),
+}));
 vi.mock("../../lib/portal/overview", () => ({
   advertiserOverview: vi.fn(),
   clientOverview: vi.fn(),
