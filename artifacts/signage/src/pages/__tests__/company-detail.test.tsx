@@ -31,6 +31,13 @@ function renderView(company: Record<string, unknown>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('CompanyDetailView', () => {
+  it('mostra o caminho de volta para Empresas', async () => {
+    renderView(BASE);
+    await screen.findByRole('heading', { name: 'Padaria Central' });
+    const caminho = screen.getByRole('navigation', { name: 'breadcrumb' });
+    expect(caminho.querySelector('a')).toHaveAttribute('href', '/companies');
+  });
+
   it('mostra endereço, observações e só a aba de TVs para cliente', async () => {
     renderView(BASE);
     expect(await screen.findByRole('heading', { name: 'Padaria Central' })).toBeInTheDocument();

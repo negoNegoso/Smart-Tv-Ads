@@ -117,6 +117,15 @@ function stubTv(device: typeof DEVICE, anuncios: unknown[], patches: unknown[] =
 afterEach(() => vi.unstubAllGlobals());
 
 describe('orientação da TV', () => {
+  it('mostra o caminho a partir do Parque de TVs', async () => {
+    stubTv(DEVICE, []);
+    renderPagina();
+    await screen.findByRole('heading', { name: DEVICE.name });
+    const caminho = screen.getByRole('navigation', { name: 'breadcrumb' });
+    expect(caminho.querySelector('a')).toHaveAttribute('href', '/parque');
+    expect(caminho).toHaveTextContent(DEVICE.name);
+  });
+
   it('trocar para retrato envia o PATCH com a orientação', async () => {
     const patches: unknown[] = [];
     stubTv(DEVICE, [ANUNCIO], patches);

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useRoute } from 'wouter';
-import { ArrowLeft, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Pencil, Trash2 } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -107,9 +108,7 @@ export function CompanyDetailView({ companyId }: { companyId: number }) {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
-      <Link href="/companies">
-        <Button variant="ghost" size="sm" className="-ml-2 mb-6 text-muted-foreground"><ArrowLeft className="mr-1 h-4 w-4" />Empresas</Button>
-      </Link>
+      <PageHeader trail={[{ label: 'Empresas', href: '/companies' }, { label: company.name }]} />
 
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="min-w-0">

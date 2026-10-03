@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useRoute, Link } from 'wouter';
-import { ArrowLeft, Monitor, MapPin, Copy, Check, GripVertical, Trash2, Plus, Power, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Monitor, MapPin, Copy, Check, GripVertical, Trash2, Plus, Power, Loader2, Image as ImageIcon } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -36,6 +36,7 @@ import {
   getGetDevicePreviewQueryKey,
 } from '@workspace/api-client-react';
 import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientation';
+import { PageHeader } from '@/components/page-header';
 import { DevicePreview } from '@/components/device-preview';
 import { DeviceMusicField } from '@/components/device-music-field';
 import { DeviceConnectionHistory } from '@/components/device-connection-history';
@@ -486,12 +487,7 @@ export default function DeviceDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <Link href={`/clients/${device.clientId}`}>
-        <Button variant="ghost" size="sm" className="mb-6 text-muted-foreground -ml-2">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          {device.clientName}
-        </Button>
-      </Link>
+      <PageHeader trail={[{ label: 'Parque de TVs', href: '/parque' }, { label: device.name }]} />
 
       <div className="flex items-start gap-4 mb-6">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
