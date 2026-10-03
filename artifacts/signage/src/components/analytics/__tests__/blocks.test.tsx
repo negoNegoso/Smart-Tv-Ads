@@ -23,7 +23,25 @@ describe('availabilityRows', () => {
   });
 });
 
+describe('availabilityRows (parcial e paradas)', () => {
+  it('marca como parcial só o último ponto da série', () => {
+    const rows = availabilityRows([dia('2026-09-10', 3, 4), dia('2026-09-11', 2, 4), dia('2026-09-12', 0, 4)]);
+    expect(rows.map((row) => row.partial)).toEqual([false, false, true]);
+  });
+
+  it('paradas é total menos ativas; dia sem dados tem 0', () => {
+    const rows = availabilityRows([dia('2026-09-10', null, 4), dia('2026-09-11', 3, 4)]);
+    expect(rows[0].paradas).toBe(0);
+    expect(rows[1].paradas).toBe(1);
+  });
+});
+
 describe('AvailabilityChart', () => {
+  it('avisa que a barra de hoje está em andamento', () => {
+    render(<AvailabilityChart series={[dia('2026-09-11', 3, 4)]} />);
+    expect(screen.getByText('A barra de hoje está em andamento.')).toBeInTheDocument();
+  });
+
   it('avisa desde quando há histórico quando existe dia sem dados', () => {
     render(<AvailabilityChart series={[dia('2026-09-10', null, 4), dia('2026-09-11', 3, 4)]} />);
     expect(screen.getByText(/sem dados/i)).toHaveTextContent('11/09');
