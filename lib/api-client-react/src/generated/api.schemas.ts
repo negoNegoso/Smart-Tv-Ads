@@ -553,6 +553,102 @@ export interface AnalyticsSummary {
   topAnnouncements?: AnnouncementPlayStat[];
 }
 
+export type AnalyticsPeriodDays = typeof AnalyticsPeriodDays[keyof typeof AnalyticsPeriodDays];
+
+
+export const AnalyticsPeriodDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export interface AnalyticsPeriod {
+  days: AnalyticsPeriodDays;
+  /** Primeiro dia (YYYY-MM-DD, horário de São Paulo) */
+  from: string;
+  /** Último dia (YYYY-MM-DD) */
+  to: string;
+}
+
+export interface AnalyticsTotals {
+  plays: number;
+  durationSeconds: number;
+  scans: number;
+  uniqueVisitors: number;
+  scanRate: number;
+}
+
+export interface AnalyticsOverviewTotals {
+  plays: number;
+  durationSeconds: number;
+  scans: number;
+  uniqueVisitors: number;
+  scanRate: number;
+  previous: AnalyticsTotals;
+}
+
+export interface AnalyticsNow {
+  devices: number;
+  devicesOnline: number;
+  clients: number;
+}
+
+export interface AnalyticsDay {
+  date: string;
+  plays: number;
+  scans: number;
+  /** TVs que se conectaram no dia; nulo antes do começo do histórico */
+  activeDevices: number | null;
+  totalDevices: number;
+}
+
+export interface AnalyticsOverview {
+  period: AnalyticsPeriod;
+  totals: AnalyticsOverviewTotals;
+  now: AnalyticsNow;
+  series: AnalyticsDay[];
+}
+
+export interface AnalyticsHour {
+  hour: number;
+  plays: number;
+}
+
+export interface AnalyticsHourly {
+  period: AnalyticsPeriod;
+  hours: AnalyticsHour[];
+}
+
+export interface AnalyticsCampaignRank {
+  campaignId: number;
+  name: string;
+  advertiserName: string;
+  plays: number;
+}
+
+export interface AnalyticsDeviceRank {
+  deviceId: number;
+  name: string;
+  clientName: string;
+  plays: number;
+}
+
+export interface AnalyticsAnnouncementRank {
+  announcementId: number;
+  title: string;
+  plays: number;
+  scans: number;
+  scanRate: number;
+  durationSeconds: number;
+}
+
+export interface AnalyticsRankings {
+  period: AnalyticsPeriod;
+  campaigns: AnalyticsCampaignRank[];
+  devices: AnalyticsDeviceRank[];
+  announcements: AnalyticsAnnouncementRank[];
+}
+
 export interface ClientAnalytics {
   clientId: number;
   clientName: string;
@@ -950,6 +1046,45 @@ export const ListCompaniesRole = {
 export type ListDevicesParams = {
 clientId?: number;
 };
+
+export type GetAnalyticsOverviewParams = {
+days?: GetAnalyticsOverviewDays;
+};
+
+export type GetAnalyticsOverviewDays = typeof GetAnalyticsOverviewDays[keyof typeof GetAnalyticsOverviewDays];
+
+
+export const GetAnalyticsOverviewDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export type GetAnalyticsHourlyParams = {
+days?: GetAnalyticsHourlyDays;
+};
+
+export type GetAnalyticsHourlyDays = typeof GetAnalyticsHourlyDays[keyof typeof GetAnalyticsHourlyDays];
+
+
+export const GetAnalyticsHourlyDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
+
+export type GetAnalyticsRankingsParams = {
+days?: GetAnalyticsRankingsDays;
+};
+
+export type GetAnalyticsRankingsDays = typeof GetAnalyticsRankingsDays[keyof typeof GetAnalyticsRankingsDays];
+
+
+export const GetAnalyticsRankingsDays = {
+  NUMBER_7: 7,
+  NUMBER_30: 30,
+  NUMBER_90: 90,
+} as const;
 
 export type ResetUserPassword200 = {
   ok: boolean;
