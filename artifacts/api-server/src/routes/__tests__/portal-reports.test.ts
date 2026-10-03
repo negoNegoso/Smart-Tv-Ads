@@ -76,6 +76,15 @@ describe("GET /portal/advertiser/campaigns/:id/report", () => {
     expect(campaignReport).not.toHaveBeenCalled();
   });
 
+  // Admin do env não tem usuário no banco: escopo vazio, então nem consulta o dono.
+  it("admin do env (escopo vazio) responde 404 sem consultar dono nem calcular", async () => {
+    const res = await get("/portal/advertiser/campaigns/5/report", "admin");
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Campaign not found" });
+    expect(campaignOwner).not.toHaveBeenCalled();
+    expect(campaignReport).not.toHaveBeenCalled();
+  });
+
   it("campanha do anunciante devolve o relatório", async () => {
     loadAuthContext.mockResolvedValue(advCtx);
     campaignOwner.mockResolvedValue(9);
@@ -108,6 +117,14 @@ describe("GET /portal/client/devices/:id/report", () => {
     const res = await get("/portal/client/devices/2/report", "8");
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "Device not found" });
+    expect(deviceReport).not.toHaveBeenCalled();
+  });
+
+  it("admin do env (escopo vazio) responde 404 sem consultar dono nem calcular", async () => {
+    const res = await get("/portal/client/devices/2/report", "admin");
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "Device not found" });
+    expect(deviceOwner).not.toHaveBeenCalled();
     expect(deviceReport).not.toHaveBeenCalled();
   });
 
