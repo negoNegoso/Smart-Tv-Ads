@@ -164,7 +164,7 @@ function PortalSwitch({ me }: { me: Me }) {
   const [view, setView] = useState<'advertiser' | 'client'>(isAdv ? 'advertiser' : 'client');
 
   return (
-    <PortalShell>
+    <PortalShell roles={me.roles}>
       {isAdv && isClient ? (
         <div className="mb-4 flex gap-2 border-b">
           <button
