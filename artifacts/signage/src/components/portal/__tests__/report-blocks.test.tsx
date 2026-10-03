@@ -19,8 +19,8 @@ describe('WherePlayedTable', () => {
     expect(linha).toHaveTextContent('Balcão');
     expect(linha).toHaveTextContent('Entrada');
     expect(linha).toHaveTextContent('1.240');
-    expect(linha.textContent).toMatch(/01\/09.*08:02/);
-    expect(linha.textContent).toMatch(/30\/09.*18:40/);
+    expect(linha.textContent).toMatch(/01\/09\/26.*08:02/);
+    expect(linha.textContent).toMatch(/30\/09\/26.*18:40/);
   });
 
   it('sem local mostra traço; vazio mostra o aviso', () => {
