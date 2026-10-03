@@ -21,7 +21,7 @@ import {
   type PortalDays,
   type PortalPeriod,
 } from "../portal/period";
-import { dailyAvailability } from "./availability";
+import { dailyAvailability, nextDayKey } from "./availability";
 import { fillHours, type HourPoint } from "./hours";
 import { overviewSeries, type AnalyticsDayPoint } from "./series";
 
@@ -125,11 +125,15 @@ export async function adminOverview(days: PortalDays, now: Date = new Date()): P
     .from(deviceSessionsTable)
     .where(and(lt(deviceSessionsTable.startedAt, period.to), gte(deviceSessionsTable.lastSeenAt, period.from)));
 
-  // Começo do histórico: a sessão mais antiga guardada. Antes dela, "sem dados".
+  // Começo do histórico: o dia SEGUINTE ao dia local da sessão mais antiga.
+  // A gravação começou no meio desse dia, então ele é parcial e mostraria uma
+  // queda falsa; tratamos como "sem dados", assim como os dias anteriores.
   const [first] = await db
     .select({ startedAt: sql<string | Date | null>`MIN(${deviceSessionsTable.startedAt})` })
     .from(deviceSessionsTable);
-  const historyStartKey = first?.startedAt ? businessDayKey(new Date(first.startedAt)) : null;
+  const historyStartKey = first?.startedAt
+    ? nextDayKey(businessDayKey(new Date(first.startedAt)))
+    : null;
 
   const [clients] = await db.select({ n: sql<number>`COUNT(*)::int` }).from(clientsTable);
 

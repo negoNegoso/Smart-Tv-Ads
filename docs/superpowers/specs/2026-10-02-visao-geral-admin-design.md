@@ -109,7 +109,8 @@ Regras comuns:
   toca o dia — `started_at` antes do fim do dia e `last_seen_at` a partir do
   começo dele. Sessão que atravessa a meia-noite conta nos dois dias.
 - **`activeDevices: null`** quando o dia é anterior ao começo do histórico:
-  o dia local da sessão mais antiga da tabela. Sem nenhuma sessão, todos os
+  o dia seguinte ao dia local da sessão mais antiga da tabela — o primeiro
+  dia é parcial (a gravação começou no meio dele). Sem nenhuma sessão, todos os
   dias são `null`. A tela mostra "sem dados", nunca zero — zero diria que a
   rede inteira caiu.
 - **`totalDevices`**: TVs com `created_at` antes do fim do dia. TV instalada
@@ -179,8 +180,10 @@ histórico aparecem como "sem dados".
 ## Índices
 
 Os índices de `plays` (`created_at`, `campaign_id + created_at`,
-`device_id + created_at`) e de `scans` (`campaign_id + created_at`,
-`announcement_id + created_at`) cobrem as consultas por janela.
+`device_id + created_at`) cobrem as consultas por janela. `scans` tem
+índices por `campaign_id + created_at` e `announcement_id + created_at`, mas
+nenhum começa por `created_at`: as consultas de total e de série de scans
+fazem varredura sequencial em `scans`, aceitável enquanto a tabela é pequena.
 `device_sessions` tem uma linha por queda de conexão; o índice
 `(device_id, last_seen_at)` basta. Nenhuma migration.
 
