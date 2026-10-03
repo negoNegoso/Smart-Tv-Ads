@@ -42,6 +42,18 @@ describe('Relatório da campanha', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('api/portal/advertiser/campaigns/4/report');
   });
 
+  it('campanha no período mas inativa aparece como pausada, não no ar', async () => {
+    stub({
+      ...REPORT,
+      campaign: { ...REPORT.campaign, status: 'no_ar', isActive: false },
+      period: { from: '2026-09-01', to: '2026-09-15' },
+    });
+    renderPage();
+    expect(await screen.findByText('Pausada')).toBeInTheDocument();
+    expect(screen.getByText('desde 01/09/2026 · pausada')).toBeInTheDocument();
+    expect(screen.queryByText('No ar')).not.toBeInTheDocument();
+  });
+
   it('mostra a prova de veiculação: período, cards e onde passou', async () => {
     stub(REPORT);
     renderPage();

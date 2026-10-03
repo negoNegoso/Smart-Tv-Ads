@@ -83,9 +83,11 @@ export default function PortalCampaignReport({ id }: { id: number }) {
   if (!report.data) return <Skeleton className="h-96 w-full rounded-xl" />;
 
   const { campaign, period, totals } = report.data;
+  // O status vem só das datas; campanha inativa dentro do período não toca nas TVs.
+  const pausada = campaign.status === 'no_ar' && !campaign.isActive;
   const periodText =
     campaign.status === 'no_ar'
-      ? `desde ${fullDate(period.from)} · no ar`
+      ? `desde ${fullDate(period.from)} · ${pausada ? 'pausada' : 'no ar'}`
       : `${fullDate(period.from)} a ${fullDate(period.to)}`;
 
   return (
@@ -100,7 +102,9 @@ export default function PortalCampaignReport({ id }: { id: number }) {
           <h1 className="text-2xl font-semibold print:hidden">{campaign.name}</h1>
           <p className="text-sm text-muted-foreground">{periodText}</p>
         </div>
-        <Badge variant={campaign.status === 'no_ar' ? 'default' : 'secondary'}>{STATUS[campaign.status]}</Badge>
+        <Badge variant={campaign.status === 'no_ar' && !pausada ? 'default' : 'secondary'}>
+          {pausada ? 'Pausada' : STATUS[campaign.status]}
+        </Badge>
         <Button variant="outline" size="sm" className="ml-auto print:hidden" onClick={() => window.print()}>
           Imprimir / PDF
         </Button>
