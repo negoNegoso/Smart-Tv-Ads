@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
-import { ArrowLeft, CalendarDays, Check, DollarSign, Image as ImageIcon, Monitor, Pencil, Plus, Radio, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { CalendarDays, Check, DollarSign, Image as ImageIcon, Monitor, Pencil, Plus, Radio, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ type AnnouncementLink = { announcementId: number; title: string; imageUrl: strin
 type Campaign = {
   id: number;
   advertiserId: number;
+  companyId: number;
   advertiserName: string;
   company: string | null;
   name: string;
@@ -164,7 +166,7 @@ export default function CampaignDetail() {
     if (!window.confirm(`Excluir a campanha "${data.name}"?`)) return;
     await fetch(api(`/campaigns/${data.id}`), { method: "DELETE" });
     toast({ title: "Campanha removida" });
-    navigate(`/advertisers/${data.advertiserId}`);
+    navigate(`/companies/${data.companyId}`);
   }
 
   if (loading) return <div className="container mx-auto max-w-4xl px-4 py-8 text-sm text-muted-foreground">Carregando...</div>;
@@ -174,7 +176,13 @@ export default function CampaignDetail() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
-      <Link href={`/advertisers/${data.advertiserId}`}><Button variant="ghost" size="sm" className="-ml-2 mb-6"><ArrowLeft className="mr-1 h-4 w-4" />{data.company || data.advertiserName}</Button></Link>
+      <PageHeader
+        trail={[
+          { label: 'Empresas', href: '/companies' },
+          { label: data.advertiserName, href: `/companies/${data.companyId}` },
+          { label: data.name },
+        ]}
+      />
 
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="flex flex-1 items-center gap-3">

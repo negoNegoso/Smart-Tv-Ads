@@ -40,7 +40,7 @@ export default function Analytics() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Análises</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Visão geral</h1>
         <p className="text-muted-foreground mt-1">Estatísticas de exibições e disponibilidade de toda a rede.</p>
       </div>
 

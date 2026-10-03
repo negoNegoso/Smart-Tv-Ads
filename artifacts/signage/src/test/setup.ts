@@ -17,6 +17,24 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 }
 
+// jsdom não implementa matchMedia, e o useIsMobile (usado pelo menu lateral)
+// assina mudanças por ele. O valor vem de window.innerWidth no próprio hook;
+// o stub só precisa aceitar a assinatura. Teste que quer celular ajusta
+// window.innerWidth antes de renderizar.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
+
 afterEach(() => {
   cleanup();
 });

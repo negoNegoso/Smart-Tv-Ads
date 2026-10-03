@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   QueryClient,
   QueryClientProvider,
@@ -13,6 +13,7 @@ import { Route, Switch, Router as WouterRouter, Redirect, useLocation, useSearch
 
 import { Layout } from './components/layout';
 import { PortalShell } from './components/portal-shell';
+import { portalHome } from './components/nav-config';
 import Admin from './pages/admin';
 import Login from './pages/login';
 import Display from './pages/display';
@@ -31,6 +32,7 @@ import PortalAdvertiser from './pages/portal-advertiser';
 import PortalClient from './pages/portal-client';
 import PortalPanels from './pages/portal-panels';
 import PortalPanelEditor from './pages/portal-panel-editor';
+import PortalAccount from './pages/portal-account';
 import PanelsAdmin from './pages/panels-admin';
 import { UNAUTHORIZED_EVENT } from './lib/auth-fetch-guard';
 import Landing from './pages/landing';
@@ -70,7 +72,7 @@ function AdminRoutes() {
   return (
     <Switch>
       <Route path="/">
-        <Redirect to="/companies" />
+        <Layout><Analytics /></Layout>
       </Route>
       <Route path="/companies">
         <Layout><Companies /></Layout>
@@ -108,8 +110,9 @@ function AdminRoutes() {
       <Route path="/admin">
         <Layout><Admin /></Layout>
       </Route>
+      {/* Links salvos de antes da Visão geral virar a raiz. */}
       <Route path="/analytics">
-        <Layout><Analytics /></Layout>
+        <Redirect to="/" replace />
       </Route>
       <Route path="/campaigns/:id">
         <Layout><CampaignDetail /></Layout>
@@ -127,64 +130,56 @@ function AdminRoutes() {
   );
 }
 
-function ClientArea() {
-  const [tab, setTab] = useState<'desempenho' | 'paineis'>('desempenho');
-  const [editingPanelId, setEditingPanelId] = useState<number | null>(null);
-
-  if (editingPanelId !== null) {
-    return <PortalPanelEditor panelId={editingPanelId} onBack={() => setEditingPanelId(null)} />;
-  }
-
-  return (
-    <>
-      <div className="mb-4 flex gap-2 border-b">
-        <button
-          type="button"
-          onClick={() => setTab('desempenho')}
-          className={`px-3 py-2 text-sm ${tab === 'desempenho' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
-        >
-          Desempenho
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('paineis')}
-          className={`px-3 py-2 text-sm ${tab === 'paineis' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
-        >
-          Meus painéis
-        </button>
-      </div>
-      {tab === 'desempenho' ? <PortalClient /> : <PortalPanels onEdit={setEditingPanelId} />}
-    </>
-  );
+/**
+ * O `:id` vem da URL: qualquer coisa que não seja inteiro positivo volta para
+ * a lista em vez de abrir o editor com NaN.
+ */
+function PortalPanelRoute({ id }: { id: string }) {
+  const [, navigate] = useLocation();
+  const panelId = Number(id);
+  if (!Number.isInteger(panelId) || panelId <= 0) return <Redirect to="/portal/paineis" replace />;
+  return <PortalPanelEditor panelId={panelId} onBack={() => navigate('/portal/paineis')} />;
 }
 
-function PortalSwitch({ me }: { me: Me }) {
+/**
+ * Cada tela do portal tem URL própria: F5, voltar do navegador e link
+ * mandado a alguém abrem a mesma tela. Rota de papel que o usuário não tem
+ * nem é registrada e cai no redirect final — a API bloquearia de qualquer
+ * jeito, o redirect só evita uma tela de erro.
+ */
+function PortalRoutes({ me }: { me: Me }) {
+  const [, navigate] = useLocation();
   const isAdv = me.roles.includes('advertiser');
   const isClient = me.roles.includes('client');
-  const [view, setView] = useState<'advertiser' | 'client'>(isAdv ? 'advertiser' : 'client');
 
   return (
-    <PortalShell>
-      {isAdv && isClient ? (
-        <div className="mb-4 flex gap-2 border-b">
-          <button
-            type="button"
-            onClick={() => setView('advertiser')}
-            className={`px-3 py-2 text-sm ${view === 'advertiser' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
-          >
-            Anunciante
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('client')}
-            className={`px-3 py-2 text-sm ${view === 'client' ? 'border-b-2 border-primary font-semibold text-primary' : 'text-muted-foreground'}`}
-          >
-            Cliente
-          </button>
-        </div>
-      ) : null}
-      {view === 'advertiser' && isAdv ? <PortalAdvertiser /> : null}
-      {view === 'client' && isClient ? <ClientArea /> : null}
+    <PortalShell roles={me.roles}>
+      <Switch>
+        {isAdv ? (
+          <Route path="/portal/anunciante">
+            <PortalAdvertiser />
+          </Route>
+        ) : null}
+        {isClient ? (
+          <Route path="/portal/tvs">
+            <PortalClient />
+          </Route>
+        ) : null}
+        {isClient ? (
+          <Route path="/portal/paineis/:id">{(params) => <PortalPanelRoute id={params.id} />}</Route>
+        ) : null}
+        {isClient ? (
+          <Route path="/portal/paineis">
+            <PortalPanels onEdit={(id) => navigate(`/portal/paineis/${id}`)} />
+          </Route>
+        ) : null}
+        <Route path="/portal/conta">
+          <PortalAccount />
+        </Route>
+        <Route>
+          <Redirect to={portalHome(me.roles)} replace />
+        </Route>
+      </Switch>
     </PortalShell>
   );
 }
@@ -247,7 +242,7 @@ function RoleRouter() {
   const isAdv = me.roles.includes('advertiser');
   const isClient = me.roles.includes('client');
   if (isAdv || isClient) {
-    return <PortalSwitch me={me} />;
+    return <PortalRoutes me={me} />;
   }
   return <Login />;
 }

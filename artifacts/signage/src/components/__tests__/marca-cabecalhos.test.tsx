@@ -19,7 +19,7 @@ const CASOS: Array<[string, () => ReturnType<typeof render>]> = [
   ['cabeçalho da landing', () => render(<SiteHeader />)],
   ['rodapé da landing', () => render(<SiteFooter />)],
   ['painel admin', () => comQuery(<Layout>x</Layout>)],
-  ['portal anunciante/cliente', () => comQuery(<PortalShell>x</PortalShell>)],
+  ['portal anunciante/cliente', () => comQuery(<PortalShell roles={['advertiser']}>x</PortalShell>)],
   ['cabeçalho impresso', () => render(<PrintHeader subject="Loja" period={{ from: '2026-09-01', to: '2026-09-25' }} />)],
   ['login', () => comQuery(<Login />)],
   ['404', () => render(<NotFound />)],
