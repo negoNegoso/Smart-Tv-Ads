@@ -20,7 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  AnalyticsSummary,
+  AnalyticsHourly,
+  AnalyticsOverview,
+  AnalyticsRankings,
   Announcement,
   AnnouncementAnalytics,
   AnnouncementInput,
@@ -48,6 +50,9 @@ import type {
   Fleet,
   FleetUpdateRequest,
   FleetUpdateResult,
+  GetAnalyticsHourlyParams,
+  GetAnalyticsOverviewParams,
+  GetAnalyticsRankingsParams,
   GetYouTubeMetaParams,
   HealthStatus,
   ListClientPanelsParams,
@@ -3461,20 +3466,27 @@ export const useRecordPlays = <TError = ErrorType<void>,
       return useMutation(getRecordPlaysMutationOptions(options));
     }
 
-export const getGetAnalyticsSummaryUrl = () => {
+export const getGetAnalyticsOverviewUrl = (params?: GetAnalyticsOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/analytics/summary`
+  return stringifiedParams.length > 0 ? `/api/analytics/overview?${stringifiedParams}` : `/api/analytics/overview`
 }
 
 /**
- * @summary Overall platform analytics
+ * @summary Visão geral da rede no período — cards, série diária e TVs que funcionaram
  */
-export const getAnalyticsSummary = async ( options?: RequestInit): Promise<AnalyticsSummary> => {
+export const getAnalyticsOverview = async (params?: GetAnalyticsOverviewParams, options?: RequestInit): Promise<AnalyticsOverview> => {
 
-  return customFetch<AnalyticsSummary>(getGetAnalyticsSummaryUrl(),
+  return customFetch<AnalyticsOverview>(getGetAnalyticsOverviewUrl(params),
   {
     ...options,
     method: 'GET'
@@ -3487,45 +3499,213 @@ export const getAnalyticsSummary = async ( options?: RequestInit): Promise<Analy
 
 
 
-export const getGetAnalyticsSummaryQueryKey = () => {
+export const getGetAnalyticsOverviewQueryKey = (params?: GetAnalyticsOverviewParams,) => {
     return [
-    `/api/analytics/summary`
+    `/api/analytics/overview`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAnalyticsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAnalyticsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsOverview>>, TError = ErrorType<void>>(params?: GetAnalyticsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsSummaryQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsOverviewQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsSummary>>> = ({ signal }) => getAnalyticsSummary({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsOverview>>> = ({ signal }) => getAnalyticsOverview(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetAnalyticsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsSummary>>>
-export type GetAnalyticsSummaryQueryError = ErrorType<unknown>
+export type GetAnalyticsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsOverview>>>
+export type GetAnalyticsOverviewQueryError = ErrorType<void>
 
 
 /**
- * @summary Overall platform analytics
+ * @summary Visão geral da rede no período — cards, série diária e TVs que funcionaram
  */
 
-export function useGetAnalyticsSummary<TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetAnalyticsOverview<TData = Awaited<ReturnType<typeof getAnalyticsOverview>>, TError = ErrorType<void>>(
+ params?: GetAnalyticsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAnalyticsSummaryQueryOptions(options)
+  const queryOptions = getGetAnalyticsOverviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAnalyticsHourlyUrl = (params?: GetAnalyticsHourlyParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/hourly?${stringifiedParams}` : `/api/analytics/hourly`
+}
+
+/**
+ * @summary Exibições por hora do dia (0–23, horário de São Paulo) no período
+ */
+export const getAnalyticsHourly = async (params?: GetAnalyticsHourlyParams, options?: RequestInit): Promise<AnalyticsHourly> => {
+
+  return customFetch<AnalyticsHourly>(getGetAnalyticsHourlyUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalyticsHourlyQueryKey = (params?: GetAnalyticsHourlyParams,) => {
+    return [
+    `/api/analytics/hourly`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAnalyticsHourlyQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsHourly>>, TError = ErrorType<void>>(params?: GetAnalyticsHourlyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsHourly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsHourlyQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsHourly>>> = ({ signal }) => getAnalyticsHourly(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsHourly>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalyticsHourlyQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsHourly>>>
+export type GetAnalyticsHourlyQueryError = ErrorType<void>
+
+
+/**
+ * @summary Exibições por hora do dia (0–23, horário de São Paulo) no período
+ */
+
+export function useGetAnalyticsHourly<TData = Awaited<ReturnType<typeof getAnalyticsHourly>>, TError = ErrorType<void>>(
+ params?: GetAnalyticsHourlyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsHourly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalyticsHourlyQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAnalyticsRankingsUrl = (params?: GetAnalyticsRankingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/rankings?${stringifiedParams}` : `/api/analytics/rankings`
+}
+
+/**
+ * @summary Top 10 campanhas, TVs e peças por exibições no período
+ */
+export const getAnalyticsRankings = async (params?: GetAnalyticsRankingsParams, options?: RequestInit): Promise<AnalyticsRankings> => {
+
+  return customFetch<AnalyticsRankings>(getGetAnalyticsRankingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalyticsRankingsQueryKey = (params?: GetAnalyticsRankingsParams,) => {
+    return [
+    `/api/analytics/rankings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAnalyticsRankingsQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsRankings>>, TError = ErrorType<void>>(params?: GetAnalyticsRankingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsRankings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsRankingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsRankings>>> = ({ signal }) => getAnalyticsRankings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsRankings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalyticsRankingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsRankings>>>
+export type GetAnalyticsRankingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Top 10 campanhas, TVs e peças por exibições no período
+ */
+
+export function useGetAnalyticsRankings<TData = Awaited<ReturnType<typeof getAnalyticsRankings>>, TError = ErrorType<void>>(
+ params?: GetAnalyticsRankingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsRankings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalyticsRankingsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1046,23 +1046,100 @@ export const RecordPlaysResponse = zod.object({
 
 
 /**
- * @summary Overall platform analytics
+ * @summary Visão geral da rede no período — cards, série diária e TVs que funcionaram
  */
-export const GetAnalyticsSummaryResponse = zod.object({
-  "totalClients": zod.number(),
-  "totalDevices": zod.number(),
-  "totalPlays": zod.number(),
-  "totalDuration": zod.number(),
-  "totalScans": zod.number().optional(),
-  "totalUniqueScans": zod.number().optional(),
-  "topAnnouncements": zod.array(zod.object({
+export const GetAnalyticsOverviewQueryParams = zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]).optional()
+})
+
+export const GetAnalyticsOverviewResponse = zod.object({
+  "period": zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]),
+  "from": zod.string().describe('Primeiro dia (YYYY-MM-DD, horário de São Paulo)'),
+  "to": zod.string().describe('Último dia (YYYY-MM-DD)')
+}),
+  "totals": zod.object({
+  "plays": zod.number(),
+  "durationSeconds": zod.number(),
+  "scans": zod.number(),
+  "uniqueVisitors": zod.number(),
+  "scanRate": zod.number(),
+  "previous": zod.object({
+  "plays": zod.number(),
+  "durationSeconds": zod.number(),
+  "scans": zod.number(),
+  "uniqueVisitors": zod.number(),
+  "scanRate": zod.number()
+})
+}),
+  "now": zod.object({
+  "devices": zod.number(),
+  "devicesOnline": zod.number(),
+  "clients": zod.number()
+}),
+  "series": zod.array(zod.object({
+  "date": zod.string(),
+  "plays": zod.number(),
+  "scans": zod.number(),
+  "activeDevices": zod.number().nullable().describe('TVs que se conectaram no dia; nulo antes do começo do histórico'),
+  "totalDevices": zod.number()
+}))
+})
+
+
+/**
+ * @summary Exibições por hora do dia (0–23, horário de São Paulo) no período
+ */
+export const GetAnalyticsHourlyQueryParams = zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]).optional()
+})
+
+export const GetAnalyticsHourlyResponse = zod.object({
+  "period": zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]),
+  "from": zod.string().describe('Primeiro dia (YYYY-MM-DD, horário de São Paulo)'),
+  "to": zod.string().describe('Último dia (YYYY-MM-DD)')
+}),
+  "hours": zod.array(zod.object({
+  "hour": zod.number(),
+  "plays": zod.number()
+}))
+})
+
+
+/**
+ * @summary Top 10 campanhas, TVs e peças por exibições no período
+ */
+export const GetAnalyticsRankingsQueryParams = zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]).optional()
+})
+
+export const GetAnalyticsRankingsResponse = zod.object({
+  "period": zod.object({
+  "days": zod.union([zod.literal(7),zod.literal(30),zod.literal(90)]),
+  "from": zod.string().describe('Primeiro dia (YYYY-MM-DD, horário de São Paulo)'),
+  "to": zod.string().describe('Último dia (YYYY-MM-DD)')
+}),
+  "campaigns": zod.array(zod.object({
+  "campaignId": zod.number(),
+  "name": zod.string(),
+  "advertiserName": zod.string(),
+  "plays": zod.number()
+})),
+  "devices": zod.array(zod.object({
+  "deviceId": zod.number(),
+  "name": zod.string(),
+  "clientName": zod.string(),
+  "plays": zod.number()
+})),
+  "announcements": zod.array(zod.object({
   "announcementId": zod.number(),
   "title": zod.string(),
   "plays": zod.number(),
-  "totalDuration": zod.number(),
-  "scans": zod.number().optional(),
-  "scanRate": zod.number().optional()
-})).optional()
+  "scans": zod.number(),
+  "scanRate": zod.number(),
+  "durationSeconds": zod.number()
+}))
 })
 
 

@@ -6,7 +6,19 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export * from './analyticsSummary';
+export * from './analyticsAnnouncementRank';
+export * from './analyticsCampaignRank';
+export * from './analyticsDay';
+export * from './analyticsDeviceRank';
+export * from './analyticsHour';
+export * from './analyticsHourly';
+export * from './analyticsNow';
+export * from './analyticsOverview';
+export * from './analyticsOverviewTotals';
+export * from './analyticsPeriod';
+export * from './analyticsPeriodDays';
+export * from './analyticsRankings';
+export * from './analyticsTotals';
 export * from './announcement';
 export * from './announcementAnalytics';
 export * from './announcementAnalyticsByCampaignItem';
@@ -52,6 +64,12 @@ export * from './fleet';
 export * from './fleetDevice';
 export * from './fleetUpdateRequest';
 export * from './fleetUpdateResult';
+export * from './getAnalyticsHourlyDays';
+export * from './getAnalyticsHourlyParams';
+export * from './getAnalyticsOverviewDays';
+export * from './getAnalyticsOverviewParams';
+export * from './getAnalyticsRankingsDays';
+export * from './getAnalyticsRankingsParams';
 export * from './getYouTubeMetaParams';
 export * from './healthStatus';
 export * from './listClientPanelsParams';

@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { db, deviceSessionsTable } from "@workspace/db";
-import { onlineSince, sessionHistorySince } from "./device-presence";
+import { onlineSince, sessionHistorySince, sessionTimelineSince } from "./device-presence";
 
 /**
  * Sessões de conexão: uma linha por período contínuo em que a TV falou com o
@@ -32,7 +32,7 @@ export function buildListSessionsQuery(deviceId: number, now: Date) {
   return db
     .select({ startedAt: deviceSessionsTable.startedAt, lastSeenAt: deviceSessionsTable.lastSeenAt })
     .from(deviceSessionsTable)
-    .where(and(eq(deviceSessionsTable.deviceId, deviceId), gte(deviceSessionsTable.lastSeenAt, sessionHistorySince(now))))
+    .where(and(eq(deviceSessionsTable.deviceId, deviceId), gte(deviceSessionsTable.lastSeenAt, sessionTimelineSince(now))))
     .orderBy(desc(deviceSessionsTable.startedAt));
 }
 

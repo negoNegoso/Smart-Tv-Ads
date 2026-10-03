@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, sql, desc, inArray, type SQL } from "drizzle-orm";
 import {
   db,
@@ -13,7 +13,9 @@ import {
   advertisersTable,
 } from "@workspace/db";
 import {
-  GetAnalyticsSummaryResponse,
+  GetAnalyticsHourlyResponse,
+  GetAnalyticsOverviewResponse,
+  GetAnalyticsRankingsResponse,
   GetClientAnalyticsParams,
   GetClientAnalyticsResponse,
   GetDeviceAnalyticsParams,
@@ -24,6 +26,8 @@ import {
   GetCampaignAnalyticsResponse,
 } from "@workspace/api-zod";
 import { scanRate } from "../lib/scan-rate";
+import { adminHourly, adminOverview, adminRankings } from "../lib/admin-overview/queries";
+import { parseDays, type PortalDays } from "../lib/portal/period";
 
 const router: IRouter = Router();
 
@@ -43,57 +47,39 @@ async function scanTotals(where?: SQL) {
   return { totalScans: row?.totalScans ?? 0, totalUniqueScans: row?.totalUniqueScans ?? 0 };
 }
 
-// Overall summary
-router.get("/analytics/summary", async (_req, res): Promise<void> => {
-  const [counts] = await db
-    .select({
-      totalClients: sql<number>`(SELECT COUNT(*)::int FROM ${clientsTable})`,
-      totalDevices: sql<number>`(SELECT COUNT(*)::int FROM ${devicesTable})`,
-      totalPlays: sql<number>`COUNT(${playsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
-    })
-    .from(playsTable);
+/**
+ * Resolve o período pedido ou responde 400. Mesmo enum fechado do portal:
+ * mantém a varredura limitada e o cache previsível.
+ */
+function daysOr400(req: Request, res: Response): PortalDays | null {
+  const days = parseDays(req.query.days);
+  if (days === null) {
+    res.status(400).json({ error: "Período inválido. Use days=7, 30 ou 90." });
+    return null;
+  }
+  return days;
+}
 
-  const topAnnouncements = await db
-    .select({
-      announcementId: playsTable.announcementId,
-      title: announcementsTable.title,
-      plays: sql<number>`COUNT(${playsTable.id})::int`,
-      totalDuration: sql<number>`COALESCE(SUM(${playsTable.durationSeconds}), 0)::int`,
-    })
-    .from(playsTable)
-    .innerJoin(announcementsTable, eq(announcementsTable.id, playsTable.announcementId))
-    .groupBy(playsTable.announcementId, announcementsTable.title)
-    .orderBy(desc(sql`COUNT(${playsTable.id})`))
-    .limit(10);
+// Visão geral: cards do período, série diária e TVs que funcionaram por dia.
+router.get("/analytics/overview", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsOverviewResponse.parse(await adminOverview(days)));
+});
 
-  const scanCounts = await scanTotals();
+// Exibições por hora do dia no período: horário de pico da rede.
+router.get("/analytics/hourly", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsHourlyResponse.parse(await adminHourly(days)));
+});
 
-  const scansByAnnouncement = await db
-    .select({
-      announcementId: scansTable.announcementId,
-      scans: sql<number>`COUNT(*)::int`,
-    })
-    .from(scansTable)
-    .where(eq(scansTable.isBot, false))
-    .groupBy(scansTable.announcementId);
-
-  const scansMap = new Map(scansByAnnouncement.map((row) => [row.announcementId, row.scans]));
-
-  res.json(
-    GetAnalyticsSummaryResponse.parse({
-      totalClients: counts?.totalClients ?? 0,
-      totalDevices: counts?.totalDevices ?? 0,
-      totalPlays: counts?.totalPlays ?? 0,
-      totalDuration: counts?.totalDuration ?? 0,
-      totalScans: scanCounts.totalScans,
-      totalUniqueScans: scanCounts.totalUniqueScans,
-      topAnnouncements: topAnnouncements.map((item) => {
-        const scans = scansMap.get(item.announcementId) ?? 0;
-        return { ...item, scans, scanRate: scanRate(scans, item.plays) };
-      }),
-    })
-  );
+// Top campanhas, TVs e peças no período. Endpoint separado: é a consulta mais
+// cara, e o ranking fora do ar não pode segurar os gráficos.
+router.get("/analytics/rankings", async (req, res): Promise<void> => {
+  const days = daysOr400(req, res);
+  if (days === null) return;
+  res.json(GetAnalyticsRankingsResponse.parse(await adminRankings(days)));
 });
 
 // Client analytics

@@ -801,18 +801,65 @@ paths:
           description: Device not found
 
   # ── Analytics ────────────────────────────────────────────────────────────────
-  /analytics/summary:
+  /analytics/overview:
     get:
-      operationId: getAnalyticsSummary
+      operationId: getAnalyticsOverview
       tags: [analytics]
-      summary: Overall platform analytics
+      summary: Visão geral da rede no período — cards, série diária e TVs que funcionaram
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, enum: [7, 30, 90] }
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AnalyticsSummary"
+                $ref: "#/components/schemas/AnalyticsOverview"
+        "400":
+          description: Período inválido
+
+  /analytics/hourly:
+    get:
+      operationId: getAnalyticsHourly
+      tags: [analytics]
+      summary: Exibições por hora do dia (0–23, horário de São Paulo) no período
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, enum: [7, 30, 90] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsHourly"
+        "400":
+          description: Período inválido
+
+  /analytics/rankings:
+    get:
+      operationId: getAnalyticsRankings
+      tags: [analytics]
+      summary: Top 10 campanhas, TVs e peças por exibições no período
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, enum: [7, 30, 90] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsRankings"
+        "400":
+          description: Período inválido
 
   /analytics/clients/{clientId}:
     get:
@@ -1825,20 +1872,137 @@ components:
         scans: { type: integer }
         scanRate: { type: number }
 
-    AnalyticsSummary:
+    AnalyticsPeriod:
       type: object
-      required: [totalClients, totalDevices, totalPlays, totalDuration]
+      required: [days, from, to]
       properties:
-        totalClients: { type: integer }
+        days: { type: integer, enum: [7, 30, 90] }
+        from: { type: string, description: "Primeiro dia (YYYY-MM-DD, horário de São Paulo)" }
+        to: { type: string, description: "Último dia (YYYY-MM-DD)" }
+
+    AnalyticsTotals:
+      type: object
+      required: [plays, durationSeconds, scans, uniqueVisitors, scanRate]
+      properties:
+        plays: { type: integer }
+        durationSeconds: { type: integer }
+        scans: { type: integer }
+        uniqueVisitors: { type: integer }
+        scanRate: { type: number }
+
+    AnalyticsOverviewTotals:
+      type: object
+      required: [plays, durationSeconds, scans, uniqueVisitors, scanRate, previous]
+      properties:
+        plays: { type: integer }
+        durationSeconds: { type: integer }
+        scans: { type: integer }
+        uniqueVisitors: { type: integer }
+        scanRate: { type: number }
+        previous:
+          $ref: "#/components/schemas/AnalyticsTotals"
+
+    AnalyticsNow:
+      type: object
+      required: [devices, devicesOnline, clients]
+      properties:
+        devices: { type: integer }
+        devicesOnline: { type: integer }
+        clients: { type: integer }
+
+    AnalyticsDay:
+      type: object
+      required: [date, plays, scans, activeDevices, totalDevices]
+      properties:
+        date: { type: string }
+        plays: { type: integer }
+        scans: { type: integer }
+        activeDevices:
+          type: integer
+          nullable: true
+          description: TVs que se conectaram no dia; nulo antes do começo do histórico
         totalDevices: { type: integer }
-        totalPlays: { type: integer }
-        totalDuration: { type: integer }
-        totalScans: { type: integer }
-        totalUniqueScans: { type: integer }
-        topAnnouncements:
+
+    AnalyticsOverview:
+      type: object
+      required: [period, totals, now, series]
+      properties:
+        period:
+          $ref: "#/components/schemas/AnalyticsPeriod"
+        totals:
+          $ref: "#/components/schemas/AnalyticsOverviewTotals"
+        now:
+          $ref: "#/components/schemas/AnalyticsNow"
+        series:
           type: array
           items:
-            $ref: "#/components/schemas/AnnouncementPlayStat"
+            $ref: "#/components/schemas/AnalyticsDay"
+
+    AnalyticsHour:
+      type: object
+      required: [hour, plays]
+      properties:
+        hour: { type: integer }
+        plays: { type: integer }
+
+    AnalyticsHourly:
+      type: object
+      required: [period, hours]
+      properties:
+        period:
+          $ref: "#/components/schemas/AnalyticsPeriod"
+        hours:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsHour"
+
+    AnalyticsCampaignRank:
+      type: object
+      required: [campaignId, name, advertiserName, plays]
+      properties:
+        campaignId: { type: integer }
+        name: { type: string }
+        advertiserName: { type: string }
+        plays: { type: integer }
+
+    AnalyticsDeviceRank:
+      type: object
+      required: [deviceId, name, clientName, plays]
+      properties:
+        deviceId: { type: integer }
+        name: { type: string }
+        clientName: { type: string }
+        plays: { type: integer }
+
+    AnalyticsAnnouncementRank:
+      type: object
+      required: [announcementId, title, plays, scans, scanRate, durationSeconds]
+      properties:
+        announcementId: { type: integer }
+        title: { type: string }
+        plays: { type: integer }
+        scans: { type: integer }
+        scanRate: { type: number }
+        durationSeconds: { type: integer }
+
+    AnalyticsRankings:
+      type: object
+      required: [period, campaigns, devices, announcements]
+      properties:
+        period:
+          $ref: "#/components/schemas/AnalyticsPeriod"
+        campaigns:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsCampaignRank"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsDeviceRank"
+        announcements:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsAnnouncementRank"
 
     ClientAnalytics:
       type: object
