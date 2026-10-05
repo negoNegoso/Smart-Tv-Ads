@@ -15,6 +15,7 @@ import {
   campaignSegmentsTable,
 } from "@workspace/db";
 import { generateScanCode } from "@workspace/db/scan-code";
+import { missingSegmentIds } from "../lib/campaigns/segments";
 import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
 import { normalizeWeekdays } from "../lib/ad-eligibility";
 import { republishCampaignFlyers, unpublishCampaignFlyers } from "../lib/panels/campaign-flyers";
@@ -282,6 +283,10 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     res.status(400).json({ error: targetError });
     return;
   }
+  if (input.targetMode === "segments" && (await missingSegmentIds(input.segmentIds)).length > 0) {
+    res.status(400).json({ error: "Segmento não encontrado." });
+    return;
+  }
   const [advertiser] = await db.select({ id: advertisersTable.id }).from(advertisersTable).where(eq(advertisersTable.id, input.advertiserId));
   if (!advertiser) {
     res.status(400).json({ error: "Anunciante não encontrado" });
@@ -337,6 +342,10 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
   const targetError = validateCampaignTarget(input);
   if (targetError) {
     res.status(400).json({ error: targetError });
+    return;
+  }
+  if (input.targetMode === "segments" && (await missingSegmentIds(input.segmentIds)).length > 0) {
+    res.status(400).json({ error: "Segmento não encontrado." });
     return;
   }
   const [advertiser] = await db.select({ id: advertisersTable.id }).from(advertisersTable).where(eq(advertisersTable.id, input.advertiserId));
