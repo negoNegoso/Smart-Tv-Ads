@@ -135,6 +135,18 @@ export interface SegmentInput {
   name: string;
 }
 
+export interface SegmentWithUsage {
+  id: number;
+  slug: string;
+  name: string;
+  companyCount: number;
+  campaignCount: number;
+}
+
+export interface SegmentMergeInput {
+  targetId: number;
+}
+
 export interface CepResult {
   cep: string;
   /** @nullable */

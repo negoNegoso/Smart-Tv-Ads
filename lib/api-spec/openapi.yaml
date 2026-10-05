@@ -284,7 +284,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Segment"
+                  $ref: "#/components/schemas/SegmentWithUsage"
     post:
       operationId: createSegment
       tags: [segments]
@@ -306,6 +306,63 @@ paths:
           description: Bad request
         "409":
           description: Segment already exists
+
+  /segments/{id}:
+    patch:
+      operationId: renameSegment
+      tags: [segments]
+      summary: Rename a segment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SegmentInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+        "400": { description: Bad request }
+        "404": { description: Not found }
+        "409": { description: Another segment already has this name }
+    delete:
+      operationId: deleteSegment
+      tags: [segments]
+      summary: Delete an unused segment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
+        "409": { description: Segment in use; merge it instead }
+
+  /segments/{id}/merge:
+    post:
+      operationId: mergeSegment
+      tags: [segments]
+      summary: Merge a segment into another one
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SegmentMergeInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SegmentWithUsage"
+        "400": { description: Bad request }
+        "404": { description: Not found }
 
   # ── CEP (endereço + coordenadas; proxy de AwesomeAPI com BrasilAPI de reserva)
   /cep/{cep}:
@@ -1487,6 +1544,22 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1 }
+
+    SegmentWithUsage:
+      type: object
+      required: [id, slug, name, companyCount, campaignCount]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        companyCount: { type: integer }
+        campaignCount: { type: integer }
+
+    SegmentMergeInput:
+      type: object
+      required: [targetId]
+      properties:
+        targetId: { type: integer }
 
     CepResult:
       type: object

@@ -332,7 +332,9 @@ export const GetYouTubeMetaResponse = zod.object({
 export const ListSegmentsResponseItem = zod.object({
   "id": zod.number(),
   "slug": zod.string(),
-  "name": zod.string()
+  "name": zod.string(),
+  "companyCount": zod.number(),
+  "campaignCount": zod.number()
 })
 export const ListSegmentsResponse = zod.array(ListSegmentsResponseItem)
 
@@ -351,6 +353,57 @@ export const CreateSegmentResponse = zod.object({
   "id": zod.number(),
   "slug": zod.string(),
   "name": zod.string()
+})
+
+
+/**
+ * @summary Rename a segment
+ */
+export const RenameSegmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const RenameSegmentBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const RenameSegmentResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string()
+})
+
+
+/**
+ * @summary Delete an unused segment
+ */
+export const DeleteSegmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteSegmentResponse = zod.void()
+
+
+/**
+ * @summary Merge a segment into another one
+ */
+export const MergeSegmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MergeSegmentBody = zod.object({
+  "targetId": zod.number()
+})
+
+export const MergeSegmentResponse = zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "companyCount": zod.number(),
+  "campaignCount": zod.number()
 })
 
 
