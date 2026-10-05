@@ -163,6 +163,12 @@ export interface CepResult {
   lng: number | null;
 }
 
+export interface SegmentInUseError {
+  error: string;
+  companyCount: number;
+  campaignCount: number;
+}
+
 export type CompanyFieldsStatus = typeof CompanyFieldsStatus[keyof typeof CompanyFieldsStatus];
 
 
@@ -179,8 +185,6 @@ export interface CompanyFields {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
-  /** @nullable */
-  segmentId?: number | null;
   status?: CompanyFieldsStatus;
   /** @nullable */
   notes?: string | null;
@@ -207,11 +211,13 @@ export interface CompanyFields {
 }
 
 export type CompanyInput = CompanyFields & ({
+  segmentId: number;
   isClient: boolean;
   isAdvertiser: boolean;
   /** @nullable */
   advertiserCompany?: string | null;
 }) & Required<Pick<CompanyFields & ({
+  segmentId: number;
   isClient: boolean;
   isAdvertiser: boolean;
   /** @nullable */
@@ -219,6 +225,7 @@ export type CompanyInput = CompanyFields & ({
 }), 'name'>>;
 
 export type CompanyUpdate = CompanyFields & ({
+  segmentId?: number;
   isClient?: boolean;
   isAdvertiser?: boolean;
   /** @nullable */
@@ -227,6 +234,8 @@ export type CompanyUpdate = CompanyFields & ({
 
 export type Company = CompanyFields & ({
   id: number;
+  /** @nullable */
+  segmentId?: number | null;
   /** @nullable */
   clientId: number | null;
   /** @nullable */
@@ -237,6 +246,8 @@ export type Company = CompanyFields & ({
   updatedAt: string;
 }) & Required<Pick<CompanyFields & ({
   id: number;
+  /** @nullable */
+  segmentId?: number | null;
   /** @nullable */
   clientId: number | null;
   /** @nullable */

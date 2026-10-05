@@ -8,6 +8,7 @@
 import type { CompanyFields } from './companyFields';
 
 export type CompanyUpdate = CompanyFields & ({
+  segmentId?: number;
   isClient?: boolean;
   isAdvertiser?: boolean;
   /** @nullable */

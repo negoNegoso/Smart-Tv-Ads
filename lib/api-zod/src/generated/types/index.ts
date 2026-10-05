@@ -109,6 +109,7 @@ export * from './resetPasswordBody';
 export * from './resetUserPassword200';
 export * from './segment';
 export * from './segmentInput';
+export * from './segmentInUseError';
 export * from './segmentMergeInput';
 export * from './segmentWithUsage';
 export * from './storeIdentity';

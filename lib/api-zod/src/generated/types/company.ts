@@ -10,6 +10,8 @@ import type { CompanyFields } from './companyFields';
 export type Company = CompanyFields & ({
   id: number;
   /** @nullable */
+  segmentId?: number | null;
+  /** @nullable */
   clientId: number | null;
   /** @nullable */
   advertiserId: number | null;
@@ -19,6 +21,8 @@ export type Company = CompanyFields & ({
   updatedAt: Date;
 }) & Required<Pick<CompanyFields & ({
   id: number;
+  /** @nullable */
+  segmentId?: number | null;
   /** @nullable */
   clientId: number | null;
   /** @nullable */

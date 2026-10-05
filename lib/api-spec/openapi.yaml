@@ -339,7 +339,12 @@ paths:
       responses:
         "204": { description: Deleted }
         "404": { description: Not found }
-        "409": { description: Segment in use; merge it instead }
+        "409":
+          description: Segment in use; merge it instead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SegmentInUseError"
 
   /segments/{id}/merge:
     post:
@@ -1574,13 +1579,20 @@ components:
         lat: { type: ["number", "null"] }
         lng: { type: ["number", "null"] }
 
+    SegmentInUseError:
+      type: object
+      required: [error, companyCount, campaignCount]
+      properties:
+        error: { type: string }
+        companyCount: { type: integer }
+        campaignCount: { type: integer }
+
     CompanyFields:
       type: object
       properties:
         name: { type: string, minLength: 1 }
         email: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
-        segmentId: { type: ["integer", "null"] }
         status: { type: string, enum: [active, paused, closed] }
         notes: { type: ["string", "null"] }
         cep: { type: ["string", "null"] }
@@ -1597,8 +1609,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/CompanyFields"
         - type: object
-          required: [name, isClient, isAdvertiser]
+          required: [name, segmentId, isClient, isAdvertiser]
           properties:
+            segmentId: { type: integer }
             isClient: { type: boolean }
             isAdvertiser: { type: boolean }
             advertiserCompany: { type: ["string", "null"] }
@@ -1607,6 +1620,7 @@ components:
         - $ref: "#/components/schemas/CompanyFields"
         - type: object
           properties:
+            segmentId: { type: integer }
             isClient: { type: boolean }
             isAdvertiser: { type: boolean }
             advertiserCompany: { type: ["string", "null"] }
@@ -1617,6 +1631,7 @@ components:
           required: [id, name, status, clientId, advertiserId, advertiserCompany, createdAt, updatedAt]
           properties:
             id: { type: integer }
+            segmentId: { type: ["integer", "null"] }
             clientId: { type: ["integer", "null"] }
             advertiserId: { type: ["integer", "null"] }
             advertiserCompany: { type: ["string", "null"] }

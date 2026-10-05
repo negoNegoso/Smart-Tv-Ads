@@ -78,6 +78,7 @@ import type {
   ResetPasswordBody,
   ResetUserPassword200,
   Segment,
+  SegmentInUseError,
   SegmentInput,
   SegmentMergeInput,
   SegmentWithUsage,
@@ -1530,7 +1531,7 @@ export const deleteSegment = async (id: number, options?: RequestInit): Promise<
 
 
 
-export const getDeleteSegmentMutationOptions = <TError = ErrorType<void>,
+export const getDeleteSegmentMutationOptions = <TError = ErrorType<void | SegmentInUseError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext> => {
 
@@ -1559,12 +1560,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteSegmentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSegment>>>
 
-    export type DeleteSegmentMutationError = ErrorType<void>
+    export type DeleteSegmentMutationError = ErrorType<void | SegmentInUseError>
 
     /**
  * @summary Delete an unused segment
  */
-export const useDeleteSegment = <TError = ErrorType<void>,
+export const useDeleteSegment = <TError = ErrorType<void | SegmentInUseError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteSegment>>,

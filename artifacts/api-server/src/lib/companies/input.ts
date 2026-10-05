@@ -58,7 +58,9 @@ const fields = {
  * sumir do objeto final (chave ausente continua ausente, sem apagar o que o
  * formulário não mandou). Qualquer outro valor, inclusive um `null`
  * explícito, passa direto para o schema de `fields`, que já sabe lidar com
- * `null`/string vazia (vira `null`) exatamente como no criar.
+ * `null`/string vazia (vira `null`) exatamente como no criar. Exceção:
+ * `segmentId` é obrigatório, então `null` explícito vira 400 ("Escolha o
+ * segmento da empresa.") em vez de apagar o segmento da empresa.
  */
 const patchFields = {
   name: fields.name.optional(),
