@@ -18,6 +18,7 @@ import Admin from './pages/admin';
 import Login from './pages/login';
 import Display from './pages/display';
 import Companies from './pages/companies';
+import Segments from './pages/segments';
 import CompanyDetailPage from './pages/company-detail';
 import LegacyRedirect from './pages/legacy-redirect';
 import DeviceDetail from './pages/device-detail';
@@ -81,6 +82,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/companies/:id">
         <Layout><CompanyDetailPage /></Layout>
+      </Route>
+      <Route path="/segments">
+        <Layout><Segments /></Layout>
       </Route>
       <Route path="/parque">
         <Layout><Fleet /></Layout>
