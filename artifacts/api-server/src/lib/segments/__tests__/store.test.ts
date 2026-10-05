@@ -48,7 +48,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 const { companiesTable, segmentsTable } = await import("@workspace/db");
-const { deleteSegmentIfUnused, mergeSegments } = await import("../store");
+const { deleteSegmentIfUnused, mergeSegments, segmentUsageColumns } = await import("../store");
+const { QueryBuilder } = await import("drizzle-orm/pg-core");
 
 const ops = () => state.calls.map((c) => c.op);
 
@@ -101,5 +102,18 @@ describe("mergeSegments", () => {
     state.selects = [[{ id: 1 }]];
     expect(await mergeSegments(1, 2)).toEqual({ status: "not_found" });
     expect(ops()).toEqual(["select"]);
+  });
+});
+
+describe("segmentUsageColumns", () => {
+  it("qualifica a coluna da linha externa nas subconsultas correlacionadas", () => {
+    // Em select de tabela única o drizzle imprime `"id"` sem prefixo, e o
+    // Postgres o resolveria para a tabela de dentro: a contagem sairia errada.
+    const { sql: texto } = new QueryBuilder()
+      .select({ id: segmentsTable.id, ...segmentUsageColumns })
+      .from(segmentsTable)
+      .toSQL();
+    expect(texto).toContain('"companies"."segment_id" = "segments"."id"');
+    expect(texto).toContain('"campaign_segments"."segment_id" = "segments"."id"');
   });
 });

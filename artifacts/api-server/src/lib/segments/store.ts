@@ -13,17 +13,21 @@ const baseColumns = { id: segmentsTable.id, slug: segmentsTable.slug, name: segm
 
 // Quantas empresas e campanhas dependem do segmento: é o que decide se ele
 // pode ser apagado e o que a tela mostra antes de mesclar.
-const usageColumns = {
-  companyCount: sql<number>`(select count(*)::int from ${companiesTable} where ${companiesTable.segmentId} = ${segmentsTable.id})`,
-  campaignCount: sql<number>`(select count(*)::int from ${campaignSegmentsTable} where ${campaignSegmentsTable.segmentId} = ${segmentsTable.id})`,
+// Os identificadores vão qualificados à mão: em select de tabela única o
+// drizzle tira o prefixo da tabela (`"id"` solto), e o Postgres resolveria
+// esse nome para a tabela de dentro da subconsulta, errando a contagem.
+const segmentId = sql`${sql.identifier("segments")}.${sql.identifier("id")}`;
+export const segmentUsageColumns = {
+  companyCount: sql<number>`(select count(*)::int from ${companiesTable} where ${sql.identifier("companies")}.${sql.identifier("segment_id")} = ${segmentId})`,
+  campaignCount: sql<number>`(select count(*)::int from ${campaignSegmentsTable} where ${sql.identifier("campaign_segments")}.${sql.identifier("segment_id")} = ${segmentId})`,
 };
 
 export async function listSegmentsWithUsage(): Promise<SegmentWithUsage[]> {
-  return db.select({ ...baseColumns, ...usageColumns }).from(segmentsTable).orderBy(asc(segmentsTable.name));
+  return db.select({ ...baseColumns, ...segmentUsageColumns }).from(segmentsTable).orderBy(asc(segmentsTable.name));
 }
 
 export async function getSegmentWithUsage(id: number): Promise<SegmentWithUsage | null> {
-  const [row] = await db.select({ ...baseColumns, ...usageColumns }).from(segmentsTable).where(eq(segmentsTable.id, id));
+  const [row] = await db.select({ ...baseColumns, ...segmentUsageColumns }).from(segmentsTable).where(eq(segmentsTable.id, id));
   return row ?? null;
 }
 
@@ -69,7 +73,7 @@ export async function deleteSegmentIfUnused(id: number): Promise<DeleteSegmentRe
   return db.transaction(async (tx) => {
     const [locked] = await tx.select({ id: segmentsTable.id }).from(segmentsTable).where(eq(segmentsTable.id, id)).for("update");
     if (!locked) return { status: "not_found" } as const;
-    const [usage] = await tx.select(usageColumns).from(segmentsTable).where(eq(segmentsTable.id, id));
+    const [usage] = await tx.select(segmentUsageColumns).from(segmentsTable).where(eq(segmentsTable.id, id));
     if (usage.companyCount > 0 || usage.campaignCount > 0) return { status: "in_use", usage } as const;
     await tx.delete(segmentsTable).where(eq(segmentsTable.id, id));
     return { status: "deleted" } as const;
