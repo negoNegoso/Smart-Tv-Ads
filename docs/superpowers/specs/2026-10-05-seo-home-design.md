@@ -64,9 +64,12 @@ Como fica (`artifacts/signage`):
 - `dist/public/index.html` **continua sendo o shell vazio.** Ele é o fallback
   de todas as rotas do app, e quem abre `/login` não pode ver a landing antes
   do JS carregar.
-- A cobertura (`usePublicStats`) sai no estado sem dados: mapa e cidades vindos
-  de `mapa-vale.ts`, sem números ao vivo. O cliente busca os números depois,
-  como já faz hoje.
+- A cobertura (`usePublicStats`) não entra no HTML pré-renderizado: sem dados
+  da API ela não renderiza nada (regra "sem dado, sem seção" de
+  `cobertura.tsx`). O cliente monta a seção depois, como hoje. As 24 cidades
+  chegam ao buscador pelo `areaServed` do JSON-LD (seção 4).
+- O FAQ sai só com as perguntas: o accordion fechado não renderiza as
+  respostas. As respostas chegam pelo `FAQPage` do JSON-LD.
 
 ### 2. No navegador: `createRoot`, sem hidratação
 
@@ -78,14 +81,15 @@ render, o que gera erro de hidratação.
 - `main.tsx` continua com `createRoot`: o React descarta o HTML pré-renderizado
   e monta o mesmo conteúdo. Isso elimina a classe de bug de hidratação, e o
   custo é re-renderizar uma página estática.
-- Um script inline no `<head>` do `home.html` lê a mesma chave do
+- O HTML pré-renderizado vai dentro de `<div data-prerendered>` no `#root`.
+  Um script inline no `<head>` do `home.html` lê a mesma chave do
   `localStorage` que `lib/session-hint.ts` usa (dentro de `try/catch`, como
-  lá). Se a dica existir, ele marca o `<html>` com um atributo, e uma regra CSS
-  esconde o `#root` enquanto o atributo existir. O `main.tsx` remove o
-  atributo depois do `render()`. Assim o usuário logado não vê a landing
-  piscar antes do spinner. A chave vira constante exportada de
-  `session-hint.ts`, e o `prerender.mjs` a importa do build SSR, sem
-  duplicar a string.
+  lá). Se a dica existir, ele marca o `<html>` com `data-session-hint`, e uma
+  regra CSS esconde `[data-prerendered]`. Quando o React monta, ele substitui
+  o conteúdo do `#root` e o `div` some sozinho, então o `main.tsx` não muda.
+  Assim o usuário logado não vê a landing piscar antes do spinner. A chave
+  vira constante exportada de `session-hint.ts`, e o `prerender.mjs` a
+  importa do build SSR, sem duplicar a string.
 - **Risco a verificar no navegador:** flash visual na troca do HTML pelo
   render do React (por exemplo, animação de entrada recomeçando). Se
   incomodar, a alternativa é usar `hydrateRoot` só quando não há dica de
