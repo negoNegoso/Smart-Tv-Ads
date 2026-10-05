@@ -55,6 +55,21 @@ await cp(path.join(root, "artifacts/signage/dist/public"), path.join(outputDir, 
   recursive: true,
 });
 
+/**
+ * home.html é a única página que o buscador lê com conteúdo. Se o prerender
+ * quebrar em silêncio e sair só o shell, a raiz volta a ser uma página vazia
+ * para o Google sem nenhum teste reclamar. Falha aqui em vez de descobrir no
+ * Search Console semanas depois.
+ */
+const homePath = path.join(outputDir, "static", "home.html");
+const home = existsSync(homePath) ? await readFile(homePath, "utf8") : "";
+if (!/<div id="root"><div data-prerendered>[\s\S]*?<h1[\s>]/.test(home)) {
+  throw new Error(
+    "static/home.html ausente ou sem <h1> pré-renderizado no #root. " +
+      "Confira o script build de artifacts/signage (vite build --ssr + scripts/prerender.mjs).",
+  );
+}
+
 await mkdir(functionDir, { recursive: true });
 await cp(path.join(root, "artifacts/api-server/dist-vercel"), functionDir, { recursive: true });
 
@@ -104,14 +119,20 @@ await writeFile(
       routes: [
         { src: "/api/(.*)", dest: "/api" },
         { src: "/r/(.*)", dest: "/api" },
+        // Só a raiz recebe o HTML pré-renderizado (SEO). O resto do app segue
+        // no shell vazio, para quem abre /login não ver a landing antes do JS.
+        { src: "^/$", dest: "/home.html" },
         // Link curto que o instalador digita no navegador da TV. Aceita a
         // barra final (`/tv/`) porque é fácil de digitar sem querer.
-        { src: "^/tv/?$", dest: "/tv.html" },
+        // Ferramenta de instalação, não página de busca: noindex.
+        { src: "^/tv/?$", dest: "/tv.html", headers: { "X-Robots-Tag": "noindex" } },
         // Link que o instalador digita para baixar o APK na TV box. Mesma
-        // tolerância com a barra final que o /tv.
-        { src: "^/apk/?$", dest: "/apk.html" },
+        // tolerância com a barra final que o /tv, e mesmo noindex.
+        { src: "^/apk/?$", dest: "/apk.html", headers: { "X-Robots-Tag": "noindex" } },
         { handle: "filesystem" },
-        { src: "/(.*)", dest: "/index.html" },
+        // Login, portal, admin, parear: área de app, não de busca. O noindex
+        // vai no header porque o shell é um só para todas essas rotas.
+        { src: "/(.*)", dest: "/index.html", headers: { "X-Robots-Tag": "noindex" } },
       ],
     },
     null,

@@ -1,4 +1,5 @@
-const KEY = "signage:has-session";
+/** Exportada para o script inline do home.html pré-renderizado ler a mesma chave. */
+export const SESSION_HINT_KEY = "signage:has-session";
 
 /**
  * Dica de UX, jamais autorização.
@@ -14,7 +15,7 @@ const KEY = "signage:has-session";
  */
 export function markSessionStarted(): void {
   try {
-    localStorage.setItem(KEY, "1");
+    localStorage.setItem(SESSION_HINT_KEY, "1");
   } catch {
     // Modo privado ou storage bloqueado: seguir sem a dica é aceitável.
   }
@@ -22,7 +23,7 @@ export function markSessionStarted(): void {
 
 export function clearSessionHint(): void {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(SESSION_HINT_KEY);
   } catch {
     // idem
   }
@@ -30,7 +31,7 @@ export function clearSessionHint(): void {
 
 export function hasSessionHint(): boolean {
   try {
-    return localStorage.getItem(KEY) === "1";
+    return localStorage.getItem(SESSION_HINT_KEY) === "1";
   } catch {
     return false;
   }

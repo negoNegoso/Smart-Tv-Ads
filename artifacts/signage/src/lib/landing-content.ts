@@ -26,7 +26,7 @@ export const LANDING = {
     loginLabel: 'Entrar',
   },
   hero: {
-    title: 'Anuncie nas telas do comércio da região — ou coloque a sua para trabalhar.',
+    title: 'Anuncie nas telas do comércio do Vale do Ribeira — ou coloque a sua para trabalhar.',
     subtitle:
       'A Smart Vale TV leva anúncios para TVs instaladas dentro de estabelecimentos. Quem anuncia entra na rotina do cliente; quem tem um ponto anuncia o próprio negócio de graça na tela.',
     doors: [

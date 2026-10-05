@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { APRESENTACAO } from '@/lib/apresentacao-content';
+import { buildRobots } from '@/lib/prerender-html';
 import App from '../App';
 
 afterEach(() => {
@@ -22,7 +21,8 @@ describe('rota /apresentacao', () => {
   });
 
   it('robots.txt tira a apresentação dos buscadores', () => {
-    const robots = readFileSync(resolve(import.meta.dirname, '../../public/robots.txt'), 'utf8');
+    // O robots.txt agora é gerado no build (scripts/prerender.mjs) por buildRobots.
+    const robots = buildRobots('');
     expect(robots).toMatch(/^Disallow: \/apresentacao$/m);
   });
 });
