@@ -113,19 +113,34 @@ export function filterEligibleSlides<
   );
 }
 
+export type NetworkDevice = { id: number; companyId: number; segmentId: number | null };
+export type AdvertiserIdentity = { advertiserSegmentId: number | null; advertiserCompanyId: number | null };
+
+/**
+ * O que a campanha alcança na rede: quantas TVs no alvo podem exibir a peça e
+ * em quais TVs o anunciante nunca entra por concorrência — estas olhando a
+ * rede inteira, não só o alvo, para o formulário marcar a TV concorrente
+ * antes de o admin escolhê-la.
+ */
+export type ReachPreview = { reachedCount: number; totalDevices: number; competitorDeviceIds: number[] };
+
+export function previewReach(campaign: CampaignTarget & AdvertiserIdentity, devices: NetworkDevice[]): ReachPreview {
+  let reachedCount = 0;
+  const competitorDeviceIds: number[] = [];
+  for (const device of devices) {
+    const allowed = canPlayOnDevice({
+      advertiserSegmentId: campaign.advertiserSegmentId,
+      advertiserCompanyId: campaign.advertiserCompanyId,
+      deviceCompanyId: device.companyId,
+      deviceSegmentId: device.segmentId,
+    });
+    if (!allowed) competitorDeviceIds.push(device.id);
+    else if (campaignReachesDevice(campaign, device)) reachedCount += 1;
+  }
+  return { reachedCount, totalDevices: devices.length, competitorDeviceIds };
+}
+
 /** Quantas TVs a campanha realmente alcança, já descontada a concorrência. */
-export function countReachedDevices(
-  campaign: CampaignTarget & { advertiserSegmentId: number | null; advertiserCompanyId: number | null },
-  devices: Array<{ id: number; companyId: number; segmentId: number | null }>,
-): number {
-  return devices.filter(
-    (device) =>
-      campaignReachesDevice(campaign, device) &&
-      canPlayOnDevice({
-        advertiserSegmentId: campaign.advertiserSegmentId,
-        advertiserCompanyId: campaign.advertiserCompanyId,
-        deviceCompanyId: device.companyId,
-        deviceSegmentId: device.segmentId,
-      }),
-  ).length;
+export function countReachedDevices(campaign: CampaignTarget & AdvertiserIdentity, devices: NetworkDevice[]): number {
+  return previewReach(campaign, devices).reachedCount;
 }
