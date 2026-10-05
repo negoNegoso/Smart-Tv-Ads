@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+import { resolveSitePrefix } from './scripts/site-url.mjs';
 
 /**
  * PORT and BASE_PATH describe a running dev/preview server. A production build
@@ -40,30 +41,13 @@ function resolveBasePath(): string {
   return basePath;
 }
 
-/**
- * og:image e og:url só funcionam com URL absoluta: o crawler do WhatsApp, do
- * Facebook e do X não resolve caminho relativo, e um card sem imagem é
- * exatamente o que a landing não pode entregar — todo o CTA dela é ser
- * compartilhada.
- *
- * SITE_URL manda. Na Vercel, VERCEL_PROJECT_PRODUCTION_URL já traz o domínio de
- * produção sem ninguém configurar nada. Sem nenhum dos dois, as tags que
- * dependem da URL saem do HTML em vez de saírem quebradas, e o twitter:card cai
- * para `summary`, que não promete imagem nenhuma.
- */
-function resolveSiteUrl(): string {
-  const explicit = process.env.SITE_URL;
-  if (explicit) return explicit.replace(/\/+$/, '');
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  return vercel ? `https://${vercel}` : '';
-}
-
+/** Resolve `__SITE_URL__` no HTML. A regra do domínio mora em scripts/site-url.mjs. */
 function socialMetaTags(basePath: string): Plugin {
-  const prefix = `${resolveSiteUrl()}${basePath.replace(/\/+$/, '')}`;
+  const prefix = resolveSitePrefix(basePath);
   return {
     name: 'signage-social-meta',
     transformIndexHtml(html) {
-      if (!resolveSiteUrl()) {
+      if (!prefix) {
         return html
           // og:image:* sozinho, sem og:image, é lixo no head.
           .replace(/^.*(?:__SITE_URL__|og:image:).*\n/gm, '')
