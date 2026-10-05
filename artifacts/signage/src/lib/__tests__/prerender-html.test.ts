@@ -61,7 +61,7 @@ describe('script da dica de sessão', () => {
   });
 
   it('storage que lança (Safari privado) não quebra a página', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new Error('SecurityError');
     });
     expect(rodar).not.toThrow();

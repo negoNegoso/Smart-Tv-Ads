@@ -35,17 +35,39 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     }) as MediaQueryList;
 }
 
-// jsdom não inicializa localStorage corretamente sem essa configuração
-if (typeof globalThis.localStorage === 'undefined' || !globalThis.localStorage.setItem) {
+// Node 25 ships com global localStorage que sombra jsdom: jsdom não inicializa
+// localStorage.setItem/removeItem/clear corretamente em Node 22+. O ambiente de
+// testes precisa de Storage funcional (session-hint e prerender-html usam).
+// Stub com Map-backed storage, exposto via Object.defineProperty para evitar
+// shadowing pelo global Node 25.
+if (typeof globalThis !== 'undefined') {
   const store = new Map<string, string>();
-  globalThis.localStorage = {
+  const storageImpl: Storage = {
     getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => store.set(key, value),
-    removeItem: (key: string) => store.delete(key),
-    clear: () => store.clear(),
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => {
+      store.clear();
+    },
     key: (index: number) => Array.from(store.keys())[index] ?? null,
-    length: store.size,
-  } as Storage;
+    get length() {
+      return store.size;
+    },
+  };
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: storageImpl,
+    configurable: true,
+  });
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'localStorage', {
+      value: storageImpl,
+      configurable: true,
+    });
+  }
 }
 
 afterEach(() => {
