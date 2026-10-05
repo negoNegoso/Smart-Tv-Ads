@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCompanyInput, updateCompanyInput } from "../input";
 
-const base = { name: "Padaria Central", isClient: true, isAdvertiser: false };
+const base = { name: "Padaria Central", segmentId: 1, isClient: true, isAdvertiser: false };
 
 describe("createCompanyInput", () => {
   it("exige pelo menos um papel", () => {

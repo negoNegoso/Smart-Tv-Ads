@@ -10,7 +10,7 @@ import {
 } from "@workspace/db";
 import type { CompanyFields, CreateCompanyInput } from "./input";
 import type { CompanyDependencies, RolePlan } from "./roles";
-import { isUniqueViolation } from "../pg-errors";
+import { isUniqueViolation, isForeignKeyViolation } from "../pg-errors";
 
 export type { CompanyDependencies } from "./roles";
 
@@ -26,6 +26,9 @@ export interface CompanyDetail extends CompanyRow {
 
 /** Corrida criando o mesmo perfil duas vezes: o UNIQUE(company_id) barra. */
 export class CompanyConflictError extends Error {}
+
+/** Segmento escolhido não existe mais (apagado ou mesclado no meio do caminho). */
+export class CompanySegmentError extends Error {}
 
 function rowQuery() {
   return db
@@ -90,6 +93,11 @@ function rethrowConflict(err: unknown): never {
   // `.cause.code`. `isUniqueViolation` cobre os dois formatos.
   if (isUniqueViolation(err)) {
     throw new CompanyConflictError("A empresa já tem esse papel.");
+  }
+  // A única FK que o cadastro da empresa pode violar é a do segmento: os
+  // perfis apontam para a empresa recém-gravada na mesma transação.
+  if (isForeignKeyViolation(err)) {
+    throw new CompanySegmentError("Segmento não encontrado.");
   }
   throw err;
 }
