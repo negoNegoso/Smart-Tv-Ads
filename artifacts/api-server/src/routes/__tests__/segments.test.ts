@@ -118,6 +118,13 @@ describe("rotas de segmentos", () => {
     expect(store.mergeSegments).toHaveBeenCalledWith(2, 1);
   });
 
+  it("mesclar com destino não inteiro é 400 sem gravar", async () => {
+    const res = await (await http()).post("/segments/2/merge").send({ targetId: 1.5 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Escolha o segmento de destino");
+    expect(store.mergeSegments).not.toHaveBeenCalled();
+  });
+
   it("mesclar no próprio segmento é 400 sem gravar", async () => {
     const res = await (await http()).post("/segments/1/merge").send({ targetId: 1 });
     expect(res.status).toBe(400);

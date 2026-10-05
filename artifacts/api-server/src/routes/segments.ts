@@ -118,7 +118,7 @@ router.delete("/segments/:id", async (req, res): Promise<void> => {
 router.post("/segments/:id/merge", async (req, res): Promise<void> => {
   const id = idParam(req.params.id);
   const parsed = MergeSegmentBody.safeParse(req.body);
-  if (!id || !parsed.success) {
+  if (!id || !parsed.success || !Number.isInteger(parsed.data.targetId) || parsed.data.targetId <= 0) {
     res.status(400).json({ error: "Escolha o segmento de destino" });
     return;
   }
