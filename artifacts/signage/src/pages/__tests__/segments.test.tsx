@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Toaster } from '@/components/ui/toaster';
 import Segments from '../segments';
 
 // Response de verdade: o cliente gerado (useListSegments) lê text() e headers,
@@ -35,6 +36,7 @@ function renderPage() {
   render(
     <QueryClientProvider client={client}>
       <Segments />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -96,5 +98,18 @@ describe('Segments', () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/segments/2/merge'), expect.objectContaining({ method: 'POST', body: JSON.stringify({ targetId: 1 }) })),
     );
+  });
+
+  it('apagar com 409 mostra a mensagem e abre o mesclar', async () => {
+    stub((u, init) =>
+      init?.method === 'DELETE'
+        ? json(409, { error: 'Usado por 1 empresa e 0 campanhas', companyCount: 1, campaignCount: 0 })
+        : undefined,
+    );
+    renderPage();
+    await screen.findByText('Ótica');
+    await userEvent.click(within(row('Ótica')).getByRole('button', { name: 'Apagar' }));
+    expect(await screen.findByText('Usado por 1 empresa e 0 campanhas')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Mesclar em')).toBeInTheDocument();
   });
 });

@@ -58,6 +58,12 @@ function renderDialog(onSaved = vi.fn()) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('CompanyFormDialog', () => {
+  it('oferece o caminho para cadastrar segmento', async () => {
+    stubFetch({ '/segments': () => json(200, []) });
+    renderDialog();
+    expect(screen.getByRole('link', { name: 'Cadastrar segmento' })).toHaveAttribute('href', '/segments');
+  });
+
   it('preenche o endereço quando o CEP tem 8 dígitos', async () => {
     const fetchMock = stubFetch({ '/segments': () => json(200, []), '/cep/01310100': () => json(200, PAULISTA) });
     renderDialog();

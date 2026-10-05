@@ -1,5 +1,6 @@
 import { request } from '@/lib/companies-api';
 
+export type SegmentRow = { id: number; slug: string; name: string };
 export type SegmentWithUsage = { id: number; slug: string; name: string; companyCount: number; campaignCount: number };
 
 // Mesmo `request` das empresas: o erro chega como ApiError com a mensagem em
@@ -8,7 +9,7 @@ export const createSegment = (name: string) =>
   request<SegmentWithUsage>('/segments', { method: 'POST', body: JSON.stringify({ name }) });
 
 export const renameSegment = (id: number, name: string) =>
-  request<SegmentWithUsage>(`/segments/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+  request<SegmentRow>(`/segments/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
 
 export const deleteSegment = (id: number) => request<void>(`/segments/${id}`, { method: 'DELETE' });
 

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Link } from 'wouter';
 import { useListSegments } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -201,6 +202,8 @@ export function CompanyFormDialog({
                   <option key={s.id} value={String(s.id)}>{s.name}</option>
                 ))}
               </select>
+              {/* Segmento novo só se cadastra na tela de segmentos: o link evita o beco sem saída. */}
+              <Link href="/segments" className="text-xs text-primary underline-offset-2 hover:underline">Cadastrar segmento</Link>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-status">Status</Label>

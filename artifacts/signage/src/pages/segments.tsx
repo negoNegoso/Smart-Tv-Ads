@@ -64,6 +64,8 @@ export default function Segments() {
       // 409: alguém passou a usar o segmento depois que a lista carregou.
       toast({ title: errorMessage(err, 'Não foi possível apagar o segmento.'), description: 'Use mesclar para tirá-lo.', variant: 'destructive' });
       refresh();
+      // Além da mensagem, já abre o mesclar: é a saída para um segmento em uso.
+      setMerging(segment);
     }
   }
 
