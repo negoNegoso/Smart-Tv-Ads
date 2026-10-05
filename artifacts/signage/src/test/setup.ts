@@ -35,6 +35,19 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     }) as MediaQueryList;
 }
 
+// jsdom não inicializa localStorage corretamente sem essa configuração
+if (typeof globalThis.localStorage === 'undefined' || !globalThis.localStorage.setItem) {
+  const store = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+    clear: () => store.clear(),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    length: store.size,
+  } as Storage;
+}
+
 afterEach(() => {
   cleanup();
 });
