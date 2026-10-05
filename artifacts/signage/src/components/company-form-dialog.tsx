@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Link } from 'wouter';
 import { useListSegments } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -144,13 +145,17 @@ export function CompanyFormDialog({
       setError('Marque cliente e/ou anunciante.');
       return;
     }
+    if (!form.segmentId) {
+      setError('Escolha o segmento da empresa.');
+      return;
+    }
     setError(null);
     setSaving(true);
     const payload = {
       name: form.name.trim(),
       email: orNull(form.email),
       phone: orNull(form.phone),
-      segmentId: form.segmentId ? Number(form.segmentId) : null,
+      segmentId: Number(form.segmentId),
       isClient: form.isClient,
       isAdvertiser: form.isAdvertiser,
       advertiserCompany: form.isAdvertiser ? orNull(form.advertiserCompany) : null,
@@ -192,11 +197,13 @@ export function CompanyFormDialog({
             <div className="space-y-2">
               <Label htmlFor="company-segment">Segmento</Label>
               <select id="company-segment" className={selectClass} value={form.segmentId} onChange={(e) => set('segmentId', e.target.value)}>
-                <option value="">Sem segmento</option>
+                <option value="" disabled>Escolha o segmento</option>
                 {segments.map((s) => (
                   <option key={s.id} value={String(s.id)}>{s.name}</option>
                 ))}
               </select>
+              {/* Segmento novo só se cadastra na tela de segmentos: o link evita o beco sem saída. */}
+              <Link href="/segments" className="text-xs text-primary underline-offset-2 hover:underline">Cadastrar segmento</Link>
             </div>
             <div className="space-y-2">
               <Label htmlFor="company-status">Status</Label>

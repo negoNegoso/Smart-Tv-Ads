@@ -8,11 +8,13 @@
 import type { CompanyFields } from './companyFields';
 
 export type CompanyInput = CompanyFields & ({
+  segmentId: number;
   isClient: boolean;
   isAdvertiser: boolean;
   /** @nullable */
   advertiserCompany?: string | null;
 }) & Required<Pick<CompanyFields & ({
+  segmentId: number;
   isClient: boolean;
   isAdvertiser: boolean;
   /** @nullable */

@@ -15,6 +15,7 @@ vi.mock("../../lib/companies/store", () => ({
   updateCompany: (...a: unknown[]) => store.updateCompany(...a),
   deleteCompany: (...a: unknown[]) => store.deleteCompany(...a),
   CompanyConflictError: class CompanyConflictError extends Error {},
+  CompanySegmentError: class CompanySegmentError extends Error {},
 }));
 
 async function buildApp(): Promise<Express> {
@@ -28,7 +29,7 @@ async function buildApp(): Promise<Express> {
 
 const none = { devices: 0, panels: 0, campaigns: 0 };
 const detail = (over: Record<string, unknown> = {}) => ({
-  id: 5, name: "Padaria Central", status: "active", clientId: 1, advertiserId: null, advertiserCompany: null,
+  id: 5, name: "Padaria Central", status: "active", segmentId: 1, clientId: 1, advertiserId: null, advertiserCompany: null,
   dependencies: none, ...over,
 });
 
@@ -40,16 +41,16 @@ describe("rotas de empresas", () => {
     const { default: request } = await import("supertest");
     const res = await request(await buildApp())
       .post("/companies")
-      .send({ name: "Padaria Central", isClient: true, isAdvertiser: true, cep: "01310-100" });
+      .send({ name: "Padaria Central", isClient: true, isAdvertiser: true, segmentId: 1, cep: "01310-100" });
     expect(res.status).toBe(201);
     expect(store.createCompany).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Padaria Central", isClient: true, isAdvertiser: true, cep: "01310100" }),
+      expect.objectContaining({ name: "Padaria Central", isClient: true, isAdvertiser: true, segmentId: 1, cep: "01310100" }),
     );
   });
 
   it("criar sem papel é 400", async () => {
     const { default: request } = await import("supertest");
-    const res = await request(await buildApp()).post("/companies").send({ name: "X", isClient: false, isAdvertiser: false });
+    const res = await request(await buildApp()).post("/companies").send({ name: "X", segmentId: 1, isClient: false, isAdvertiser: false });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("Marque cliente e/ou anunciante.");
     expect(store.createCompany).not.toHaveBeenCalled();
@@ -114,5 +115,49 @@ describe("rotas de empresas", () => {
     const res = await request(await buildApp()).delete("/companies/5");
     expect(res.status).toBe(204);
     expect(store.deleteCompany).toHaveBeenCalledWith(5);
+  });
+
+  it("criar sem segmento é 400", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).post("/companies").send({ name: "X", isClient: true, isAdvertiser: false });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Escolha o segmento da empresa.");
+    expect(store.createCompany).not.toHaveBeenCalled();
+  });
+
+  it("editar mandando segmento nulo é 400", async () => {
+    store.getCompany.mockResolvedValue(detail());
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).patch("/companies/5").send({ segmentId: null });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Escolha o segmento da empresa.");
+    expect(store.updateCompany).not.toHaveBeenCalled();
+  });
+
+  it("cadastro antigo sem segmento não salva edição que não complete o segmento", async () => {
+    store.getCompany.mockResolvedValue(detail({ segmentId: null }));
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).patch("/companies/5").send({ status: "paused" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Complete o segmento antes de salvar.");
+    expect(store.updateCompany).not.toHaveBeenCalled();
+  });
+
+  it("cadastro antigo salva quando a edição traz o segmento", async () => {
+    store.getCompany.mockResolvedValue(detail({ segmentId: null }));
+    store.updateCompany.mockResolvedValue(detail());
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).patch("/companies/5").send({ status: "paused", segmentId: 3 });
+    expect(res.status).toBe(200);
+    expect(store.updateCompany).toHaveBeenCalledWith(5, { status: "paused", segmentId: 3 }, expect.anything(), undefined);
+  });
+
+  it("segmento inexistente é 400 com mensagem clara", async () => {
+    const { CompanySegmentError } = await import("../../lib/companies/store");
+    store.createCompany.mockRejectedValue(new CompanySegmentError("Segmento não encontrado."));
+    const { default: request } = await import("supertest");
+    const res = await request(await buildApp()).post("/companies").send({ name: "X", isClient: true, isAdvertiser: false, segmentId: 999 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Segmento não encontrado.");
   });
 });

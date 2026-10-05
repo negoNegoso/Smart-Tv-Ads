@@ -14,8 +14,6 @@ export interface CompanyFields {
   email?: string | null;
   /** @nullable */
   phone?: string | null;
-  /** @nullable */
-  segmentId?: number | null;
   status?: CompanyFieldsStatus;
   /** @nullable */
   notes?: string | null;

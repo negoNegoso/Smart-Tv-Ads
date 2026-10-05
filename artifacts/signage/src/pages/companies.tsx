@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CompanyFormDialog } from '@/components/company-form-dialog';
+import { MissingSegmentBadge } from '@/components/missing-segment-badge';
 import { STATUS_LABELS, companiesQueryKey, listCompanies, type CompanyStatus } from '@/lib/companies-api';
 
 const selectClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
@@ -102,6 +103,7 @@ export default function Companies() {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {company.segmentId === null ? <MissingSegmentBadge /> : null}
                   {company.clientId !== null ? <Badge variant="secondary">Cliente</Badge> : null}
                   {company.advertiserId !== null ? <Badge variant="secondary">Anunciante</Badge> : null}
                   {company.status !== 'active' ? <Badge variant="outline">{STATUS_LABELS[company.status]}</Badge> : null}

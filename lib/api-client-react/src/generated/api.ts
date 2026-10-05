@@ -78,7 +78,10 @@ import type {
   ResetPasswordBody,
   ResetUserPassword200,
   Segment,
+  SegmentInUseError,
   SegmentInput,
+  SegmentMergeInput,
+  SegmentWithUsage,
   StoreIdentity,
   UpdatePanelRequest,
   UpdateStoreIdentityRequest,
@@ -1293,9 +1296,9 @@ export const getListSegmentsUrl = () => {
 /**
  * @summary List all segments
  */
-export const listSegments = async ( options?: RequestInit): Promise<Segment[]> => {
+export const listSegments = async ( options?: RequestInit): Promise<SegmentWithUsage[]> => {
 
-  return customFetch<Segment[]>(getListSegmentsUrl(),
+  return customFetch<SegmentWithUsage[]>(getListSegmentsUrl(),
   {
     ...options,
     method: 'GET'
@@ -1428,6 +1431,221 @@ export const useCreateSegment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateSegmentMutationOptions(options));
+    }
+
+export const getRenameSegmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/segments/${id}`
+}
+
+/**
+ * @summary Rename a segment
+ */
+export const renameSegment = async (id: number,
+    segmentInput: SegmentInput, options?: RequestInit): Promise<Segment> => {
+
+  return customFetch<Segment>(getRenameSegmentUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(segmentInput)
+  }
+);}
+
+
+
+
+
+export const getRenameSegmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameSegment>>, TError,{id: number;data: BodyType<SegmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameSegment>>, TError,{id: number;data: BodyType<SegmentInput>}, TContext> => {
+
+const mutationKey = ['renameSegment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameSegment>>, {id: number;data: BodyType<SegmentInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  renameSegment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameSegmentMutationResult = NonNullable<Awaited<ReturnType<typeof renameSegment>>>
+    export type RenameSegmentMutationBody = BodyType<SegmentInput>
+    export type RenameSegmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Rename a segment
+ */
+export const useRenameSegment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameSegment>>, TError,{id: number;data: BodyType<SegmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameSegment>>,
+        TError,
+        {id: number;data: BodyType<SegmentInput>},
+        TContext
+      > => {
+      return useMutation(getRenameSegmentMutationOptions(options));
+    }
+
+export const getDeleteSegmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/segments/${id}`
+}
+
+/**
+ * @summary Delete an unused segment
+ */
+export const deleteSegment = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSegmentUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSegmentMutationOptions = <TError = ErrorType<void | SegmentInUseError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSegment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSegment>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSegment(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSegmentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSegment>>>
+
+    export type DeleteSegmentMutationError = ErrorType<void | SegmentInUseError>
+
+    /**
+ * @summary Delete an unused segment
+ */
+export const useDeleteSegment = <TError = ErrorType<void | SegmentInUseError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSegment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSegment>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSegmentMutationOptions(options));
+    }
+
+export const getMergeSegmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/segments/${id}/merge`
+}
+
+/**
+ * @summary Merge a segment into another one
+ */
+export const mergeSegment = async (id: number,
+    segmentMergeInput: SegmentMergeInput, options?: RequestInit): Promise<SegmentWithUsage> => {
+
+  return customFetch<SegmentWithUsage>(getMergeSegmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(segmentMergeInput)
+  }
+);}
+
+
+
+
+
+export const getMergeSegmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSegment>>, TError,{id: number;data: BodyType<SegmentMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeSegment>>, TError,{id: number;data: BodyType<SegmentMergeInput>}, TContext> => {
+
+const mutationKey = ['mergeSegment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeSegment>>, {id: number;data: BodyType<SegmentMergeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeSegment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeSegmentMutationResult = NonNullable<Awaited<ReturnType<typeof mergeSegment>>>
+    export type MergeSegmentMutationBody = BodyType<SegmentMergeInput>
+    export type MergeSegmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Merge a segment into another one
+ */
+export const useMergeSegment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSegment>>, TError,{id: number;data: BodyType<SegmentMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeSegment>>,
+        TError,
+        {id: number;data: BodyType<SegmentMergeInput>},
+        TContext
+      > => {
+      return useMutation(getMergeSegmentMutationOptions(options));
     }
 
 export const getLookupCepUrl = (cep: string,) => {

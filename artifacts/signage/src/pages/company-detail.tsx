@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AdvertiserCampaignsSection } from '@/components/advertiser-campaigns-section';
 import { ClientDevicesSection } from '@/components/client-devices-section';
 import { CompanyFormDialog } from '@/components/company-form-dialog';
+import { MissingSegmentBadge } from '@/components/missing-segment-badge';
 import {
   ApiError,
   STATUS_LABELS,
@@ -114,6 +115,7 @@ export function CompanyDetailView({ companyId }: { companyId: number }) {
         <div className="min-w-0">
           <h1 className="text-3xl font-bold tracking-tight">{company.name}</h1>
           <div className="mt-2 flex flex-wrap gap-2">
+            {company.segmentId === null ? <MissingSegmentBadge /> : null}
             {company.clientId !== null ? <Badge variant="secondary">Cliente</Badge> : null}
             {company.advertiserId !== null ? <Badge variant="secondary">Anunciante</Badge> : null}
             <Badge variant="outline">{STATUS_LABELS[company.status]}</Badge>

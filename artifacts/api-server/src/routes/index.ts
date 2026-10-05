@@ -15,6 +15,7 @@ import displayRouter from "./display";
 import telemetryRouter from "./telemetry";
 import analyticsRouter from "./analytics";
 import advertisersRouter from "./advertisers";
+import campaignReachRouter from "./campaign-reach";
 import storageRouter from "./storage";
 import qrRouter from "./qr";
 import tvAppRouter from "./tv-app";
@@ -58,5 +59,6 @@ router.use(devicesRouter);
 router.use(fleetRouter);
 router.use(analyticsRouter);
 router.use(advertisersRouter);
+router.use(campaignReachRouter);
 
 export default router;

@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
+import { useReachPreview } from "@/components/use-reach-preview";
 import { CampaignTargetPicker, CampaignWeekdayPicker } from "@/components/campaign-form-dialog";
 import { mediaUrl } from "@/lib/media-url";
 import { weekdaysLabel } from "@/lib/weekdays";
@@ -79,6 +80,10 @@ export default function CampaignDetail() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const form = useCampaignForm();
+  const preview = useReachPreview(
+    { advertiserId: form.selectedAdvertiser, targetMode: form.targetMode, deviceIds: form.selectedDevices, segmentIds: form.selectedSegments },
+    editing,
+  );
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -251,7 +256,7 @@ export default function CampaignDetail() {
                 <CampaignWeekdayPicker form={form} />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <CampaignTargetPicker form={form} devices={devices} segments={segments} />
+                <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
               </div>
             </>
           ) : (

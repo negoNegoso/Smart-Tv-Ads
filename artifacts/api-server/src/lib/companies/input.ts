@@ -7,6 +7,8 @@ const optionalText = z
   .nullish()
   .transform((v) => (v && v.trim() ? v.trim() : null));
 
+const SEGMENT_REQUIRED = "Escolha o segmento da empresa.";
+
 const fields = {
   name: z.string().trim().min(1, "Informe o nome da empresa."),
   email: z
@@ -16,7 +18,13 @@ const fields = {
     .transform((v) => (v ? v : null))
     .refine((v) => v === null || z.string().email().safeParse(v).success, "E-mail inválido."),
   phone: optionalText,
-  segmentId: z.coerce.number().int().positive().nullish().transform((v) => v ?? null),
+  // Obrigatório: sem segmento a regra do concorrente não vale para a empresa
+  // (ver `canPlayOnDevice`). `coerce` transforma null e "" em 0 e ausente em
+  // NaN; os dois caem na mesma mensagem.
+  segmentId: z.coerce
+    .number({ invalid_type_error: SEGMENT_REQUIRED })
+    .int(SEGMENT_REQUIRED)
+    .positive(SEGMENT_REQUIRED),
   status: z.enum(COMPANY_STATUSES),
   notes: optionalText,
   cep: z
@@ -50,7 +58,9 @@ const fields = {
  * sumir do objeto final (chave ausente continua ausente, sem apagar o que o
  * formulário não mandou). Qualquer outro valor, inclusive um `null`
  * explícito, passa direto para o schema de `fields`, que já sabe lidar com
- * `null`/string vazia (vira `null`) exatamente como no criar.
+ * `null`/string vazia (vira `null`) exatamente como no criar. Exceção:
+ * `segmentId` é obrigatório, então `null` explícito vira 400 ("Escolha o
+ * segmento da empresa.") em vez de apagar o segmento da empresa.
  */
 const patchFields = {
   name: fields.name.optional(),

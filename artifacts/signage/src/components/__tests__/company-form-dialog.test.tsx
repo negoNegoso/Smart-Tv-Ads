@@ -15,7 +15,13 @@ const IPIRANGA = {
 };
 
 function json(status: number, body: unknown) {
-  return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+  // Retorna Response real para que customFetch consiga ler headers e text()
+  return Promise.resolve(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    }),
+  );
 }
 
 /** Promise controlável de fora: resolve/rejeita só quando o teste mandar. */
@@ -52,6 +58,12 @@ function renderDialog(onSaved = vi.fn()) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('CompanyFormDialog', () => {
+  it('oferece o caminho para cadastrar segmento', async () => {
+    stubFetch({ '/segments': () => json(200, []) });
+    renderDialog();
+    expect(screen.getByRole('link', { name: 'Cadastrar segmento' })).toHaveAttribute('href', '/segments');
+  });
+
   it('preenche o endereço quando o CEP tem 8 dígitos', async () => {
     const fetchMock = stubFetch({ '/segments': () => json(200, []), '/cep/01310100': () => json(200, PAULISTA) });
     renderDialog();
@@ -120,13 +132,15 @@ describe('CompanyFormDialog', () => {
   it('envia o cadastro com papéis, endereço e coordenadas', async () => {
     const saved = { id: 5, name: 'Padaria Central' };
     const fetchMock = stubFetch({
-      '/segments': () => json(200, []),
+      '/segments': () => json(200, [{ id: 1, slug: 'padaria', name: 'Padaria', companyCount: 0, campaignCount: 0 }]),
       '/cep/01310100': () => json(200, PAULISTA),
       '/companies': () => json(201, saved),
     });
     const onSaved = renderDialog();
     await userEvent.type(screen.getByLabelText('Nome'), 'Padaria Central');
     await userEvent.click(screen.getByLabelText('Cliente (tem TV)'));
+    await screen.findByRole('option', { name: 'Padaria' });
+    await userEvent.selectOptions(screen.getByLabelText('Segmento'), '1');
     await userEvent.type(screen.getByLabelText('CEP'), '01310100');
     await waitFor(() => expect(screen.getByLabelText('Rua')).toHaveValue('Avenida Paulista'));
     await userEvent.type(screen.getByLabelText('Número'), '1000');
@@ -135,7 +149,17 @@ describe('CompanyFormDialog', () => {
     const [, init] = fetchMock.mock.calls.find(([url]) => String(url).includes('api/companies'))!;
     expect(JSON.parse(init!.body as string)).toMatchObject({
       name: 'Padaria Central', isClient: true, isAdvertiser: false, cep: '01310100',
-      street: 'Avenida Paulista', number: '1000', state: 'SP', lat: -23.56, lng: -46.65, status: 'active',
+      street: 'Avenida Paulista', number: '1000', state: 'SP', lat: -23.56, lng: -46.65, status: 'active', segmentId: 1,
     });
+  });
+
+  it('não envia sem segmento', async () => {
+    const fetchMock = stubFetch({ '/segments': () => json(200, [{ id: 1, slug: 'padaria', name: 'Padaria', companyCount: 0, campaignCount: 0 }]) });
+    renderDialog();
+    await userEvent.type(screen.getByLabelText('Nome'), 'Padaria Central');
+    await userEvent.click(screen.getByLabelText('Cliente (tem TV)'));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar empresa' }));
+    expect(await screen.findByText('Escolha o segmento da empresa.')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('api/companies'), expect.anything());
   });
 });

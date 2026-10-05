@@ -4,6 +4,7 @@ import { createCompanyInput, updateCompanyInput } from "../lib/companies/input";
 import { deleteBlock, planRoles } from "../lib/companies/roles";
 import {
   CompanyConflictError,
+  CompanySegmentError,
   createCompany,
   deleteCompany,
   getCompany,
@@ -38,6 +39,10 @@ router.post("/companies", async (req, res): Promise<void> => {
   try {
     res.status(201).json(await createCompany(parsed.data));
   } catch (err) {
+    if (err instanceof CompanySegmentError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     if (err instanceof CompanyConflictError) {
       res.status(409).json({ error: err.message });
       return;
@@ -68,6 +73,12 @@ router.patch("/companies/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Empresa não encontrada." });
     return;
   }
+  // Cadastro antigo sem segmento: qualquer edição precisa completar o
+  // segmento, senão a empresa segue fora da regra do concorrente.
+  if (current.segmentId === null && parsed.data.segmentId === undefined) {
+    res.status(400).json({ error: "Complete o segmento antes de salvar." });
+    return;
+  }
   const { isClient, isAdvertiser, advertiserCompany, ...fields } = parsed.data;
   const decision = planRoles(current, { isClient, isAdvertiser }, current.dependencies);
   if (!decision.ok) {
@@ -77,6 +88,10 @@ router.patch("/companies/:id", async (req, res): Promise<void> => {
   try {
     res.json(await updateCompany(id, fields, decision.plan, advertiserCompany));
   } catch (err) {
+    if (err instanceof CompanySegmentError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     if (err instanceof CompanyConflictError) {
       res.status(409).json({ error: err.message });
       return;

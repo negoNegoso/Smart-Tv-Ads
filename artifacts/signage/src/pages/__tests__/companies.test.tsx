@@ -10,7 +10,7 @@ function json(body: unknown) {
 
 const PADARIA = {
   id: 5, name: 'Padaria Central', status: 'active', city: 'São Paulo', state: 'SP',
-  clientId: 1, advertiserId: 2, advertiserCompany: null,
+  clientId: 1, advertiserId: 2, advertiserCompany: null, segmentId: 1,
 };
 // Cidade diferente da PADARIA: evita colisão de texto "São Paulo/SP" no teste
 // de listagem (o fixture do brief herdava a mesma cidade via spread).
@@ -55,5 +55,12 @@ describe('Companies', () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/companies?role=advertiser'), expect.anything()),
     );
+  });
+
+  it('marca a empresa sem segmento', async () => {
+    vi.stubGlobal('fetch', vi.fn((url: string) => json(String(url).includes('/companies') ? [PADARIA, { ...MERCADO, segmentId: null }] : [])));
+    renderPage();
+    expect(await screen.findByText('Mercado Bom')).toBeInTheDocument();
+    expect(screen.getAllByText('Sem segmento')).toHaveLength(1);
   });
 });

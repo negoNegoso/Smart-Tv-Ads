@@ -6,6 +6,7 @@ import {
   countReachedDevices,
   filterEligibleSlides,
   normalizeWeekdays,
+  previewReach,
 } from "../ad-eligibility";
 
 const PADARIA = 1;
@@ -225,5 +226,57 @@ describe("normalizeWeekdays", () => {
 
   it("descarta a semana inteira: sete dias marcados é todo dia", () => {
     expect(normalizeWeekdays([0, 1, 2, 3, 4, 5, 6])).toEqual([]);
+  });
+});
+
+describe("previewReach", () => {
+  const rede = [
+    { id: 1, companyId: 20, segmentId: PADARIA }, // TV da própria padaria anunciante
+    { id: 2, companyId: 30, segmentId: PADARIA }, // padaria concorrente
+    { id: 3, companyId: 40, segmentId: FARMACIA },
+    { id: 4, companyId: 50, segmentId: null }, // dono sem segmento
+  ];
+  const padaria = { advertiserSegmentId: PADARIA, advertiserCompanyId: 20 };
+
+  it("em todas as TVs, conta tudo menos a concorrente e lista a concorrente", () => {
+    expect(previewReach({ targetMode: "all", deviceIds: [], segmentIds: [], ...padaria }, rede)).toEqual({
+      reachedCount: 3,
+      totalDevices: 4,
+      competitorDeviceIds: [2],
+    });
+  });
+
+  it("lista a concorrente mesmo quando ela não está no alvo", () => {
+    const preview = previewReach({ targetMode: "devices", deviceIds: [3], segmentIds: [], ...padaria }, rede);
+    expect(preview.reachedCount).toBe(1);
+    expect(preview.competitorDeviceIds).toEqual([2]);
+  });
+
+  it("mirando o próprio ramo, só alcança a TV da própria empresa", () => {
+    const preview = previewReach({ targetMode: "segments", deviceIds: [], segmentIds: [PADARIA], ...padaria }, rede);
+    expect(preview.reachedCount).toBe(1);
+  });
+
+  it("por segmento, deixa de fora a TV de dono sem segmento", () => {
+    const farmacia = { advertiserSegmentId: FARMACIA, advertiserCompanyId: 40 };
+    const preview = previewReach({ targetMode: "segments", deviceIds: [], segmentIds: [PADARIA, FARMACIA], ...farmacia }, rede);
+    expect(preview.reachedCount).toBe(3);
+  });
+
+  it("anunciante sem segmento alcança todo o alvo e não tem concorrente", () => {
+    const semSegmento = { advertiserSegmentId: null, advertiserCompanyId: 60 };
+    expect(previewReach({ targetMode: "all", deviceIds: [], segmentIds: [], ...semSegmento }, rede)).toEqual({
+      reachedCount: 4,
+      totalDevices: 4,
+      competitorDeviceIds: [],
+    });
+  });
+
+  it("rede vazia dá zero de zero", () => {
+    expect(previewReach({ targetMode: "all", deviceIds: [], segmentIds: [], ...padaria }, [])).toEqual({
+      reachedCount: 0,
+      totalDevices: 0,
+      competitorDeviceIds: [],
+    });
   });
 });

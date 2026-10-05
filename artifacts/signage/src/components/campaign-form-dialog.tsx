@@ -1,9 +1,11 @@
 import { useEffect } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useReachPreview, type ReachPreview } from "@/components/use-reach-preview";
 import { WEEKDAYS, weekdaysLabel } from "@/lib/weekdays";
 import {
   useCampaignForm,
@@ -63,6 +65,26 @@ export function CampaignWeekdayPicker({ form }: { form: ReturnType<typeof useCam
   );
 }
 
+/** Linha de alcance e alertas da regra do concorrente; some sem prévia. */
+function ReachSummary({ preview }: { preview: ReachPreview }) {
+  return (
+    <div className="space-y-1 text-sm">
+      <p data-testid="reach-summary">
+        Alcança <strong>{preview.reachedCount}</strong> de <strong>{preview.totalDevices}</strong> TVs
+      </p>
+      {preview.reachedCount === 0 && <p className="text-amber-500">Nenhuma TV vai exibir esta campanha.</p>}
+      {!preview.advertiserHasSegment && (
+        <p className="text-amber-500">
+          Anunciante sem segmento: a regra do concorrente não vale.{" "}
+          {preview.advertiserCompanyId != null && (
+            <Link href={`/companies/${preview.advertiserCompanyId}`} className="underline">Completar cadastro</Link>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /**
  * Alvo da campanha: os três modos são exclusivos, então um radio — não um
  * switch — e só a lista do modo escolhido aparece.
@@ -71,11 +93,14 @@ export function CampaignTargetPicker({
   form,
   devices,
   segments,
+  preview,
 }: {
   form: ReturnType<typeof useCampaignForm>;
   devices: CampaignFormDevice[];
   segments: CampaignFormSegment[];
+  preview?: ReachPreview | null;
 }) {
+  const competitors = new Set(preview?.competitorDeviceIds ?? []);
   const modes = [
     { value: "all" as const, label: "Todas as TVs", hint: "A campanha entra na programação de toda a rede." },
     { value: "devices" as const, label: "TVs escolhidas", hint: "Só as TVs marcadas abaixo." },
@@ -110,7 +135,7 @@ export function CampaignTargetPicker({
       {form.targetMode === "devices" && (
         <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border p-2">
           {devices.map((device) => (
-            <label key={device.id} className="flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted">
+            <label key={device.id} className={`flex cursor-pointer items-center gap-2 rounded p-2 text-sm hover:bg-muted${competitors.has(device.id) ? " opacity-60" : ""}`}>
               <input
                 type="checkbox"
                 checked={form.selectedDevices.includes(device.id)}
@@ -118,6 +143,7 @@ export function CampaignTargetPicker({
               />
               {device.name}
               <span className="text-xs text-muted-foreground">· {device.clientName}</span>
+              {competitors.has(device.id) && <span className="ml-auto text-xs text-amber-500">concorrente · não toca aqui</span>}
             </label>
           ))}
         </div>
@@ -135,10 +161,15 @@ export function CampaignTargetPicker({
                 onChange={(e) => form.setSelectedSegments(toggle(form.selectedSegments, segment.id, e.target.checked))}
               />
               {segment.name}
+              {preview?.advertiserSegmentId === segment.id && (
+                <span className="ml-auto text-xs text-amber-500">mesmo ramo do anunciante · só toca nas TVs dele</span>
+              )}
             </label>
           ))}
         </div>
       )}
+
+      {preview && <ReachSummary preview={preview} />}
     </div>
   );
 }
@@ -151,6 +182,10 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
   const { toast } = useToast();
   const isEditing = campaign != null;
   const form = useCampaignForm();
+  const preview = useReachPreview(
+    { advertiserId: form.selectedAdvertiser, targetMode: form.targetMode, deviceIds: form.selectedDevices, segmentIds: form.selectedSegments },
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -216,7 +251,7 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <Field label="Valor contratado (R$)" type="number" value={form.contractValue} onChange={form.setContractValue} placeholder="0,00" />
           <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={form.startsAt} onChange={form.setStartsAt} required /><Field label="Fim" type="date" value={form.endsAt} onChange={form.setEndsAt} required /></div>
           <CampaignWeekdayPicker form={form} />
-          <CampaignTargetPicker form={form} devices={devices} segments={segments} />
+          <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
           {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
           <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
         </form>
