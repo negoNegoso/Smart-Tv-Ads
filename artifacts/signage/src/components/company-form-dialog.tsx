@@ -144,13 +144,17 @@ export function CompanyFormDialog({
       setError('Marque cliente e/ou anunciante.');
       return;
     }
+    if (!form.segmentId) {
+      setError('Escolha o segmento da empresa.');
+      return;
+    }
     setError(null);
     setSaving(true);
     const payload = {
       name: form.name.trim(),
       email: orNull(form.email),
       phone: orNull(form.phone),
-      segmentId: form.segmentId ? Number(form.segmentId) : null,
+      segmentId: Number(form.segmentId),
       isClient: form.isClient,
       isAdvertiser: form.isAdvertiser,
       advertiserCompany: form.isAdvertiser ? orNull(form.advertiserCompany) : null,
@@ -192,7 +196,7 @@ export function CompanyFormDialog({
             <div className="space-y-2">
               <Label htmlFor="company-segment">Segmento</Label>
               <select id="company-segment" className={selectClass} value={form.segmentId} onChange={(e) => set('segmentId', e.target.value)}>
-                <option value="">Sem segmento</option>
+                <option value="" disabled>Escolha o segmento</option>
                 {segments.map((s) => (
                   <option key={s.id} value={String(s.id)}>{s.name}</option>
                 ))}
