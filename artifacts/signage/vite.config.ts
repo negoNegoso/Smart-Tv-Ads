@@ -124,6 +124,12 @@ export default defineConfig(async ({ command }) => {
       outDir: path.resolve(import.meta.dirname, 'dist/public'),
       emptyOutDir: true,
     },
+    // Só vale para o build SSR do prerender. Empacota tudo no bundle para o
+    // Node não precisar resolver cada pacote de UI (vários só têm build CJS ou
+    // ESM sem extensão, e o import nativo do Node recusa).
+    ssr: {
+      noExternal: true,
+    },
     server: {
       port,
       strictPort: true,
