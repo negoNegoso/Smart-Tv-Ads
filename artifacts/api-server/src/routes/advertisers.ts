@@ -17,7 +17,7 @@ import {
 import { generateScanCode } from "@workspace/db/scan-code";
 import { missingSegmentIds } from "../lib/campaigns/segments";
 import { resetCampaignTelemetry } from "../lib/campaigns/reset-telemetry";
-import { normalizeWeekdays } from "../lib/ad-eligibility";
+import { normalizeTimeWindows, normalizeWeekdays } from "../lib/ad-eligibility";
 import { republishCampaignFlyers, unpublishCampaignFlyers } from "../lib/panels/campaign-flyers";
 
 const router: IRouter = Router();
@@ -37,6 +37,20 @@ const campaignInput = z.object({
   // Dias da semana em que a campanha roda (0 = domingo … 6 = sábado).
   // Lista vazia é "todo dia".
   weekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
+  // Faixas do dia, em minutos desde 00:00 (fim exclusivo, 1440 = 24:00), de
+  // 15 em 15. Lista vazia é "dia todo". O default também cobre o painel antigo
+  // em cache que ainda não manda o campo: ele salva a campanha como dia todo.
+  timeWindows: z
+    .array(
+      z
+        .object({
+          start: z.coerce.number().int().min(0).max(1425).multipleOf(15),
+          end: z.coerce.number().int().min(15).max(1440).multipleOf(15),
+        })
+        .refine((w) => w.start < w.end, { message: "Fim da faixa precisa ser depois do início" }),
+    )
+    .max(4)
+    .default([]),
   announcementDestinations: z
     .record(
       z.string(),
@@ -155,6 +169,7 @@ const campaignSelection = {
   endsAt: campaignsTable.endsAt,
   targetMode: campaignsTable.targetMode,
   weekdays: campaignsTable.weekdays,
+  timeWindows: campaignsTable.timeWindows,
   segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id order by cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
   segmentNames: sql<string[]>`coalesce((select array_agg(sg.name order by sg.name) from campaign_segments cs join segments sg on sg.id = cs.segment_id where cs.campaign_id = ${campaignsTable.id}), array[]::text[])`,
   allDevices: campaignsTable.allDevices,
@@ -301,6 +316,7 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     targetMode: input.targetMode,
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
+    timeWindows: normalizeTimeWindows(input.timeWindows),
   }).returning();
   if (announcementIds.length > 0) {
     await db.insert(campaignAnnouncementsTable).values(
@@ -362,6 +378,7 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     targetMode: input.targetMode,
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
+    timeWindows: normalizeTimeWindows(input.timeWindows),
   }).where(eq(campaignsTable.id, id));
   if (announcementIds.length > 0) {
     await db.insert(campaignAnnouncementsTable).values(
