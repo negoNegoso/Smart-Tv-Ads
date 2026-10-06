@@ -23,4 +23,9 @@ describe("buildCampaignSlidesQuery", () => {
       'order by "campaigns"."id" asc, "announcements"."display_order" asc, "announcements"."id" asc',
     );
   });
+
+  it("traz as faixas de horário da campanha para o filtro do feed", () => {
+    const { sql } = buildCampaignSlidesQuery(new Date("2026-09-24T12:00:00Z")).toSQL();
+    expect(sql).toContain('"campaigns"."time_windows"');
+  });
 });
