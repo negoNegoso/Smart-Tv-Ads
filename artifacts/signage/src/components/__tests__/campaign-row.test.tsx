@@ -21,6 +21,7 @@ describe('CampaignRow — horário', () => {
 
   it('dia todo não polui a linha', () => {
     render(<CampaignRow campaign={{ ...base, timeWindows: [] }} onToggle={vi.fn()} />);
+    expect(screen.getByText('Café da manhã')).toBeInTheDocument();
     expect(screen.queryByText(/Dia todo/)).not.toBeInTheDocument();
     expect(screen.queryByText(/\d{2}:\d{2}–/)).not.toBeInTheDocument();
   });

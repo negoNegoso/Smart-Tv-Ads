@@ -141,7 +141,7 @@ formulário sempre envia `timeWindows`, mesmo vazio.
   leitura, bloco "Horários" com `timeWindowsLabel(data.timeWindows)`.
 - **`campaign-row.tsx`**: depois do resumo de dias, acrescenta
   ` · 07:00–10:00, 18:00–22:00` só quando há faixa (dia todo não polui a
-  linha). Portal (`device-campaigns-table`, `portal-device-report`) herda.
+  linha). O portal não usa `CampaignRow` (a tabela de campanhas da TV mostra só nome, anunciante e exibições), então não muda.
 
 ## Testes (TDD)
 

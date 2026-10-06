@@ -109,7 +109,7 @@ export function CampaignTimeWindowsPicker({ form }: { form: ReturnType<typeof us
       {form.timeWindows.length < MAX_TIME_WINDOWS && (
         <Button type="button" variant="outline" size="sm" onClick={form.addWindow}>+ faixa</Button>
       )}
-      <p className="text-xs text-muted-foreground">{timeWindowsLabel(form.timeWindows)}. Sem faixa, roda o dia inteiro nos dias marcados.</p>
+      <p className="text-xs text-muted-foreground">{timeWindowsLabel(form.timeWindows)}. Sem faixa, roda o dia inteiro nos dias marcados. Horário de Brasília.</p>
     </div>
   );
 }

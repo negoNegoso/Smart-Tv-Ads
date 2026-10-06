@@ -120,6 +120,7 @@ describe('CampaignFormDialog', () => {
     vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
     renderDialog();
     expect(screen.getByText(/Dia todo\. Sem faixa, roda o dia inteiro/)).toBeInTheDocument();
+    expect(screen.getByText(/Horário de Brasília\./)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '+ faixa' }));
     expect(screen.getByRole('combobox', { name: 'Início da faixa 1' })).toHaveValue('480');
     expect(screen.getByRole('combobox', { name: 'Fim da faixa 1' })).toHaveValue('720');
