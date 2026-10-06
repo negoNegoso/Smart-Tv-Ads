@@ -1,0 +1,1 @@
+ALTER TABLE "campaigns" ADD COLUMN "time_windows" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -12,9 +12,10 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useToast } from "@/hooks/use-toast";
 import { useCampaignForm } from "@/components/use-campaign-form";
 import { useReachPreview } from "@/components/use-reach-preview";
-import { CampaignTargetPicker, CampaignWeekdayPicker } from "@/components/campaign-form-dialog";
+import { CampaignTargetPicker, CampaignTimeWindowsPicker, CampaignWeekdayPicker } from "@/components/campaign-form-dialog";
 import { mediaUrl } from "@/lib/media-url";
 import { weekdaysLabel } from "@/lib/weekdays";
+import { timeWindowsLabel, type TimeWindow } from "@/lib/time-windows";
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
@@ -32,6 +33,7 @@ type Campaign = {
   endsAt: string;
   targetMode: "all" | "devices" | "segments";
   weekdays: number[];
+  timeWindows?: TimeWindow[];
   segmentIds: number[];
   segmentNames: string[];
   isActive: boolean;
@@ -256,6 +258,9 @@ export default function CampaignDetail() {
                 <CampaignWeekdayPicker form={form} />
               </div>
               <div className="space-y-2 sm:col-span-2">
+                <CampaignTimeWindowsPicker form={form} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
               </div>
             </>
@@ -264,6 +269,7 @@ export default function CampaignDetail() {
               <div><p className="text-xs text-muted-foreground">Anunciante</p><p>{data.company || data.advertiserName}</p></div>
               <div><p className="text-xs text-muted-foreground">Período</p><p className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{date(data.startsAt)} — {date(data.endsAt)}</p></div>
               <div><p className="text-xs text-muted-foreground">Dias da semana</p><p>{weekdaysLabel(data.weekdays)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Horários</p><p>{timeWindowsLabel(data.timeWindows)}</p></div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground">Cobertura de TVs</p>
                 <p>{describeTarget(data)}</p>

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useReachPreview, type ReachPreview } from "@/components/use-reach-preview";
 import { WEEKDAYS, weekdaysLabel } from "@/lib/weekdays";
+import { END_OPTIONS, MAX_TIME_WINDOWS, START_OPTIONS, isValidWindow, minutesToHHMM, timeWindowsLabel } from "@/lib/time-windows";
 import {
   useCampaignForm,
   type CampaignFormAdvertiser,
@@ -61,6 +63,53 @@ export function CampaignWeekdayPicker({ form }: { form: ReturnType<typeof useCam
         })}
       </div>
       <p className="text-xs text-muted-foreground">{weekdaysLabel(form.weekdays)}. Sem nenhum dia marcado, roda todos os dias do período.</p>
+    </div>
+  );
+}
+
+const SELECT_CLASS = "h-9 rounded-md border border-input bg-background px-2 text-sm";
+
+/**
+ * Faixas do dia em que a campanha roda, as mesmas em todos os dias marcados.
+ * Sem faixa é "dia todo" — o estado inicial, então a ajuda diz isso. `select`
+ * em vez de `<input type="time">`: o passo de 15 minutos fica garantido sem
+ * depender do navegador respeitar `step`.
+ */
+export function CampaignTimeWindowsPicker({ form }: { form: ReturnType<typeof useCampaignForm> }) {
+  return (
+    <div className="space-y-2">
+      <Label>Horários</Label>
+      {form.timeWindows.map((window, index) => (
+        <div key={index} className="space-y-1">
+          <div className="flex items-center gap-2">
+            <select
+              aria-label={`Início da faixa ${index + 1}`}
+              className={SELECT_CLASS}
+              value={window.start}
+              onChange={(e) => form.updateWindow(index, { start: Number(e.target.value) })}
+            >
+              {START_OPTIONS.map((m) => <option key={m} value={m}>{minutesToHHMM(m)}</option>)}
+            </select>
+            <span className="text-sm text-muted-foreground">até</span>
+            <select
+              aria-label={`Fim da faixa ${index + 1}`}
+              className={SELECT_CLASS}
+              value={window.end}
+              onChange={(e) => form.updateWindow(index, { end: Number(e.target.value) })}
+            >
+              {END_OPTIONS.map((m) => <option key={m} value={m}>{minutesToHHMM(m)}</option>)}
+            </select>
+            <Button type="button" variant="ghost" size="icon" aria-label="Remover faixa" onClick={() => form.removeWindow(index)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          {!isValidWindow(window) && <p className="text-xs text-red-500">Fim precisa ser depois do início</p>}
+        </div>
+      ))}
+      {form.timeWindows.length < MAX_TIME_WINDOWS && (
+        <Button type="button" variant="outline" size="sm" onClick={form.addWindow}>+ faixa</Button>
+      )}
+      <p className="text-xs text-muted-foreground">{timeWindowsLabel(form.timeWindows)}. Sem faixa, roda o dia inteiro nos dias marcados. Horário de Brasília.</p>
     </div>
   );
 }
@@ -251,9 +300,10 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <Field label="Valor contratado (R$)" type="number" value={form.contractValue} onChange={form.setContractValue} placeholder="0,00" />
           <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={form.startsAt} onChange={form.setStartsAt} required /><Field label="Fim" type="date" value={form.endsAt} onChange={form.setEndsAt} required /></div>
           <CampaignWeekdayPicker form={form} />
+          <CampaignTimeWindowsPicker form={form} />
           <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
           {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
-          <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
+          <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.timeWindowsValid}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

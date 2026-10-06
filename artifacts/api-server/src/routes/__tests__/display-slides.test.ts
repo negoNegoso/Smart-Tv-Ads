@@ -61,7 +61,7 @@ vi.mock("@workspace/db", () => ({
   devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
   announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
-  campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", targetMode: "targetMode" },
+  campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", timeWindows: "timeWindows", targetMode: "targetMode" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
   advertisersTable: { id: "id", companyId: "companyId" },
@@ -354,6 +354,42 @@ describe("GET /display/:deviceKey/feed — TV vitrine", () => {
       const res = await request(app).get("/display/tv-1/feed");
 
       expect(res.body.slides).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("vitrine respeita a faixa de horário da campanha", async () => {
+    // Quarta, 12:00 em São Paulo.
+    vi.useFakeTimers({ now: new Date("2026-09-30T15:00:00Z"), toFake: ["Date"] });
+    try {
+      const SO_DE_MANHA = { ...CAMPAIGN_ROW, announcementId: 505, campaignId: 7, timeWindows: [{ start: 420, end: 600 }] };
+      const NO_ALMOCO = { ...CAMPAIGN_ROW, announcementId: 606, campaignId: 8, timeWindows: [{ start: 660, end: 780 }] };
+      selectResults = [[{ ...DEVICE_ROW, showcase: true }], [], [SO_DE_MANHA, NO_ALMOCO]];
+      const app = await buildApp();
+      const { default: request } = await import("supertest");
+      const res = await request(app).get("/display/tv-1/feed");
+
+      const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
+      expect(ids).toEqual([606]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("TV comum também corta a campanha fora da faixa, e o slide não leva as faixas", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-30T15:00:00Z"), toFake: ["Date"] });
+    try {
+      const SO_DE_MANHA = { ...CAMPAIGN_ROW, announcementId: 505, campaignId: 7, timeWindows: [{ start: 420, end: 600 }] };
+      const NO_ALMOCO = { ...CAMPAIGN_ROW, announcementId: 606, campaignId: 8, timeWindows: [{ start: 660, end: 780 }] };
+      selectResults = [[{ ...DEVICE_ROW, showcase: false }], [], [SO_DE_MANHA, NO_ALMOCO]];
+      panelSlidesForClientMock.mockResolvedValue([]);
+      const app = await buildApp();
+      const { default: request } = await import("supertest");
+      const res = await request(app).get("/display/tv-1/feed");
+
+      expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([606]);
+      expect(res.body.slides[0]).not.toHaveProperty("timeWindows");
     } finally {
       vi.useRealTimers();
     }

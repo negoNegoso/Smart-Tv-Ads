@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_TIME_WINDOW, MAX_TIME_WINDOWS, isValidWindow, type TimeWindow } from "@/lib/time-windows";
 
 const api = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
@@ -17,6 +18,7 @@ export type CampaignFormCampaign = {
   endsAt: string;
   targetMode: CampaignTargetMode;
   weekdays?: number[];
+  timeWindows?: TimeWindow[];
   deviceIds?: number[];
   segmentIds?: number[];
   announcementIds?: number[];
@@ -38,6 +40,11 @@ export type UseCampaignForm = {
   setTargetMode: (value: CampaignTargetMode) => void;
   weekdays: number[];
   toggleWeekday: (day: number) => void;
+  timeWindows: TimeWindow[];
+  timeWindowsValid: boolean;
+  addWindow: () => void;
+  updateWindow: (index: number, patch: Partial<TimeWindow>) => void;
+  removeWindow: (index: number) => void;
   selectedDevices: number[];
   setSelectedDevices: (value: number[]) => void;
   selectedSegments: number[];
@@ -61,6 +68,8 @@ export function useCampaignForm(): UseCampaignForm {
   const [targetMode, setTargetMode] = useState<CampaignTargetMode>("all");
   // Vazio = roda todo dia, mesma convenção do servidor.
   const [weekdays, setWeekdays] = useState<number[]>([]);
+  // Vazio = dia todo, mesma convenção do servidor.
+  const [timeWindows, setTimeWindows] = useState<TimeWindow[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
@@ -90,6 +99,7 @@ export function useCampaignForm(): UseCampaignForm {
       );
       setTargetMode(campaign.targetMode);
       setWeekdays(campaign.weekdays ?? []);
+      setTimeWindows(campaign.timeWindows ?? []);
     } else {
       setCampaignId(null);
       setName("");
@@ -104,6 +114,7 @@ export function useCampaignForm(): UseCampaignForm {
       setPublishedScanCodes({});
       setTargetMode("all");
       setWeekdays([]);
+      setTimeWindows([]);
     }
   }
 
@@ -113,7 +124,24 @@ export function useCampaignForm(): UseCampaignForm {
     );
   }
 
+  function addWindow() {
+    setTimeWindows((current) => (current.length >= MAX_TIME_WINDOWS ? current : [...current, { ...DEFAULT_TIME_WINDOW }]));
+  }
+
+  function updateWindow(index: number, patch: Partial<TimeWindow>) {
+    setTimeWindows((current) => current.map((w, i) => (i === index ? { ...w, ...patch } : w)));
+  }
+
+  function removeWindow(index: number) {
+    setTimeWindows((current) => current.filter((_, i) => i !== index));
+  }
+
+  const timeWindowsValid = timeWindows.every(isValidWindow);
+
   async function submit(): Promise<{ ok: boolean; error?: string }> {
+    // A página da campanha não trava o botão; a recusa aqui vale para os dois
+    // formulários, e a API valida de novo de qualquer jeito.
+    if (!timeWindowsValid) return { ok: false, error: "Fim da faixa precisa ser depois do início" };
     const isEditing = campaignId != null;
     const response = await fetch(api(isEditing ? `/campaigns/${campaignId}` : "/campaigns"), {
       method: isEditing ? "PATCH" : "POST",
@@ -130,6 +158,8 @@ export function useCampaignForm(): UseCampaignForm {
         deviceIds: selectedDevices,
         segmentIds: selectedSegments,
         weekdays,
+        // Sempre enviado, mesmo vazio: painel novo nunca depende do default da API.
+        timeWindows,
       }),
     });
     if (!response.ok) {
@@ -147,6 +177,7 @@ export function useCampaignForm(): UseCampaignForm {
     selectedAdvertiser, setSelectedAdvertiser,
     targetMode, setTargetMode,
     weekdays, toggleWeekday,
+    timeWindows, timeWindowsValid, addWindow, updateWindow, removeWindow,
     selectedDevices, setSelectedDevices,
     selectedSegments, setSelectedSegments,
     selectedAnnouncements, setSelectedAnnouncements,

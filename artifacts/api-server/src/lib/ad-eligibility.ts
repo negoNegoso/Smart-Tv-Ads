@@ -10,11 +10,23 @@ export type CampaignTarget = {
 };
 
 /**
- * Dias da semana em que a campanha vai ao ar, no padrão do `Date.getDay()`:
- * 0 = domingo … 6 = sábado. Lista vazia significa "todo dia" — é o que valia
- * antes da recorrência existir, então campanha antiga não muda de comportamento.
+ * Faixa do dia em que a campanha vai ao ar, em minutos desde 00:00 no fuso do
+ * negócio. Fim exclusivo: 07:00–10:00 é { start: 420, end: 600 } e não roda
+ * às 10:00. 1440 é "24:00". Faixa nunca cruza a meia-noite.
  */
-export type CampaignSchedule = { weekdays: number[] };
+export type TimeWindow = { start: number; end: number };
+
+/**
+ * Agenda da campanha.
+ *
+ * `weekdays`: dias da semana no padrão do `Date.getDay()` (0 = domingo …
+ * 6 = sábado). Lista vazia significa "todo dia" — é o que valia antes da
+ * recorrência existir, então campanha antiga não muda de comportamento.
+ *
+ * `timeWindows`: faixas do dia, as mesmas em todos os dias marcados. Vazia ou
+ * ausente é "dia todo" — linhas de playlist e de painel não carregam a coluna.
+ */
+export type CampaignSchedule = { weekdays: number[]; timeWindows?: TimeWindow[] };
 
 /** Fuso do negócio. O dia da semana é o de quem assiste à TV, não o do UTC. */
 export const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
@@ -49,6 +61,61 @@ export function campaignRunsOnDay(
   const label = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(now);
   const today = WEEKDAY_INDEX[label];
   return today !== undefined && weekdays.includes(today);
+}
+
+const MINUTES_IN_DAY = 1440;
+
+/**
+ * Guarda as faixas no formato canônico: em ordem, sem sobreposição, e faixas
+ * que se encostam viram uma só (07–10 + 10–12 = 07–12). Cobrir o dia inteiro
+ * vira lista vazia — mesmo papel do `normalizeWeekdays`: "dia todo" tem uma
+ * forma só no banco.
+ */
+export function normalizeTimeWindows(windows: TimeWindow[]): TimeWindow[] {
+  const sorted = [...windows].sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged: TimeWindow[] = [];
+  for (const window of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && window.start <= last.end) {
+      last.end = Math.max(last.end, window.end);
+    } else {
+      merged.push({ start: window.start, end: window.end });
+    }
+  }
+  const coversWholeDay = merged.length === 1 && merged[0].start === 0 && merged[0].end === MINUTES_IN_DAY;
+  return coversWholeDay ? [] : merged;
+}
+
+/**
+ * Minutos desde 00:00 no fuso do negócio. Sai de `Intl`, nunca de
+ * `getHours()`: o servidor roda em UTC, e às 22h de Brasília ele já está às
+ * 01h. `hourCycle: "h23"` evita o "24:00" que alguns ICU devolvem à
+ * meia-noite; o `% 24` é a segunda garantia.
+ */
+export function minuteOfDay(now: Date = new Date(), timeZone: string = BUSINESS_TIME_ZONE): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0) % 24;
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+/**
+ * A campanha está na faixa agora? Lista vazia (ou ausente) roda o dia todo.
+ * Início incluso, fim excluso.
+ */
+export function campaignRunsAtTime(
+  windows: TimeWindow[] | null | undefined,
+  now: Date = new Date(),
+  timeZone: string = BUSINESS_TIME_ZONE,
+): boolean {
+  if (!windows || windows.length === 0) return true;
+  const minute = minuteOfDay(now, timeZone);
+  return windows.some((window) => window.start <= minute && minute < window.end);
 }
 
 export function campaignReachesDevice(
@@ -103,6 +170,7 @@ export function filterEligibleSlides<
   return slides.filter(
     (slide) =>
       campaignRunsOnDay(slide.weekdays, now) &&
+      campaignRunsAtTime(slide.timeWindows, now) &&
       campaignReachesDevice(slide, device) &&
       canPlayOnDevice({
         advertiserSegmentId: slide.advertiserSegmentId,

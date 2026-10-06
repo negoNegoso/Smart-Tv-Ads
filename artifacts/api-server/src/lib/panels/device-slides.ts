@@ -33,6 +33,7 @@ type CampaignOnlyFields = {
   deviceIds?: number[];
   segmentIds?: number[];
   weekdays?: number[];
+  timeWindows?: Array<{ start: number; end: number }>;
 };
 
 /** Formato de uma linha de slide de painel, já com as chaves de campanha opcionais. */

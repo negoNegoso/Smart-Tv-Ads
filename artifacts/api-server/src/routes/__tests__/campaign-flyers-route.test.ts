@@ -330,3 +330,85 @@ describe("rotas de campanha convivendo com encartes", () => {
     expect(cols.companyId).toBe(advertisersTable.companyId);
   });
 });
+
+describe("faixas de horário da campanha", () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    resetState();
+    state.advertiserRow = { id: ADVERTISER_ID };
+    state.insertCampaignReturning = { id: CAMPAIGN_ID };
+    state.joinedStatsRow = joinedFrom(baseExisting());
+    app = await buildApp();
+  });
+
+  function insertedCampaign() {
+    return state.insertCalls.find((c) => c.table === "campaigns")?.values as Record<string, unknown>;
+  }
+
+  function updatedCampaign() {
+    return state.updateCalls.find((c) => c.table === "campaigns")?.patch as Record<string, unknown>;
+  }
+
+  it("POST grava as faixas normalizadas (ordenadas e juntas)", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .post("/campaigns")
+      .send(campaignBody({ timeWindows: [{ start: 540, end: 720 }, { start: 420, end: 600 }] }));
+    expect(res.status).toBe(201);
+    expect(insertedCampaign().timeWindows).toEqual([{ start: 420, end: 720 }]);
+  });
+
+  it("POST sem faixas grava dia todo", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/campaigns").send(campaignBody());
+    expect(res.status).toBe(201);
+    expect(insertedCampaign().timeWindows).toEqual([]);
+  });
+
+  it("PATCH grava as faixas normalizadas", async () => {
+    state.existingCampaignRow = baseExisting();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch(`/campaigns/${CAMPAIGN_ID}`)
+      .send(campaignBody({ timeWindows: [{ start: 1080, end: 1320 }, { start: 420, end: 600 }] }));
+    expect(res.status).toBe(200);
+    expect(updatedCampaign().timeWindows).toEqual([{ start: 420, end: 600 }, { start: 1080, end: 1320 }]);
+  });
+
+  it("PATCH sem timeWindows grava dia todo (painel antigo em cache não quebra)", async () => {
+    state.existingCampaignRow = baseExisting();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch(`/campaigns/${CAMPAIGN_ID}`).send(campaignBody());
+    expect(res.status).toBe(200);
+    expect(updatedCampaign().timeWindows).toEqual([]);
+  });
+
+  it("faixa cobrindo o dia inteiro vira dia todo", async () => {
+    const { default: request } = await import("supertest");
+    await request(app).post("/campaigns").send(campaignBody({ timeWindows: [{ start: 0, end: 1440 }] }));
+    expect(insertedCampaign().timeWindows).toEqual([]);
+  });
+
+  it.each([
+    ["fim igual ao início", [{ start: 600, end: 600 }]],
+    ["fim antes do início", [{ start: 600, end: 420 }]],
+    ["minuto fora do passo de 15", [{ start: 425, end: 600 }]],
+    ["fim depois de 24:00", [{ start: 1380, end: 1455 }]],
+    ["mais de 4 faixas", [
+      { start: 0, end: 60 }, { start: 120, end: 180 }, { start: 240, end: 300 },
+      { start: 360, end: 420 }, { start: 480, end: 540 },
+    ]],
+  ])("rejeita com 400: %s", async (_caso, timeWindows) => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/campaigns").send(campaignBody({ timeWindows }));
+    expect(res.status).toBe(400);
+    expect(state.insertCalls.some((c) => c.table === "campaigns")).toBe(false);
+  });
+
+  it("a resposta da campanha traz as faixas (seleção inclui a coluna)", async () => {
+    const { default: request } = await import("supertest");
+    await request(app).post("/campaigns").send(campaignBody());
+    expect(state.lastJoinedCampaignCols).toHaveProperty("timeWindows");
+  });
+});

@@ -12,7 +12,7 @@ import {
 import { screenOrientationOf } from "@workspace/db/orientation";
 import { resolveSlideCaption } from "./slide-caption";
 import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
-import { campaignRunsOnDay, filterEligibleSlides } from "./ad-eligibility";
+import { campaignRunsAtTime, campaignRunsOnDay, filterEligibleSlides, type TimeWindow } from "./ad-eligibility";
 import { composeDeviceSlides, panelSlidesForClient } from "./panels/device-slides";
 import { filterByOrientation } from "./slide-orientation";
 
@@ -59,6 +59,7 @@ export function buildCampaignSlidesQuery(now: Date) {
       deviceIds: sql<number[]>`coalesce((select array_agg(cd.device_id) from campaign_devices cd where cd.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       weekdays: campaignsTable.weekdays,
+      timeWindows: campaignsTable.timeWindows,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
@@ -105,6 +106,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       deviceIds: sql<number[]>`array[]::int[]`,
       segmentIds: sql<number[]>`array[]::int[]`,
       weekdays: sql<number[]>`array[]::int[]`,
+      timeWindows: sql<TimeWindow[]>`'[]'::jsonb`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -119,13 +121,15 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
   const campaignSlides = await buildCampaignSlidesQuery(now);
 
   // A vitrine é a amostra da rede na landing: toda campanha no ar entra,
-  // sem alvo nem concorrência. Só a agenda vale — campanha que não roda hoje
-  // também não roda em TV nenhuma.
+  // sem alvo nem concorrência. Só a agenda vale (dia e faixa de horário) —
+  // campanha fora da agenda também não roda em TV nenhuma.
   // Nas outras TVs, alvo da campanha e regra de concorrência decidem juntos o
   // que vai ao ar. A playlist do próprio device fica de fora: é o lojista
   // pondo o conteúdo dele.
   const eligibleCampaignSlides = device.showcase
-    ? campaignSlides.filter((slide) => campaignRunsOnDay(slide.weekdays, now))
+    ? campaignSlides.filter(
+        (slide) => campaignRunsOnDay(slide.weekdays, now) && campaignRunsAtTime(slide.timeWindows, now),
+      )
     : filterEligibleSlides(campaignSlides, device, now);
 
   // Terceira fonte: painéis que o próprio lojista publicou no portal. A
@@ -165,6 +169,7 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       deviceIds,
       segmentIds,
       weekdays,
+      timeWindows,
       // Já cumpriu o papel no filtro; o player não precisa dela.
       orientation,
       ...slide

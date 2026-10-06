@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, real, smallint, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, real, smallint, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { advertisersTable } from "./advertisers";
@@ -19,6 +19,10 @@ export const campaignsTable = pgTable("campaigns", {
   // Dias da semana em que a campanha vai ao ar (0 = domingo … 6 = sábado).
   // Lista vazia é "todo dia": mantém as campanhas antigas rodando como antes.
   weekdays: smallint("weekdays").array().notNull().default([]),
+  // Faixas do dia em que a campanha vai ao ar, em minutos desde 00:00 no fuso
+  // do negócio: [{ start: 420, end: 600 }] = 07:00–10:00. Fim exclusivo; 1440
+  // = 24:00. Lista vazia é "dia todo": mantém as campanhas antigas como estavam.
+  timeWindows: jsonb("time_windows").$type<Array<{ start: number; end: number }>>().notNull().default([]),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
