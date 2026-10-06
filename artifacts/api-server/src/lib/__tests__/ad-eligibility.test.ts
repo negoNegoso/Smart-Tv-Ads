@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   campaignReachesDevice,
+  campaignRunsAtTime,
   campaignRunsOnDay,
   canPlayOnDevice,
   countReachedDevices,
   filterEligibleSlides,
+  minuteOfDay,
+  normalizeTimeWindows,
   normalizeWeekdays,
   previewReach,
 } from "../ad-eligibility";
@@ -105,6 +108,15 @@ describe("filterEligibleSlides", () => {
     const soTerçaEQuinta = { ...propria, weekdays: [2, 4] };
     expect(filterEligibleSlides([soTerçaEQuinta], device, quarta)).toHaveLength(0);
     expect(filterEligibleSlides([soTerçaEQuinta], device, new Date("2026-03-03T15:00:00Z"))).toHaveLength(1);
+  });
+
+  it("tira da lista a peça da campanha fora da faixa de horário", () => {
+    // Terça, 12:00 em São Paulo.
+    const meioDia = new Date("2026-03-03T15:00:00Z");
+    const soDeManha = { ...propria, timeWindows: [{ start: 420, end: 600 }] };
+    const almoco = { ...propria, timeWindows: [{ start: 660, end: 780 }] };
+    expect(filterEligibleSlides([soDeManha], device, meioDia)).toHaveLength(0);
+    expect(filterEligibleSlides([almoco], device, meioDia)).toHaveLength(1);
   });
 });
 
@@ -278,5 +290,96 @@ describe("previewReach", () => {
       totalDevices: 0,
       competitorDeviceIds: [],
     });
+  });
+});
+
+describe("normalizeTimeWindows", () => {
+  it("ordena pelo início", () => {
+    expect(normalizeTimeWindows([{ start: 1080, end: 1320 }, { start: 420, end: 600 }])).toEqual([
+      { start: 420, end: 600 },
+      { start: 1080, end: 1320 },
+    ]);
+  });
+
+  it("junta faixas que se sobrepõem", () => {
+    expect(normalizeTimeWindows([{ start: 420, end: 600 }, { start: 540, end: 720 }])).toEqual([{ start: 420, end: 720 }]);
+  });
+
+  it("junta faixas que se encostam", () => {
+    expect(normalizeTimeWindows([{ start: 420, end: 600 }, { start: 600, end: 720 }])).toEqual([{ start: 420, end: 720 }]);
+  });
+
+  it("faixa contida em outra some", () => {
+    expect(normalizeTimeWindows([{ start: 420, end: 720 }, { start: 480, end: 540 }])).toEqual([{ start: 420, end: 720 }]);
+  });
+
+  it("dia inteiro vira lista vazia: é o mesmo que sem faixa", () => {
+    expect(normalizeTimeWindows([{ start: 0, end: 1440 }])).toEqual([]);
+  });
+
+  it("faixas que juntas cobrem o dia viram lista vazia", () => {
+    expect(normalizeTimeWindows([{ start: 720, end: 1440 }, { start: 0, end: 720 }])).toEqual([]);
+  });
+
+  it("mantém a lista vazia", () => {
+    expect(normalizeTimeWindows([])).toEqual([]);
+  });
+
+  it("não altera a lista recebida", () => {
+    const entrada = [{ start: 540, end: 720 }, { start: 420, end: 600 }];
+    normalizeTimeWindows(entrada);
+    expect(entrada).toEqual([{ start: 540, end: 720 }, { start: 420, end: 600 }]);
+  });
+});
+
+describe("minuteOfDay", () => {
+  it("conta os minutos no fuso do negócio, não no do UTC", () => {
+    // 15:30 UTC = 12:30 em São Paulo.
+    expect(minuteOfDay(new Date("2026-03-03T15:30:00Z"))).toBe(750);
+  });
+
+  it("meia-noite é zero, não 1440", () => {
+    // 03:00 UTC = 00:00 em São Paulo.
+    expect(minuteOfDay(new Date("2026-03-04T03:00:00Z"))).toBe(0);
+  });
+});
+
+describe("campaignRunsAtTime", () => {
+  const manha = [{ start: 420, end: 600 }]; // 07:00–10:00
+  // Horários de São Paulo (UTC−3).
+  const as = (hhmm: string) => new Date(`2026-03-03T${hhmm}:00-03:00`);
+
+  it("roda a qualquer hora quando a lista está vazia", () => {
+    expect(campaignRunsAtTime([], as("03:00"))).toBe(true);
+  });
+
+  it("ausente vale dia todo (linhas de playlist e painel não têm a coluna)", () => {
+    expect(campaignRunsAtTime(undefined, as("03:00"))).toBe(true);
+    expect(campaignRunsAtTime(null, as("03:00"))).toBe(true);
+  });
+
+  it("roda no minuto em que a faixa começa", () => {
+    expect(campaignRunsAtTime(manha, as("07:00"))).toBe(true);
+  });
+
+  it("não roda no minuto em que a faixa termina", () => {
+    expect(campaignRunsAtTime(manha, as("10:00"))).toBe(false);
+    expect(campaignRunsAtTime(manha, as("09:59"))).toBe(true);
+  });
+
+  it("roda em qualquer uma das faixas", () => {
+    const manhaENoite = [...manha, { start: 1080, end: 1320 }];
+    expect(campaignRunsAtTime(manhaENoite, as("19:00"))).toBe(true);
+    expect(campaignRunsAtTime(manhaENoite, as("12:00"))).toBe(false);
+  });
+
+  it("usa a hora de quem assiste: 22:30 em São Paulo já é o dia seguinte em UTC", () => {
+    expect(campaignRunsAtTime([{ start: 1320, end: 1440 }], new Date("2026-03-04T01:30:00Z"))).toBe(true);
+  });
+
+  it("meia-noite cai na faixa da madrugada, não na da noite anterior", () => {
+    const meiaNoite = new Date("2026-03-04T03:00:00Z");
+    expect(campaignRunsAtTime([{ start: 0, end: 120 }], meiaNoite)).toBe(true);
+    expect(campaignRunsAtTime([{ start: 1320, end: 1440 }], meiaNoite)).toBe(false);
   });
 });
