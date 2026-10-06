@@ -115,4 +115,33 @@ describe('CampaignFormDialog', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByTestId('reach-summary')).toHaveTextContent('Alcança 0 de 2 TVs');
   });
+
+  it('adiciona e remove faixa de horário', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
+    renderDialog();
+    expect(screen.getByText(/Dia todo\. Sem faixa, roda o dia inteiro/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '+ faixa' }));
+    expect(screen.getByRole('combobox', { name: 'Início da faixa 1' })).toHaveValue('480');
+    expect(screen.getByRole('combobox', { name: 'Fim da faixa 1' })).toHaveValue('720');
+    expect(screen.getByText(/08:00–12:00/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remover faixa' }));
+    expect(screen.queryByRole('combobox', { name: 'Início da faixa 1' })).not.toBeInTheDocument();
+  });
+
+  it('"+ faixa" some na quarta faixa', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
+    renderDialog();
+    for (let i = 0; i < 4; i++) await userEvent.click(screen.getByRole('button', { name: '+ faixa' }));
+    expect(screen.queryByRole('button', { name: '+ faixa' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Remover faixa' })).toHaveLength(4);
+  });
+
+  it('faixa com fim antes do início avisa e trava o publicar', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: '+ faixa' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Fim da faixa 1' }), '480');
+    expect(screen.getByText('Fim precisa ser depois do início')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publicar campanha' })).toBeDisabled();
+  });
 });
