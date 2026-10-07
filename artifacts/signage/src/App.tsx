@@ -18,6 +18,7 @@ import Admin from './pages/admin';
 import Login from './pages/login';
 import Display from './pages/display';
 import Companies from './pages/companies';
+import UrgentAlerts from './pages/urgent-alerts';
 import Segments from './pages/segments';
 import CompanyDetailPage from './pages/company-detail';
 import LegacyRedirect from './pages/legacy-redirect';
@@ -88,6 +89,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/parque">
         <Layout><Fleet /></Layout>
+      </Route>
+      <Route path="/avisos">
+        <Layout><UrgentAlerts /></Layout>
       </Route>
       <Route path="/clients">
         <Redirect to="/companies" />

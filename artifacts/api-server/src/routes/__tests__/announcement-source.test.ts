@@ -67,6 +67,8 @@ const panelRow = {
   createdAt: new Date(),
 };
 
+const alertRow = { ...panelRow, id: 3, source: "alert" };
+
 const adminRow = { ...panelRow, id: 2, source: "admin", imageUrl: null };
 
 describe("peça gerada por painel não é editável no admin", () => {
@@ -134,5 +136,46 @@ describe("peça gerada por painel não é editável no admin", () => {
     const res = await request(app).delete("/announcements/2");
     expect(res.status).toBe(204);
     expect(dbDeleteReturning).toHaveBeenCalled();
+  });
+});
+
+describe("arte de aviso urgente não é editável nem apagável no admin", () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    dbSelectWhere.mockReset();
+    dbUpdateReturning.mockReset();
+    dbDeleteReturning.mockReset();
+    put.mockReset();
+    remove.mockReset();
+    app = await buildApp();
+  });
+
+  it("PATCH numa peça com source 'alert' responde 409 e não escreve", async () => {
+    dbSelectWhere.mockResolvedValueOnce([alertRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/announcements/3").send({ title: "Novo título" });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Arte de aviso urgente não pode ser alterada." });
+    expect(dbUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /toggle numa peça com source 'alert' responde 409 e não escreve", async () => {
+    dbSelectWhere.mockResolvedValueOnce([alertRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/announcements/3/toggle");
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Arte de aviso urgente não pode ser alterada." });
+    expect(dbUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it("DELETE numa peça com source 'alert' responde 409 e não apaga", async () => {
+    dbSelectWhere.mockResolvedValueOnce([alertRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).delete("/announcements/3");
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Arte de aviso urgente não pode ser apagada; encerre o aviso." });
+    expect(dbDeleteReturning).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
   });
 });

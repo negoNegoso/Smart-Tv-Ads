@@ -1852,7 +1852,7 @@ components:
           properties:
             source:
               type: string
-              enum: [campaign, panel, playlist]
+              enum: [campaign, panel, playlist, alert]
 
     DisplayFeed:
       type: object

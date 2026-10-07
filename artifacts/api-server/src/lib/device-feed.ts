@@ -15,9 +15,10 @@ import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
 import { campaignRunsAtTime, campaignRunsOnDay, filterEligibleSlides, type TimeWindow } from "./ad-eligibility";
 import { composeDeviceLoop, panelSlidesForClient } from "./panels/device-slides";
 import { filterByOrientation } from "./slide-orientation";
+import { findActiveAlertPiece } from "./alerts/active-alert";
 
-/** De onde o slide veio: campanha vendida, painel do lojista ou playlist do device. */
-export type DeviceSlideSource = "campaign" | "panel" | "playlist";
+/** De onde o slide veio: campanha vendida, painel do lojista, playlist do device ou aviso urgente do admin. */
+export type DeviceSlideSource = "campaign" | "panel" | "playlist" | "alert";
 
 export type FeedDevice = {
   id: number;
@@ -151,9 +152,40 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     }
   }
 
+  const screen = screenOrientationOf(device.orientation);
+
+  // Aviso urgente toma a TV inteira: a volta vira só a arte dele, na
+  // orientação da tela. A vitrine fica de fora (é espelhada na landing
+  // pública). Falha aqui nunca derruba a programação — loga e segue.
+  if (!device.showcase) {
+    try {
+      const alert = await findActiveAlertPiece(device, screen, now);
+      if (alert) {
+        return [
+          {
+            announcementId: alert.announcementId,
+            campaignId: null,
+            title: alert.title,
+            displayText: null,
+            imageUrl: alert.imageUrl,
+            duration: alert.duration,
+            mediaKind: "image",
+            youtubeId: null,
+            playbackMode: "capped",
+            audioMode: "muted",
+            source: "alert" as const,
+            qrImageUrl: null,
+            videoIds: null,
+          },
+        ];
+      }
+    } catch (error) {
+      log.error({ err: error }, "Could not load urgent alert for device");
+    }
+  }
+
   // A orientação sai antes de montar a volta: bloco que fica sem peça some e
   // não ocupa inserção no rodízio.
-  const screen = screenOrientationOf(device.orientation);
   const visible = composeDeviceLoop(
     tagSource(filterByOrientation(eligibleCampaignSlides, screen), "campaign"),
     tagSource(filterByOrientation(panelSlides, screen), "panel"),

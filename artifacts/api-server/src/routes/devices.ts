@@ -319,12 +319,18 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
   // Peça de outra orientação nunca iria ao ar nesta TV (o feed filtra); aceitar
   // deixaria um item fantasma na playlist, contando como se estivesse passando.
   const [pair] = await db
-    .select({ deviceOrientation: devicesTable.orientation, pieceOrientation: announcementsTable.orientation })
+    .select({ deviceOrientation: devicesTable.orientation, pieceOrientation: announcementsTable.orientation, pieceSource: announcementsTable.source })
     .from(devicesTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, parsed.data.announcementId))
     .where(eq(devicesTable.id, deviceId));
   if (!pair) {
     res.status(404).json({ error: "Device or announcement not found" });
+    return;
+  }
+  // A arte do aviso é gerada e vive só durante o aviso; na playlist ficaria
+  // órfã quando o aviso fosse encerrado.
+  if (pair.pieceSource === "alert") {
+    res.status(400).json({ error: "Arte de aviso urgente não pode ser usada na playlist." });
     return;
   }
   const screen = screenOrientationOf(pair.deviceOrientation);

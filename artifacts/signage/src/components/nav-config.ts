@@ -7,6 +7,7 @@ import {
   Megaphone,
   Monitor,
   PanelsTopLeft,
+  Siren,
   Tags,
   TrendingUp,
   Tv,
@@ -35,6 +36,7 @@ export const adminNav: NavGroup[] = [
     items: [
       { href: '/', label: 'Visão geral', icon: BarChart3 },
       { href: '/parque', label: 'Parque de TVs', icon: Monitor },
+      { href: '/avisos', label: 'Avisos urgentes', icon: Siren },
     ],
   },
   {

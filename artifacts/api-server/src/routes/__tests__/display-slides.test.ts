@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 
 /**
@@ -60,7 +60,8 @@ vi.mock("@workspace/db", () => ({
   },
   devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
-  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
+  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation", title: "title", imageUrl: "imageUrl", duration: "duration" },
+  urgentAlertsTable: { id: "id", endedAt: "endedAt", endsAt: "endsAt" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", timeWindows: "timeWindows", targetMode: "targetMode", loopInsertions: "loopInsertions" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
@@ -680,5 +681,93 @@ describe("GET /display/:deviceKey/feed — inserções por volta", () => {
 
     const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
     expect(ids).toEqual([CAMPAIGN_ROW.announcementId, PANEL_ROW.announcementId, 304, CAMPAIGN_ROW.announcementId]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed — aviso urgente", () => {
+  // Quarta, 12:00 em São Paulo; o aviso vai das 11:00 às 13:00.
+  const AGORA = new Date("2026-10-07T15:00:00Z");
+  const AVISO = {
+    id: 1,
+    title: "Hoje fechamos às 18h",
+    body: null,
+    targetMode: "all",
+    segmentIds: [] as number[],
+    companyIds: [] as number[],
+    startsAt: new Date("2026-10-07T14:00:00Z"),
+    endsAt: new Date("2026-10-07T16:00:00Z"),
+    endedAt: null as Date | null,
+    landscapeAnnouncementId: 901,
+    portraitAnnouncementId: 902,
+    createdAt: new Date("2026-10-07T14:00:00Z"),
+  };
+  const PECA = { announcementId: 901, title: "Hoje fechamos às 18h", imageUrl: "/api/uploads/aviso.png", duration: 15 };
+
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [];
+    selectCallIndex = 0;
+    vi.useFakeTimers({ now: AGORA, toFake: ["Date"] });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function feed() {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    return request(app).get("/display/tv-1/feed");
+  }
+
+  it("TV no alvo recebe só a peça do aviso, sem legenda nem QR", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [CAMPAIGN_ROW], [AVISO], [PECA]];
+    const res = await feed();
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([901]);
+    expect(res.body.slides[0]).toMatchObject({ imageUrl: "/api/uploads/aviso.png", displayText: null, qrImageUrl: null });
+  });
+
+  it("TV fora do alvo segue a volta normal", async () => {
+    const outraEmpresa = { ...AVISO, targetMode: "companies", companyIds: [999] };
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [CAMPAIGN_ROW], [outraEmpresa], [PECA]];
+    const res = await feed();
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([
+      CAMPAIGN_ROW.announcementId,
+      PLAYLIST_ROW.announcementId,
+    ]);
+  });
+
+  it("aviso já vencido que ainda veio do banco não toma a TV", async () => {
+    const vencido = { ...AVISO, endsAt: new Date("2026-10-07T14:59:00Z") };
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [CAMPAIGN_ROW], [vencido], [PECA]];
+    const res = await feed();
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).not.toContain(901);
+  });
+
+  it("arte da orientação apagada → volta normal", async () => {
+    const semArte = { ...AVISO, landscapeAnnouncementId: null };
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [CAMPAIGN_ROW], [semArte], [PECA]];
+    const res = await feed();
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([
+      CAMPAIGN_ROW.announcementId,
+      PLAYLIST_ROW.announcementId,
+    ]);
+  });
+
+  it("vitrine ignora o aviso", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: true }], [PLAYLIST_ROW], [CAMPAIGN_ROW], [AVISO], [PECA]];
+    const res = await feed();
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).not.toContain(901);
+  });
+
+  it("falha ao consultar avisos não tira a programação do ar", async () => {
+    const falha = { then: (_ok: unknown, fail: (e: unknown) => void) => fail(new Error("relation does not exist")) };
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [CAMPAIGN_ROW], falha];
+    const res = await feed();
+    expect(res.status).toBe(200);
+    expect(res.body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([
+      CAMPAIGN_ROW.announcementId,
+      PLAYLIST_ROW.announcementId,
+    ]);
   });
 });

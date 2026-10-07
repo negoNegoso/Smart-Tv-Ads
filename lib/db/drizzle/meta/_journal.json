@@ -148,6 +148,13 @@
       "when": 1791341266329,
       "tag": "0020_gorgeous_dormammu",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791408238834,
+      "tag": "0021_supreme_synch",
+      "breakpoints": true
     }
   ]
 }

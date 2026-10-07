@@ -2,7 +2,7 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, sql, ne } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -106,6 +106,19 @@ if (process.env.PRIVATE_OBJECT_DIR) {
   void migrateLegacyImages();
 }
 
+/**
+ * Biblioteca de peças: tudo menos as artes de aviso urgente, que só existem
+ * para a TV registrar a exibição e não podem ser escolhidas para campanha.
+ * Separada para o teste conferir o SQL sem banco.
+ */
+export function buildAnnouncementsListQuery() {
+  return db
+    .select()
+    .from(announcementsTable)
+    .where(ne(announcementsTable.source, "alert"))
+    .orderBy(asc(announcementsTable.displayOrder), asc(announcementsTable.createdAt));
+}
+
 type YouTubeFields = {
   mediaKind: "image" | "youtube_video" | "youtube_playlist";
   youtubeId: string | null;
@@ -139,10 +152,7 @@ function readYouTubeFields(body: Record<string, unknown>): YouTubeFields | { err
 }
 
 router.get("/announcements", async (req, res): Promise<void> => {
-  const rows = await db
-    .select()
-    .from(announcementsTable)
-    .orderBy(asc(announcementsTable.displayOrder), asc(announcementsTable.createdAt));
+  const rows = await buildAnnouncementsListQuery();
   res.json(ListAnnouncementsResponse.parse(rows));
 });
 
@@ -221,14 +231,24 @@ router.get("/announcements/active", async (req, res): Promise<void> => {
   res.json(ListActiveAnnouncementsResponse.parse(rows));
 });
 
-router.get("/announcements/stats", async (req, res): Promise<void> => {
-  const [totals] = await db
+/**
+ * Contagem da tela Peças: ignora as artes de aviso urgente para os números
+ * baterem com a lista (que já as esconde). Separada para o teste conferir o
+ * SQL sem banco.
+ */
+export function buildAnnouncementStatsQuery() {
+  return db
     .select({
       total: sql<number>`COUNT(*)::int`,
       active: sql<number>`COUNT(*) FILTER (WHERE ${announcementsTable.isActive} = true)::int`,
       inactive: sql<number>`COUNT(*) FILTER (WHERE ${announcementsTable.isActive} = false)::int`,
     })
-    .from(announcementsTable);
+    .from(announcementsTable)
+    .where(ne(announcementsTable.source, "alert"));
+}
+
+router.get("/announcements/stats", async (req, res): Promise<void> => {
+  const [totals] = await buildAnnouncementStatsQuery();
   res.json(GetAnnouncementStatsResponse.parse(totals));
 });
 
@@ -314,6 +334,11 @@ router.patch(
       res.status(404).json({ error: "Announcement not found" });
       return;
     }
+    if (existing.source === "alert") {
+      // A arte é gerada a partir do aviso; mexer nela a desviaria do texto.
+      res.status(409).json({ error: "Arte de aviso urgente não pode ser alterada." });
+      return;
+    }
     if (existing.source === "panel") {
       // Editar o PNG gerado quebraria a relação com o cadastro que o produziu.
       // A ação certa é despublicar o painel no portal do cliente.
@@ -393,6 +418,12 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Announcement not found" });
     return;
   }
+  if (existing.source === "alert") {
+    // Apagar a arte sozinha deixaria o aviso apontando para nada; o caminho
+    // certo é encerrar o aviso.
+    res.status(409).json({ error: "Arte de aviso urgente não pode ser apagada; encerre o aviso." });
+    return;
+  }
   if (existing.source === "panel") {
     // Apagar só o registro deixaria panel_slides apontando para nada, com o
     // painel ainda marcado como publicado. A ação certa é despublicar o
@@ -430,6 +461,11 @@ router.patch("/announcements/:id/toggle", async (req, res): Promise<void> => {
     .where(eq(announcementsTable.id, params.data.id));
   if (!existing) {
     res.status(404).json({ error: "Announcement not found" });
+    return;
+  }
+  if (existing.source === "alert") {
+    // Ligar/desligar a arte à mão tiraria o aviso do ar sem encerrá-lo.
+    res.status(409).json({ error: "Arte de aviso urgente não pode ser alterada." });
     return;
   }
   if (existing.source === "panel") {
