@@ -62,12 +62,12 @@ export function alertNode(art: AlertArt, orientation: AlertOrientation): unknown
         },
         children: [
           node("div", {
-            style: { fontSize: portrait ? 104 : 112, fontWeight: 700, lineHeight: 1.1 },
+            style: { fontSize: portrait ? 104 : 112, fontWeight: 700, lineHeight: 1.1, wordBreak: "break-word" },
             children: truncate(art.title, MAX_ALERT_TITLE),
           }),
           art.body
             ? node("div", {
-                style: { fontSize: portrait ? 52 : 56, color: COLORS.muted, lineHeight: 1.3 },
+                style: { fontSize: portrait ? 52 : 56, color: COLORS.muted, lineHeight: 1.3, wordBreak: "break-word" },
                 children: truncate(art.body, MAX_ALERT_BODY),
               })
             : null,

@@ -9,6 +9,19 @@ function texts(tree: unknown): string[] {
   return Array.isArray(children) ? children.flatMap(texts) : texts(children);
 }
 
+/** Nó (com props) cujo filho direto de texto é `text`. */
+function nodeWithText(tree: unknown, text: string): { props: { style?: Record<string, unknown> } } | undefined {
+  if (!tree || typeof tree !== "object") return undefined;
+  const node = tree as { props?: { children?: unknown; style?: Record<string, unknown> } };
+  const children = node.props?.children;
+  if (children === text) return node as { props: { style?: Record<string, unknown> } };
+  for (const child of Array.isArray(children) ? children : [children]) {
+    const found = nodeWithText(child, text);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 describe("alertSize", () => {
   it("deitado 1920×1080 e em pé 1080×1920", () => {
     expect(alertSize("landscape")).toEqual({ width: 1920, height: 1080 });
@@ -32,5 +45,11 @@ describe("alertNode", () => {
     expect(title.endsWith("…")).toBe(true);
     expect(body).toHaveLength(MAX_ALERT_BODY);
     expect(body.endsWith("…")).toBe(true);
+  });
+
+  it("título e texto quebram palavra longa para não vazar da arte", () => {
+    const tree = alertNode({ title: "Titulo", body: "Corpo" }, "landscape");
+    expect(nodeWithText(tree, "Titulo")?.props.style?.wordBreak).toBe("break-word");
+    expect(nodeWithText(tree, "Corpo")?.props.style?.wordBreak).toBe("break-word");
   });
 });
