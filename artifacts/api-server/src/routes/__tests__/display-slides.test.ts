@@ -10,7 +10,7 @@ import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-
  * via `db` (device, playlist, campanhas) são resolvidas em ordem por uma
  * fila; `panelSlidesForClient` — a consulta da terceira fonte, painéis do
  * cliente — é mockada à parte, mantendo o resto do módulo real
- * (`composeDeviceSlides`), para poder simular a falha isolada do item 2.
+ * (`composeDeviceLoop`), para poder simular a falha isolada do item 2.
  */
 const dbSelect = vi.fn();
 const dbUpdate = vi.fn();
@@ -61,7 +61,7 @@ vi.mock("@workspace/db", () => ({
   devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
   announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation" },
-  campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", timeWindows: "timeWindows", targetMode: "targetMode" },
+  campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", timeWindows: "timeWindows", targetMode: "targetMode", loopInsertions: "loopInsertions" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
   advertisersTable: { id: "id", companyId: "companyId" },
@@ -643,5 +643,42 @@ describe("GET /display/:deviceKey/feed — aviso de atualização do app", () =>
     const res = await request(app).get("/display/tv-1/slides").set("User-Agent", APP("1.15.1"));
     expect(Array.isArray(res.body)).toBe(true);
     expect(latestTvAppReleaseForFeedMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /display/:deviceKey/feed — inserções por volta", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    selectResults = [];
+    selectCallIndex = 0;
+  });
+
+  it("campanha 2× toca duas vezes, intercalada com a playlist, sem levar os campos da montagem", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [PLAYLIST_ROW], [{ ...CAMPAIGN_ROW, loopInsertions: 2 }]];
+    panelSlidesForClientMock.mockResolvedValue([]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
+    expect(ids).toEqual([CAMPAIGN_ROW.announcementId, PLAYLIST_ROW.announcementId, CAMPAIGN_ROW.announcementId]);
+    expect(res.body.slides[0]).not.toHaveProperty("loopInsertions");
+    expect(res.body.slides[0]).not.toHaveProperty("panelId");
+  });
+
+  it("as páginas de um painel ficam juntas entre as inserções da campanha", async () => {
+    selectResults = [[{ ...DEVICE_ROW, showcase: false }], [], [{ ...CAMPAIGN_ROW, loopInsertions: 2 }]];
+    panelSlidesForClientMock.mockResolvedValue([
+      { ...PANEL_ROW, panelId: 9 },
+      { ...PANEL_ROW, announcementId: 304, panelId: 9 },
+    ]);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+
+    const ids = res.body.slides.map((s: { announcementId: number }) => s.announcementId);
+    expect(ids).toEqual([CAMPAIGN_ROW.announcementId, PANEL_ROW.announcementId, 304, CAMPAIGN_ROW.announcementId]);
   });
 });

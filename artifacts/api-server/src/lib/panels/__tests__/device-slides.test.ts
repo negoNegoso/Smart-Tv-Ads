@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-// device-slides.ts importa @workspace/db no topo. composeDeviceSlides é
+// device-slides.ts importa @workspace/db no topo. composeDeviceLoop é
 // pura e não precisa de banco; buildPanelSlidesQuery precisa do query
 // builder de verdade (para inspecionar o SQL gerado via .toSQL()), então
 // aqui só garantimos um DATABASE_URL fictício antes de importar — o Pool do
@@ -21,35 +21,62 @@ afterAll(() => {
   }
 });
 
-const { composeDeviceSlides, buildPanelSlidesQuery } = await import("../device-slides");
+const { composeDeviceLoop, buildPanelSlidesQuery } = await import("../device-slides");
 
 const slide = (announcementId: number, label: string) => ({ announcementId, label });
 
-describe("composeDeviceSlides", () => {
+describe("composeDeviceLoop", () => {
   it("campanhas vêm antes do conteúdo do lojista", () => {
-    const out = composeDeviceSlides([slide(1, "campanha")], [slide(2, "painel")], [slide(3, "playlist")]);
+    const out = composeDeviceLoop([slide(1, "campanha")], [slide(2, "painel")], [slide(3, "playlist")]);
     expect(out.map((s) => s.label)).toEqual(["campanha", "painel", "playlist"]);
   });
 
   it("mesma peça em duas fontes aparece uma vez, na primeira", () => {
-    const out = composeDeviceSlides([slide(1, "campanha")], [slide(1, "painel")], []);
+    const out = composeDeviceLoop([slide(1, "campanha")], [slide(1, "painel")], []);
     expect(out).toHaveLength(1);
     expect(out[0].label).toBe("campanha");
   });
 
   it("painel duplicado na playlist do device não repete", () => {
-    const out = composeDeviceSlides([], [slide(4, "painel")], [slide(4, "playlist")]);
+    const out = composeDeviceLoop([], [slide(4, "painel")], [slide(4, "playlist")]);
     expect(out.map((s) => s.label)).toEqual(["painel"]);
   });
 
   it("sem painel publicado o resultado é o de antes", () => {
-    const out = composeDeviceSlides([slide(1, "c")], [], [slide(2, "p")]);
+    const out = composeDeviceLoop([slide(1, "c")], [], [slide(2, "p")]);
     expect(out.map((s) => s.announcementId)).toEqual([1, 2]);
   });
 
   it("preserva a ordem de cada fonte", () => {
-    const out = composeDeviceSlides([], [slide(1, "p1"), slide(2, "p2")], []);
+    const out = composeDeviceLoop([], [slide(1, "p1"), slide(2, "p2")], []);
     expect(out.map((s) => s.announcementId)).toEqual([1, 2]);
+  });
+
+  // Tipo explícito: as três listas precisam caber no mesmo genérico T.
+  type Linha = { announcementId: number; label: string; campaignId?: number; panelId?: number; loopInsertions?: number };
+  const campanha = (announcementId: number, campaignId: number, loopInsertions: number): Linha =>
+    ({ announcementId, label: `c${announcementId}`, campaignId, loopInsertions });
+  const pagina = (announcementId: number, panelId: number): Linha =>
+    ({ announcementId, label: `p${announcementId}`, panelId });
+
+  it("campanha 2× com um painel e um item de playlist sai C P L C", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 2)], [pagina(2, 5)], [slide(3, "l")]);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 1]);
+  });
+
+  it("cada inserção toca todas as peças da campanha em sequência", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 2), campanha(2, 9, 2)], [], [slide(3, "l")]);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 1, 2]);
+  });
+
+  it("páginas do mesmo painel ficam juntas; cada painel é um bloco", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 2)], [pagina(2, 5), pagina(3, 5), pagina(4, 6)], []);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 4, 1]);
+  });
+
+  it("peça na campanha 2× e na playlist toca só as inserções da campanha", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 2)], [], [slide(1, "l")]);
+    expect(out.map((s) => s.label)).toEqual(["c1", "c1"]);
   });
 });
 
@@ -88,5 +115,11 @@ describe("buildPanelSlidesQuery", () => {
     // O filtro não usa panels.campaign_id: trocar o destino no editor sem
     // republicar não pode mudar o que toca.
     expect(sql).not.toMatch(/"panels"\."campaign_id"/i);
+  });
+
+  it("traz o panel_id para a volta manter as páginas do painel juntas", () => {
+    const { sql } = buildPanelSlidesQuery(42).toSQL();
+    // Só a lista do SELECT: o join já cita panel_slides.panel_id.
+    expect(sql.split(" from ")[0]).toContain('"panel_slides"."panel_id"');
   });
 });

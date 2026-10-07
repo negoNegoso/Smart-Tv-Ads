@@ -17,6 +17,11 @@ afterAll(() => {
 const { buildCampaignSlidesQuery } = await import("../device-feed");
 
 describe("buildCampaignSlidesQuery", () => {
+  it("traz as inserções por volta da campanha", () => {
+    const { sql } = buildCampaignSlidesQuery(new Date("2026-09-24T12:00:00Z")).toSQL();
+    expect(sql).toContain('"campaigns"."loop_insertions"');
+  });
+
   it("ordena por campanha e, dentro dela, pela ordem das peças (páginas do encarte em sequência)", () => {
     const { sql } = buildCampaignSlidesQuery(new Date("2026-09-24T12:00:00Z")).toSQL();
     expect(sql).toContain(

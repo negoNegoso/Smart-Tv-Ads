@@ -13,7 +13,7 @@ import { screenOrientationOf } from "@workspace/db/orientation";
 import { resolveSlideCaption } from "./slide-caption";
 import { resolvePlaylistVideoIds } from "./youtube/playlist-resolver";
 import { campaignRunsAtTime, campaignRunsOnDay, filterEligibleSlides, type TimeWindow } from "./ad-eligibility";
-import { composeDeviceSlides, panelSlidesForClient } from "./panels/device-slides";
+import { composeDeviceLoop, panelSlidesForClient } from "./panels/device-slides";
 import { filterByOrientation } from "./slide-orientation";
 
 /** De onde o slide veio: campanha vendida, painel do lojista ou playlist do device. */
@@ -60,6 +60,8 @@ export function buildCampaignSlidesQuery(now: Date) {
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       weekdays: campaignsTable.weekdays,
       timeWindows: campaignsTable.timeWindows,
+      loopInsertions: campaignsTable.loopInsertions,
+      panelId: sql<number | null>`NULL`,
     })
     .from(campaignsTable)
     .innerJoin(advertisersTable, eq(advertisersTable.id, campaignsTable.advertiserId))
@@ -107,6 +109,8 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       segmentIds: sql<number[]>`array[]::int[]`,
       weekdays: sql<number[]>`array[]::int[]`,
       timeWindows: sql<TimeWindow[]>`'[]'::jsonb`,
+      loopInsertions: sql<number>`1`,
+      panelId: sql<number | null>`NULL`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
@@ -147,16 +151,14 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     }
   }
 
-  const deduped = composeDeviceSlides(
-    tagSource(eligibleCampaignSlides, "campaign"),
-    tagSource(panelSlides, "panel"),
-    tagSource(playlistSlides, "playlist"),
+  // A orientação sai antes de montar a volta: bloco que fica sem peça some e
+  // não ocupa inserção no rodízio.
+  const screen = screenOrientationOf(device.orientation);
+  const visible = composeDeviceLoop(
+    tagSource(filterByOrientation(eligibleCampaignSlides, screen), "campaign"),
+    tagSource(filterByOrientation(panelSlides, screen), "panel"),
+    tagSource(filterByOrientation(playlistSlides, screen), "playlist"),
   );
-
-  // A ordem em relação à dedupe não muda o resultado: a elegibilidade é por
-  // slide, e a dedupe usa announcementId, que tem uma orientação só. Fica por
-  // último para ser o corte final antes da resposta ir pra TV.
-  const visible = filterByOrientation(deduped, screenOrientationOf(device.orientation));
 
   return Promise.all(
     visible.map(async ({
@@ -170,6 +172,9 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       segmentIds,
       weekdays,
       timeWindows,
+      // Só servem para montar a volta; o player não precisa deles.
+      loopInsertions,
+      panelId,
       // Já cumpriu o papel no filtro; o player não precisa dela.
       orientation,
       ...slide
