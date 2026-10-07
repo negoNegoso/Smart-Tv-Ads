@@ -27,7 +27,8 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
-async function rasterize(tree: unknown, width: number, height: number): Promise<Buffer> {
+// Exportada: o aviso urgente (lib/alerts) usa o mesmo caminho satori → PNG.
+export async function rasterize(tree: unknown, width: number, height: number): Promise<Buffer> {
   const svg = await satori(tree as never, { width, height, fonts: await panelFonts() });
   await ensureWasm();
   const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width } });
