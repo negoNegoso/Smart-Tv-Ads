@@ -1,27 +1,71 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, announcementsTable, panelsTable, panelSlidesTable, campaignAnnouncementsTable } from "@workspace/db";
+import { buildLoop, type LoopBlock } from "../loop-schedule";
+
+/** Campos que a montagem da volta lê. Ausente vale peso 1 e bloco próprio. */
+export type LoopSlide = {
+  announcementId: number;
+  campaignId?: number | null;
+  panelId?: number | null;
+  loopInsertions?: number;
+};
 
 /**
- * Junta as três fontes de slides de um device na ordem de exibição, sem repetir
- * peça. Campanha primeiro (é o que foi vendido), depois o conteúdo do lojista.
+ * Monta a volta da TV a partir das três fontes. Peça repetida entre fontes
+ * fica só na primeira (campanha > painel > playlist): repetição só vem das
+ * inserções compradas. Cada campanha vira um bloco com suas peças em ordem e
+ * peso = inserções por volta; cada painel do lojista (todas as páginas) e
+ * cada item da playlist pesam 1. Com tudo em 1× a volta é campanhas, painéis
+ * e playlist, como antes da frequência existir.
  */
-export function composeDeviceSlides<T extends { announcementId: number }>(
-  campaigns: T[],
-  panels: T[],
-  playlist: T[],
-): T[] {
+export function composeDeviceLoop<T extends LoopSlide>(campaigns: T[], panels: T[], playlist: T[]): T[] {
   const seen = new Set<number>();
-  return [...campaigns, ...panels, ...playlist].filter((slide) => {
-    if (seen.has(slide.announcementId)) return false;
-    seen.add(slide.announcementId);
-    return true;
-  });
+  const firstTime = (rows: T[]) =>
+    rows.filter((slide) => {
+      if (seen.has(slide.announcementId)) return false;
+      seen.add(slide.announcementId);
+      return true;
+    });
+  // Ordem importa: a primeira fonte a passar pelo firstTime fica com a peça (campanha > painel > playlist).
+  const campaignRows = firstTime(campaigns);
+  const panelRows = firstTime(panels);
+  const playlistRows = firstTime(playlist);
+  return buildLoop([
+    ...groupConsecutive(campaignRows, (slide) => slide.campaignId, (slide) => slide.loopInsertions ?? 1),
+    ...groupConsecutive(panelRows, (slide) => slide.panelId, () => 1),
+    ...playlistRows.map((slide) => ({ weight: 1, slides: [slide] })),
+  ]);
+}
+
+/**
+ * Junta linhas seguidas com a mesma chave num bloco (as queries já devolvem
+ * campanha por campanha e painel por painel). Chave nula ou ausente não junta:
+ * cada linha vira um bloco.
+ */
+function groupConsecutive<T>(
+  rows: T[],
+  keyOf: (row: T) => number | null | undefined,
+  weightOf: (row: T) => number,
+): LoopBlock<T>[] {
+  const blocks: LoopBlock<T>[] = [];
+  let previousKey: number | null | undefined;
+  for (const row of rows) {
+    const key = keyOf(row);
+    const last = blocks[blocks.length - 1];
+    if (last && key != null && key === previousKey) {
+      last.slides.push(row);
+    } else {
+      blocks.push({ weight: weightOf(row), slides: [row] });
+    }
+    previousKey = key;
+  }
+  return blocks;
 }
 
 /**
  * Chaves que só as linhas de campanha carregam (alvo e agenda, usados por
  * `filterEligibleSlides`). Aqui ficam opcionais só para o TypeScript conseguir
- * unificar o tipo genérico de `composeDeviceSlides` entre as três fontes —
+ * unificar o tipo genérico de `composeDeviceLoop` entre as três fontes —
  * sem isso, a linha de painel (que não tem essas colunas) vira o tipo mais
  * estreito e o `.map` que desestrutura essas chaves no display.ts não
  * compila. A query de painel não ganha essas colunas: é só rótulo de tipo.
@@ -34,6 +78,7 @@ type CampaignOnlyFields = {
   segmentIds?: number[];
   weekdays?: number[];
   timeWindows?: Array<{ start: number; end: number }>;
+  loopInsertions?: number;
 };
 
 /** Formato de uma linha de slide de painel, já com as chaves de campanha opcionais. */
@@ -51,6 +96,8 @@ type PanelSlideRow = {
   playbackMode: string;
   audioMode: string;
   orientation: string;
+  // Agrupa as páginas de um painel num bloco só da volta.
+  panelId: number | null;
 } & CampaignOnlyFields;
 
 /**
@@ -80,6 +127,8 @@ export function buildPanelSlidesQuery(clientId: number) {
       playbackMode: announcementsTable.playbackMode,
       audioMode: announcementsTable.audioMode,
       orientation: announcementsTable.orientation,
+      panelId: panelSlidesTable.panelId,
+      loopInsertions: sql<number>`1`,
     })
     .from(panelSlidesTable)
     .innerJoin(panelsTable, eq(panelsTable.id, panelSlidesTable.panelId))

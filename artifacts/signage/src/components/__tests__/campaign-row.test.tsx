@@ -31,3 +31,16 @@ describe('CampaignRow — horário', () => {
     expect(screen.getByText('Café da manhã')).toBeInTheDocument();
   });
 });
+
+describe('CampaignRow — inserções por volta', () => {
+  it('mostra as inserções quando passa de 1×', () => {
+    render(<CampaignRow campaign={{ ...base, loopInsertions: 2 }} onToggle={vi.fn()} />);
+    expect(screen.getByText(/· 2× por volta/)).toBeInTheDocument();
+  });
+
+  it('1× não polui a linha', () => {
+    render(<CampaignRow campaign={{ ...base, loopInsertions: 1 }} onToggle={vi.fn()} />);
+    expect(screen.getByText('Café da manhã')).toBeInTheDocument();
+    expect(screen.queryByText(/por volta/)).not.toBeInTheDocument();
+  });
+});

@@ -1,0 +1,1 @@
+ALTER TABLE "campaigns" ADD COLUMN "loop_insertions" smallint DEFAULT 1 NOT NULL;

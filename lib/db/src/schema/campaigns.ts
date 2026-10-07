@@ -23,6 +23,10 @@ export const campaignsTable = pgTable("campaigns", {
   // do negócio: [{ start: 420, end: 600 }] = 07:00–10:00. Fim exclusivo; 1440
   // = 24:00. Lista vazia é "dia todo": mantém as campanhas antigas como estavam.
   timeWindows: jsonb("time_windows").$type<Array<{ start: number; end: number }>>().notNull().default([]),
+  // Quantas vezes a campanha toca a cada volta da TV (1 a 5). Cada inserção
+  // toca o bloco inteiro de peças. O default 1 mantém as campanhas antigas e o
+  // servidor da versão anterior como estavam durante o deploy.
+  loopInsertions: smallint("loop_insertions").notNull().default(1),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

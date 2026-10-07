@@ -19,6 +19,7 @@ export type CampaignFormCampaign = {
   targetMode: CampaignTargetMode;
   weekdays?: number[];
   timeWindows?: TimeWindow[];
+  loopInsertions?: number;
   deviceIds?: number[];
   segmentIds?: number[];
   announcementIds?: number[];
@@ -45,6 +46,8 @@ export type UseCampaignForm = {
   addWindow: () => void;
   updateWindow: (index: number, patch: Partial<TimeWindow>) => void;
   removeWindow: (index: number) => void;
+  loopInsertions: number;
+  setLoopInsertions: (value: number) => void;
   selectedDevices: number[];
   setSelectedDevices: (value: number[]) => void;
   selectedSegments: number[];
@@ -70,6 +73,8 @@ export function useCampaignForm(): UseCampaignForm {
   const [weekdays, setWeekdays] = useState<number[]>([]);
   // Vazio = dia todo, mesma convenção do servidor.
   const [timeWindows, setTimeWindows] = useState<TimeWindow[]>([]);
+  // 1× = como antes da frequência existir, mesma convenção do servidor.
+  const [loopInsertions, setLoopInsertions] = useState(1);
   const [selectedDevices, setSelectedDevices] = useState<number[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [selectedAnnouncements, setSelectedAnnouncements] = useState<number[]>([]);
@@ -100,6 +105,7 @@ export function useCampaignForm(): UseCampaignForm {
       setTargetMode(campaign.targetMode);
       setWeekdays(campaign.weekdays ?? []);
       setTimeWindows(campaign.timeWindows ?? []);
+      setLoopInsertions(campaign.loopInsertions ?? 1);
     } else {
       setCampaignId(null);
       setName("");
@@ -115,6 +121,7 @@ export function useCampaignForm(): UseCampaignForm {
       setTargetMode("all");
       setWeekdays([]);
       setTimeWindows([]);
+      setLoopInsertions(1);
     }
   }
 
@@ -160,6 +167,7 @@ export function useCampaignForm(): UseCampaignForm {
         weekdays,
         // Sempre enviado, mesmo vazio: painel novo nunca depende do default da API.
         timeWindows,
+        loopInsertions,
       }),
     });
     if (!response.ok) {
@@ -178,6 +186,7 @@ export function useCampaignForm(): UseCampaignForm {
     targetMode, setTargetMode,
     weekdays, toggleWeekday,
     timeWindows, timeWindowsValid, addWindow, updateWindow, removeWindow,
+    loopInsertions, setLoopInsertions,
     selectedDevices, setSelectedDevices,
     selectedSegments, setSelectedSegments,
     selectedAnnouncements, setSelectedAnnouncements,

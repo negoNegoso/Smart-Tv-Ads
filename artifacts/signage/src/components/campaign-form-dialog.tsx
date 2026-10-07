@@ -114,6 +114,29 @@ export function CampaignTimeWindowsPicker({ form }: { form: ReturnType<typeof us
   );
 }
 
+const LOOP_INSERTION_OPTIONS = [1, 2, 3, 4, 5] as const;
+
+/**
+ * Inserções por volta: quantas vezes a campanha toca a cada volta da TV. O
+ * teto de 5 vem da API — mais que isso engoliria a TV do lojista.
+ */
+export function CampaignLoopInsertionsPicker({ form }: { form: ReturnType<typeof useCampaignForm> }) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="campaign-loop-insertions">Inserções por volta</Label>
+      <select
+        id="campaign-loop-insertions"
+        className={SELECT_CLASS}
+        value={form.loopInsertions}
+        onChange={(e) => form.setLoopInsertions(Number(e.target.value))}
+      >
+        {LOOP_INSERTION_OPTIONS.map((n) => <option key={n} value={n}>{n}×</option>)}
+      </select>
+      <p className="text-xs text-muted-foreground">Quantas vezes a campanha toca a cada volta da TV. Com várias peças, cada inserção toca todas em sequência.</p>
+    </div>
+  );
+}
+
 /** Linha de alcance e alertas da regra do concorrente; some sem prévia. */
 function ReachSummary({ preview }: { preview: ReachPreview }) {
   return (
@@ -301,6 +324,7 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <div className="grid grid-cols-2 gap-3"><Field label="Início" type="date" value={form.startsAt} onChange={form.setStartsAt} required /><Field label="Fim" type="date" value={form.endsAt} onChange={form.setEndsAt} required /></div>
           <CampaignWeekdayPicker form={form} />
           <CampaignTimeWindowsPicker form={form} />
+          <CampaignLoopInsertionsPicker form={form} />
           <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
           {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
           <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.timeWindowsValid}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
