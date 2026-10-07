@@ -14,6 +14,7 @@ import fleetRouter from "./fleet";
 import displayRouter from "./display";
 import telemetryRouter from "./telemetry";
 import analyticsRouter from "./analytics";
+import urgentAlertsRouter from "./urgent-alerts";
 import advertisersRouter from "./advertisers";
 import campaignReachRouter from "./campaign-reach";
 import storageRouter from "./storage";
@@ -58,6 +59,7 @@ router.use(clientsRouter);
 router.use(devicesRouter);
 router.use(fleetRouter);
 router.use(analyticsRouter);
+router.use(urgentAlertsRouter);
 router.use(advertisersRouter);
 router.use(campaignReachRouter);
 
