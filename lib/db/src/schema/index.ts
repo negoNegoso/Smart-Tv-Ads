@@ -18,3 +18,4 @@ export * from "./user_advertisers";
 export * from "./panels";
 export * from "./panel_items";
 export * from "./panel_slides";
+export * from "./urgent_alerts";

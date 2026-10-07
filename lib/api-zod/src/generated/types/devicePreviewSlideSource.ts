@@ -13,4 +13,5 @@ export const DevicePreviewSlideSource = {
   campaign: 'campaign',
   panel: 'panel',
   playlist: 'playlist',
+  alert: 'alert',
 } as const;
