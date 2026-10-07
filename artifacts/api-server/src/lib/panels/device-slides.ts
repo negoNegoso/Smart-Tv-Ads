@@ -26,7 +26,7 @@ export function composeDeviceLoop<T extends LoopSlide>(campaigns: T[], panels: T
       seen.add(slide.announcementId);
       return true;
     });
-  // Ordem importa: a dedupe dá preferência a quem é filtrado primeiro.
+  // Ordem importa: a primeira fonte a passar pelo firstTime fica com a peça (campanha > painel > playlist).
   const campaignRows = firstTime(campaigns);
   const panelRows = firstTime(panels);
   const playlistRows = firstTime(playlist);
