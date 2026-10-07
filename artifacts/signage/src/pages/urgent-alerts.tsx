@@ -51,7 +51,13 @@ const TARGETS: Array<{ value: AlertTargetMode; label: string }> = [
 export default function UrgentAlerts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: alerts = [] } = useQuery({ queryKey: urgentAlertsQueryKey, queryFn: listUrgentAlerts });
+  const { data: alerts = [] } = useQuery({
+    queryKey: urgentAlertsQueryKey,
+    queryFn: listUrgentAlerts,
+    // O aviso expira sozinho no servidor; sem reconsultar, a faixa "No ar" ficaria
+    // na tela depois do fim.
+    refetchInterval: 60_000,
+  });
   const { data: segments = [] } = useListSegments();
   const { data: companies = [] } = useQuery({ queryKey: [...companiesQueryKey, {}], queryFn: () => listCompanies() });
 
@@ -63,6 +69,8 @@ export default function UrgentAlerts() {
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [confirming, setConfirming] = useState(false);
   const [ending, setEnding] = useState<UrgentAlert | null>(null);
+  // Trava o clique duplo: sem isso, dois cliques rápidos publicariam/encerrariam duas vezes.
+  const [submitting, setSubmitting] = useState(false);
 
   const active = alerts.filter((alert) => alert.status === 'active');
   const targetMissing =
@@ -77,8 +85,10 @@ export default function UrgentAlerts() {
   }
 
   async function publish() {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      await createUrgentAlert({ title, body, targetMode, segmentIds, companyIds, durationMinutes });
+      await createUrgentAlert({ title: title.trim(), body: body.trim(), targetMode, segmentIds, companyIds, durationMinutes });
       toast({ title: 'Aviso no ar. As TVs mostram em até 1 minuto.' });
       setTitle('');
       setBody('');
@@ -88,19 +98,22 @@ export default function UrgentAlerts() {
     } catch (err) {
       toast({ title: errorMessage(err, 'Não foi possível publicar o aviso.'), variant: 'destructive' });
     } finally {
+      setSubmitting(false);
       setConfirming(false);
       await queryClient.invalidateQueries({ queryKey: urgentAlertsQueryKey });
     }
   }
 
   async function endNow() {
-    if (!ending) return;
+    if (!ending || submitting) return;
+    setSubmitting(true);
     try {
       await endUrgentAlert(ending.id);
       toast({ title: 'Aviso encerrado. As TVs voltam à programação em até 1 minuto.' });
     } catch (err) {
       toast({ title: errorMessage(err, 'Não foi possível encerrar o aviso.'), variant: 'destructive' });
     } finally {
+      setSubmitting(false);
       setEnding(null);
       await queryClient.invalidateQueries({ queryKey: urgentAlertsQueryKey });
     }
@@ -121,7 +134,7 @@ export default function UrgentAlerts() {
       {active.map((alert) => (
         <div key={alert.id} role="status" className="flex items-center justify-between gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-4">
           <p className="text-sm">
-            No ar em {alert.reachedDevices} TVs até {hhmm(alert.endsAt)} — <strong>{alert.title}</strong>
+            No ar em {alert.reachedDevices} {alert.reachedDevices === 1 ? 'TV' : 'TVs'} até {hhmm(alert.endsAt)} — <strong>{alert.title}</strong>
           </p>
           <Button variant="destructive" size="sm" onClick={() => setEnding(alert)}>Encerrar agora</Button>
         </div>
@@ -208,7 +221,7 @@ export default function UrgentAlerts() {
           <p className="text-sm">As TVs escolhidas vão mostrar só este aviso até {endsAtPreview}. Campanhas ficam pausadas nelas.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={publish}>Publicar agora</Button>
+            <Button variant="destructive" disabled={submitting} onClick={publish}>Publicar agora</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -219,7 +232,7 @@ export default function UrgentAlerts() {
           <p className="text-sm">As TVs voltam à programação normal em até 1 minuto.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEnding(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={endNow}>Encerrar</Button>
+            <Button variant="destructive" disabled={submitting} onClick={endNow}>Encerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

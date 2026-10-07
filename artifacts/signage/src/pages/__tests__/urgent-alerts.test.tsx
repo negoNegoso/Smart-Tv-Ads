@@ -31,7 +31,11 @@ const NO_AR = {
 function stub(alerts: unknown[] = []) {
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     const u = String(url);
-    if (u.includes('/urgent-alerts') && init?.method === 'POST') return json(201, NO_AR);
+    if (u.includes('/urgent-alerts') && init?.method === 'POST') {
+      // Responde depois de um instante: dá tempo de um segundo clique chegar
+      // com o primeiro ainda em voo.
+      return new Promise<Response>((resolve) => setTimeout(() => resolve(new Response(JSON.stringify(NO_AR), { status: 201, headers: { 'content-type': 'application/json' } })), 20));
+    }
     if (u.includes('/urgent-alerts')) return json(200, alerts);
     if (u.includes('/segments')) return json(200, [PADARIA]);
     if (u.includes('/companies')) return json(200, [{ id: 9, name: 'Mercado Bom', segmentId: 1 }]);
@@ -96,5 +100,37 @@ describe('UrgentAlerts', () => {
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Encerrar' }));
     await waitFor(() => expect(posts(fetchMock).map(([url]) => String(url))).toEqual([expect.stringContaining('/urgent-alerts/7/end')]));
+  });
+
+  it('clique duplo em "Publicar agora" envia um só POST', async () => {
+    const fetchMock = stub();
+    renderPage();
+    await userEvent.type(screen.getByLabelText('Título'), 'Hoje fechamos às 18h');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar aviso' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.dblClick(within(dialog).getByRole('button', { name: 'Publicar agora' }));
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(posts(fetchMock)).toHaveLength(1);
+  });
+
+  it('manda título e texto sem espaços nas pontas', async () => {
+    const fetchMock = stub();
+    renderPage();
+    await userEvent.type(screen.getByLabelText('Título'), '  Fechado hoje  ');
+    await userEvent.type(screen.getByLabelText('Texto (opcional)'), '  Voltamos amanhã ');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar aviso' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Publicar agora' }));
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    const sent = JSON.parse(posts(fetchMock)[0][1]!.body as string);
+    expect(sent.title).toBe('Fechado hoje');
+    expect(sent.body).toBe('Voltamos amanhã');
+  });
+
+  it('com uma TV alcançada, a faixa usa o singular', async () => {
+    stub([{ ...NO_AR, reachedDevices: 1 }]);
+    renderPage();
+    expect(await screen.findByText(/No ar em 1 TV até/)).toBeInTheDocument();
   });
 });
