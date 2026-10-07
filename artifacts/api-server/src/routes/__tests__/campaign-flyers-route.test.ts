@@ -23,6 +23,8 @@ const state = vi.hoisted(() => ({
   // Ids que a consulta de dropPanelAnnouncementIds deve reportar como
   // announcements.source = 'panel' — simula o que existe no banco.
   panelAnnouncementIds: [] as number[],
+  // Condições (where) das consultas em announcements, para inspecionar o SQL.
+  announcementWhereConds: [] as unknown[],
   // cols reais (campaignSelection) usados na última select com join em
   // campaignsTable — é o que campaignWithStats manda, capturado para o
   // teste inspecionar o SQL de announcementIds/announcementTitles de verdade.
@@ -40,6 +42,7 @@ function resetState() {
   state.deleteCalls = [];
   state.callLog = [];
   state.panelAnnouncementIds = [];
+  state.announcementWhereConds = [];
   state.lastJoinedCampaignCols = null;
 }
 
@@ -101,6 +104,7 @@ vi.mock("@workspace/db", async () => {
                 // getSQL()). O objeto atende as duas ao mesmo tempo: é
                 // thenable E tem getSQL — a condição real já implementa
                 // getSQL() (SQL.prototype.getSQL retorna this).
+                state.announcementWhereConds.push(cond);
                 const resolved = state.panelAnnouncementIds.map((id) => ({ id }));
                 return { ...thenable(resolved), getSQL: () => cond };
               }
@@ -308,6 +312,33 @@ describe("rotas de campanha convivendo com encartes", () => {
     const titlesQuery = new PgDialect().sqlToQuery(cols.announcementTitles as never);
     expect(idsQuery.sql).toContain("<> 'panel'");
     expect(titlesQuery.sql).toContain("<> 'panel'");
+  });
+
+  it("PATCH também descarta ids de arte de aviso urgente (source = 'alert')", async () => {
+    // A consulta que separa as peças geradas tem que cobrir os dois source:
+    // a arte do aviso é gerada, não selecionável, e o id reenviado pelo
+    // formulário iria parar em campaign_announcements.
+    state.existingCampaignRow = baseExisting();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch(`/campaigns/${CAMPAIGN_ID}`)
+      .send(campaignBody({ announcementIds: [7, 88] }));
+    expect(res.status).toBe(200);
+    const dropCond = state.announcementWhereConds[0];
+    expect(dropCond).toBeDefined();
+    const query = new PgDialect().sqlToQuery(dropCond as never);
+    expect(query.params).toContain("panel");
+    expect(query.params).toContain("alert");
+  });
+
+  it("POST também descarta ids de arte de aviso urgente (source = 'alert')", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .post("/campaigns")
+      .send(campaignBody({ announcementIds: [7, 88] }));
+    expect(res.status).toBe(201);
+    const query = new PgDialect().sqlToQuery(state.announcementWhereConds[0] as never);
+    expect(query.params).toContain("alert");
   });
 
   it("DELETE despublica os encartes antes de apagar", async () => {

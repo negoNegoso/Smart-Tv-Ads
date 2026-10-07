@@ -156,6 +156,18 @@ describe("POST /devices/:id/playlist/add", () => {
     expect(res.status).toBe(201);
   });
 
+  it("recusa arte de aviso urgente, sem inserir", async () => {
+    selectResults = [[{ deviceOrientation: "landscape", pieceOrientation: "landscape", pieceSource: "alert" }]];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 102 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Arte de aviso urgente não pode ser usada na playlist." });
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
   it("404 quando a TV ou a peça não existe", async () => {
     selectResults = [[]];
 

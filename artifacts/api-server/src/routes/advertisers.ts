@@ -131,13 +131,16 @@ function announcementIdsFor(input: z.infer<typeof campaignInput>) {
  * existe mais, e inserir em campaign_announcements violaria a FK depois de
  * campaignsTable já ter sido atualizada. Descartar aqui, antes do insert e
  * do notInArray, evita a escrita parcial.
+ *
+ * A arte do aviso urgente (source = 'alert') segue a mesma regra: é gerada
+ * pelo aviso, não é selecionável e seu id nunca deve entrar em campanha.
  */
 async function dropPanelAnnouncementIds(ids: number[]): Promise<number[]> {
   if (ids.length === 0) return ids;
   const panelRows = await db
     .select({ id: announcementsTable.id })
     .from(announcementsTable)
-    .where(and(inArray(announcementsTable.id, ids), eq(announcementsTable.source, "panel")));
+    .where(and(inArray(announcementsTable.id, ids), inArray(announcementsTable.source, ["panel", "alert"])));
   const panelIds = new Set(panelRows.map((r) => r.id));
   return ids.filter((id) => !panelIds.has(id));
 }
