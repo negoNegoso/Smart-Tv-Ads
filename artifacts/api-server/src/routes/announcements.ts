@@ -2,7 +2,7 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, sql, ne } from "drizzle-orm";
 import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -106,6 +106,19 @@ if (process.env.PRIVATE_OBJECT_DIR) {
   void migrateLegacyImages();
 }
 
+/**
+ * Biblioteca de peças: tudo menos as artes de aviso urgente, que só existem
+ * para a TV registrar a exibição e não podem ser escolhidas para campanha.
+ * Separada para o teste conferir o SQL sem banco.
+ */
+export function buildAnnouncementsListQuery() {
+  return db
+    .select()
+    .from(announcementsTable)
+    .where(ne(announcementsTable.source, "alert"))
+    .orderBy(asc(announcementsTable.displayOrder), asc(announcementsTable.createdAt));
+}
+
 type YouTubeFields = {
   mediaKind: "image" | "youtube_video" | "youtube_playlist";
   youtubeId: string | null;
@@ -139,10 +152,7 @@ function readYouTubeFields(body: Record<string, unknown>): YouTubeFields | { err
 }
 
 router.get("/announcements", async (req, res): Promise<void> => {
-  const rows = await db
-    .select()
-    .from(announcementsTable)
-    .orderBy(asc(announcementsTable.displayOrder), asc(announcementsTable.createdAt));
+  const rows = await buildAnnouncementsListQuery();
   res.json(ListAnnouncementsResponse.parse(rows));
 });
 

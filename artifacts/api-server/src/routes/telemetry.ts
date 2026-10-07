@@ -25,6 +25,17 @@ router.post("/telemetry/play", async (req, res): Promise<void> => {
     return;
   }
 
+  // Arte de aviso urgente não conta exibição (ver /telemetry/plays): responde
+  // como se tivesse gravado para a TV não reenviar.
+  const [piece] = await db
+    .select({ source: announcementsTable.source })
+    .from(announcementsTable)
+    .where(eq(announcementsTable.id, announcementId));
+  if (piece?.source === "alert") {
+    res.status(201).json({ ok: true });
+    return;
+  }
+
   await db.insert(playsTable).values({
     deviceId: device.id,
     announcementId,
@@ -63,7 +74,7 @@ router.post("/telemetry/plays", async (req, res): Promise<void> => {
   const announcementIds = [...new Set(plays.map((p) => p.announcementId))];
   const campaignIds = [...new Set(plays.map((p) => p.campaignId).filter((id): id is number => id != null))];
   const announcements = await db
-    .select({ id: announcementsTable.id })
+    .select({ id: announcementsTable.id, source: announcementsTable.source })
     .from(announcementsTable)
     .where(inArray(announcementsTable.id, announcementIds));
   const campaigns = campaignIds.length
@@ -76,7 +87,9 @@ router.post("/telemetry/plays", async (req, res): Promise<void> => {
   const { rows, discarded } = buildPlayRows(
     device.id,
     plays,
-    new Set(announcements.map((a) => a.id)),
+    // Arte de aviso urgente não conta exibição: entra como descartada, a TV
+    // esvazia a fila e o contador público não infla durante o aviso.
+    new Set(announcements.filter((a) => a.source !== "alert").map((a) => a.id)),
     new Set(campaigns.map((c) => c.id)),
     new Date(),
   );

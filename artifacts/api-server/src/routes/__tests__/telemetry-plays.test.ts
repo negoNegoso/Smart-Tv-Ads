@@ -38,7 +38,7 @@ vi.mock("@workspace/db", () => ({
   },
   devicesTable: { id: "id", deviceKey: "deviceKey" },
   playsTable: { id: "id", deviceId: "deviceId", clientPlayId: "clientPlayId" },
-  announcementsTable: { id: "id" },
+  announcementsTable: { id: "id", source: "source" },
   campaignsTable: { id: "id" },
 }));
 
@@ -143,5 +143,52 @@ describe("POST /api/telemetry/plays", () => {
     const app = await buildApp();
     const res = await post(app, body);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("exibição de aviso urgente não conta", () => {
+  async function postTo(app: Express, path: string, body: unknown): Promise<{ status: number; body: unknown }> {
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      server.once("listening", resolve);
+      server.once("error", reject);
+    });
+    const { port } = server.address() as { port: number };
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    } finally {
+      server.close();
+    }
+  }
+
+  it("lote: peça de aviso é descartada e o resto entra", async () => {
+    inserted = [];
+    selectResults = [[{ id: 1 }], [{ id: 5, source: "alert" }, { id: 6, source: "admin" }], []];
+    returningRows = [{ id: 77 }];
+    const app = await buildApp();
+    const res = await postTo(app, "/telemetry/plays", {
+      deviceKey: "tv-1",
+      plays: [
+        { playId: "abcdefgh0001", announcementId: 5, durationSeconds: 15, ageSeconds: 1 },
+        { playId: "abcdefgh0002", announcementId: 6, durationSeconds: 10, ageSeconds: 1 },
+      ],
+    });
+    expect(res.status).toBe(200);
+    expect(inserted.map((row) => row.announcementId)).toEqual([6]);
+    expect((res.body as Record<string, unknown>).discarded).toBe(1);
+  });
+
+  it("endpoint antigo: aviso responde ok e não grava", async () => {
+    inserted = [];
+    selectResults = [[{ id: 1, deviceKey: "tv-1" }], [{ source: "alert" }]];
+    const app = await buildApp();
+    const res = await postTo(app, "/telemetry/play", { deviceKey: "tv-1", announcementId: 5, durationSeconds: 15 });
+    expect(res.status).toBe(201);
+    expect(inserted).toEqual([]);
   });
 });
