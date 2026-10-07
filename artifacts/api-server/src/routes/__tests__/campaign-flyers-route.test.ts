@@ -329,6 +329,7 @@ describe("rotas de campanha convivendo com encartes", () => {
     const query = new PgDialect().sqlToQuery(dropCond as never);
     expect(query.params).toContain("panel");
     expect(query.params).toContain("alert");
+    expect(query.params).toContain("editorial");
   });
 
   it("POST também descarta ids de arte de aviso urgente (source = 'alert')", async () => {
@@ -339,6 +340,7 @@ describe("rotas de campanha convivendo com encartes", () => {
     expect(res.status).toBe(201);
     const query = new PgDialect().sqlToQuery(state.announcementWhereConds[0] as never);
     expect(query.params).toContain("alert");
+    expect(query.params).toContain("editorial");
   });
 
   it("DELETE despublica os encartes antes de apagar", async () => {

@@ -13,17 +13,17 @@ afterAll(() => {
 const { buildAnnouncementsListQuery, buildAnnouncementStatsQuery } = await import("../announcements");
 
 describe("buildAnnouncementsListQuery", () => {
-  it("deixa de fora as artes de aviso urgente", () => {
+  it("deixa de fora as peças de sistema (aviso urgente e editorial)", () => {
     const { sql, params } = buildAnnouncementsListQuery().toSQL();
-    expect(sql).toContain('"announcements"."source" <> $1');
-    expect(params[0]).toBe("alert");
+    expect(sql).toContain('"announcements"."source" not in ($1, $2)');
+    expect(params.slice(0, 2)).toEqual(["alert", "editorial"]);
   });
 });
 
 describe("buildAnnouncementStatsQuery", () => {
-  it("não conta as artes de aviso urgente", () => {
+  it("não conta as peças de sistema", () => {
     const { sql, params } = buildAnnouncementStatsQuery().toSQL();
-    expect(sql).toContain('"announcements"."source" <> $1');
-    expect(params).toContain("alert");
+    expect(sql).toContain('"announcements"."source" not in (');
+    expect(params).toEqual(expect.arrayContaining(["alert", "editorial"]));
   });
 });

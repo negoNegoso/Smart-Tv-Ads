@@ -168,6 +168,18 @@ describe("POST /devices/:id/playlist/add", () => {
     expect(dbInsert).not.toHaveBeenCalled();
   });
 
+  it("recusa peça editorial, sem inserir", async () => {
+    selectResults = [[{ deviceOrientation: "landscape", pieceOrientation: "landscape", pieceSource: "editorial" }]];
+
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/devices/1/playlist/add").send({ announcementId: 103 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Peça de sistema não pode ser usada na playlist." });
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
   it("404 quando a TV ou a peça não existe", async () => {
     selectResults = [[]];
 
