@@ -68,3 +68,27 @@ describe('useCampaignForm — faixas de horário', () => {
     expect(result.current.timeWindows).toEqual([]);
   });
 });
+
+describe('useCampaignForm — inserções por volta', () => {
+  it('envia 1 sem mexer e o valor escolhido depois', async () => {
+    const fetchMock = okFetch();
+    const { result } = renderHook(() => useCampaignForm());
+    await act(async () => { await result.current.submit(); });
+    act(() => result.current.setLoopInsertions(3));
+    await act(async () => { await result.current.submit(); });
+    const bodies = (fetchMock.mock.calls as unknown as [string, RequestInit][]).map(([, init]) => JSON.parse(init.body as string));
+    expect(bodies.map((body) => body.loopInsertions)).toEqual([1, 3]);
+  });
+
+  it('reset carrega as inserções da campanha e volta a 1 na nova', () => {
+    const { result } = renderHook(() => useCampaignForm());
+    act(() => result.current.reset({
+      id: 1, advertiserId: 3, name: 'C', contractValue: 0, targetMode: 'all',
+      startsAt: '2026-09-20T00:00:00.000Z', endsAt: '2026-09-27T00:00:00.000Z',
+      loopInsertions: 4,
+    }));
+    expect(result.current.loopInsertions).toBe(4);
+    act(() => result.current.reset(null));
+    expect(result.current.loopInsertions).toBe(1);
+  });
+});
