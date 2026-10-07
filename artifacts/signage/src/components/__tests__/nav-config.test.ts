@@ -7,7 +7,7 @@ const labels = (groups: ReturnType<typeof portalNav>) => groups.map((g) => g.lab
 describe('adminNav', () => {
   it('agrupa os itens do admin com Visão geral na raiz', () => {
     expect(labels(adminNav)).toEqual(['Operação', 'Comercial', 'Conteúdo', 'Sistema']);
-    expect(hrefs(adminNav)).toEqual(['/', '/parque', '/companies', '/segments', '/admin', '/panels', '/divulgacao', '/users-admin']);
+    expect(hrefs(adminNav)).toEqual(['/', '/parque', '/avisos', '/companies', '/segments', '/admin', '/panels', '/divulgacao', '/users-admin']);
     expect(adminNav[0].items[0].label).toBe('Visão geral');
   });
 });
