@@ -52,7 +52,14 @@ async function buildApp(): Promise<Express> {
 }
 
 async function post(app: Express, body: unknown) {
-  const server = app.listen(0);
+  // Escuta no próprio 127.0.0.1 (e só lê a porta depois do listening): no
+  // wildcard o macOS pode devolver porta que outro processo já segura em
+  // 127.0.0.1, e o fetch cairia nele de forma intermitente.
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve, reject) => {
+    server.once("listening", resolve);
+    server.once("error", reject);
+  });
   const { port } = server.address() as { port: number };
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/telemetry/plays`, {
