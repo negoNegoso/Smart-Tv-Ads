@@ -231,14 +231,24 @@ router.get("/announcements/active", async (req, res): Promise<void> => {
   res.json(ListActiveAnnouncementsResponse.parse(rows));
 });
 
-router.get("/announcements/stats", async (req, res): Promise<void> => {
-  const [totals] = await db
+/**
+ * Contagem da tela Peças: ignora as artes de aviso urgente para os números
+ * baterem com a lista (que já as esconde). Separada para o teste conferir o
+ * SQL sem banco.
+ */
+export function buildAnnouncementStatsQuery() {
+  return db
     .select({
       total: sql<number>`COUNT(*)::int`,
       active: sql<number>`COUNT(*) FILTER (WHERE ${announcementsTable.isActive} = true)::int`,
       inactive: sql<number>`COUNT(*) FILTER (WHERE ${announcementsTable.isActive} = false)::int`,
     })
-    .from(announcementsTable);
+    .from(announcementsTable)
+    .where(ne(announcementsTable.source, "alert"));
+}
+
+router.get("/announcements/stats", async (req, res): Promise<void> => {
+  const [totals] = await buildAnnouncementStatsQuery();
   res.json(GetAnnouncementStatsResponse.parse(totals));
 });
 

@@ -10,12 +10,20 @@ afterAll(() => {
   else process.env.DATABASE_URL = previousDatabaseUrl;
 });
 
-const { buildAnnouncementsListQuery } = await import("../announcements");
+const { buildAnnouncementsListQuery, buildAnnouncementStatsQuery } = await import("../announcements");
 
 describe("buildAnnouncementsListQuery", () => {
   it("deixa de fora as artes de aviso urgente", () => {
     const { sql, params } = buildAnnouncementsListQuery().toSQL();
     expect(sql).toContain('"announcements"."source" <> $1');
     expect(params[0]).toBe("alert");
+  });
+});
+
+describe("buildAnnouncementStatsQuery", () => {
+  it("não conta as artes de aviso urgente", () => {
+    const { sql, params } = buildAnnouncementStatsQuery().toSQL();
+    expect(sql).toContain('"announcements"."source" <> $1');
+    expect(params).toContain("alert");
   });
 });
