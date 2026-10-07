@@ -51,6 +51,10 @@ const campaignInput = z.object({
     )
     .max(4)
     .default([]),
+  // Inserções por volta (1 a 5): quantas vezes a campanha toca a cada volta
+  // da TV. O default cobre o painel antigo em cache que ainda não manda o
+  // campo: a campanha segue 1×.
+  loopInsertions: z.coerce.number().int().min(1).max(5).default(1),
   announcementDestinations: z
     .record(
       z.string(),
@@ -170,6 +174,7 @@ const campaignSelection = {
   targetMode: campaignsTable.targetMode,
   weekdays: campaignsTable.weekdays,
   timeWindows: campaignsTable.timeWindows,
+  loopInsertions: campaignsTable.loopInsertions,
   segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id order by cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
   segmentNames: sql<string[]>`coalesce((select array_agg(sg.name order by sg.name) from campaign_segments cs join segments sg on sg.id = cs.segment_id where cs.campaign_id = ${campaignsTable.id}), array[]::text[])`,
   allDevices: campaignsTable.allDevices,
@@ -317,6 +322,7 @@ router.post("/campaigns", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
     timeWindows: normalizeTimeWindows(input.timeWindows),
+    loopInsertions: input.loopInsertions,
   }).returning();
   if (announcementIds.length > 0) {
     await db.insert(campaignAnnouncementsTable).values(
@@ -379,6 +385,7 @@ router.patch("/campaigns/:id", async (req, res): Promise<void> => {
     allDevices: input.targetMode === "all",
     weekdays: normalizeWeekdays(input.weekdays),
     timeWindows: normalizeTimeWindows(input.timeWindows),
+    loopInsertions: input.loopInsertions,
   }).where(eq(campaignsTable.id, id));
   if (announcementIds.length > 0) {
     await db.insert(campaignAnnouncementsTable).values(

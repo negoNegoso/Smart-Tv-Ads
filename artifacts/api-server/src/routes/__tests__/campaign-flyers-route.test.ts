@@ -412,3 +412,70 @@ describe("faixas de horário da campanha", () => {
     expect(state.lastJoinedCampaignCols).toHaveProperty("timeWindows");
   });
 });
+
+describe("inserções por volta da campanha", () => {
+  let app: Express;
+
+  beforeEach(async () => {
+    resetState();
+    state.advertiserRow = { id: ADVERTISER_ID };
+    state.insertCampaignReturning = { id: CAMPAIGN_ID };
+    state.joinedStatsRow = joinedFrom(baseExisting());
+    app = await buildApp();
+  });
+
+  function insertedCampaign() {
+    return state.insertCalls.find((c) => c.table === "campaigns")?.values as Record<string, unknown>;
+  }
+
+  function updatedCampaign() {
+    return state.updateCalls.find((c) => c.table === "campaigns")?.patch as Record<string, unknown>;
+  }
+
+  it("POST grava as inserções escolhidas", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/campaigns").send(campaignBody({ loopInsertions: 3 }));
+    expect(res.status).toBe(201);
+    expect(insertedCampaign().loopInsertions).toBe(3);
+  });
+
+  it("POST sem o campo grava 1×", async () => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/campaigns").send(campaignBody());
+    expect(res.status).toBe(201);
+    expect(insertedCampaign().loopInsertions).toBe(1);
+  });
+
+  it("PATCH grava as inserções escolhidas", async () => {
+    state.existingCampaignRow = baseExisting();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch(`/campaigns/${CAMPAIGN_ID}`).send(campaignBody({ loopInsertions: 2 }));
+    expect(res.status).toBe(200);
+    expect(updatedCampaign().loopInsertions).toBe(2);
+  });
+
+  it("PATCH sem o campo volta a 1× (painel antigo em cache não quebra)", async () => {
+    state.existingCampaignRow = baseExisting();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch(`/campaigns/${CAMPAIGN_ID}`).send(campaignBody());
+    expect(res.status).toBe(200);
+    expect(updatedCampaign().loopInsertions).toBe(1);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["acima de 5", 6],
+    ["fração", 2.5],
+  ])("rejeita com 400: %s", async (_caso, loopInsertions) => {
+    const { default: request } = await import("supertest");
+    const res = await request(app).post("/campaigns").send(campaignBody({ loopInsertions }));
+    expect(res.status).toBe(400);
+    expect(state.insertCalls.some((c) => c.table === "campaigns")).toBe(false);
+  });
+
+  it("a resposta da campanha traz as inserções (seleção inclui a coluna)", async () => {
+    const { default: request } = await import("supertest");
+    await request(app).post("/campaigns").send(campaignBody());
+    expect(state.lastJoinedCampaignCols).toHaveProperty("loopInsertions");
+  });
+});
