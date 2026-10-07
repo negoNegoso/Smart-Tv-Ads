@@ -2,11 +2,11 @@ import http from "node:http";
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 
-// O supertest original escuta com listen(0) no wildcard (::) e conecta em
-// 127.0.0.1. No macOS o SO pode entregar uma porta que outro processo da
-// máquina (IDE, Docker…) já segura em 127.0.0.1 — e a conexão cai nesse outro
-// processo (404 ou ECONNRESET intermitentes). O setup em src/test/supertest-loopback.ts
-// faz o servidor efêmero escutar no próprio 127.0.0.1, onde o SO não repete porta.
+// Guarda de regressão: o supertest antigo escutava com listen(0) no wildcard (::)
+// e conectava em 127.0.0.1. No macOS o SO pode entregar uma porta que outro
+// processo da máquina (IDE, Docker…) já segura em 127.0.0.1 — e a conexão cai
+// nesse outro processo (404 ou ECONNRESET intermitentes). A partir do 7.3.1 o
+// próprio supertest escuta em 127.0.0.1; este teste falha se isso regredir.
 describe("servidor efêmero do supertest", () => {
   it("escuta em 127.0.0.1, o mesmo endereço em que o supertest conecta", async () => {
     let address: unknown;
