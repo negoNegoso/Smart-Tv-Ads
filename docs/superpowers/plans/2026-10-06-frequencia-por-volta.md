@@ -227,7 +227,7 @@ Em `device-slides.test.ts`:
   const pagina = (announcementId: number, panelId: number): Linha =>
     ({ announcementId, label: `p${announcementId}`, panelId });
 
-  it("campanha 2× com um painel e um item de playlist sai C P L C", () => {
+  it("campanha 2× com um painel e um item de playlist sai C P C L", () => {
     const out = composeDeviceLoop([campanha(1, 9, 2)], [pagina(2, 5)], [slide(3, "l")]);
     expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 1]);
   });
@@ -239,7 +239,7 @@ Em `device-slides.test.ts`:
 
   it("páginas do mesmo painel ficam juntas; cada painel é um bloco", () => {
     const out = composeDeviceLoop([campanha(1, 9, 2)], [pagina(2, 5), pagina(3, 5), pagina(4, 6)], []);
-    expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 4, 1]);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 2, 3, 1, 4]);
   });
 
   it("peça na campanha 2× e na playlist toca só as inserções da campanha", () => {

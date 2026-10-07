@@ -23,6 +23,14 @@ function safeWeight(weight: number): number {
  * entrada, a mesma de antes da frequência existir. Sem aleatoriedade — a TV
  * recomeça a volta quando a lista muda, então duas buscas iguais têm de dar a
  * mesma fila.
+ *
+ * Pós-passo na virada: a TV repete a volta, e o round-robin começa pelo bloco
+ * mais pesado e, para pesos comuns, termina nele também (2,1,1 → A B C A), o
+ * que faria a campanha 2× tocar duas vezes seguidas na virada (…A|A…). Se o
+ * último bloco é o mesmo do primeiro e o penúltimo e o antepenúltimo são
+ * outros, troca os dois últimos de lugar (A B A C). Só vale quando dá para
+ * evitar: com peso acima de metade do total (ex.: 3,1,1 ou 2,1) alguma
+ * repetição colada é inevitável e a ordem fica como saiu.
  */
 export function buildLoop<T>(blocks: LoopBlock<T>[]): T[] {
   const active = blocks
@@ -30,7 +38,7 @@ export function buildLoop<T>(blocks: LoopBlock<T>[]): T[] {
     .map((block) => ({ weight: safeWeight(block.weight), slides: block.slides }));
   const total = active.reduce((sum, block) => sum + block.weight, 0);
   const credit = active.map(() => 0);
-  const loop: T[] = [];
+  const order: number[] = [];
   for (let step = 0; step < total; step++) {
     let chosen = 0;
     for (let i = 0; i < active.length; i++) {
@@ -38,7 +46,17 @@ export function buildLoop<T>(blocks: LoopBlock<T>[]): T[] {
       if (credit[i] > credit[chosen]) chosen = i;
     }
     credit[chosen] -= total;
-    loop.push(...active[chosen].slides);
+    order.push(chosen);
   }
-  return loop;
+  const n = order.length;
+  if (
+    n >= 3 &&
+    order[0] === order[n - 1] &&
+    order[n - 2] !== order[0] &&
+    order[n - 3] !== order[0] &&
+    2 * active[order[0]].weight <= total
+  ) {
+    [order[n - 1], order[n - 2]] = [order[n - 2], order[n - 1]];
+  }
+  return order.flatMap((index) => active[index].slides);
 }

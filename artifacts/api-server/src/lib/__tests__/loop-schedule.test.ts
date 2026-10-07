@@ -12,6 +12,40 @@ describe("buildLoop", () => {
     expect(buildLoop([bloco(3, "a"), bloco(1, "b"), bloco(1, "c")])).toEqual(["a", "b", "a", "c", "a"]);
   });
 
+  describe("sem repetição colada na virada da volta", () => {
+    // Cada bloco é uma letra (A, B, C…) com o peso dado, na ordem de entrada.
+    const letras = (pesos: number[]) => pesos.map((w, i) => bloco(w, String.fromCharCode(65 + i)));
+    const ordem = (pesos: number[]) => buildLoop(letras(pesos)).join(" ");
+
+    it.each([
+      [[1, 1, 1], "A B C"],
+      [[2, 1, 1], "A B A C"],
+      [[2, 1, 1, 1], "A B C A D"],
+      [[2, 1, 1, 1, 1, 1], "A B C D E A F"],
+      [[3, 1, 1, 1, 1], "A B C A D A E"],
+      [[3, 2, 1], "A B A C A B"],
+      [[3, 1, 1], "A B A C A"],
+      [[2, 1], "A B A"],
+    ])("pesos %j dão %s", (pesos, esperado) => {
+      expect(ordem(pesos)).toBe(esperado);
+    });
+
+    it.each([[[2, 1, 1]], [[2, 1, 1, 1]], [[2, 1, 1, 1, 1, 1]], [[3, 1, 1, 1, 1]], [[3, 2, 1]], [[2, 2, 1, 1]]])(
+      "pesos %j: cada bloco entra `peso` vezes e nenhum encosta em si mesmo, nem na virada",
+      (pesos) => {
+        const volta = buildLoop(letras(pesos));
+        const total = pesos.reduce((a, b) => a + b, 0);
+        expect(volta).toHaveLength(total);
+        pesos.forEach((w, i) => {
+          expect(volta.filter((x) => x === String.fromCharCode(65 + i))).toHaveLength(w);
+        });
+        // Só vale quando dá: peso > total/2 obriga encostar.
+        expect(pesos.every((w) => 2 * w <= total)).toBe(true);
+        volta.forEach((x, i) => expect(x).not.toBe(volta[(i + 1) % volta.length]));
+      },
+    );
+  });
+
   it("cada bloco aparece exatamente o número de vezes do peso", () => {
     const volta = buildLoop([bloco(2, "a"), bloco(3, "b"), bloco(1, "c"), bloco(1, "d")]);
     const conta = (x: string) => volta.filter((s) => s === x).length;

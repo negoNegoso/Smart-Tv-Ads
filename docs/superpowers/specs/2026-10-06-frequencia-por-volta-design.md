@@ -74,14 +74,28 @@ repete `total` vezes:
   crédito[i] += peso[i] para todo bloco
   escolhe o bloco de maior crédito; empate → o de menor índice (ordem de entrada)
   crédito[escolhido] -= total
-  emite os slides do bloco escolhido, em ordem
+  anota o bloco escolhido na ordem
+pós-passo na virada (n = tamanho da ordem):
+  se n >= 3, o último bloco é o primeiro, o penúltimo e o antepenúltimo são
+  outros, e 2 × peso(primeiro) <= total:
+    troca os dois últimos de lugar
+emite os slides de cada bloco, na ordem final
 ```
+
+Por que o pós-passo: a TV repete a volta, e o round-robin começa pelo bloco
+mais pesado e, para pesos comuns, termina nele também (2,1,1 → `A B C A`), o
+que faria a campanha 2× tocar duas vezes seguidas na virada (`…A|A…`). Com a
+troca sai `A B A C`. Quando o peso passa de metade do total (3,1,1 ou 2,1) a
+repetição colada é inevitável e a ordem fica como saiu.
 
 Propriedades (todas testadas):
 
 - cada bloco aparece exatamente `peso` vezes;
 - todos com peso 1 → saída = concatenação na ordem de entrada;
 - A=3, B=1, C=1 → `A B A C A`;
+- sem repetição colada na virada quando dá (nenhum bloco encosta em si mesmo,
+  inclusive do último para o primeiro, se todo peso é no máximo metade do
+  total): 2,1,1 → `A B A C`; 3,2,1 → `A B A C A B`;
 - determinístico: mesma entrada, mesma saída (a TV recomeça a volta quando a
   lista muda, então a fila não pode variar entre duas buscas iguais);
 - não altera a entrada.
@@ -167,7 +181,7 @@ API:
   mantém as peças em sequência; bloco vazio some; lista vazia → `[]`; mesma
   entrada duas vezes → mesma saída; entrada não alterada.
 - `composeDeviceLoop`: campanha C 2× com um painel P e um item de playlist L
-  sai exatamente `C P L C`; páginas de um painel ficam juntas; peça na
+  sai exatamente `C P C L`; páginas de um painel ficam juntas; peça na
   campanha e na playlist toca uma vez; peça de outra orientação some antes da
   montagem.
 - `device-feed-query`: SQL de campanhas contém `"campaigns"."loop_insertions"`;
