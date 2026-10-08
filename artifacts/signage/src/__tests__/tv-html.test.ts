@@ -1383,6 +1383,46 @@ describe("tv.html: música de fundo do painel", () => {
       expect(daMusica()).toHaveLength(1);
     });
 
+    it("uma falha só com lista salva: segura música e lista do servidor", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png"), slide(2, "https://blob/b.png")];
+      semInternet = { geradoEm: "2020-01-01T00:00:00Z", slides: [slide(9, "https://blob/salva.png")] };
+      carregarTv();
+      const m = musicaTocando();
+      responder("https://blob/a.png", true);
+
+      // Um GET perdido não pode trocar o que está no ar: antes do modo sem
+      // internet a TV seguia igual, e é isso que tem de continuar.
+      statusDaLista = 0;
+      vi.advanceTimersByTime(60000);
+
+      expect(m.destruido).toBe(false);
+      expect(daMusica()).toHaveLength(1);
+      expect(imagens.some((i) => i.src.indexOf("salva.png") !== -1)).toBe(false);
+      // O rodízio segue na lista do servidor (não voltou ao slide 0 da salva).
+      expect(imagens.every((i) => i.src.indexOf("https://blob/a.png") === 0 || i.src.indexOf("https://blob/b.png") === 0)).toBe(true);
+    });
+
+    it("terceira falha seguida: toca a lista salva e para a música", () => {
+      musica = VIDEO;
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      semInternet = { geradoEm: "2020-01-01T00:00:00Z", slides: [slide(9, "https://blob/salva.png")] };
+      carregarTv();
+      const m = musicaTocando();
+      responder("https://blob/a.png", true);
+
+      statusDaLista = 0;
+      vi.advanceTimersByTime(2 * 60000);
+      expect(m.destruido).toBe(false);
+      expect(imagens.some((i) => i.src.indexOf("salva.png") !== -1)).toBe(false);
+
+      vi.advanceTimersByTime(60000);
+      // Música é YouTube: sem rede não toca.
+      expect(m.destruido).toBe(true);
+      responder("https://blob/salva.png", true);
+      expect(noAr()).toBe("https://blob/salva.png");
+    });
+
     it("TV apagada no servidor (pareamento) desliga a música", () => {
       musica = VIDEO;
       listaDeSlides = [slide(1, "https://blob/a.png")];
@@ -2015,9 +2055,13 @@ describe("tv.html: sem internet", () => {
     listaDeSlides = [slide(1, "https://blob/online.png")];
   });
 
+  // Com lista do servidor no ar, a TV só passa para a lista salva na
+  // terceira falha seguida do feed (um GET perdido não troca a tela).
+  const FALHAS_PARA_SEM_INTERNET = 3;
+
   function caiARede() {
     statusDaLista = 0;
-    vi.advanceTimersByTime(MINUTO);
+    vi.advanceTimersByTime(FALHAS_PARA_SEM_INTERNET * MINUTO);
   }
 
   it("salva a lista do feed", () => {
@@ -2075,8 +2119,11 @@ describe("tv.html: sem internet", () => {
   });
 
   it("fim da faixa não conta (15:00 numa faixa 14:00–15:00 está fora)", () => {
+    // Começa 3 min antes: a troca para a lista salva cai às 15:00 em ponto.
+    const INICIO = new Date(AGORA.getTime() - FALHAS_PARA_SEM_INTERNET * MINUTO);
+    vi.setSystemTime(INICIO);
     semInternet = {
-      geradoEm: AGORA.toISOString(),
+      geradoEm: INICIO.toISOString(),
       slides: [
         comAgenda(10, "https://blob/ate15.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [{ start: 840, end: 900 }] }),
         slide(9, "https://blob/p.png"),
@@ -2090,9 +2137,9 @@ describe("tv.html: sem internet", () => {
   });
 
   it("entra no horário enquanto está sem internet (refiltra a cada minuto)", () => {
-    vi.setSystemTime(new Date("2026-10-08T20:59:00Z")); // 17:59 SP
+    vi.setSystemTime(new Date("2026-10-08T20:56:00Z")); // 17:56 SP
     semInternet = {
-      geradoEm: "2026-10-08T20:59:00Z",
+      geradoEm: "2026-10-08T20:56:00Z",
       slides: [
         slide(9, "https://blob/p.png"),
         comAgenda(10, "https://blob/noite.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [{ start: 1080, end: 1320 }] }),
@@ -2100,8 +2147,11 @@ describe("tv.html: sem internet", () => {
     };
     carregarTv();
     responder("https://blob/online.png", true);
-    caiARede(); // 18:00 SP
-    vi.advanceTimersByTime(MINUTO);
+    caiARede(); // 17:59 SP: já na lista salva, a da noite ainda fora
+    responder("https://blob/p.png", true);
+    expect(imagens.some((i) => i.src.indexOf("noite") !== -1)).toBe(false);
+    vi.advanceTimersByTime(MINUTO); // 18:00 SP: lista refiltrada recomeça
+    responder("https://blob/p.png", true);
     expect(imagens.some((i) => i.src.indexOf("noite") !== -1)).toBe(true);
   });
 
@@ -2162,6 +2212,114 @@ describe("tv.html: sem internet", () => {
     vi.advanceTimersByTime(MINUTO);
     responder("https://blob/novo.png", true);
     expect(noAr()).toBe("https://blob/novo.png");
+  });
+
+  it("resposta boa entre as falhas zera a contagem", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    const pediuASalva = () => imagens.some((i) => i.src.indexOf("/p.png") !== -1);
+
+    statusDaLista = 0;
+    vi.advanceTimersByTime(2 * MINUTO);
+    statusDaLista = 200;
+    vi.advanceTimersByTime(MINUTO);
+    statusDaLista = 0;
+    vi.advanceTimersByTime(2 * MINUTO);
+    expect(pediuASalva()).toBe(false);
+
+    vi.advanceTimersByTime(MINUTO);
+    expect(pediuASalva()).toBe(true);
+  });
+
+  it("pareamento (404 do device) também zera a contagem", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    statusDaLista = 0;
+    vi.advanceTimersByTime(2 * MINUTO);
+    // Device apagado e cadastrado de novo: volta a lista salva do novo feed.
+    statusDaLista = 404;
+    vi.advanceTimersByTime(MINUTO);
+    statusDaLista = 200;
+    vi.advanceTimersByTime(5000);
+    expect(document.getElementById("pair-screen")!.className).not.toContain("visible");
+    statusDaLista = 0;
+    vi.advanceTimersByTime(2 * MINUTO);
+    expect(imagens.some((i) => i.src.indexOf("/p.png") !== -1)).toBe(false);
+  });
+
+  it("já sem internet: cada falha seguinte refiltra a lista salva", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [comAgenda(50, "https://blob/aviso.png", { fim: "2026-10-08T18:03:30Z" }), slide(9, "https://blob/p.png")],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede(); // 18:03: aviso ainda no ar
+    responder("https://blob/aviso.png", true);
+    expect(noAr()).toBe("https://blob/aviso.png");
+    // Uma falha só (não três): já está no modo sem internet.
+    vi.advanceTimersByTime(MINUTO); // 18:04: aviso venceu
+    responder("https://blob/p.png", true);
+    expect(noAr()).toBe("https://blob/p.png");
+  });
+
+  it("feeds iguais gravam a lista salva uma vez só", () => {
+    let gravacoes = 0;
+    const original = window.localStorage.setItem.bind(window.localStorage);
+    window.localStorage.setItem = (chave: string, valor: string) => {
+      if (chave === "signage-offline") gravacoes += 1;
+      original(chave, valor);
+    };
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    expect(gravacoes).toBe(1);
+
+    // Mesmo conteúdo, só o geradoEm mudou: não regrava (flash barato da box).
+    semInternet = { geradoEm: new Date(AGORA.getTime() + MINUTO).toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    vi.advanceTimersByTime(MINUTO);
+    expect(gravacoes).toBe(1);
+
+    // Slides mudaram: grava de novo.
+    semInternet = { geradoEm: new Date(AGORA.getTime() + 2 * MINUTO).toISOString(), slides: [slide(10, "https://blob/q.png")] };
+    vi.advanceTimersByTime(MINUTO);
+    expect(gravacoes).toBe(2);
+    expect(salvo().offline.slides[0].announcementId).toBe(10);
+
+    // Faixa mudou (resto igual): grava de novo.
+    faixa = { text: "Pão às 17h" };
+    vi.advanceTimersByTime(MINUTO);
+    expect(gravacoes).toBe(3);
+  });
+
+  it("lista igual ainda é regravada depois de 6 horas (geradoEm não envelhece demais)", () => {
+    let gravacoes = 0;
+    const original = window.localStorage.setItem.bind(window.localStorage);
+    window.localStorage.setItem = (chave: string, valor: string) => {
+      if (chave === "signage-offline") gravacoes += 1;
+      original(chave, valor);
+    };
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    const seisHoras = new Date(AGORA.getTime() + 6 * 60 * MINUTO).toISOString();
+    semInternet = { geradoEm: seisHoras, slides: [slide(9, "https://blob/p.png")] };
+    vi.advanceTimersByTime(MINUTO);
+    expect(gravacoes).toBe(2);
+    expect(salvo().offline.geradoEm).toBe(seisHoras);
+  });
+
+  it("a tv.html publicada tem a marca que o app confere antes de guardar a cópia", () => {
+    // PaginaCache.kt só grava uma página que contenha este texto (captive
+    // portal responde 200 com outro HTML). Renomear a chave quebra o app.
+    expect(HTML).toContain("signage-offline");
+  });
+
+  it("lista salva corrompida é sobrescrita pelo feed bom", () => {
+    window.localStorage.setItem("signage-offline", "{quebrado");
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    expect(salvo().offline.slides[0].announcementId).toBe(9);
   });
 
   it("lista salva corrompida: segue como hoje, sem quebrar", () => {

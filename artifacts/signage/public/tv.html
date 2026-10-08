@@ -1433,10 +1433,45 @@
       // Brasil está sem horário de verão desde 2019; se voltar, esta conta e
       // a do servidor (ad-eligibility.ts) mudam juntas.
       var FUSO_SP_MS = 3 * 60 * 60 * 1000;
+      // Com lista do servidor no ar, só a terceira falha seguida do feed
+      // troca para a lista salva. Um GET perdido (Wi-Fi da loja oscilando)
+      // não pode parar a música, tirar YouTube/clima e reiniciar o rodízio
+      // do slide 0 — e reiniciar de novo um minuto depois, quando o feed
+      // volta. Três minutos sem feed já é queda de verdade.
+      var FALHAS_PARA_SEM_INTERNET = 3;
+      var falhasDoFeed = 0;       // falhas seguidas; zera em qualquer resposta boa
+      var tocandoSemInternet = false;
+      // O feed chega a cada minuto com outro `geradoEm` e quase sempre a mesma
+      // lista. Regravar o localStorage toda vez gasta o flash (eMMC barato da
+      // box). Lista igual só é regravada depois de 6 h: o `geradoEm` salvo
+      // fica no máximo 6 h atrás do servidor, então box que reinicia com o
+      // relógio atrasado continua sendo comparada a um momento recente.
+      var REGRAVAR_SEM_INTERNET_MS = 6 * 60 * 60 * 1000;
+
+      // Mesma serialização com o geradoEm antigo igual ao que está gravado =
+      // só o geradoEm mudou. Cópia corrompida ou ilegível nunca é "igual":
+      // tem de ser sobrescrita pela boa.
+      function soMudouGeradoEm(data, antigoBruto) {
+        try {
+          var antigo = JSON.parse(antigoBruto);
+          var geradoAntes = antigo && antigo.offline && antigo.offline.geradoEm;
+          var idade = Date.parse(data.offline.geradoEm) - Date.parse(geradoAntes);
+          if (!(idade >= 0 && idade < REGRAVAR_SEM_INTERNET_MS)) { return false; }
+          var offlineIgual = {};
+          for (var campo in data.offline) {
+            if (Object.prototype.hasOwnProperty.call(data.offline, campo)) {
+              offlineIgual[campo] = campo === 'geradoEm' ? geradoAntes : data.offline[campo];
+            }
+          }
+          return JSON.stringify({ screen: data.screen, ticker: data.ticker, offline: offlineIgual }) === antigoBruto;
+        } catch (e) { return false; }
+      }
 
       function salvarSemInternet(data) {
         if (!data || !data.offline || !data.offline.slides) { return; }
         try {
+          var antigoBruto = window.localStorage.getItem(OFFLINE_KEY);
+          if (antigoBruto && soMudouGeradoEm(data, antigoBruto)) { return; }
           window.localStorage.setItem(OFFLINE_KEY, JSON.stringify({
             screen: data.screen,
             ticker: data.ticker,
@@ -1524,6 +1559,7 @@
       }
 
       function tocarSemInternet(salvo, isRefresh) {
+        tocandoSemInternet = true;
         hidePairing();
         // Música é YouTube: sem rede não toca.
         aplicarMusica(null);
@@ -1574,24 +1610,33 @@
           // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
           // senão a TV abriria o pareamento por engano com um device que existe.
           if (status === 404 && body && body.error === 'Device not found') {
+            // Resposta boa do servidor (a rede funciona): zera a contagem.
+            falhasDoFeed = 0;
+            tocandoSemInternet = false;
             showPairing(key);
             return;
           }
           // Rede caiu, ou outro erro/404 sem ser o do device: com lista salva,
-          // toca ela (filtrada pela agenda). Sem lista salva, segura o que já
-          // está no ar — melhor a TV repetir a lista velha do que apagar por
-          // causa de um GET perdido. Na primeira carga não há lista para
+          // toca ela (filtrada pela agenda) — na primeira carga na hora; com
+          // lista do servidor no ar, só a partir da FALHAS_PARA_SEM_INTERNET-ésima
+          // falha seguida; já sem internet, a cada falha (refiltra a agenda).
+          // Antes disso, ou sem lista salva, segura o que já está no ar —
+          // melhor a TV repetir a lista velha do que apagar por causa de um
+          // GET perdido. Na primeira carga sem lista salva não há o que
           // segurar, então mostra a tela de vazio.
           var lista = data && data.slides;
           if (err || !lista) {
+            falhasDoFeed++;
             var salvo = lerSemInternet();
-            if (salvo) {
+            if (salvo && (!isRefresh || tocandoSemInternet || falhasDoFeed >= FALHAS_PARA_SEM_INTERNET)) {
               tocarSemInternet(salvo, isRefresh);
               return;
             }
             if (!isRefresh) { emptyEl.className = 'visible'; }
             return;
           }
+          falhasDoFeed = 0;
+          tocandoSemInternet = false;
           hidePairing();
           salvarSemInternet(data);
           pedirDownloads(data.offline);
