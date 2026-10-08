@@ -49,7 +49,8 @@ class UpdateDownloader(
         }
     }
 
-    // Segue redirecionamento no mesmo protocolo (o GitHub manda de https para https).
+    // Segue redirecionamento no mesmo protocolo (a API manda o APK de https para
+    // o link temporário do GitHub, também https).
     private fun open(url: String): InputStream {
         if (!allowCleartext && !url.startsWith("https://")) {
             throw IOException("HTTP recusado fora de debug: $url")

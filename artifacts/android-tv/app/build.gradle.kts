@@ -25,10 +25,12 @@ val appVersionCode: Int = run {
     major * 1_000_000 + minor * 1_000 + patch
 }
 
-// Onde o app procura versão nova: update.json e APK da última release. O
-// GitHub redireciona `latest/download/` para a release mais recente.
+// Onde o app procura versão nova: update.json e APK da última release, pela
+// API do painel. O repositório é privado e o link `releases/latest/download/`
+// do GitHub dá 404 sem login; a API lê a release com um token que só o servidor
+// tem e manda a TV para um link temporário do APK.
 val updateBaseUrl: String = providers.gradleProperty("updateBaseUrl").orNull
-    ?: "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/"
+    ?: "https://smart-tv-ads.vercel.app/api/tv-app/"
 
 // Keystore de release fora do git (ver README). Perder o arquivo impede
 // atualizar o APK por cima nas TVs já instaladas.

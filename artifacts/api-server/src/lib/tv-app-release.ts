@@ -6,12 +6,15 @@ import { logger } from "./logger";
  * (`signage-tv-1.5.0.apk`), então não dá para apontar direto para ele: é
  * preciso perguntar ao GitHub qual é o da vez.
  *
- * Mesma origem que o app Android usa para se atualizar
- * (artifacts/android-tv/app/build.gradle.kts).
+ * O repositório é privado: o link público `releases/latest/download/` dá 404
+ * sem login. Por isso a consulta passa pela API do GitHub com o token que só o
+ * servidor tem (GITHUB_RELEASES_TOKEN), e as TVs baixam por aqui
+ * (rotas em routes/tv-app.ts), nunca direto do GitHub. Sem o token a API ainda
+ * funciona para repositório público, com o limite baixo de quem não se
+ * identifica.
  */
-const BASE_URL =
-  process.env.TV_APP_RELEASE_BASE_URL ??
-  "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/";
+const REPO = process.env.TV_APP_RELEASE_REPO ?? "negoNegoso/Smart-Tv-Ads";
+const LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 /** Teto da consulta feita pela página de download. */
 const TIMEOUT_MS = 5000;
@@ -20,20 +23,21 @@ const TIMEOUT_MS = 5000;
 const FEED_TIMEOUT_MS = 1500;
 /** 1 minuto: o feed usa este valor para avisar as TVs de uma release nova, e
  *  o atraso do aviso é este cache mais os 60 s do próprio feed. Uma consulta
- *  por minuto por instância ao link de download (sem limite de API). */
+ *  por minuto por instância, bem abaixo das 5000/h do token. */
 const CACHE_MS = 60 * 1000;
 
-/** Nome que a pipeline gera. Como o destino do redirect é montado com um campo
- *  vindo de fora, qualquer outra coisa é recusada — senão o `update.json` viraria
- *  um redirecionamento aberto. */
-const APK_NAME = /^signage-tv-\d+\.\d+\.\d+\.apk$/;
+/** Nome que a pipeline gera. O nome vem de fora (update.json) e decide qual
+ *  arquivo da release é entregue, então qualquer outra coisa é recusada. */
+export const APK_NAME = /^signage-tv-\d+\.\d+\.\d+\.apk$/;
 
 export interface TvAppRelease {
   versionName: string;
+  versionCode: number;
   apk: string;
   sha256: string;
-  /** URL absoluta do APK, pronta para o redirect. */
-  url: string;
+  /** Endereço do APK na API do GitHub. Só serve com o token: nunca sai do
+   *  servidor; quem baixa recebe o link temporário de apkDownloadUrl(). */
+  apkAssetUrl: string;
 }
 
 export class TvAppReleaseUnavailableError extends Error {}
@@ -47,34 +51,86 @@ let inFlight: Promise<TvAppRelease> | null = null;
 /** Quando o feed tentou pela última vez, tenha dado certo ou não. */
 let feedAttemptAt = 0;
 
-function parse(body: unknown): TvAppRelease | null {
+function githubHeaders(accept: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: accept,
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  const token = process.env.GITHUB_RELEASES_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+interface Asset {
+  name: string;
+  url: string;
+}
+
+function parseAssets(body: unknown): Asset[] {
+  if (!body || typeof body !== "object") return [];
+  const assets = (body as Record<string, unknown>).assets;
+  if (!Array.isArray(assets)) return [];
+  return assets.flatMap((a) => {
+    if (!a || typeof a !== "object") return [];
+    const { name, url } = a as Record<string, unknown>;
+    return typeof name === "string" && typeof url === "string" ? [{ name, url }] : [];
+  });
+}
+
+/**
+ * Link temporário (alguns minutos) para baixar o arquivo sem token. O
+ * redirecionamento é seguido à mão: o link assinado recusa a requisição se ela
+ * ainda levar o Authorization do GitHub.
+ */
+async function signedAssetUrl(assetUrl: string, signal: AbortSignal): Promise<string> {
+  const res = await fetch(assetUrl, {
+    headers: githubHeaders("application/octet-stream"),
+    redirect: "manual",
+    signal,
+  });
+  const location = res.headers.get("location");
+  if (res.status < 300 || res.status >= 400 || !location) {
+    throw new Error(`HTTP ${res.status} no arquivo da release`);
+  }
+  return location;
+}
+
+function parseManifest(body: unknown, assets: Asset[]): TvAppRelease | null {
   if (!body || typeof body !== "object") return null;
   const raw = body as Record<string, unknown>;
   const versionName = typeof raw.versionName === "string" ? raw.versionName : null;
+  const versionCode = typeof raw.versionCode === "number" ? raw.versionCode : null;
   const apk = typeof raw.apk === "string" ? raw.apk : null;
   const sha256 = typeof raw.sha256 === "string" ? raw.sha256 : null;
-  if (!versionName || !apk || !sha256 || !APK_NAME.test(apk)) return null;
-  return { versionName, apk, sha256, url: BASE_URL + apk };
+  if (!versionName || versionCode === null || !apk || !sha256 || !APK_NAME.test(apk)) return null;
+  const apkAsset = assets.find((a) => a.name === apk);
+  if (!apkAsset) return null;
+  return { versionName, versionCode, apk, sha256, apkAssetUrl: apkAsset.url };
 }
 
 /**
  * Só o resultado bom entra no cache: guardar falha faria uma queda passageira do
- * GitHub derrubar o download pelos minutos seguintes.
+ * GitHub derrubar o download pelos minutos seguintes. O teto vale para a
+ * consulta inteira (release + update.json), não para cada pedaço.
  */
 async function fetchRelease(timeoutMs: number): Promise<TvAppRelease> {
   let body: unknown;
+  let assets: Asset[];
   try {
-    const res = await fetch(`${BASE_URL}update.json`, {
-      signal: AbortSignal.timeout(timeoutMs),
-      redirect: "follow",
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    body = await res.json();
+    const signal = AbortSignal.timeout(timeoutMs);
+    const res = await fetch(LATEST_URL, { headers: githubHeaders("application/vnd.github+json"), signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status} na última release`);
+    assets = parseAssets(await res.json());
+    const manifestAsset = assets.find((a) => a.name === "update.json");
+    if (!manifestAsset) throw new Error("release sem update.json");
+    const manifest = await fetch(await signedAssetUrl(manifestAsset.url, signal), { signal });
+    if (!manifest.ok) throw new Error(`HTTP ${manifest.status} no update.json`);
+    body = await manifest.json();
   } catch (err) {
     throw new TvAppReleaseUnavailableError(`Falha ao ler update.json: ${String(err)}`);
   }
 
-  const release = parse(body);
+  const release = parseManifest(body, assets);
   if (!release) throw new TvAppReleaseUnavailableError("update.json inválido");
 
   cache = { at: Date.now(), release };
@@ -98,6 +154,18 @@ function freshCache(): TvAppRelease | null {
  *  o próprio teto (sem compartilhar com o feed), e lança se não der. */
 export async function latestTvAppRelease(): Promise<TvAppRelease> {
   return freshCache() ?? fetchRelease(TIMEOUT_MS);
+}
+
+/**
+ * Link para baixar o APK sem token, gerado na hora: expira em minutos, então
+ * nunca vai para cache.
+ */
+export async function apkDownloadUrl(release: TvAppRelease): Promise<string> {
+  try {
+    return await signedAssetUrl(release.apkAssetUrl, AbortSignal.timeout(TIMEOUT_MS));
+  } catch (err) {
+    throw new TvAppReleaseUnavailableError(`Falha ao gerar o link do APK: ${String(err)}`);
+  }
 }
 
 /**
