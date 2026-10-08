@@ -25,7 +25,8 @@ export const announcementsTable = pgTable("announcements", {
   isActive: boolean("is_active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
   // "admin" (peça subida no painel de gestão) | "panel" (gerada por um painel
-  // do cliente) | "alert" (arte de aviso urgente; fora da biblioteca). O default mantém o servidor da versão anterior funcionando
+  // do cliente) | "alert" (arte de aviso urgente; fora da biblioteca) | "editorial" (slide
+  // de clima e hora; fora da biblioteca). O default mantém o servidor da versão anterior funcionando
   // durante o deploy, antes de conhecer a coluna.
   source: text("source").notNull().default("admin"),
   duration: integer("duration").notNull().default(10),

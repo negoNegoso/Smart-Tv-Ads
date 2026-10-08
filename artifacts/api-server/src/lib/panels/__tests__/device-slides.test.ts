@@ -78,6 +78,16 @@ describe("composeDeviceLoop", () => {
     const out = composeDeviceLoop([campanha(1, 9, 2)], [], [slide(1, "l")]);
     expect(out.map((s) => s.label)).toEqual(["c1", "c1"]);
   });
+
+  it("extras entram no fim, peso 1, sem afetar a ordem de antes", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 1)], [], [slide(3, "l")], [slide(950, "clima")]);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 3, 950]);
+  });
+
+  it("sem extras o resultado é o de antes", () => {
+    const out = composeDeviceLoop([campanha(1, 9, 1)], [], [slide(3, "l")]);
+    expect(out.map((s) => s.announcementId)).toEqual([1, 3]);
+  });
 });
 
 describe("buildPanelSlidesQuery", () => {

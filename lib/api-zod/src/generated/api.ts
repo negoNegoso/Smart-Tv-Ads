@@ -863,7 +863,7 @@ export const GetDevicePreviewResponseItem = zod.object({
   "audioMode": zod.string().nullish(),
   "videoIds": zod.array(zod.string()).nullish()
 }).and(zod.object({
-  "source": zod.enum(['campaign', 'panel', 'playlist', 'alert'])
+  "source": zod.enum(['campaign', 'panel', 'playlist', 'alert', 'editorial'])
 }))
 export const GetDevicePreviewResponse = zod.array(GetDevicePreviewResponseItem)
 

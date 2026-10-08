@@ -16,9 +16,10 @@ export type LoopSlide = {
  * inserções compradas. Cada campanha vira um bloco com suas peças em ordem e
  * peso = inserções por volta; cada painel do lojista (todas as páginas) e
  * cada item da playlist pesam 1. Com tudo em 1× a volta é campanhas, painéis
- * e playlist, como antes da frequência existir.
+ * e playlist, como antes da frequência existir. `extras` (slide de clima)
+ * entra no fim, peso 1, sem passar pela dedupe.
  */
-export function composeDeviceLoop<T extends LoopSlide>(campaigns: T[], panels: T[], playlist: T[]): T[] {
+export function composeDeviceLoop<T extends LoopSlide>(campaigns: T[], panels: T[], playlist: T[], extras: T[] = []): T[] {
   const seen = new Set<number>();
   const firstTime = (rows: T[]) =>
     rows.filter((slide) => {
@@ -34,6 +35,8 @@ export function composeDeviceLoop<T extends LoopSlide>(campaigns: T[], panels: T
     ...groupConsecutive(campaignRows, (slide) => slide.campaignId, (slide) => slide.loopInsertions ?? 1),
     ...groupConsecutive(panelRows, (slide) => slide.panelId, () => 1),
     ...playlistRows.map((slide) => ({ weight: 1, slides: [slide] })),
+    // Conteúdo de sistema (slide de clima): um bloco de peso 1 cada, no fim.
+    ...extras.map((slide) => ({ weight: 1, slides: [slide] })),
   ]);
 }
 

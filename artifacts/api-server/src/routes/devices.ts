@@ -289,6 +289,8 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
       showcase: devicesTable.showcase,
+      showWeather: devicesTable.showWeather,
+      companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
