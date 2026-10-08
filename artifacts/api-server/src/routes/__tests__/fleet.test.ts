@@ -43,6 +43,8 @@ vi.mock("@workspace/db", () => ({
     id: "id", clientId: "clientId", name: "name", location: "location",
     showcase: "showcase", lastSeenAt: "lastSeenAt", appVersion: "appVersion",
     updateRequestedAt: "updateRequestedAt",
+    storageFreeBytes: "storageFreeBytes", storageTotalBytes: "storageTotalBytes",
+    cacheBytes: "cacheBytes", cacheFiles: "cacheFiles", storageReportedAt: "storageReportedAt",
   },
   clientsTable: { id: "id", companyId: "companyId" },
   companiesTable: { id: "id", name: "name" },
@@ -73,6 +75,8 @@ function tv(over: Record<string, unknown>) {
   return {
     id: 1, clientId: 7, clientName: "Padaria Central", name: "TV do balcão", location: null,
     showcase: false, lastSeenAt: minutosAtras(1), appVersion: "1.9.0", updateRequestedAt: null,
+    storageFreeBytes: null, storageTotalBytes: null, cacheBytes: null, cacheFiles: null,
+    storageReportedAt: null,
     ...over,
   };
 }
@@ -94,6 +98,34 @@ beforeEach(() => {
 });
 
 describe("GET /fleet", () => {
+  it("devolve o espaço em disco com o selo de pouco espaço", async () => {
+    const reportedAt = new Date("2026-10-08T12:00:00Z");
+    selectQueue = [[
+      tv({
+        storageFreeBytes: 100 * 1024 * 1024, storageTotalBytes: 8 * 1024 ** 3,
+        cacheBytes: 50 * 1024 * 1024, cacheFiles: 3, storageReportedAt: reportedAt,
+      }),
+    ]];
+    const res = await get("/fleet");
+
+    expect(res.status).toBe(200);
+    expect(res.body.devices[0].storage).toEqual({
+      freeBytes: 104857600, totalBytes: 8589934592, cacheBytes: 52428800, cacheFiles: 3,
+      reportedAt: "2026-10-08T12:00:00.000Z", low: true,
+    });
+    expect(res.body.devices[0]).not.toHaveProperty("storageFreeBytes");
+    expect(() => GetFleetResponse.parse(res.body)).not.toThrow();
+  });
+
+  it("TV sem leitura → storage null", async () => {
+    selectQueue = [[tv({})]];
+    const res = await get("/fleet");
+
+    expect(res.status).toBe(200);
+    expect(res.body.devices[0].storage).toBeNull();
+    expect(() => GetFleetResponse.parse(res.body)).not.toThrow();
+  });
+
   it("marca online quem falou nos últimos 5 minutos", async () => {
     selectQueue = [[
       tv({ id: 1, lastSeenAt: minutosAtras(1) }),

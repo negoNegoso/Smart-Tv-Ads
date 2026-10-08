@@ -156,8 +156,29 @@ export function canPlayOnDevice(input: {
 }
 
 /**
- * Monta a grade da TV: primeiro o alvo da campanha (esta TV está na mira?),
- * depois a concorrência (o anunciante pode entrar aqui?).
+ * Só alvo e concorrência, sem dia e sem faixa de horário. É o filtro da lista
+ * que a TV guarda para tocar sem internet: ela confere a agenda sozinha.
+ */
+export function filterReachableSlides<T extends CampaignTarget & AdvertiserIdentity>(
+  slides: T[],
+  device: NetworkDevice,
+): T[] {
+  return slides.filter(
+    (slide) =>
+      campaignReachesDevice(slide, device) &&
+      canPlayOnDevice({
+        advertiserSegmentId: slide.advertiserSegmentId,
+        advertiserCompanyId: slide.advertiserCompanyId,
+        deviceCompanyId: device.companyId,
+        deviceSegmentId: device.segmentId,
+      }),
+  );
+}
+
+/**
+ * Monta a grade da TV: primeiro a agenda (dia e faixa de horário), depois o
+ * alvo da campanha (esta TV está na mira?) e a concorrência (o anunciante
+ * pode entrar aqui?).
  */
 export function filterEligibleSlides<
   T extends CampaignTarget &
@@ -167,17 +188,9 @@ export function filterEligibleSlides<
   device: { id: number; companyId: number; segmentId: number | null },
   now: Date = new Date(),
 ): T[] {
-  return slides.filter(
-    (slide) =>
-      campaignRunsOnDay(slide.weekdays, now) &&
-      campaignRunsAtTime(slide.timeWindows, now) &&
-      campaignReachesDevice(slide, device) &&
-      canPlayOnDevice({
-        advertiserSegmentId: slide.advertiserSegmentId,
-        advertiserCompanyId: slide.advertiserCompanyId,
-        deviceCompanyId: device.companyId,
-        deviceSegmentId: device.segmentId,
-      }),
+  return filterReachableSlides(
+    slides.filter((slide) => campaignRunsOnDay(slide.weekdays, now) && campaignRunsAtTime(slide.timeWindows, now)),
+    device,
   );
 }
 

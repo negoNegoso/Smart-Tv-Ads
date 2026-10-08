@@ -60,6 +60,23 @@ describe("VercelBlobStore", () => {
     expect(del).not.toHaveBeenCalled();
   });
 
+  it("mesmo nome enviado duas vezes vira dois endereços: a TV usa o endereço como versão da arte", async () => {
+    // O cache da TV (ArteCache) nunca baixa de novo um endereço que já tem.
+    // Se algum dia o armazenamento gravar por cima, arte trocada não chega às
+    // TVs — este teste é a trava.
+    const store = new VercelBlobStore();
+
+    await store.put(Buffer.from("a"), "image/png", "panel-1-p1.png");
+    await store.put(Buffer.from("b"), "image/png", "panel-1-p1.png");
+
+    const [primeiro, segundo] = put.mock.calls.map((c) => c[0] as string);
+    expect(primeiro).not.toBe(segundo);
+    for (const call of put.mock.calls) {
+      expect(call[2]).toMatchObject({ addRandomSuffix: false });
+      expect(call[2]).not.toHaveProperty("allowOverwrite", true);
+    }
+  });
+
   describe("get", () => {
     afterEach(() => {
       vi.unstubAllGlobals();

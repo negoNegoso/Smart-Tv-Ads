@@ -71,6 +71,40 @@ beforeEach(() => {
   selectQueue = [];
 });
 
+describe("GET /devices/:id — espaço em disco", () => {
+  it("devolve o espaço em disco com o selo de pouco espaço", async () => {
+    selectQueue = [[{
+      ...DEVICE,
+      storageFreeBytes: 100 * 1024 * 1024, storageTotalBytes: 8 * 1024 ** 3,
+      cacheBytes: 50 * 1024 * 1024, cacheFiles: 3,
+      storageReportedAt: new Date("2026-10-08T12:00:00Z"),
+    }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/devices/1");
+
+    expect(res.status).toBe(200);
+    expect(res.body.storage).toEqual({
+      freeBytes: 104857600, totalBytes: 8589934592, cacheBytes: 52428800, cacheFiles: 3,
+      reportedAt: "2026-10-08T12:00:00.000Z", low: true,
+    });
+  });
+
+  it("TV sem leitura → storage null", async () => {
+    selectQueue = [[{
+      ...DEVICE,
+      storageFreeBytes: null, storageTotalBytes: null, cacheBytes: null, cacheFiles: null,
+      storageReportedAt: null,
+    }]];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/devices/1");
+
+    expect(res.status).toBe(200);
+    expect(res.body.storage).toBeNull();
+  });
+});
+
 describe("PATCH /devices/:id — orientação", () => {
   it("grava um retrato válido e devolve a TV com a orientação", async () => {
     // 1) TV atual  2) TV com cliente (resposta)

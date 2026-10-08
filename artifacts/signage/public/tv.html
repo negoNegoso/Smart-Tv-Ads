@@ -482,9 +482,14 @@
       // vai junto (5º argumento) porque nem todo 404 é o do device — um
       // proxy/misroute pode devolver outro corpo, e só o corpo exato da API
       // (GetDisplayFeed -> routes/display.ts) deve abrir o pareamento.
-      function xhrGet(url, cb) {
+      function xhrGet(url, cb, cabecalhos) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
+        if (cabecalhos) {
+          for (var nome in cabecalhos) {
+            if (cabecalhos.hasOwnProperty(nome)) { xhr.setRequestHeader(nome, cabecalhos[nome]); }
+          }
+        }
         xhr.onreadystatechange = function () {
           if (xhr.readyState !== 4) { return; }
           if (xhr.status >= 200 && xhr.status < 300) {
@@ -1373,6 +1378,11 @@
         showEmpty();
         // TV que o servidor não conhece não toca nada, nem música.
         desligarMusica();
+        // Device sem cadastro não pode tocar a lista antiga: sem isso, na
+        // próxima falha de rede (poll do pareamento, refresh ou boot sem
+        // rede) a TV esconderia o QR e voltaria a tocar as campanhas do
+        // device apagado até a rede voltar.
+        try { window.localStorage.removeItem(OFFLINE_KEY); } catch (e) {}
         emptyEl.className = '';
         document.getElementById('pair-qr').src = apiBase() + '/api/qr/pair/' + encodeURIComponent(key) + '.png';
         document.getElementById('pair-key').textContent = formatKey(key);
@@ -1412,26 +1422,224 @@
         } catch (e) {}
       }
 
+      // ─── Sem internet ───────────────────────────────────────────────────
+      // O feed traz `offline`: a volta dos próximos 7 dias com a agenda de
+      // cada campanha. Guardada no localStorage, é o que a TV toca quando o
+      // feed falha — inclusive ligando sem rede (o app serve esta página do
+      // disco). A agenda é conferida aqui porque, sem rede, ninguém mais diz
+      // que a campanha acabou ou saiu do horário.
+      var OFFLINE_KEY = 'signage-offline';
+      // São Paulo sem Intl (WebView antiga não tem fuso): UTC−3 fixo. O
+      // Brasil está sem horário de verão desde 2019; se voltar, esta conta e
+      // a do servidor (ad-eligibility.ts) mudam juntas.
+      var FUSO_SP_MS = 3 * 60 * 60 * 1000;
+      // Com lista do servidor no ar, só a terceira falha seguida do feed
+      // troca para a lista salva. Um GET perdido (Wi-Fi da loja oscilando)
+      // não pode parar a música, tirar YouTube/clima e reiniciar o rodízio
+      // do slide 0 — e reiniciar de novo um minuto depois, quando o feed
+      // volta. Três minutos sem feed já é queda de verdade.
+      var FALHAS_PARA_SEM_INTERNET = 3;
+      var falhasDoFeed = 0;       // falhas seguidas; zera em qualquer resposta boa
+      var tocandoSemInternet = false;
+      // O feed chega a cada minuto com outro `geradoEm` e quase sempre a mesma
+      // lista. Regravar o localStorage toda vez gasta o flash (eMMC barato da
+      // box). Lista igual só é regravada depois de 6 h: o `geradoEm` salvo
+      // fica no máximo 6 h atrás do servidor, então box que reinicia com o
+      // relógio atrasado continua sendo comparada a um momento recente.
+      var REGRAVAR_SEM_INTERNET_MS = 6 * 60 * 60 * 1000;
+
+      // Mesma serialização com o geradoEm antigo igual ao que está gravado =
+      // só o geradoEm mudou. Cópia corrompida ou ilegível nunca é "igual":
+      // tem de ser sobrescrita pela boa.
+      function soMudouGeradoEm(data, antigoBruto) {
+        try {
+          var antigo = JSON.parse(antigoBruto);
+          var geradoAntes = antigo && antigo.offline && antigo.offline.geradoEm;
+          var idade = Date.parse(data.offline.geradoEm) - Date.parse(geradoAntes);
+          if (!(idade >= 0 && idade < REGRAVAR_SEM_INTERNET_MS)) { return false; }
+          var offlineIgual = {};
+          for (var campo in data.offline) {
+            if (Object.prototype.hasOwnProperty.call(data.offline, campo)) {
+              offlineIgual[campo] = campo === 'geradoEm' ? geradoAntes : data.offline[campo];
+            }
+          }
+          return JSON.stringify({ screen: data.screen, ticker: data.ticker, offline: offlineIgual }) === antigoBruto;
+        } catch (e) { return false; }
+      }
+
+      function salvarSemInternet(data) {
+        if (!data || !data.offline || !data.offline.slides) { return; }
+        try {
+          var antigoBruto = window.localStorage.getItem(OFFLINE_KEY);
+          if (antigoBruto && soMudouGeradoEm(data, antigoBruto)) { return; }
+          window.localStorage.setItem(OFFLINE_KEY, JSON.stringify({
+            screen: data.screen,
+            ticker: data.ticker,
+            offline: data.offline
+          }));
+        } catch (e) {} // cheio ou bloqueado: a TV segue online como antes
+      }
+
+      // O app (window.SignageCache) baixa para o disco tudo que a lista sem
+      // internet pode tocar — inclusive a campanha das 18h às 15h, que ainda
+      // nunca apareceu na tela. Navegador e APK antigo não têm a ponte.
+      function pedirDownloads(offline) {
+        var ponte = window.SignageCache;
+        if (!offline || !offline.slides || !ponte || typeof ponte.baixar !== 'function') { return; }
+        var urls = [];
+        for (var i = 0; i < offline.slides.length; i++) {
+          var s = offline.slides[i];
+          if (s.imageUrl) { urls.push(imgUrl(s.imageUrl)); }
+          if (s.qrImageUrl) { urls.push(apiBase() + s.qrImageUrl); }
+        }
+        try { ponte.baixar(JSON.stringify(urls)); } catch (e) {}
+      }
+
+      // Espaço em disco do box, lido pelo app, vai para o parque de TVs.
+      function cabecalhoDeEspaco() {
+        var ponte = window.SignageCache;
+        if (!ponte || typeof ponte.estado !== 'function') { return null; }
+        try {
+          var e = JSON.parse(ponte.estado());
+          var campos = [e.livre, e.total, e.cache, e.arquivos];
+          for (var i = 0; i < campos.length; i++) {
+            if (typeof campos[i] !== 'number') { return null; }
+          }
+          return 'livre=' + e.livre + ';total=' + e.total + ';cache=' + e.cache + ';arquivos=' + e.arquivos;
+        } catch (err) { return null; }
+      }
+
+      function lerSemInternet() {
+        try {
+          var bruto = window.localStorage.getItem(OFFLINE_KEY);
+          var salvo = bruto ? JSON.parse(bruto) : null;
+          return salvo && salvo.offline && salvo.offline.slides ? salvo : null;
+        } catch (e) { return null; }
+      }
+
+      // Mesma regra do servidor: início e fim da campanha valem (fim
+      // inclusive), dia em `dias` (vazio = todos), minuto do dia dentro de
+      // alguma faixa [start, end) (vazio = dia todo).
+      function agendaVale(agenda, agoraMs) {
+        if (!agenda) { return true; }
+        if (!(agoraMs <= Date.parse(agenda.fim))) { return false; }
+        if (agenda.inicio && !(Date.parse(agenda.inicio) <= agoraMs)) { return false; }
+        var sp = new Date(agoraMs - FUSO_SP_MS);
+        var dias = agenda.dias || [];
+        if (dias.length && dias.indexOf(sp.getUTCDay()) === -1) { return false; }
+        var faixas = agenda.faixas || [];
+        if (!faixas.length) { return true; }
+        var minuto = sp.getUTCHours() * 60 + sp.getUTCMinutes();
+        for (var i = 0; i < faixas.length; i++) {
+          if (minuto >= faixas[i].start && minuto < faixas[i].end) { return true; }
+        }
+        return false;
+      }
+
+      function filtrarSemInternet(salvo, agoraMs) {
+        var todos = salvo.offline.slides;
+        // Box sem bateria no relógio volta para 1970/2000 quando reinicia sem
+        // rede. Relógio antes do momento em que a lista foi salva não é
+        // confiável: só toca o que não é pago (sem agenda).
+        var relogioOk = !(agoraMs < Date.parse(salvo.offline.geradoEm));
+        var avisos = [];
+        var resto = [];
+        for (var i = 0; i < todos.length; i++) {
+          var s = todos[i];
+          if (!relogioOk) {
+            if (!s.agenda) { resto.push(s); }
+            continue;
+          }
+          if (!agendaVale(s.agenda, agoraMs)) { continue; }
+          // Aviso urgente é o único com agenda sem início (só `fim`).
+          if (s.agenda && !s.agenda.inicio) { avisos.push(s); } else { resto.push(s); }
+        }
+        // Aviso no ar toma a tela inteira, como online.
+        return avisos.length ? avisos : resto;
+      }
+
+      function tocarSemInternet(salvo, isRefresh) {
+        tocandoSemInternet = true;
+        hidePairing();
+        // Música é YouTube: sem rede não toca.
+        aplicarMusica(null);
+        var girou = applyOrientation(salvo.screen && salvo.screen.orientation);
+        // Depois do giro: applyOrientation reescreve a classe do palco.
+        aplicarFaixa(salvo.ticker);
+        aplicarLista(filtrarSemInternet(salvo, Date.now()), isRefresh, girou);
+      }
+
+      // Põe uma lista no ar: a do servidor ou a salva para tocar sem internet.
+      // Na atualização, só reinicia se a lista de slides (ou o giro) mudou.
+      function aplicarLista(lista, isRefresh, girou) {
+        // Lista vazia é resposta boa, não falha: a TV tem de parar. Antes isso
+        // caía no mesmo return do erro e a campanha seguia em loop para
+        // sempre depois de sair do ar.
+        if (lista.length === 0) {
+          showEmpty();
+          return;
+        }
+
+        emptyEl.className = '';
+
+        var changed = girou || lista.length !== slides.length;
+        if (!changed) {
+          for (var i = 0; i < lista.length; i++) {
+            if (lista[i].announcementId !== slides[i].announcementId) { changed = true; break; }
+          }
+        }
+
+        slides = lista;
+
+        // Lista nova: as artes que falharam podem ter sido substituídas.
+        if (changed) { falhasDeArte = 0; }
+
+        if (!isRefresh || changed) {
+          if (timer) { clearInterval(timer); timer = null; }
+          currentIndex = 0;
+          showSlide(slides[0]);
+          startTimer();
+        }
+      }
+
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/feed';
+        var espaco = cabecalhoDeEspaco();
         xhrGet(url, function (err, data, status, body) {
           // Só o 404 exato do device (routes/display.ts) é "sem device ainda":
           // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
           // senão a TV abriria o pareamento por engano com um device que existe.
           if (status === 404 && body && body.error === 'Device not found') {
+            // Resposta boa do servidor (a rede funciona): zera a contagem.
+            falhasDoFeed = 0;
+            tocandoSemInternet = false;
             showPairing(key);
             return;
           }
-          // Rede caiu, ou outro erro/404 sem ser o do device: segura o que já
-          // está no ar. Melhor a TV repetir a lista velha do que apagar por
-          // causa de um GET perdido. Na primeira carga não há lista para
+          // Rede caiu, ou outro erro/404 sem ser o do device: com lista salva,
+          // toca ela (filtrada pela agenda) — na primeira carga na hora; com
+          // lista do servidor no ar, só a partir da FALHAS_PARA_SEM_INTERNET-ésima
+          // falha seguida; já sem internet, a cada falha (refiltra a agenda).
+          // Antes disso, ou sem lista salva, segura o que já está no ar —
+          // melhor a TV repetir a lista velha do que apagar por causa de um
+          // GET perdido. Na primeira carga sem lista salva não há o que
           // segurar, então mostra a tela de vazio.
           var lista = data && data.slides;
           if (err || !lista) {
+            falhasDoFeed++;
+            var salvo = lerSemInternet();
+            if (salvo && (!isRefresh || tocandoSemInternet || falhasDoFeed >= FALHAS_PARA_SEM_INTERNET)) {
+              tocarSemInternet(salvo, isRefresh);
+              return;
+            }
             if (!isRefresh) { emptyEl.className = 'visible'; }
             return;
           }
+          falhasDoFeed = 0;
+          tocandoSemInternet = false;
           hidePairing();
+          salvarSemInternet(data);
+          pedirDownloads(data.offline);
 
           // Antes do teste de lista vazia: a música vale mesmo sem peças.
           aplicarMusica(data.music);
@@ -1442,36 +1650,8 @@
           // Depois do giro: applyOrientation reescreve a classe do palco.
           aplicarFaixa(data.ticker);
 
-          // Lista vazia é resposta boa do servidor, não falha: a TV tem de
-          // parar. Antes isso caía no mesmo return do erro e a campanha
-          // seguia em loop para sempre depois de sair do ar.
-          if (lista.length === 0) {
-            showEmpty();
-            return;
-          }
-
-          emptyEl.className = '';
-
-          // Na atualização, só reinicia se a lista de slides (ou o giro) mudou
-          var changed = girou || lista.length !== slides.length;
-          if (!changed) {
-            for (var i = 0; i < lista.length; i++) {
-              if (lista[i].announcementId !== slides[i].announcementId) { changed = true; break; }
-            }
-          }
-
-          slides = lista;
-
-          // Lista nova: as artes que falharam podem ter sido substituídas.
-          if (changed) { falhasDeArte = 0; }
-
-          if (!isRefresh || changed) {
-            if (timer) { clearInterval(timer); timer = null; }
-            currentIndex = 0;
-            showSlide(slides[0]);
-            startTimer();
-          }
-        });
+          aplicarLista(lista, isRefresh, girou);
+        }, espaco ? { 'X-Signage-Storage': espaco } : null);
       }
 
       // ─── Tela cheia ───────────────────────────────────────────────────────

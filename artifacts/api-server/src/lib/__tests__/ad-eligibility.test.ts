@@ -6,6 +6,7 @@ import {
   canPlayOnDevice,
   countReachedDevices,
   filterEligibleSlides,
+  filterReachableSlides,
   minuteOfDay,
   normalizeTimeWindows,
   normalizeWeekdays,
@@ -381,5 +382,23 @@ describe("campaignRunsAtTime", () => {
     const meiaNoite = new Date("2026-03-04T03:00:00Z");
     expect(campaignRunsAtTime([{ start: 0, end: 120 }], meiaNoite)).toBe(true);
     expect(campaignRunsAtTime([{ start: 1320, end: 1440 }], meiaNoite)).toBe(false);
+  });
+});
+
+describe("filterReachableSlides", () => {
+  const device = { id: 1, companyId: 10, segmentId: 3 };
+  const base = { targetMode: "all" as const, deviceIds: [], segmentIds: [], advertiserSegmentId: null, advertiserCompanyId: 99 };
+
+  it("ignora dia e horário: só alvo e concorrência", () => {
+    const fora = { ...base, weekdays: [0], timeWindows: [{ start: 0, end: 15 }] };
+    expect(filterReachableSlides([fora], device)).toHaveLength(1);
+  });
+
+  it("tira o concorrente do mesmo segmento", () => {
+    expect(filterReachableSlides([{ ...base, advertiserSegmentId: 3 }], device)).toHaveLength(0);
+  });
+
+  it("tira campanha de outra TV", () => {
+    expect(filterReachableSlides([{ ...base, targetMode: "devices" as const, deviceIds: [2] }], device)).toHaveLength(0);
   });
 });

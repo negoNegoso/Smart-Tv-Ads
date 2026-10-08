@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { filterFleet, fleetCounts, lastSeenLabel, updateRequestedLabel, versionsInUse, type FleetRow } from '../fleet';
+import { filterFleet, fleetCounts, lastSeenLabel, storageLabel, updateRequestedLabel, versionsInUse, type FleetRow } from '../fleet';
 
 function tv(over: Partial<FleetRow>): FleetRow {
   return {
     id: 1, clientName: 'Padaria Central', name: 'TV', location: null, showcase: false,
     lastSeenAt: '2026-10-02T14:59:00.000Z', isOnline: true, appVersion: '1.9.0', outdated: false,
-    updateRequestedAt: null,
+    updateRequestedAt: null, storage: null,
     ...over,
   };
 }
@@ -20,11 +20,11 @@ const PARQUE: FleetRow[] = [
 
 describe('fleetCounts', () => {
   it('conta o parque sem a vitrine da landing', () => {
-    expect(fleetCounts(PARQUE)).toEqual({ total: 4, online: 2, offline: 2, outdated: 1 });
+    expect(fleetCounts(PARQUE)).toEqual({ total: 4, online: 2, offline: 2, outdated: 1, lowStorage: 0 });
   });
 
   it('parque vazio é tudo zero', () => {
-    expect(fleetCounts([])).toEqual({ total: 0, online: 0, offline: 0, outdated: 0 });
+    expect(fleetCounts([])).toEqual({ total: 0, online: 0, offline: 0, outdated: 0, lowStorage: 0 });
   });
 });
 
@@ -70,6 +70,33 @@ describe('filterFleet', () => {
     const antes = nomes(PARQUE);
     filterFleet(PARQUE, 'all');
     expect(nomes(PARQUE)).toEqual(antes);
+  });
+});
+
+describe('espaço em disco', () => {
+  const leitura = (low: boolean) => ({
+    freeBytes: 100 * 1024 ** 2, totalBytes: 8 * 1024 ** 3, cacheBytes: 50 * 1024 ** 2, cacheFiles: 3,
+    reportedAt: '2026-10-08T12:00:00.000Z', low,
+  });
+  const nomes = (rows: FleetRow[]) => rows.map((r) => r.name);
+
+  it('conta e filtra as TVs com pouco espaço (vitrine fora da conta)', () => {
+    const parque = [
+      tv({ id: 1, name: 'Apertada', storage: leitura(true) }),
+      tv({ id: 2, name: 'Folgada', storage: leitura(false) }),
+      tv({ id: 3, name: 'Sem leitura', storage: null }),
+      tv({ id: 4, name: 'Vitrine', showcase: true, storage: leitura(true) }),
+    ];
+    expect(fleetCounts(parque).lowStorage).toBe(1);
+    // Como 'outdated', o filtro não tira a vitrine: ela só fica fora das contas.
+    expect(nomes(filterFleet(parque, 'lowStorage'))).toEqual(['Apertada', 'Vitrine']);
+  });
+
+  it('storageLabel monta livre, total e cache', () => {
+    expect(storageLabel({
+      freeBytes: 1.2 * 1024 ** 3, totalBytes: 8 * 1024 ** 3, cacheBytes: 340 * 1024 ** 2, cacheFiles: 3,
+      reportedAt: '2026-10-08T12:00:00Z', low: false,
+    })).toBe('1,2 GB livres de 8 GB · cache 340 MB');
   });
 });
 

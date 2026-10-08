@@ -81,7 +81,9 @@ type CampaignOnlyFields = {
   segmentIds?: number[];
   weekdays?: number[];
   timeWindows?: Array<{ start: number; end: number }>;
-  loopInsertions?: number;
+  loopInsertions?: number;  // Só a lista sem internet usa (o feed online as descarta na saída).
+  startsAt?: Date | null;
+  endsAt?: Date | null;
 };
 
 /** Formato de uma linha de slide de painel, já com as chaves de campanha opcionais. */

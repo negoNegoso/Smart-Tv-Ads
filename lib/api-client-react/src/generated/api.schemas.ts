@@ -302,6 +302,18 @@ export interface ClientStats {
   topAnnouncements?: AnnouncementPlayStat[];
 }
 
+/**
+ * @nullable
+ */
+export type DeviceStorage = {
+  freeBytes: number;
+  totalBytes: number;
+  cacheBytes: number;
+  cacheFiles: number;
+  reportedAt: string;
+  low: boolean;
+} | null;
+
 export interface Device {
   id: number;
   clientId: number;
@@ -319,6 +331,7 @@ export interface Device {
   showWeather?: boolean;
   companyHasCoordinates?: boolean;
   tickerMessages?: string[];
+  storage?: DeviceStorage | null;
   createdAt: string;
 }
 
@@ -369,6 +382,7 @@ export interface FleetDevice {
   outdated: boolean;
   /** @nullable */
   updateRequestedAt: string | null;
+  storage: DeviceStorage | null;
 }
 
 export interface Fleet {
@@ -493,6 +507,30 @@ export type DisplayFeedAppUpdate = {
   forcedAt: string | null;
 } | null;
 
+export type OfflineSlideAgendaFaixasItem = {
+  start: number;
+  end: number;
+};
+
+export type OfflineSlideAgenda = {
+  inicio?: string;
+  fim: string;
+  dias?: number[];
+  faixas?: OfflineSlideAgendaFaixasItem[];
+};
+
+export type OfflineSlide = DisplaySlide & {
+  agenda?: OfflineSlideAgenda;
+};
+
+/**
+ * @nullable
+ */
+export type DisplayFeedOffline = {
+  geradoEm: string;
+  slides: OfflineSlide[];
+} | null;
+
 export interface DisplayFeed {
   screen: DisplayFeedScreen;
   /** @nullable */
@@ -501,6 +539,8 @@ export interface DisplayFeed {
   ticker?: DisplayFeedTicker;
   /** @nullable */
   appUpdate?: DisplayFeedAppUpdate;
+  /** @nullable */
+  offline?: DisplayFeedOffline;
   slides: DisplaySlide[];
 }
 

@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { DeviceStorage } from './deviceStorage';
 
 export interface FleetDevice {
   id: number;
@@ -22,4 +23,5 @@ export interface FleetDevice {
   outdated: boolean;
   /** @nullable */
   updateRequestedAt: Date | null;
+  storage: DeviceStorage | null;
 }

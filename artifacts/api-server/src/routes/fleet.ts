@@ -8,6 +8,7 @@ import {
   RequestFleetUpdateBody,
   RequestFleetUpdateResponse,
 } from "@workspace/api-zod";
+import { storageView } from "../lib/device-storage";
 import { isOnlineAt } from "../lib/device-presence";
 import { listDeviceSessions } from "../lib/device-sessions";
 import { latestTvAppRelease } from "../lib/tv-app-release";
@@ -34,6 +35,11 @@ router.get("/fleet", async (req, res): Promise<void> => {
       lastSeenAt: devicesTable.lastSeenAt,
       appVersion: devicesTable.appVersion,
       updateRequestedAt: devicesTable.updateRequestedAt,
+      storageFreeBytes: devicesTable.storageFreeBytes,
+      storageTotalBytes: devicesTable.storageTotalBytes,
+      cacheBytes: devicesTable.cacheBytes,
+      cacheFiles: devicesTable.cacheFiles,
+      storageReportedAt: devicesTable.storageReportedAt,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -52,10 +58,11 @@ router.get("/fleet", async (req, res): Promise<void> => {
   res.json(
     GetFleetResponse.parse({
       latestVersion,
-      devices: rows.map((row) => ({
+      devices: rows.map(({ storageFreeBytes, storageTotalBytes, cacheBytes, cacheFiles, storageReportedAt, ...row }) => ({
         ...row,
         isOnline: isOnlineAt(row.lastSeenAt, now),
         outdated: isOutdatedTvApp(row.appVersion, latestVersion),
+        storage: storageView({ storageFreeBytes, storageTotalBytes, cacheBytes, cacheFiles, storageReportedAt }),
       })),
     }),
   );

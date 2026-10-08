@@ -15,7 +15,7 @@ function tv(over: Record<string, unknown>) {
   return {
     id: 1, clientId: 7, clientName: 'Padaria Central', name: 'TV', location: null, showcase: false,
     lastSeenAt: minutosAtras(1), isOnline: true, appVersion: '1.9.0', outdated: false,
-    updateRequestedAt: null,
+    updateRequestedAt: null, storage: null,
     ...over,
   };
 }
@@ -27,6 +27,20 @@ const PARQUE = {
     tv({ id: 2, name: 'Açougue', clientName: 'Mercado Bom', isOnline: false, lastSeenAt: minutosAtras(180), appVersion: '1.8.2', outdated: true }),
     tv({ id: 3, name: 'Depósito', isOnline: false, lastSeenAt: null, appVersion: null }),
     tv({ id: 4, name: 'Vitrine do site', showcase: true, appVersion: null }),
+  ],
+};
+
+const leitura = (freeBytes: number, low: boolean) => ({
+  freeBytes, totalBytes: 8 * 1024 ** 3, cacheBytes: 340 * 1024 ** 2, cacheFiles: 3,
+  reportedAt: minutosAtras(2), low,
+});
+
+const PARQUE_COM_DISCO = {
+  latestVersion: '1.9.0',
+  devices: [
+    tv({ id: 1, name: 'Folgada', storage: leitura(1.2 * 1024 ** 3, false) }),
+    tv({ id: 2, name: 'Apertada', storage: leitura(100 * 1024 ** 2, true) }),
+    tv({ id: 3, name: 'Sem leitura', storage: null }),
   ],
 };
 
@@ -69,6 +83,36 @@ const contagem = (id: string) => screen.getByTestId(`fleet-count-${id}`);
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('Parque de TVs — espaço em disco', () => {
+  it('mostra o espaço da TV e o selo só quando está apertado', async () => {
+    stubFleet(PARQUE_COM_DISCO);
+    renderPage();
+    const folgada = await screen.findByTestId('fleet-row-1');
+    expect(folgada).toHaveTextContent('1,2 GB livres de 8 GB · cache 340 MB');
+    expect(within(folgada).queryByText('Pouco espaço')).not.toBeInTheDocument();
+
+    const apertada = screen.getByTestId('fleet-row-2');
+    expect(apertada).toHaveTextContent('100 MB livres de 8 GB · cache 340 MB');
+    expect(within(apertada).getByText('Pouco espaço')).toBeInTheDocument();
+
+    expect(screen.getByTestId('fleet-row-3')).toHaveTextContent('—');
+  });
+
+  it('conta as TVs com pouco espaço e filtra por elas', async () => {
+    stubFleet(PARQUE_COM_DISCO);
+    renderPage();
+    await screen.findByText('Apertada');
+    expect(contagem('lowStorage')).toHaveTextContent('1');
+
+    const filtro = screen.getByLabelText('Mostrar');
+    expect(within(filtro).getByRole('option', { name: 'Pouco espaço' })).toBeInTheDocument();
+    await userEvent.selectOptions(filtro, 'lowStorage');
+    expect(screen.getByText('Apertada')).toBeInTheDocument();
+    expect(screen.queryByText('Folgada')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sem leitura')).not.toBeInTheDocument();
+  });
 });
 
 describe('Parque de TVs', () => {

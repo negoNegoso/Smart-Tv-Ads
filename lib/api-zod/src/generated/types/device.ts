@@ -5,6 +5,7 @@
  * Digital Signage API
  * OpenAPI spec version: 0.2.0
  */
+import type { DeviceStorage } from './deviceStorage';
 
 export interface Device {
   id: number;
@@ -23,5 +24,6 @@ export interface Device {
   showWeather?: boolean;
   companyHasCoordinates?: boolean;
   tickerMessages?: string[];
+  storage?: DeviceStorage | null;
   createdAt: Date;
 }

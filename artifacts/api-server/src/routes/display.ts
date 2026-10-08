@@ -4,6 +4,8 @@ import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
+import { loadOfflineFeed } from "../lib/offline-feed";
+import { parseStorageHeader } from "../lib/device-storage";
 import { touchDeviceSession } from "../lib/device-sessions";
 import { latestTvAppReleaseForFeed } from "../lib/tv-app-release";
 import { appUpdateSignal } from "../lib/tv-app-update";
@@ -48,11 +50,27 @@ async function loadForTv(req: Request) {
   const now = new Date();
   const appVersion = tvAppVersionFromUserAgent(req.get("user-agent"));
 
+  // Espaço em disco só quando o app mandou uma leitura válida: cabeçalho
+  // ausente (navegador, APK antigo) ou malformado não apaga a última boa.
+  const storage = parseStorageHeader(req.get("x-signage-storage"));
+
   // A versão é a do último contato, mesmo quando é nula: TV que passou a
   // abrir no navegador não pode seguir mostrando a versão antiga do app.
   await db
     .update(devicesTable)
-    .set({ lastSeenAt: now, appVersion })
+    .set({
+      lastSeenAt: now,
+      appVersion,
+      ...(storage
+        ? {
+            storageFreeBytes: storage.freeBytes,
+            storageTotalBytes: storage.totalBytes,
+            cacheBytes: storage.cacheBytes,
+            cacheFiles: storage.cacheFiles,
+            storageReportedAt: now,
+          }
+        : {}),
+    })
     .where(eq(devicesTable.id, device.id));
 
   // Histórico é acessório: a TV recebe a rotação mesmo que ele falhe.
@@ -88,6 +106,8 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
   }
   // Nunca lança e nunca segura o feed além do teto (lib/tv-app-release.ts).
   const latest = await latestTvAppReleaseForFeed();
+  // Nunca lança: falha vira null e a TV segue com a lista salva antes.
+  const offline = await loadOfflineFeed(tv.device, req.log, tv.now);
   res.json(
     GetDisplayFeedResponse.parse({
       screen: { orientation: deviceOrientationOf(tv.device.orientation) },
@@ -109,6 +129,7 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
         updateRequestedAt: tv.device.updateRequestedAt,
         now: tv.now,
       }),
+      offline,
       slides: tv.slides,
     }),
   );

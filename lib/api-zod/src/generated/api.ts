@@ -67,6 +67,33 @@ export const GetVitrineFeedResponse = zod.object({
   "version": zod.string().nullable(),
   "forcedAt": zod.coerce.date().nullable()
 }).nullish(),
+  "offline": zod.object({
+  "geradoEm": zod.coerce.date(),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}).and(zod.object({
+  "agenda": zod.object({
+  "inicio": zod.coerce.date().optional(),
+  "fim": zod.coerce.date(),
+  "dias": zod.array(zod.number()).optional(),
+  "faixas": zod.array(zod.object({
+  "start": zod.number(),
+  "end": zod.number()
+})).optional()
+}).optional()
+})))
+}).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
@@ -714,6 +741,14 @@ export const ListDevicesResponseItem = zod.object({
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
   "tickerMessages": zod.array(zod.string()).optional(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullish(),
   "createdAt": zod.coerce.date()
 })
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
@@ -747,6 +782,14 @@ export const CreateDeviceResponse = zod.object({
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
   "tickerMessages": zod.array(zod.string()).optional(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -772,6 +815,14 @@ export const GetDeviceByKeyResponse = zod.object({
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
   "tickerMessages": zod.array(zod.string()).optional(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -794,6 +845,14 @@ export const GetDeviceResponse = zod.object({
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
   "tickerMessages": zod.array(zod.string()).optional(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -829,6 +888,14 @@ export const UpdateDeviceResponse = zod.object({
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
   "tickerMessages": zod.array(zod.string()).optional(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -920,7 +987,15 @@ export const GetFleetResponse = zod.object({
   "isOnline": zod.boolean(),
   "appVersion": zod.string().nullable(),
   "outdated": zod.boolean(),
-  "updateRequestedAt": zod.coerce.date().nullable()
+  "updateRequestedAt": zod.coerce.date().nullable(),
+  "storage": zod.object({
+  "freeBytes": zod.number(),
+  "totalBytes": zod.number(),
+  "cacheBytes": zod.number(),
+  "cacheFiles": zod.number(),
+  "reportedAt": zod.coerce.date(),
+  "low": zod.boolean()
+}).nullable()
 }))
 })
 
@@ -1057,6 +1132,33 @@ export const GetDisplayFeedResponse = zod.object({
   "appUpdate": zod.object({
   "version": zod.string().nullable(),
   "forcedAt": zod.coerce.date().nullable()
+}).nullish(),
+  "offline": zod.object({
+  "geradoEm": zod.coerce.date(),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}).and(zod.object({
+  "agenda": zod.object({
+  "inicio": zod.coerce.date().optional(),
+  "fim": zod.coerce.date(),
+  "dias": zod.array(zod.number()).optional(),
+  "faixas": zod.array(zod.object({
+  "start": zod.number(),
+  "end": zod.number()
+})).optional()
+}).optional()
+})))
 }).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),

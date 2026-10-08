@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, index, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index, boolean, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { clientsTable } from "./clients";
@@ -35,6 +35,16 @@ export const devicesTable = pgTable(
     // Recados que correm na faixa do rodapé desta TV (até 5, até 80
     // caracteres cada; a API valida). Vazio = TV sem faixa.
     tickerMessages: text("ticker_messages").array().notNull().default([]),
+    // Espaço em disco do box/stick, lido pelo app Android e mandado no
+    // cabeçalho X-Signage-Storage do feed. Nulo = nunca informou (navegador
+    // ou APK antigo). bigint: disco passa de 2 GB.
+    storageFreeBytes: bigint("storage_free_bytes", { mode: "number" }),
+    storageTotalBytes: bigint("storage_total_bytes", { mode: "number" }),
+    // Quanto o cache de artes do app ocupa, e quantos arquivos.
+    cacheBytes: bigint("cache_bytes", { mode: "number" }),
+    cacheFiles: integer("cache_files"),
+    // Quando chegou a última leitura válida.
+    storageReportedAt: timestamp("storage_reported_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

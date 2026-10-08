@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, Monitor, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { CircleAlert, HardDrive, Monitor, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useGetFleet, useRequestFleetUpdate, getGetFleetQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { filterFleet, fleetCounts, lastSeenLabel, updateRequestedLabel, versionsInUse, type FleetFilter, type FleetRow } from '@/lib/fleet';
+import { filterFleet, fleetCounts, lastSeenLabel, storageLabel, updateRequestedLabel, versionsInUse, type FleetFilter, type FleetRow } from '@/lib/fleet';
 
 const selectClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
@@ -70,11 +70,12 @@ export default function Fleet() {
         ) : null}
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         <Metric id="total" icon={Monitor} label="Total" value={counts.total} />
         <Metric id="online" icon={Wifi} label="Online" value={counts.online} />
         <Metric id="offline" icon={WifiOff} label="Offline" value={counts.offline} />
         <Metric id="outdated" icon={CircleAlert} label="Desatualizadas" value={counts.outdated} />
+        <Metric id="lowStorage" icon={HardDrive} label="Pouco espaço" value={counts.lowStorage} />
       </div>
 
       {isError ? (
@@ -128,6 +129,7 @@ export default function Fleet() {
               <option value="online">Online</option>
               <option value="offline">Offline</option>
               <option value="outdated">Desatualizadas</option>
+              <option value="lowStorage">Pouco espaço</option>
             </select>
           </div>
 
@@ -155,6 +157,7 @@ export default function Fleet() {
                       <th className="pb-2 font-medium">Local</th>
                       <th className="pb-2 font-medium">Visto por último</th>
                       <th className="pb-2 font-medium">Versão</th>
+                      <th className="pb-2 font-medium">Espaço</th>
                       <th className="pb-2 font-medium"><span className="sr-only">Ações</span></th>
                     </tr>
                   </thead>
@@ -189,6 +192,16 @@ export default function Fleet() {
                             {d.outdated ? <Badge variant="outline">Desatualizada</Badge> : null}
                           </span>
                           {pedido ? <span className="block text-xs text-muted-foreground">{pedido}</span> : null}
+                        </td>
+                        <td className="py-3">
+                          {d.storage ? (
+                            <span className="flex flex-wrap items-center gap-2 tabular-nums text-muted-foreground">
+                              {storageLabel(d.storage)}
+                              {d.storage.low ? <Badge variant="destructive">Pouco espaço</Badge> : null}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="py-3 text-right">
                           {/* Só TV que roda o app: no navegador não há o que atualizar. */}

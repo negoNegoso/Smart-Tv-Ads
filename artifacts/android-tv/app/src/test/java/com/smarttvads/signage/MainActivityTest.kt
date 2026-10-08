@@ -155,6 +155,12 @@ class MainActivityTest {
     private fun playsMandados() = audio().dispatchedMediaKeyEvents.map { it.keyCode }
 
     @Test
+    fun `pagina ganha a ponte SignageCache`() {
+        val a = abrir()
+        assertTrue(shadowOf(a.webView!!).getJavascriptInterface("SignageCache") is CachePelaPagina)
+    }
+
+    @Test
     fun `tv html retoma a musica de fundo pela ponte SignageNative`() {
         val a = abrir()
         a.pecaComSomSobreMusica()
