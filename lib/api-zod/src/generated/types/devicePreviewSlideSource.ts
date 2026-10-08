@@ -14,4 +14,5 @@ export const DevicePreviewSlideSource = {
   panel: 'panel',
   playlist: 'playlist',
   alert: 'alert',
+  editorial: 'editorial',
 } as const;

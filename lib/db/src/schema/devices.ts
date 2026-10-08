@@ -29,6 +29,9 @@ export const devicesTable = pgTable(
     // Guardado como o admin colou; tipo e ID saem do parser na hora do feed.
     // Nulo = TV sem música.
     musicUrl: text("music_url"),
+    // Slide de clima e hora na volta desta TV. Desligado por padrão: nada
+    // muda numa loja até o admin ligar.
+    showWeather: boolean("show_weather").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

@@ -16,4 +16,5 @@ export interface DeviceUpdate {
   showcase?: boolean;
   /** @nullable */
   musicUrl?: string | null;
+  showWeather?: boolean;
 }

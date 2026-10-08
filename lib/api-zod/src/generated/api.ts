@@ -708,6 +708,8 @@ export const ListDevicesResponseItem = zod.object({
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
   "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional(),
+  "companyHasCoordinates": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
@@ -738,6 +740,8 @@ export const CreateDeviceResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
   "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional(),
+  "companyHasCoordinates": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -760,6 +764,8 @@ export const GetDeviceByKeyResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
   "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional(),
+  "companyHasCoordinates": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -779,6 +785,8 @@ export const GetDeviceResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
   "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional(),
+  "companyHasCoordinates": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -795,7 +803,8 @@ export const UpdateDeviceBody = zod.object({
   "location": zod.string().nullish(),
   "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional(),
   "showcase": zod.boolean().optional(),
-  "musicUrl": zod.string().nullish()
+  "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional()
 })
 
 export const UpdateDeviceResponse = zod.object({
@@ -809,6 +818,8 @@ export const UpdateDeviceResponse = zod.object({
   "lastSeenAt": zod.coerce.date().nullish(),
   "showcase": zod.boolean(),
   "musicUrl": zod.string().nullish(),
+  "showWeather": zod.boolean().optional(),
+  "companyHasCoordinates": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -863,7 +874,7 @@ export const GetDevicePreviewResponseItem = zod.object({
   "audioMode": zod.string().nullish(),
   "videoIds": zod.array(zod.string()).nullish()
 }).and(zod.object({
-  "source": zod.enum(['campaign', 'panel', 'playlist', 'alert'])
+  "source": zod.enum(['campaign', 'panel', 'playlist', 'alert', 'editorial'])
 }))
 export const GetDevicePreviewResponse = zod.array(GetDevicePreviewResponseItem)
 

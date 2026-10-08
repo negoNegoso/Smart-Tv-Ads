@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 import { deviceOrientationOf } from "@workspace/db/orientation";
@@ -29,6 +29,8 @@ async function loadForTv(req: Request) {
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
       showcase: devicesTable.showcase,
+      showWeather: devicesTable.showWeather,
+      companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       musicUrl: devicesTable.musicUrl,
       updateRequestedAt: devicesTable.updateRequestedAt,
     })

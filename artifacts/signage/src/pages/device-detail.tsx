@@ -450,6 +450,19 @@ export default function DeviceDetail() {
     },
   });
 
+  const updateWeather = useUpdateDevice({
+    mutation: {
+      // Ligar/desligar muda a volta da TV e a prévia ao lado.
+      onSuccess: (d) => {
+        queryClient.invalidateQueries({ queryKey: getGetDeviceQueryKey(deviceId) });
+        queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
+        toast({ title: d.showWeather ? 'Clima e hora ligados nesta TV.' : 'Clima e hora desligados.' });
+      },
+      onError: (err) =>
+        toast({ title: mensagemDeErro(err, 'Não foi possível salvar o clima'), variant: 'destructive' }),
+    },
+  });
+
   function copyUrl() {
     if (!device) return;
     const url = `${window.location.origin}${import.meta.env.BASE_URL}tv.html?key=${device.deviceKey}`;
@@ -546,6 +559,24 @@ export default function DeviceDetail() {
           <p className="text-muted-foreground">
             A landing espelha esta TV. Recebe todas as campanhas no ar, sem alvo nem concorrência, e cada
             visita na landing conta como exibição. Uma vitrine por orientação.
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-start gap-3 rounded-lg border px-3 py-2.5">
+        <Switch
+          id="device-weather"
+          aria-label="Clima e hora"
+          checked={device.showWeather ?? false}
+          disabled={updateWeather.isPending || (!device.companyHasCoordinates && !device.showWeather)}
+          onCheckedChange={(checked) => updateWeather.mutate({ id: deviceId, data: { showWeather: checked } })}
+        />
+        <div className="text-sm">
+          <label htmlFor="device-weather" className="font-medium">Clima e hora</label>
+          <p className="text-muted-foreground">
+            {device.companyHasCoordinates
+              ? 'Mostra a previsão do tempo da cidade da loja e a hora, uma vez por volta.'
+              : 'Cadastre o CEP da empresa para ativar.'}
           </p>
         </div>
       </div>

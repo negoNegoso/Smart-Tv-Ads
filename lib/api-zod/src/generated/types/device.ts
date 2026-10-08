@@ -20,5 +20,7 @@ export interface Device {
   showcase: boolean;
   /** @nullable */
   musicUrl?: string | null;
+  showWeather?: boolean;
+  companyHasCoordinates?: boolean;
   createdAt: Date;
 }

@@ -2,7 +2,8 @@ import { Router, type IRouter, type NextFunction, type Request, type Response } 
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { eq, asc, sql, ne } from "drizzle-orm";
+import { eq, asc, sql, notInArray } from "drizzle-orm";
+import { SYSTEM_SOURCES } from "../lib/system-sources";
 import { db, announcementsTable } from "@workspace/db";
 import { mediaStore } from "../lib/storage";
 import { maxUploadBytes, uploadTooLargeMessage } from "../lib/upload-limit";
@@ -107,15 +108,16 @@ if (process.env.PRIVATE_OBJECT_DIR) {
 }
 
 /**
- * Biblioteca de peças: tudo menos as artes de aviso urgente, que só existem
- * para a TV registrar a exibição e não podem ser escolhidas para campanha.
+ * Biblioteca de peças: tudo menos as peças de sistema (arte de aviso urgente e
+ * slide de clima), que só existem para a TV registrar a exibição e não podem
+ * ser escolhidas para campanha.
  * Separada para o teste conferir o SQL sem banco.
  */
 export function buildAnnouncementsListQuery() {
   return db
     .select()
     .from(announcementsTable)
-    .where(ne(announcementsTable.source, "alert"))
+    .where(notInArray(announcementsTable.source, [...SYSTEM_SOURCES]))
     .orderBy(asc(announcementsTable.displayOrder), asc(announcementsTable.createdAt));
 }
 
@@ -232,8 +234,8 @@ router.get("/announcements/active", async (req, res): Promise<void> => {
 });
 
 /**
- * Contagem da tela Peças: ignora as artes de aviso urgente para os números
- * baterem com a lista (que já as esconde). Separada para o teste conferir o
+ * Contagem da tela Peças: ignora as peças de sistema (arte de aviso urgente e
+ * slide de clima) para os números baterem com a lista (que já as esconde). Separada para o teste conferir o
  * SQL sem banco.
  */
 export function buildAnnouncementStatsQuery() {
@@ -244,7 +246,7 @@ export function buildAnnouncementStatsQuery() {
       inactive: sql<number>`COUNT(*) FILTER (WHERE ${announcementsTable.isActive} = false)::int`,
     })
     .from(announcementsTable)
-    .where(ne(announcementsTable.source, "alert"));
+    .where(notInArray(announcementsTable.source, [...SYSTEM_SOURCES]));
 }
 
 router.get("/announcements/stats", async (req, res): Promise<void> => {
@@ -339,6 +341,11 @@ router.patch(
       res.status(409).json({ error: "Arte de aviso urgente não pode ser alterada." });
       return;
     }
+    if (existing.source === "editorial") {
+      // Peça de sistema (slide de clima): a imagem é gerada a cada minuto.
+      res.status(409).json({ error: "Peça de sistema não pode ser alterada." });
+      return;
+    }
     if (existing.source === "panel") {
       // Editar o PNG gerado quebraria a relação com o cadastro que o produziu.
       // A ação certa é despublicar o painel no portal do cliente.
@@ -424,6 +431,11 @@ router.delete("/announcements/:id", async (req, res): Promise<void> => {
     res.status(409).json({ error: "Arte de aviso urgente não pode ser apagada; encerre o aviso." });
     return;
   }
+  if (existing.source === "editorial") {
+    // Sem ela o slide de clima não tem onde registrar a exibição.
+    res.status(409).json({ error: "Peça de sistema não pode ser apagada." });
+    return;
+  }
   if (existing.source === "panel") {
     // Apagar só o registro deixaria panel_slides apontando para nada, com o
     // painel ainda marcado como publicado. A ação certa é despublicar o
@@ -466,6 +478,11 @@ router.patch("/announcements/:id/toggle", async (req, res): Promise<void> => {
   if (existing.source === "alert") {
     // Ligar/desligar a arte à mão tiraria o aviso do ar sem encerrá-lo.
     res.status(409).json({ error: "Arte de aviso urgente não pode ser alterada." });
+    return;
+  }
+  if (existing.source === "editorial") {
+    // Peça de sistema (slide de clima): a imagem é gerada a cada minuto.
+    res.status(409).json({ error: "Peça de sistema não pode ser alterada." });
     return;
   }
   if (existing.source === "panel") {

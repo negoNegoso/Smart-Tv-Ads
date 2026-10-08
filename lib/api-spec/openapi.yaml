@@ -1699,6 +1699,10 @@ components:
         showcase: { type: boolean }
         # Link do YouTube que toca em fundo na TV. Nulo = sem música.
         musicUrl: { type: ["string", "null"] }
+        # Slide de clima e hora na volta desta TV.
+        showWeather: { type: boolean }
+        # A empresa dona da TV tem lat/lng; sem isso o clima não pode ser ligado.
+        companyHasCoordinates: { type: boolean }
         createdAt: { type: string, format: date-time }
 
     DeviceInput:
@@ -1719,6 +1723,7 @@ components:
         showcase: { type: boolean }
         # Link de vídeo ou playlist do YouTube. null ou vazio tira a música.
         musicUrl: { type: ["string", "null"] }
+        showWeather: { type: boolean }
 
     # ── Parque de TVs ────────────────────────────────────────────────────────
     FleetDevice:
@@ -1852,7 +1857,7 @@ components:
           properties:
             source:
               type: string
-              enum: [campaign, panel, playlist, alert]
+              enum: [campaign, panel, playlist, alert, editorial]
 
     DisplayFeed:
       type: object

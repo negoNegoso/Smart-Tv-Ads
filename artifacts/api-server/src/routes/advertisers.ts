@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, asc, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import { SYSTEM_SOURCES } from "../lib/system-sources";
 import {
   db,
   advertisersTable,
@@ -132,15 +133,16 @@ function announcementIdsFor(input: z.infer<typeof campaignInput>) {
  * campaignsTable já ter sido atualizada. Descartar aqui, antes do insert e
  * do notInArray, evita a escrita parcial.
  *
- * A arte do aviso urgente (source = 'alert') segue a mesma regra: é gerada
- * pelo aviso, não é selecionável e seu id nunca deve entrar em campanha.
+ * As peças de sistema (SYSTEM_SOURCES: arte do aviso urgente e slide de
+ * clima) seguem a mesma regra: são geradas pelo sistema, não são
+ * selecionáveis e seu id nunca deve entrar em campanha.
  */
 async function dropPanelAnnouncementIds(ids: number[]): Promise<number[]> {
   if (ids.length === 0) return ids;
   const panelRows = await db
     .select({ id: announcementsTable.id })
     .from(announcementsTable)
-    .where(and(inArray(announcementsTable.id, ids), inArray(announcementsTable.source, ["panel", "alert"])));
+    .where(and(inArray(announcementsTable.id, ids), inArray(announcementsTable.source, ["panel", ...SYSTEM_SOURCES])));
   const panelIds = new Set(panelRows.map((r) => r.id));
   return ids.filter((id) => !panelIds.has(id));
 }

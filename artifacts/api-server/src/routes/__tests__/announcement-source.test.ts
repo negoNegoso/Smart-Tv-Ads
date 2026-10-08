@@ -68,6 +68,7 @@ const panelRow = {
 };
 
 const alertRow = { ...panelRow, id: 3, source: "alert" };
+const editorialRow = { ...panelRow, id: 4, source: "editorial" };
 
 const adminRow = { ...panelRow, id: 2, source: "admin", imageUrl: null };
 
@@ -175,6 +176,34 @@ describe("arte de aviso urgente não é editável nem apagável no admin", () =>
     const res = await request(app).delete("/announcements/3");
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: "Arte de aviso urgente não pode ser apagada; encerre o aviso." });
+    expect(dbDeleteReturning).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("PATCH numa peça editorial responde 409 e não escreve", async () => {
+    dbSelectWhere.mockResolvedValueOnce([editorialRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/announcements/4").send({ title: "Novo título" });
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Peça de sistema não pode ser alterada." });
+    expect(dbUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /toggle numa peça editorial responde 409 e não escreve", async () => {
+    dbSelectWhere.mockResolvedValueOnce([editorialRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/announcements/4/toggle");
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Peça de sistema não pode ser alterada." });
+    expect(dbUpdateReturning).not.toHaveBeenCalled();
+  });
+
+  it("DELETE numa peça editorial responde 409 e não apaga", async () => {
+    dbSelectWhere.mockResolvedValueOnce([editorialRow]);
+    const { default: request } = await import("supertest");
+    const res = await request(app).delete("/announcements/4");
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "Peça de sistema não pode ser apagada." });
     expect(dbDeleteReturning).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });

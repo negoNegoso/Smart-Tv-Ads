@@ -58,16 +58,16 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
-  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation", title: "title", imageUrl: "imageUrl", duration: "duration" },
+  announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation", title: "title", imageUrl: "imageUrl", duration: "duration", source: "source" },
   urgentAlertsTable: { id: "id", endedAt: "endedAt", endsAt: "endsAt" },
   campaignsTable: { id: "id", advertiserId: "advertiserId", isActive: "isActive", startsAt: "startsAt", endsAt: "endsAt", weekdays: "weekdays", timeWindows: "timeWindows", targetMode: "targetMode", loopInsertions: "loopInsertions" },
   campaignDevicesTable: { campaignId: "campaignId", deviceId: "deviceId" },
   campaignAnnouncementsTable: { campaignId: "campaignId", announcementId: "announcementId", destinationUrl: "destinationUrl", scanCode: "scanCode" },
   advertisersTable: { id: "id", companyId: "companyId" },
   clientsTable: { id: "id", companyId: "companyId", name: "name" },
-  companiesTable: { id: "id", segmentId: "segmentId", name: "name" },
+  companiesTable: { id: "id", segmentId: "segmentId", name: "name", lat: "lat", lng: "lng" },
 }));
 
 vi.mock("../../lib/panels/device-slides", async (importOriginal) => {
@@ -88,6 +88,8 @@ vi.mock("../../lib/device-sessions", () => ({
 vi.mock("../../lib/tv-app-release", () => ({
   latestTvAppReleaseForFeed: (...args: unknown[]) => latestTvAppReleaseForFeedMock(...args),
 }));
+
+const { resetEditorialPieceCache } = await import("../../lib/editorial/editorial-piece");
 
 async function buildApp(): Promise<Express> {
   const { default: express } = await import("express");
@@ -769,5 +771,64 @@ describe("GET /display/:deviceKey/feed — aviso urgente", () => {
       CAMPAIGN_ROW.announcementId,
       PLAYLIST_ROW.announcementId,
     ]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed — clima e hora", () => {
+  const AGORA = new Date("2026-10-07T18:42:00Z");
+  const TV_COM_CLIMA = { ...DEVICE_ROW, showcase: false, showWeather: true, companyHasCoordinates: true };
+
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [];
+    selectCallIndex = 0;
+    resetEditorialPieceCache();
+    vi.useFakeTimers({ now: AGORA, toFake: ["Date"] });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function ids(device: Record<string, unknown>, extra: unknown[] = [[], [{ id: 950 }]]) {
+    selectResults = [[device], [PLAYLIST_ROW], [CAMPAIGN_ROW], ...extra];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).get("/display/tv-1/feed");
+    return res.body.slides as Array<{ announcementId: number; imageUrl: string; duration: number }>;
+  }
+
+  it("TV com clima ganha o slide no fim, com a imagem da loja e do minuto", async () => {
+    const slides = await ids(TV_COM_CLIMA);
+    expect(slides.map((s) => s.announcementId)).toEqual([CAMPAIGN_ROW.announcementId, PLAYLIST_ROW.announcementId, 950]);
+    expect(slides[2].imageUrl).toBe(
+      `/api/editorial/weather.png?company=${DEVICE_ROW.companyId}&o=landscape&m=${Math.floor(AGORA.getTime() / 60_000)}`,
+    );
+    expect(slides[2].duration).toBe(10);
+  });
+
+  it.each([
+    ["chave desligada", { ...TV_COM_CLIMA, showWeather: false }],
+    ["empresa sem coordenadas", { ...TV_COM_CLIMA, companyHasCoordinates: false }],
+    ["vitrine", { ...TV_COM_CLIMA, showcase: true }],
+  ])("%s → sem slide de clima", async (_caso, device) => {
+    const slides = await ids(device);
+    expect(slides.map((s) => s.announcementId)).not.toContain(950);
+  });
+
+  it("peça editorial ausente no banco → sem slide de clima, sem erro", async () => {
+    const slides = await ids(TV_COM_CLIMA, [[], []]);
+    expect(slides.map((s) => s.announcementId)).toEqual([CAMPAIGN_ROW.announcementId, PLAYLIST_ROW.announcementId]);
+  });
+
+  it("aviso urgente ativo ainda toma a TV inteira", async () => {
+    const aviso = {
+      id: 1, title: "Aviso", body: null, targetMode: "all", segmentIds: [], companyIds: [],
+      startsAt: new Date("2026-10-07T18:00:00Z"), endsAt: new Date("2026-10-07T19:00:00Z"), endedAt: null,
+      landscapeAnnouncementId: 901, portraitAnnouncementId: 902, createdAt: new Date("2026-10-07T18:00:00Z"),
+    };
+    const peca = { announcementId: 901, title: "Aviso", imageUrl: "/api/uploads/aviso.png", duration: 15 };
+    const slides = await ids(TV_COM_CLIMA, [[aviso], [peca]]);
+    expect(slides.map((s) => s.announcementId)).toEqual([901]);
   });
 });

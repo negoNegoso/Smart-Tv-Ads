@@ -25,6 +25,8 @@ const DEVICE = {
   createdAt: '2026-09-01T12:00:00Z',
   orientation: 'landscape',
   showcase: false,
+  showWeather: false,
+  companyHasCoordinates: true,
 };
 
 const ANUNCIO = {
@@ -351,5 +353,30 @@ describe('histórico de conexão', () => {
     expect(await screen.findByText('Histórico de conexão')).toBeInTheDocument();
     expect(await screen.findByText('No ar')).toBeInTheDocument();
     expect(screen.getByText('Fora do ar')).toBeInTheDocument();
+  });
+
+  it('liga o clima pelo switch e manda showWeather no PATCH', async () => {
+    const patches: unknown[] = [];
+    stubTv(DEVICE, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('switch', { name: 'Clima e hora' }));
+    await waitFor(() => expect(patches).toEqual([{ showWeather: true }]));
+  });
+
+  it('empresa sem coordenadas: chave desligada e o aviso do CEP', async () => {
+    stubTv({ ...DEVICE, companyHasCoordinates: false }, [ANUNCIO]);
+    renderPagina();
+    expect(await screen.findByRole('switch', { name: 'Clima e hora' })).toBeDisabled();
+    expect(screen.getByText('Cadastre o CEP da empresa para ativar.')).toBeInTheDocument();
+  });
+
+  it('TV com clima ligado e empresa sem CEP: ainda dá para desligar', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, companyHasCoordinates: false, showWeather: true }, [ANUNCIO], patches);
+    renderPagina();
+    const chave = await screen.findByRole('switch', { name: 'Clima e hora' });
+    expect(chave).toBeEnabled();
+    await userEvent.click(chave);
+    await waitFor(() => expect(patches).toEqual([{ showWeather: false }]));
   });
 });

@@ -34,11 +34,11 @@ vi.mock("@workspace/db", () => ({
     select: () => makeChain(selectQueue.shift() ?? []),
     update: () => makeChain(updateResult),
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather" },
   devicePlaylistTable: {},
   announcementsTable: {},
   clientsTable: { id: "id", companyId: "companyId" },
-  companiesTable: { id: "id", name: "name", segmentId: "segmentId" },
+  companiesTable: { id: "id", name: "name", segmentId: "segmentId", lat: "lat", lng: "lng" },
 }));
 
 async function buildApp(): Promise<Express> {
@@ -231,5 +231,29 @@ describe("PATCH /devices/:id — música de fundo", () => {
     await request(app).patch("/devices/1").send({ name: "TV nova" });
 
     expect(setMock).toHaveBeenCalledWith({ name: "TV nova" });
+  });
+});
+
+describe("PATCH /devices/:id — clima e hora", () => {
+  it("grava showWeather e devolve a TV com a chave e as coordenadas da empresa", async () => {
+    // 1) TV atual  2) TV com cliente (resposta)
+    selectQueue = [
+      [{ id: 1, showcase: false, orientation: "landscape" }],
+      [{ ...DEVICE, showWeather: true, companyHasCoordinates: true }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ showWeather: true });
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith(expect.objectContaining({ showWeather: true }));
+    expect(res.body).toMatchObject({ showWeather: true, companyHasCoordinates: true });
+  });
+
+  it("recusa showWeather que não é booleano, sem tocar no banco", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ showWeather: "sim" });
+    expect(res.status).toBe(400);
+    expect(setMock).not.toHaveBeenCalled();
   });
 });

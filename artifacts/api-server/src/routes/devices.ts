@@ -56,6 +56,8 @@ async function getDeviceWithClient(where: SQL) {
       lastSeenAt: devicesTable.lastSeenAt,
       showcase: devicesTable.showcase,
       musicUrl: devicesTable.musicUrl,
+      showWeather: devicesTable.showWeather,
+      companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
@@ -289,6 +291,8 @@ router.get("/devices/:id/preview", async (req, res): Promise<void> => {
       segmentId: companiesTable.segmentId,
       orientation: devicesTable.orientation,
       showcase: devicesTable.showcase,
+      showWeather: devicesTable.showWeather,
+      companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -331,6 +335,11 @@ router.post("/devices/:id/playlist/add", async (req, res): Promise<void> => {
   // órfã quando o aviso fosse encerrado.
   if (pair.pieceSource === "alert") {
     res.status(400).json({ error: "Arte de aviso urgente não pode ser usada na playlist." });
+    return;
+  }
+  if (pair.pieceSource === "editorial") {
+    // Peça de sistema (slide de clima): entra na TV pelo feed, não à mão.
+    res.status(400).json({ error: "Peça de sistema não pode ser usada na playlist." });
     return;
   }
   const screen = screenOrientationOf(pair.deviceOrientation);

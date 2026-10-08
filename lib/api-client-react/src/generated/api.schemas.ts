@@ -316,6 +316,8 @@ export interface Device {
   showcase: boolean;
   /** @nullable */
   musicUrl?: string | null;
+  showWeather?: boolean;
+  companyHasCoordinates?: boolean;
   createdAt: string;
 }
 
@@ -346,6 +348,7 @@ export interface DeviceUpdate {
   showcase?: boolean;
   /** @nullable */
   musicUrl?: string | null;
+  showWeather?: boolean;
 }
 
 export interface FleetDevice {
@@ -435,6 +438,7 @@ export const DevicePreviewSlideSource = {
   panel: 'panel',
   playlist: 'playlist',
   alert: 'alert',
+  editorial: 'editorial',
 } as const;
 
 export type DevicePreviewSlide = DisplaySlide & {

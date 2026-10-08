@@ -15,6 +15,7 @@ const SOURCE_LABEL: Record<DevicePreviewSlide['source'], string> = {
   panel: 'Painel',
   playlist: 'Playlist',
   alert: 'Aviso urgente',
+  editorial: 'Clima',
 };
 
 /** Mesma regra de capa do display.tsx: arte do slide, senão a capa do YouTube. */

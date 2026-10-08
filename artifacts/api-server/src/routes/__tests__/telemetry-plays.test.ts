@@ -191,4 +191,30 @@ describe("exibição de aviso urgente não conta", () => {
     expect(res.status).toBe(201);
     expect(inserted).toEqual([]);
   });
+
+  it("lote: peça editorial também é descartada", async () => {
+    inserted = [];
+    selectResults = [[{ id: 1 }], [{ id: 7, source: "editorial" }, { id: 6, source: "admin" }], []];
+    returningRows = [{ id: 78 }];
+    const app = await buildApp();
+    const res = await postTo(app, "/telemetry/plays", {
+      deviceKey: "tv-1",
+      plays: [
+        { playId: "abcdefgh0003", announcementId: 7, durationSeconds: 10, ageSeconds: 1 },
+        { playId: "abcdefgh0004", announcementId: 6, durationSeconds: 10, ageSeconds: 1 },
+      ],
+    });
+    expect(res.status).toBe(200);
+    expect(inserted.map((row) => row.announcementId)).toEqual([6]);
+    expect((res.body as Record<string, unknown>).discarded).toBe(1);
+  });
+
+  it("endpoint antigo: peça editorial responde ok e não grava", async () => {
+    inserted = [];
+    selectResults = [[{ id: 1, deviceKey: "tv-1" }], [{ source: "editorial" }]];
+    const app = await buildApp();
+    const res = await postTo(app, "/telemetry/play", { deviceKey: "tv-1", announcementId: 7, durationSeconds: 10 });
+    expect(res.status).toBe(201);
+    expect(inserted).toEqual([]);
+  });
 });

@@ -16,9 +16,10 @@ import { campaignRunsAtTime, campaignRunsOnDay, filterEligibleSlides, type TimeW
 import { composeDeviceLoop, panelSlidesForClient } from "./panels/device-slides";
 import { filterByOrientation } from "./slide-orientation";
 import { findActiveAlertPiece } from "./alerts/active-alert";
+import { editorialPieceId, weatherImageUrl } from "./editorial/editorial-piece";
 
-/** De onde o slide veio: campanha vendida, painel do lojista, playlist do device ou aviso urgente do admin. */
-export type DeviceSlideSource = "campaign" | "panel" | "playlist" | "alert";
+/** De onde o slide veio: campanha vendida, painel do lojista, playlist do device, aviso urgente do admin ou slide de sistema (clima). */
+export type DeviceSlideSource = "campaign" | "panel" | "playlist" | "alert" | "editorial";
 
 export type FeedDevice = {
   id: number;
@@ -28,6 +29,10 @@ export type FeedDevice = {
   orientation: string;
   /** TV vitrine da landing. Ausente vale false (quem monta o device sem a coluna). */
   showcase?: boolean;
+  /** Slide de clima e hora ligado nesta TV. Ausente vale false. */
+  showWeather?: boolean;
+  /** A empresa dona da TV tem lat/lng (sem isso não há clima para mostrar). */
+  companyHasCoordinates?: boolean;
 };
 
 function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source: DeviceSlideSource }> {
@@ -184,12 +189,54 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
     }
   }
 
+  // Clima e hora: slide de sistema no fim da volta, peso 1. Só com a chave
+  // ligada, empresa com coordenadas e fora da vitrine. Falha aqui nunca
+  // derruba a programação — loga e segue sem o slide.
+  const extras: Array<(typeof playlistSlides)[number] & { source: DeviceSlideSource }> = [];
+  if (device.showWeather && device.companyHasCoordinates && !device.showcase) {
+    try {
+      const pieceId = await editorialPieceId();
+      if (pieceId === null) {
+        log.warn("Editorial piece missing; weather slide skipped");
+      } else {
+        extras.push({
+          announcementId: pieceId,
+          campaignId: null,
+          title: "Clima e hora",
+          displayText: null,
+          showText: false,
+          imageUrl: weatherImageUrl(device.companyId, screen, now),
+          duration: 10,
+          scanCode: null,
+          mediaKind: "image",
+          youtubeId: null,
+          playbackMode: "capped",
+          audioMode: "muted",
+          orientation: screen,
+          advertiserSegmentId: null,
+          advertiserCompanyId: null,
+          targetMode: "all",
+          deviceIds: [],
+          segmentIds: [],
+          weekdays: [],
+          timeWindows: [],
+          loopInsertions: 1,
+          panelId: null,
+          source: "editorial",
+        });
+      }
+    } catch (error) {
+      log.error({ err: error }, "Could not load weather slide for device");
+    }
+  }
+
   // A orientação sai antes de montar a volta: bloco que fica sem peça some e
   // não ocupa inserção no rodízio.
   const visible = composeDeviceLoop(
     tagSource(filterByOrientation(eligibleCampaignSlides, screen), "campaign"),
     tagSource(filterByOrientation(panelSlides, screen), "panel"),
     tagSource(filterByOrientation(playlistSlides, screen), "playlist"),
+    extras,
   );
 
   return Promise.all(

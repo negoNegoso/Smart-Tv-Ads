@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, inArray } from "drizzle-orm";
 import { db, devicesTable, playsTable, announcementsTable, campaignsTable } from "@workspace/db";
 import { RecordPlayBody, RecordPlaysBody, RecordPlaysResponse } from "@workspace/api-zod";
+import { isSystemSource } from "../lib/system-sources";
 import { buildPlayRows } from "../lib/telemetry/record-plays";
 
 const router: IRouter = Router();
@@ -25,13 +26,13 @@ router.post("/telemetry/play", async (req, res): Promise<void> => {
     return;
   }
 
-  // Arte de aviso urgente não conta exibição (ver /telemetry/plays): responde
-  // como se tivesse gravado para a TV não reenviar.
+  // Peça de sistema (aviso urgente, clima) não conta exibição (ver
+  // /telemetry/plays): responde como se tivesse gravado para a TV não reenviar.
   const [piece] = await db
     .select({ source: announcementsTable.source })
     .from(announcementsTable)
     .where(eq(announcementsTable.id, announcementId));
-  if (piece?.source === "alert") {
+  if (isSystemSource(piece?.source)) {
     res.status(201).json({ ok: true });
     return;
   }
@@ -87,9 +88,9 @@ router.post("/telemetry/plays", async (req, res): Promise<void> => {
   const { rows, discarded } = buildPlayRows(
     device.id,
     plays,
-    // Arte de aviso urgente não conta exibição: entra como descartada, a TV
-    // esvazia a fila e o contador público não infla durante o aviso.
-    new Set(announcements.filter((a) => a.source !== "alert").map((a) => a.id)),
+    // Peça de sistema (aviso urgente, clima) não conta exibição: entra como
+    // descartada, a TV esvazia a fila e o contador público não infla.
+    new Set(announcements.filter((a) => !isSystemSource(a.source)).map((a) => a.id)),
     new Set(campaigns.map((c) => c.id)),
     new Date(),
   );
