@@ -426,7 +426,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
             return false
         }
         TvWebViewConfig.apply(view)
-        view.webViewClient = TvWebViewClient(this, artes)
+        view.webViewClient = TvWebViewClient(this, artes, PaginaCache(File(filesDir, "pagina/tv.html")))
         // Antes do loadUrl: a ponte só existe em página carregada depois dela.
         view.addJavascriptInterface(musica, MusicaDeFundo.NOME_NA_PAGINA)
         view.addJavascriptInterface(atualizacaoPelaPagina, AtualizacaoPelaPagina.NOME_NA_PAGINA)

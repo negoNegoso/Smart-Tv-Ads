@@ -15,10 +15,12 @@ import android.webkit.WebViewClient
  * Traduz os callbacks da WebView em três eventos que a Activity entende.
  * A navegação fica dentro da WebView (comportamento padrão de WebViewClient).
  * Com [artes], as artes dos slides saem do cache em disco em vez da rede.
+ * Com [pagina], a própria tv.html sai do disco quando a Vercel não responde.
  */
 class TvWebViewClient(
     private val listener: Listener,
     private val artes: ArteCache? = null,
+    private val pagina: PaginaCache? = null,
 ) : WebViewClient() {
 
     interface Listener {
@@ -48,8 +50,9 @@ class TvWebViewClient(
 
     // API 21+. Roda fora da main thread; null = a WebView busca sozinha.
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        if (artes == null || request.isForMainFrame || request.method != "GET") return null
-        return artes.resposta(request.url.toString())
+        if (request.method != "GET") return null
+        val url = request.url.toString()
+        return if (request.isForMainFrame) pagina?.resposta(url) else artes?.resposta(url)
     }
 
     // API 23+.

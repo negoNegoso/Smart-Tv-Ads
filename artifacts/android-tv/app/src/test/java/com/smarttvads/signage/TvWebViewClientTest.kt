@@ -5,6 +5,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -146,6 +147,51 @@ class TvWebViewClientTest {
             assertNull(
                 comCache.shouldInterceptRequest(webView, pedido(principal = false, url = base + "a.jpg", metodo = "POST")),
             )
+            assertEquals(emptyList<String>(), server.pedidos.toList())
+        }
+    }
+
+    @Test
+    fun `pagina principal GET sai da PaginaCache`() {
+        TestHttpServer().use { server ->
+            val url = "http://127.0.0.1:${server.port}/real/tv"
+            server.put("tv", "<html>ok</html>".toByteArray())
+            val pagina = PaginaCache(File(tmp.root, "pagina/tv.html"), url, allowCleartext = true)
+            val comPagina = TvWebViewClient(eventos, pagina = pagina)
+
+            val resp = comPagina.shouldInterceptRequest(webView, pedido(principal = true, url = url))
+            assertEquals("<html>ok</html>", resp!!.data.readBytes().decodeToString())
+        }
+    }
+
+    @Test
+    fun `pagina principal sem PaginaCache deixa a WebView buscar`() {
+        assertNull(client.shouldInterceptRequest(webView, pedido(principal = true)))
+    }
+
+    @Test
+    fun `sub-recurso continua indo para as artes mesmo com PaginaCache`() {
+        TestHttpServer().use { server ->
+            val base = "http://127.0.0.1:${server.port}/real/"
+            server.put("a.jpg", "arte".toByteArray())
+            val artes = ArteCache(tmp.root, allowCleartext = true, ehArte = { it.startsWith(base) })
+            val pagina = PaginaCache(File(tmp.root, "pagina/tv.html"), base + "tv", allowCleartext = true)
+            val comAmbos = TvWebViewClient(eventos, artes, pagina)
+
+            val resp = comAmbos.shouldInterceptRequest(webView, pedido(principal = false, url = base + "a.jpg"))
+            assertArrayEquals("arte".toByteArray(), resp!!.data.readBytes())
+        }
+    }
+
+    @Test
+    fun `POST na pagina principal nao passa pela PaginaCache`() {
+        TestHttpServer().use { server ->
+            val url = "http://127.0.0.1:${server.port}/real/tv"
+            server.put("tv", "x".toByteArray())
+            val pagina = PaginaCache(File(tmp.root, "pagina/tv.html"), url, allowCleartext = true)
+            val comPagina = TvWebViewClient(eventos, pagina = pagina)
+
+            assertNull(comPagina.shouldInterceptRequest(webView, pedido(principal = true, url = url, metodo = "POST")))
             assertEquals(emptyList<String>(), server.pedidos.toList())
         }
     }
