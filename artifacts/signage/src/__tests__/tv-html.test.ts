@@ -34,6 +34,8 @@ let statusDaLista = 200;
 let orientacao = "landscape";
 // Música de fundo que o /feed devolve (null = TV sem música).
 let musica: unknown = null;
+// Faixa de recados que o /feed devolve (undefined = servidor antigo, sem o campo).
+let faixa: unknown = undefined;
 // Aviso de atualização do app que o /feed devolve (undefined = servidor
 // antigo, sem o campo).
 let atualizacao: unknown = undefined;
@@ -156,6 +158,7 @@ beforeEach(() => {
   statusDaLista = 200;
   orientacao = "landscape";
   musica = null;
+  faixa = undefined;
   atualizacao = undefined;
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
@@ -210,7 +213,7 @@ beforeEach(() => {
       if (statusDaLista === 200) {
         // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
         this.responseText = this.url.indexOf("/feed") >= 0
-          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, slides: listaDeSlides })
+          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, ticker: faixa, slides: listaDeSlides })
           : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
@@ -1806,5 +1809,85 @@ describe("tv.html: aviso de atualização do app", () => {
     vi.stubGlobal("SignageUpdate", {});
     atualizacao = SINAL;
     expect(() => carregarTv()).not.toThrow();
+  });
+});
+
+describe("tv.html: faixa de recados", () => {
+  const stage = () => document.getElementById("stage")!;
+  const texto = () => document.getElementById("ticker-text")!;
+
+  it("com ticker: mostra o texto e o palco ganha com-faixa", () => {
+    faixa = { text: "Pão quentinho às 17h · Siga @padaria" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(texto().textContent).toBe("Pão quentinho às 17h · Siga @padaria");
+    expect(stage().className).toContain("com-faixa");
+  });
+
+  it("duração cresce com o texto, com mínimo de 12s", () => {
+    faixa = { text: "Curto" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(texto().style.animationDuration).toBe("12s");
+
+    faixa = { text: "x".repeat(200) };
+    vi.advanceTimersByTime(60000);
+    expect(texto().style.animationDuration).toBe("50s");
+  });
+
+  it("sem ticker: sem faixa", () => {
+    faixa = null;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(stage().className).not.toContain("com-faixa");
+    expect(texto().textContent).toBe("");
+  });
+
+  it("servidor antigo, sem o campo: não quebra e fica sem faixa", () => {
+    faixa = undefined;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+    expect(noAr()).toBe("https://blob/a.png");
+    expect(stage().className).not.toContain("com-faixa");
+  });
+
+  it("refresh com o mesmo texto não reescreve a faixa", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    const no = texto().firstChild;
+    vi.advanceTimersByTime(60000);
+    expect(texto().firstChild).toBe(no);
+    expect(stage().className).toContain("com-faixa");
+  });
+
+  it("refresh com texto novo troca", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    faixa = { text: "Hoje fechamos às 18h" };
+    vi.advanceTimersByTime(60000);
+    expect(texto().textContent).toBe("Hoje fechamos às 18h");
+  });
+
+  it("refresh com ticker nulo tira a faixa", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    faixa = null;
+    vi.advanceTimersByTime(60000);
+    expect(stage().className).not.toContain("com-faixa");
+    expect(texto().textContent).toBe("");
+  });
+
+  it("TV em pé: a faixa continua depois do refresh (o giro reescreve a classe do palco)", () => {
+    orientacao = "portrait_right";
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    vi.advanceTimersByTime(60000);
+    expect(stage().className).toContain("portrait-right");
+    expect(stage().className).toContain("com-faixa");
   });
 });
