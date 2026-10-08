@@ -42,10 +42,12 @@ efeito (tem `feat` dentro → PR é `feat`).
 - `.github/workflows/release.yml`: todo merge na `main` roda os testes e cria a
   release `vX.Y.Z` no GitHub com `signage-tv-X.Y.Z.apk` (assinado),
   `signage-web-X.Y.Z.zip` e `update.json` anexados. PR roda só os testes.
-- O app Android lê `update.json` de `releases/latest/download/` para se
-  atualizar: **não** remover esse asset nem renomear o APK
+- O app Android lê `update.json` e o APK pela API (`/api/tv-app/`), que busca
+  a última release com o token `GITHUB_RELEASES_TOKEN` (o repositório é
+  privado): **não** remover esse asset nem renomear o APK
   (`signage-tv-X.Y.Z.apk`), e a release mais recente precisa ser a versão que
-  as TVs devem receber.
+  as TVs devem receber. TVs com o app até a 1.28 ainda leem direto de
+  `releases/latest/download/` do GitHub.
 - A versão vem de `scripts/release/next-version.mjs`: última tag `vX.Y.Z` +
   título do PR mesclado. Sem tag, base `1.0.0`.
 - **Nunca** criar tag `vX.Y.Z` à mão nem editar `versionName`/`versionCode` no

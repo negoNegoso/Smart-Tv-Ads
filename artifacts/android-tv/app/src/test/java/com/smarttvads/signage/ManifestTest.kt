@@ -50,9 +50,9 @@ class ManifestTest {
     }
 
     @Test
-    fun `atualizacao vem da ultima release do GitHub`() {
+    fun `atualizacao vem da API do painel`() {
         assertEquals(
-            "https://github.com/negoNegoso/Smart-Tv-Ads/releases/latest/download/",
+            "https://smart-tv-ads.vercel.app/api/tv-app/",
             BuildConfig.UPDATE_BASE_URL,
         )
     }
