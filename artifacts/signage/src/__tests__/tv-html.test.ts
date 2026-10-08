@@ -638,6 +638,7 @@ describe("tv.html: arte fora da proporção da tela", () => {
     // e iria em cover, cortando ~8% em cima e embaixo. Com a faixa a arte vai
     // sempre inteira, com o fundo desfocado.
     it("o CSS põe a arte em contain e liga o fundo desfocado sob a faixa", () => {
+      carregarTv();
       const css = Array.from(document.querySelectorAll("style")).map((e) => e.textContent).join("\n");
       expect(css).toMatch(/#stage\.com-faixa \.slot-arte\s*\{[^}]*background-size:\s*contain/);
       expect(css).toMatch(/#stage\.com-faixa \.slot-fundo\s*\{[^}]*display:\s*block/);
@@ -1922,6 +1923,46 @@ describe("tv.html: faixa de recados", () => {
     faixa = { text: "Hoje fechamos às 18h" };
     vi.advanceTimersByTime(60000);
     expect(texto().textContent).toBe("Hoje fechamos às 18h");
+  });
+
+  it("texto novo reinicia a animação do início (none e depois vazio)", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    // Registra cada atribuição ao nome da animação: sem o reinício, o
+    // navegador seguiria a animação de onde estava, com o texto já trocado.
+    const estilo = texto().style as unknown as Record<string, string>;
+    const gravado: string[] = [];
+    for (const prop of ["animationName", "webkitAnimationName"]) {
+      Object.defineProperty(estilo, prop, {
+        configurable: true,
+        get: () => "",
+        set: (v: string) => gravado.push(prop + "=" + v),
+      });
+    }
+    faixa = { text: "Hoje fechamos às 18h" };
+    vi.advanceTimersByTime(60000);
+    expect(texto().textContent).toBe("Hoje fechamos às 18h");
+    expect(gravado).toEqual([
+      "webkitAnimationName=none",
+      "animationName=none",
+      "webkitAnimationName=",
+      "animationName=",
+    ]);
+
+    // Mesmo texto no refresh seguinte: não mexe na animação.
+    gravado.length = 0;
+    vi.advanceTimersByTime(60000);
+    expect(gravado).toEqual([]);
+  });
+
+  it("os keyframes usam translate3d (camada própria nas TVs antigas)", () => {
+    expect(HTML).toMatch(/@-webkit-keyframes ticker-correr\s*\{[^}]*translate3d\(0,\s*0,\s*0\)[^}]*\}[^}]*translate3d\(-100%,\s*0,\s*0\)/);
+    expect(HTML).toMatch(/@keyframes ticker-correr\s*\{[^}]*translate3d\(0,\s*0,\s*0\)[^}]*\}[^}]*translate3d\(-100%,\s*0,\s*0\)/);
+  });
+
+  it("o comentário de aplicarMusica fica logo acima da função", () => {
+    expect(HTML).toMatch(/\/\/ Chamada a cada feed lido com sucesso\.[^\n]*\n(\s*\/\/[^\n]*\n)*\s*function aplicarMusica\(/);
   });
 
   it("refresh com ticker nulo tira a faixa", () => {
