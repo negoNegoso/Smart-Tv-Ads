@@ -28,7 +28,11 @@ class PaginaCache(
         if (url != tvUrl) return null
         val nova = baixar()
         if (nova != null) {
-            gravar(nova)
+            // Captive portal (Wi-Fi de loja) responde 200 com o próprio HTML:
+            // gravado, a próxima vez sem rede abriria o portal em vez da TV.
+            // Só a tv.html de verdade tem a marca; o resto vai para a WebView
+            // (pode ser o login do Wi-Fi), mas não substitui a cópia boa.
+            if (temMarca(nova)) gravar(nova)
             return html(nova)
         }
         return try {
@@ -67,10 +71,16 @@ class PaginaCache(
         }
     }
 
+    private fun temMarca(corpo: ByteArray) = corpo.decodeToString().contains(MARCA)
+
     private fun html(corpo: ByteArray) = WebResourceResponse("text/html", "utf-8", ByteArrayInputStream(corpo))
 
     companion object {
         private const val CONNECT_TIMEOUT_MS = 5_000
         private const val READ_TIMEOUT_MS = 10_000
+
+        // Chave do localStorage da lista sem internet, na tv.html. Um teste do
+        // web (tv-html.test.ts) garante que ela continua lá.
+        private const val MARCA = "signage-offline"
     }
 }

@@ -28,6 +28,10 @@ class PaginaCacheTest {
 
     private fun pagina() = PaginaCache(arquivo, tvUrl, allowCleartext = true)
 
+    // A tv.html de verdade tem a chave do localStorage "signage-offline"; o
+    // cache só guarda página que tenha essa marca.
+    private val V1 = "<html><script>var OFFLINE_KEY = 'signage-offline';</script>v1</html>"
+
     @Before
     fun sobe() {
         server = TestHttpServer()
@@ -39,32 +43,32 @@ class PaginaCacheTest {
 
     @Test
     fun `com rede entrega a pagina nova e grava a copia`() {
-        server.put("tv", "<html>v1</html>".toByteArray())
+        server.put("tv", V1.toByteArray())
         val resp = pagina().resposta(tvUrl)
         assertNotNull(resp)
         assertEquals("text/html", resp!!.mimeType)
         assertEquals("utf-8", resp.encoding.lowercase())
-        assertEquals("<html>v1</html>", resp.data.readBytes().decodeToString())
-        assertEquals("<html>v1</html>", arquivo.readText())
+        assertEquals(V1, resp.data.readBytes().decodeToString())
+        assertEquals(V1, arquivo.readText())
     }
 
     @Test
     fun `sem rede entrega a copia gravada`() {
-        server.put("tv", "<html>v1</html>".toByteArray())
+        server.put("tv", V1.toByteArray())
         pagina().resposta(tvUrl)
         server.close()
         val resp = pagina().resposta(tvUrl)
-        assertEquals("<html>v1</html>", resp!!.data.readBytes().decodeToString())
+        assertEquals(V1, resp!!.data.readBytes().decodeToString())
     }
 
     @Test
     fun `erro HTTP da Vercel entrega a copia`() {
         // Cópia já gravada; a URL não existe no servidor de teste, que responde 404.
         arquivo.parentFile!!.mkdirs()
-        arquivo.writeText("<html>v1</html>")
+        arquivo.writeText(V1)
         val urlQueDa404 = "http://127.0.0.1:${server.port}/real/sumiu"
         val resp = PaginaCache(arquivo, urlQueDa404, allowCleartext = true).resposta(urlQueDa404)
-        assertEquals("<html>v1</html>", resp!!.data.readBytes().decodeToString())
+        assertEquals(V1, resp!!.data.readBytes().decodeToString())
     }
 
     @Test
@@ -80,11 +84,24 @@ class PaginaCacheTest {
     }
 
     @Test
+    fun `captive portal com 200 e entregue mas nao substitui a copia boa`() {
+        server.put("tv", V1.toByteArray())
+        pagina().resposta(tvUrl)
+        val portal = "<html>Faça login no Wi-Fi da loja</html>"
+        server.put("tv", portal.toByteArray())
+        val resp = pagina().resposta(tvUrl)
+        // A WebView recebe o que veio (pode ser a tela de login do Wi-Fi)...
+        assertEquals(portal, resp!!.data.readBytes().decodeToString())
+        // ...mas a próxima vez sem rede ainda abre a tv.html boa.
+        assertEquals(V1, arquivo.readText())
+    }
+
+    @Test
     fun `pagina vazia nao substitui a copia boa`() {
-        server.put("tv", "<html>v1</html>".toByteArray())
+        server.put("tv", V1.toByteArray())
         pagina().resposta(tvUrl)
         server.put("tv", ByteArray(0))
         pagina().resposta(tvUrl)
-        assertEquals("<html>v1</html>", arquivo.readText())
+        assertEquals(V1, arquivo.readText())
     }
 }
