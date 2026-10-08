@@ -39,6 +39,9 @@ let faixa: unknown = undefined;
 // Aviso de atualização do app que o /feed devolve (undefined = servidor
 // antigo, sem o campo).
 let atualizacao: unknown = undefined;
+// Lista para tocar sem internet que o /feed devolve (undefined = servidor
+// antigo, sem o campo).
+let semInternet: unknown = undefined;
 let gets: string[] = [];
 // Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
 // O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
@@ -58,6 +61,13 @@ const slide = (announcementId: number, imageUrl: string) => ({
   videoIds: null,
   playbackMode: "capped",
   audioMode: "muted",
+});
+
+// Slide da lista salva com agenda (campanha) ou só `fim` (aviso urgente).
+const comAgenda = (announcementId: number, imageUrl: string, agenda: Record<string, unknown>) => ({
+  ...slide(announcementId, imageUrl),
+  campaignId: 5,
+  agenda,
 });
 
 /**
@@ -160,6 +170,7 @@ beforeEach(() => {
   musica = null;
   faixa = undefined;
   atualizacao = undefined;
+  semInternet = undefined;
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
@@ -213,7 +224,7 @@ beforeEach(() => {
       if (statusDaLista === 200) {
         // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
         this.responseText = this.url.indexOf("/feed") >= 0
-          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, ticker: faixa, slides: listaDeSlides })
+          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, ticker: faixa, offline: semInternet, slides: listaDeSlides })
           : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
@@ -1983,5 +1994,196 @@ describe("tv.html: faixa de recados", () => {
     vi.advanceTimersByTime(60000);
     expect(stage().className).toContain("portrait-right");
     expect(stage().className).toContain("com-faixa");
+  });
+});
+
+describe("tv.html: sem internet", () => {
+  // 2026-10-08 é quinta (getDay 4). 18:00Z = 15:00 em São Paulo.
+  const AGORA = new Date("2026-10-08T18:00:00Z");
+  const MINUTO = 60000;
+  const salvo = () => JSON.parse(window.localStorage.getItem("signage-offline") ?? "null");
+
+  beforeEach(() => {
+    vi.setSystemTime(AGORA);
+    listaDeSlides = [slide(1, "https://blob/online.png")];
+  });
+
+  function caiARede() {
+    statusDaLista = 0;
+    vi.advanceTimersByTime(MINUTO);
+  }
+
+  it("salva a lista do feed", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    expect(salvo().offline.slides[0].announcementId).toBe(9);
+  });
+
+  it("servidor antigo (sem offline) não salva nada", () => {
+    carregarTv();
+    expect(salvo()).toBeNull();
+  });
+
+  it("rede caiu: toca a lista salva", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    responder("https://blob/p.png", true);
+    expect(noAr()).toBe("https://blob/p.png");
+  });
+
+  it("liga sem internet com lista salva: já começa tocando", () => {
+    window.localStorage.setItem(
+      "signage-offline",
+      JSON.stringify({ screen: { orientation: "landscape" }, ticker: null, offline: { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] } }),
+    );
+    statusDaLista = 0;
+    carregarTv();
+    responder("https://blob/p.png", true);
+    expect(noAr()).toBe("https://blob/p.png");
+    expect(document.getElementById("empty-screen")!.className).not.toContain("visible");
+  });
+
+  it("campanha fora da faixa, do dia ou da data some; dentro toca", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [
+        comAgenda(10, "https://blob/noite.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [{ start: 1080, end: 1320 }] }),
+        comAgenda(11, "https://blob/sabado.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [6], faixas: [] }),
+        comAgenda(12, "https://blob/vencida.png", { inicio: "2026-09-01T03:00:00Z", fim: "2026-10-08T17:00:00Z", dias: [], faixas: [] }),
+        comAgenda(13, "https://blob/futura.png", { inicio: "2026-10-09T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [] }),
+        comAgenda(14, "https://blob/agora.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [4], faixas: [{ start: 840, end: 960 }] }),
+      ],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    responder("https://blob/agora.png", true);
+    expect(noAr()).toBe("https://blob/agora.png");
+    const pedidas = imagens.map((i) => i.src);
+    for (const fora of ["noite", "sabado", "vencida", "futura"]) {
+      expect(pedidas.some((u) => u.indexOf(fora) !== -1)).toBe(false);
+    }
+  });
+
+  it("fim da faixa não conta (15:00 numa faixa 14:00–15:00 está fora)", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [
+        comAgenda(10, "https://blob/ate15.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [{ start: 840, end: 900 }] }),
+        slide(9, "https://blob/p.png"),
+      ],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    responder("https://blob/p.png", true);
+    expect(imagens.some((i) => i.src.indexOf("ate15") !== -1)).toBe(false);
+  });
+
+  it("entra no horário enquanto está sem internet (refiltra a cada minuto)", () => {
+    vi.setSystemTime(new Date("2026-10-08T20:59:00Z")); // 17:59 SP
+    semInternet = {
+      geradoEm: "2026-10-08T20:59:00Z",
+      slides: [
+        slide(9, "https://blob/p.png"),
+        comAgenda(10, "https://blob/noite.png", { inicio: "2026-10-01T03:00:00Z", fim: "2026-10-31T03:00:00Z", dias: [], faixas: [{ start: 1080, end: 1320 }] }),
+      ],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede(); // 18:00 SP
+    vi.advanceTimersByTime(MINUTO);
+    expect(imagens.some((i) => i.src.indexOf("noite") !== -1)).toBe(true);
+  });
+
+  it("relógio antes da lista salva (box sem RTC): só o que não tem agenda", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [
+        comAgenda(10, "https://blob/paga.png", { inicio: "1970-01-01T00:00:00Z", fim: "2099-01-01T00:00:00Z", dias: [], faixas: [] }),
+        slide(9, "https://blob/p.png"),
+      ],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
+    caiARede();
+    responder("https://blob/p.png", true);
+    expect(noAr()).toBe("https://blob/p.png");
+    expect(imagens.some((i) => i.src.indexOf("paga") !== -1)).toBe(false);
+  });
+
+  it("aviso no ar: só o aviso; aviso vencido: volta a programação", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [comAgenda(50, "https://blob/aviso.png", { fim: "2026-10-08T18:30:00Z" }), slide(9, "https://blob/p.png")],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    responder("https://blob/aviso.png", true);
+    expect(noAr()).toBe("https://blob/aviso.png");
+    expect(imagens.some((i) => i.src.indexOf("/p.png") !== -1)).toBe(false);
+
+    vi.setSystemTime(new Date("2026-10-08T18:31:00Z"));
+    vi.advanceTimersByTime(MINUTO);
+    responder("https://blob/p.png", true);
+    expect(noAr()).toBe("https://blob/p.png");
+  });
+
+  it("lista filtrada vazia: tela de vazio", () => {
+    semInternet = {
+      geradoEm: AGORA.toISOString(),
+      slides: [comAgenda(12, "https://blob/vencida.png", { inicio: "2026-09-01T03:00:00Z", fim: "2026-10-01T03:00:00Z", dias: [], faixas: [] })],
+    };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    expect(document.getElementById("empty-screen")!.className).toContain("visible");
+  });
+
+  it("feed voltou: segue a lista do servidor", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    caiARede();
+    responder("https://blob/p.png", true);
+    statusDaLista = 200;
+    listaDeSlides = [slide(2, "https://blob/novo.png")];
+    vi.advanceTimersByTime(MINUTO);
+    responder("https://blob/novo.png", true);
+    expect(noAr()).toBe("https://blob/novo.png");
+  });
+
+  it("lista salva corrompida: segue como hoje, sem quebrar", () => {
+    window.localStorage.setItem("signage-offline", "{quebrado");
+    statusDaLista = 0;
+    expect(() => carregarTv()).not.toThrow();
+    expect(document.getElementById("empty-screen")!.className).toContain("visible");
+  });
+
+  it("localStorage cheio não interrompe o rodízio", () => {
+    window.localStorage.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    expect(noAr()).toBe("https://blob/online.png");
+  });
+
+  it("aplica a faixa e a orientação salvas e para a música", () => {
+    window.localStorage.setItem(
+      "signage-offline",
+      JSON.stringify({ screen: { orientation: "portrait_right" }, ticker: { text: "Pão às 17h" }, offline: { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] } }),
+    );
+    statusDaLista = 0;
+    carregarTv();
+    expect(document.getElementById("ticker-text")!.textContent).toBe("Pão às 17h");
+    expect(document.getElementById("stage")!.className).toContain("com-faixa");
+    // Mesmo seletor do teste "TV em pé: a faixa continua depois do refresh".
+    expect(document.getElementById("stage")!.className).toContain("portrait-right");
   });
 });
