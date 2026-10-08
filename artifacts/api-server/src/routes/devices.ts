@@ -56,6 +56,8 @@ async function getDeviceWithClient(where: SQL) {
       lastSeenAt: devicesTable.lastSeenAt,
       showcase: devicesTable.showcase,
       musicUrl: devicesTable.musicUrl,
+      showWeather: devicesTable.showWeather,
+      companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       createdAt: devicesTable.createdAt,
     })
     .from(devicesTable)
