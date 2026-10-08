@@ -69,6 +69,23 @@ class CachePelaPaginaTest {
     }
 
     @Test
+    fun `encerrar cancela o que estava na fila`() {
+        server.put("a.png", ByteArray(3))
+        val ponte = CachePelaPagina(cache, manual)
+        ponte.baixar("""["${url("a.png")}"]""")
+        ponte.encerrar()
+        rodarFila()
+        assertTrue(server.pedidos.isEmpty())
+    }
+
+    @Test
+    fun `encerrar desliga o executor`() {
+        val real = java.util.concurrent.Executors.newSingleThreadExecutor()
+        CachePelaPagina(cache, real).encerrar()
+        assertTrue(real.isShutdown)
+    }
+
+    @Test
     fun `json invalido e ignorado`() {
         val ponte = CachePelaPagina(cache, manual)
         ponte.baixar("lixo")

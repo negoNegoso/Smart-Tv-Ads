@@ -193,6 +193,7 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         handler.removeCallbacksAndMessages(null)
         musica.cancelar()
         updateExecutor.shutdown()
+        cachePelaPagina.encerrar()
         destroyWebView()
         super.onDestroy()
     }

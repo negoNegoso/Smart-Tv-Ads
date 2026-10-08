@@ -2,6 +2,7 @@ package com.smarttvads.signage
 
 import android.webkit.JavascriptInterface
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONArray
@@ -52,6 +53,17 @@ class CachePelaPagina(
             .put("cache", e.cache)
             .put("arquivos", e.arquivos)
             .toString()
+    }
+
+    /**
+     * Activity destruída não pode deixar thread viva: a do executor padrão é
+     * não-daemon e sobraria uma por instância. O `shutdownNow` também
+     * interrompe o download em curso; a geração nova faz o que ficou na fila
+     * não baixar nada.
+     */
+    fun encerrar() {
+        geracao.incrementAndGet()
+        (executor as? ExecutorService)?.shutdownNow()
     }
 
     companion object {
