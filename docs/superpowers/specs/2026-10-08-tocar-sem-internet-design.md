@@ -9,7 +9,7 @@ A TV (app Android) continua tocando a programação quando a internet cai, e
 também quando liga ou reinicia sem internet. Hoje, sem rede no boot, o app
 não consegue abrir a `tv.html` (vem da Vercel) e fica na tela de "sem
 conexão": tela preta de anúncio. Com a TV ligada, ela repete a lista em
-memória, mas só mostra as artes que o cache já tinha; vídeo falha.
+memória, mas só mostra as artes que o cache já tinha e o QR some.
 
 Junto: monitorar o espaço em disco do box/stick, para o cache nunca encher o
 aparelho e para o admin ver quem está com pouco espaço.
@@ -121,8 +121,8 @@ Primeiro item da lista de lacunas de mercado fora de programação.
   - Aplica `screen` e `ticker` salvos; música de fundo para.
 - Feed voltou: sai do modo sem internet e segue o caminho normal.
 - A cada feed bom, se `window.SignageCache` existe, chama
-  `SignageCache.baixar(JSON.stringify(urls))` com as mídias (imagem e vídeo)
-  de `offline.slides`, endereços absolutos (`imgUrl`).
+  `SignageCache.baixar(JSON.stringify(urls))` com as imagens e os QR de
+  `offline.slides`, endereços absolutos (`imgUrl`, `apiBase() + qrImageUrl`).
 - A cada busca do feed, se `SignageCache.estado` existe, manda o retorno em
   `X-Signage-Storage` (mesmo formato). Erro na ponte → sem cabeçalho.
 - Fora do app (sem ponte) nada disso é chamado; o modo sem internet ainda
@@ -142,20 +142,19 @@ Primeiro item da lista de lacunas de mercado fora de programação.
 
 ### Mídia (`ArteCache` ampliado)
 
-- Aceita vídeo (`mp4` → `video/mp4`, `webm` → `video/webm`), além de imagem;
-  só endereços do nosso Blob (regex atual).
-- `Range`: pedido com `Range: bytes=a-b` responde 206 com `Content-Range`,
-  `Content-Length`, `Accept-Ranges: bytes`; sem `Range`, 200 com o arquivo e
-  `Accept-Ranges`. Vídeo ainda fora do disco → `null` (WebView busca da rede
-  e o download em segundo plano cuida dele).
+- Não há vídeo enviado no sistema (peça é imagem, `youtube_video` ou
+  `youtube_playlist`), então o cache segue só de imagem — sem Range.
+- Passa a aceitar também o QR das campanhas:
+  `<origem do TV_URL>/api/qr/<código>.png` (resposta `immutable`; sem ele o
+  QR some sem internet).
 - Ponte nova `window.SignageCache` (`CachePelaPagina`):
-  - `baixar(json)`: lista de URLs; ignora o que não é do Blob; troca a fila
+  - `baixar(json)`: lista de URLs; ignora o que o cache não aceita; troca a fila
     pendente pela nova; um download por vez numa thread própria; pula o que
     já está em disco.
   - `estado()`: JSON `{livre,total,cache,arquivos}` — `StatFs(filesDir)` e a
     soma do diretório do cache.
   - Exposta a todo frame (como `SignageUpdate`): o pior caso de um iframe
-    chamar `baixar` é baixar arte nossa do Blob.
+    chamar `baixar` é baixar arte nossa do Blob ou QR nosso.
 - Lista atual guardada (última passada a `baixar`): na limpeza, sai primeiro
   o que não está nela, depois o usado há mais tempo.
 - Espaço: antes de cada download, se `livre − tamanho esperado
@@ -201,8 +200,8 @@ Android (JVM):
 
 - `PaginaCacheTest`: 200 grava e entrega; falha entrega a cópia; sem cópia
   → null; 500 da Vercel entrega a cópia.
-- `ArteCacheTest`: vídeo entra; Range 206 com cabeçalhos certos; sem Range
-  200; limpeza tira primeiro o que está fora da lista; não baixa abaixo de
+- `ArteCacheTest`: QR da origem da TV entra, outro caminho da origem não;
+  limpeza tira primeiro o que está fora da lista; não baixa abaixo de
   500 MB livres; teto encolhe com pouco espaço.
 - `CachePelaPaginaTest`: `baixar` ignora URL de fora, troca a fila, pula o
   que já tem; `estado` no formato certo.
