@@ -1373,6 +1373,11 @@
         showEmpty();
         // TV que o servidor não conhece não toca nada, nem música.
         desligarMusica();
+        // Device sem cadastro não pode tocar a lista antiga: sem isso, na
+        // próxima falha de rede (poll do pareamento, refresh ou boot sem
+        // rede) a TV esconderia o QR e voltaria a tocar as campanhas do
+        // device apagado até a rede voltar.
+        try { window.localStorage.removeItem(OFFLINE_KEY); } catch (e) {}
         emptyEl.className = '';
         document.getElementById('pair-qr').src = apiBase() + '/api/qr/pair/' + encodeURIComponent(key) + '.png';
         document.getElementById('pair-key').textContent = formatKey(key);

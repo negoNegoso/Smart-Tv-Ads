@@ -2174,6 +2174,25 @@ describe("tv.html: sem internet", () => {
     expect(noAr()).toBe("https://blob/online.png");
   });
 
+  it("TV desvinculada (404 do device) apaga a lista salva e não volta a tocá-la sem rede", () => {
+    semInternet = { geradoEm: AGORA.toISOString(), slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/online.png", true);
+    expect(salvo()).not.toBeNull();
+
+    // Device apagado: o próximo feed devolve o 404 exato do device.
+    statusDaLista = 404;
+    vi.advanceTimersByTime(MINUTO);
+    expect(document.getElementById("pair-screen")!.className).toContain("visible");
+    expect(window.localStorage.getItem("signage-offline")).toBeNull();
+
+    // Rede cai: nem o poll do pareamento (5 s) nem o refresh (60 s) tiram o QR.
+    statusDaLista = 0;
+    vi.advanceTimersByTime(MINUTO + 5000);
+    expect(document.getElementById("pair-screen")!.className).toContain("visible");
+    expect(imagens.some((i) => i.src.indexOf("/p.png") !== -1)).toBe(false);
+  });
+
   it("aplica a faixa e a orientação salvas e para a música", () => {
     window.localStorage.setItem(
       "signage-offline",
