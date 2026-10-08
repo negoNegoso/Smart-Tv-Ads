@@ -108,8 +108,9 @@ if (process.env.PRIVATE_OBJECT_DIR) {
 }
 
 /**
- * Biblioteca de peças: tudo menos as artes de aviso urgente, que só existem
- * para a TV registrar a exibição e não podem ser escolhidas para campanha.
+ * Biblioteca de peças: tudo menos as peças de sistema (arte de aviso urgente e
+ * slide de clima), que só existem para a TV registrar a exibição e não podem
+ * ser escolhidas para campanha.
  * Separada para o teste conferir o SQL sem banco.
  */
 export function buildAnnouncementsListQuery() {
@@ -233,8 +234,8 @@ router.get("/announcements/active", async (req, res): Promise<void> => {
 });
 
 /**
- * Contagem da tela Peças: ignora as artes de aviso urgente para os números
- * baterem com a lista (que já as esconde). Separada para o teste conferir o
+ * Contagem da tela Peças: ignora as peças de sistema (arte de aviso urgente e
+ * slide de clima) para os números baterem com a lista (que já as esconde). Separada para o teste conferir o
  * SQL sem banco.
  */
 export function buildAnnouncementStatsQuery() {

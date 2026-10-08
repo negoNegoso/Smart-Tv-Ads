@@ -26,8 +26,8 @@ router.post("/telemetry/play", async (req, res): Promise<void> => {
     return;
   }
 
-  // Peça de sistema (aviso urgente, clima) não conta exibição (ver /telemetry/plays): responde
-  // como se tivesse gravado para a TV não reenviar.
+  // Peça de sistema (aviso urgente, clima) não conta exibição (ver
+  // /telemetry/plays): responde como se tivesse gravado para a TV não reenviar.
   const [piece] = await db
     .select({ source: announcementsTable.source })
     .from(announcementsTable)
