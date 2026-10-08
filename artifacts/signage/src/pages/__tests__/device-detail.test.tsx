@@ -27,6 +27,7 @@ const DEVICE = {
   showcase: false,
   showWeather: false,
   companyHasCoordinates: true,
+  tickerMessages: [] as string[],
 };
 
 const ANUNCIO = {
@@ -378,5 +379,35 @@ describe('histórico de conexão', () => {
     expect(chave).toBeEnabled();
     await userEvent.click(chave);
     await waitFor(() => expect(patches).toEqual([{ showWeather: false }]));
+  });
+});
+
+describe('faixa de recados', () => {
+  it('escreve um recado e salva a lista sem vazios', async () => {
+    const patches: unknown[] = [];
+    stubTv(DEVICE, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Recado 1' }), 'Pão quentinho às 17h');
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+    await waitFor(() => expect(patches).toEqual([{ tickerMessages: ['Pão quentinho às 17h'] }]));
+  });
+
+  it('mostra os recados gravados e "+ recado" some no quinto', async () => {
+    stubTv({ ...DEVICE, tickerMessages: ['a', 'b', 'c', 'd'] }, [ANUNCIO]);
+    renderPagina();
+    expect(await screen.findByRole('textbox', { name: 'Recado 4' })).toHaveValue('d');
+    await userEvent.click(screen.getByRole('button', { name: '+ recado' }));
+    expect(screen.queryByRole('button', { name: '+ recado' })).not.toBeInTheDocument();
+  });
+
+  it('remover todos e salvar manda lista vazia', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, tickerMessages: ['Pão quentinho às 17h'] }, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover recado 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+    await waitFor(() => expect(patches).toEqual([{ tickerMessages: [] }]));
   });
 });
