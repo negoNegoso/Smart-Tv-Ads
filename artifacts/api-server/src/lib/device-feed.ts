@@ -41,9 +41,10 @@ function tagSource<R>(rows: R[], source: DeviceSlideSource): Array<R & { source:
 
 /**
  * Peças de campanha no ar agora. Separada para o teste inspecionar o SQL via
- * `.toSQL()` sem banco.
+ * `.toSQL()` sem banco. `startsBy` > now só para a lista sem internet
+ * (campanhas que vão começar nos próximos dias).
  */
-export function buildCampaignSlidesQuery(now: Date) {
+export function buildCampaignSlidesQuery(now: Date, startsBy: Date = now) {
   return db
     .select({
       announcementId: campaignAnnouncementsTable.announcementId,
@@ -66,6 +67,8 @@ export function buildCampaignSlidesQuery(now: Date) {
       segmentIds: sql<number[]>`coalesce((select array_agg(cs.segment_id) from campaign_segments cs where cs.campaign_id = ${campaignsTable.id}), array[]::int[])`,
       weekdays: campaignsTable.weekdays,
       timeWindows: campaignsTable.timeWindows,
+      startsAt: campaignsTable.startsAt,
+      endsAt: campaignsTable.endsAt,
       loopInsertions: campaignsTable.loopInsertions,
       panelId: sql<number | null>`NULL`,
     })
@@ -77,7 +80,7 @@ export function buildCampaignSlidesQuery(now: Date) {
     .where(
       and(
         eq(campaignsTable.isActive, true),
-        lte(campaignsTable.startsAt, now),
+        lte(campaignsTable.startsAt, startsBy),
         gte(campaignsTable.endsAt, now),
       ),
     )
@@ -86,14 +89,9 @@ export function buildCampaignSlidesQuery(now: Date) {
     .orderBy(asc(campaignsTable.id), asc(announcementsTable.displayOrder), asc(announcementsTable.id));
 }
 
-/**
- * A rotação que a TV exibe agora, na ordem de exibição, com a origem de cada
- * slide. Fonte única para a TV (/display/:deviceKey/slides) e para a prévia
- * do admin (/devices/:id/preview) — as duas não podem divergir no que vai ao
- * ar. Só lê: efeito colateral de TV (lastSeenAt) fica na rota da TV.
- */
-export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], now: Date = new Date()) {
-  const playlistSlides = await db
+/** Itens ativos da playlist do próprio device, na ordem de exibição. */
+export function loadPlaylistSlides(deviceId: number) {
+  return db
     .select({
       announcementId: devicePlaylistTable.announcementId,
       campaignId: sql<number | null>`NULL`,
@@ -117,16 +115,29 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       timeWindows: sql<TimeWindow[]>`'[]'::jsonb`,
       loopInsertions: sql<number>`1`,
       panelId: sql<number | null>`NULL`,
+      // Mesmas colunas das campanhas, para os tipos da volta baterem.
+      startsAt: sql<Date | null>`NULL`,
+      endsAt: sql<Date | null>`NULL`,
     })
     .from(devicePlaylistTable)
     .innerJoin(announcementsTable, eq(announcementsTable.id, devicePlaylistTable.announcementId))
     .where(
       and(
-        eq(devicePlaylistTable.deviceId, device.id),
+        eq(devicePlaylistTable.deviceId, deviceId),
         eq(devicePlaylistTable.isActive, true)
       )
     )
     .orderBy(asc(devicePlaylistTable.displayOrder));
+}
+
+/**
+ * A rotação que a TV exibe agora, na ordem de exibição, com a origem de cada
+ * slide. Fonte única para a TV (/display/:deviceKey/slides) e para a prévia
+ * do admin (/devices/:id/preview) — as duas não podem divergir no que vai ao
+ * ar. Só lê: efeito colateral de TV (lastSeenAt) fica na rota da TV.
+ */
+export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], now: Date = new Date()) {
+  const playlistSlides = await loadPlaylistSlides(device.id);
 
   const campaignSlides = await buildCampaignSlidesQuery(now);
 
@@ -222,6 +233,8 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
           timeWindows: [],
           loopInsertions: 1,
           panelId: null,
+          startsAt: null,
+          endsAt: null,
           source: "editorial",
         });
       }
@@ -251,6 +264,9 @@ export async function loadDeviceSlides(device: FeedDevice, log: Request["log"], 
       segmentIds,
       weekdays,
       timeWindows,
+      // Só para a lista sem internet; o player online não precisa.
+      startsAt,
+      endsAt,
       // Só servem para montar a volta; o player não precisa deles.
       loopInsertions,
       panelId,

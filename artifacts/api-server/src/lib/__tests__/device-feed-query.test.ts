@@ -33,4 +33,18 @@ describe("buildCampaignSlidesQuery", () => {
     const { sql } = buildCampaignSlidesQuery(new Date("2026-09-24T12:00:00Z")).toSQL();
     expect(sql).toContain('"campaigns"."time_windows"');
   });
+
+  it("traz início e fim da campanha (a TV sem internet confere a data sozinha)", () => {
+    const { sql } = buildCampaignSlidesQuery(new Date("2026-09-24T12:00:00Z")).toSQL();
+    expect(sql).toContain('"campaigns"."starts_at"');
+    expect(sql).toContain('"campaigns"."ends_at"');
+  });
+
+  it("com startsBy, aceita campanha que começa até aquela data", () => {
+    const now = new Date("2026-09-24T12:00:00Z");
+    const ate = new Date("2026-10-01T12:00:00Z");
+    const { params } = buildCampaignSlidesQuery(now, ate).toSQL();
+    expect(params).toContain(ate.toISOString());
+    expect(params).toContain(now.toISOString());
+  });
 });

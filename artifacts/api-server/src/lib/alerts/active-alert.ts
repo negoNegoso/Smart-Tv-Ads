@@ -2,7 +2,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db, announcementsTable, urgentAlertsTable } from "@workspace/db";
 import { activeAlertFor, alertPieceIdFor, type AlertDevice } from "./alert-eligibility";
 
-export type AlertPiece = { announcementId: number; title: string; imageUrl: string | null; duration: number };
+export type AlertPiece = { announcementId: number; title: string; imageUrl: string | null; duration: number; endsAt: Date };
 
 /**
  * A peça do aviso que toma esta TV agora, ou null. O banco só corta os
@@ -33,5 +33,5 @@ export async function findActiveAlertPiece(
       })
       .from(announcementsTable)
       .where(eq(announcementsTable.id, announcementId))) ?? [];
-  return piece ?? null;
+  return piece ? { ...piece, endsAt: alert.endsAt } : null;
 }
