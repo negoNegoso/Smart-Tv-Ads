@@ -1902,10 +1902,47 @@ components:
             version: { type: ["string", "null"] }
             # Quando o admin pediu, enquanto o pedido tem menos de 15 minutos.
             forcedAt: { type: ["string", "null"], format: date-time }
+        # Lista que a TV guarda para tocar sem internet: campanhas dos
+        # próximos 7 dias com a agenda (a TV filtra sozinha), painéis e
+        # playlist; sem YouTube e sem clima. Nulo na vitrine ou em falha.
+        offline:
+          type: ["object", "null"]
+          required: [geradoEm, slides]
+          properties:
+            geradoEm: { type: string, format: date-time }
+            slides:
+              type: array
+              items:
+                $ref: "#/components/schemas/OfflineSlide"
         slides:
           type: array
           items:
             $ref: "#/components/schemas/DisplaySlide"
+
+    OfflineSlide:
+      allOf:
+        - $ref: "#/components/schemas/DisplaySlide"
+        - type: object
+          properties:
+            # Só em campanha (inicio, fim, dias, faixas) e no aviso urgente
+            # (só fim). Sem agenda = toca sempre.
+            agenda:
+              type: object
+              required: [fim]
+              properties:
+                inicio: { type: string, format: date-time }
+                fim: { type: string, format: date-time }
+                dias:
+                  type: array
+                  items: { type: integer }
+                faixas:
+                  type: array
+                  items:
+                    type: object
+                    required: [start, end]
+                    properties:
+                      start: { type: integer }
+                      end: { type: integer }
 
     YouTubeMeta:
       type: object

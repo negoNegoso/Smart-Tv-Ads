@@ -18,6 +18,7 @@ const panelSlidesForClientMock = vi.fn();
 const setMock = vi.fn();
 const touchDeviceSessionMock = vi.fn();
 const latestTvAppReleaseForFeedMock = vi.fn();
+const loadOfflineFeedMock = vi.fn();
 
 let selectResults: unknown[] = [];
 let selectCallIndex = 0;
@@ -88,6 +89,16 @@ vi.mock("../../lib/device-sessions", () => ({
 vi.mock("../../lib/tv-app-release", () => ({
   latestTvAppReleaseForFeed: (...args: unknown[]) => latestTvAppReleaseForFeedMock(...args),
 }));
+
+// A montagem da lista sem internet tem teste próprio (lib/__tests__/offline-feed*);
+// aqui só interessa o que a rota faz com ela.
+vi.mock("../../lib/offline-feed", () => ({
+  loadOfflineFeed: (...args: unknown[]) => loadOfflineFeedMock(...args),
+}));
+
+beforeEach(() => {
+  loadOfflineFeedMock.mockReset().mockResolvedValue(null);
+});
 
 const { resetEditorialPieceCache } = await import("../../lib/editorial/editorial-piece");
 
@@ -936,4 +947,69 @@ describe("feed: espaço em disco da TV", () => {
       expect(valores).not.toHaveProperty("storageReportedAt");
     },
   );
+});
+
+describe("feed: lista sem internet", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    setMock.mockReset();
+    touchDeviceSessionMock.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectCallIndex = 0;
+  });
+
+  it("devolve o offline montado para a TV, com a agenda", async () => {
+    selectResults = [[DEVICE_ROW], [], []];
+    const offline = {
+      geradoEm: "2026-10-08T18:00:00.000Z",
+      slides: [
+        {
+          announcementId: 2,
+          campaignId: 5,
+          title: "Campanha",
+          displayText: null,
+          imageUrl: "https://x/a.png",
+          duration: 10,
+          qrImageUrl: null,
+          mediaKind: "image",
+          youtubeId: null,
+          playbackMode: "capped",
+          audioMode: "muted",
+          videoIds: null,
+          agenda: { inicio: "2026-10-01T03:00:00.000Z", fim: "2026-10-31T03:00:00.000Z", dias: [1], faixas: [{ start: 1080, end: 1320 }] },
+        },
+      ],
+    };
+    loadOfflineFeedMock.mockResolvedValue(offline);
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+
+    const res = await request(app).get("/display/tv-1/feed").expect(200);
+
+    expect(res.body.offline).toEqual(offline);
+    expect(loadOfflineFeedMock.mock.calls[0]![0]).toMatchObject({ id: DEVICE_ROW.id });
+  });
+
+  it("sem lista (vitrine ou falha) → offline null e o resto do feed igual", async () => {
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], []];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+
+    const res = await request(app).get("/display/tv-1/feed").expect(200);
+
+    expect(res.body.offline).toBeNull();
+    expect(res.body.slides).toHaveLength(1);
+  });
+
+  it("/slides (endpoint antigo) não monta a lista", async () => {
+    selectResults = [[DEVICE_ROW], [], []];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+
+    await request(app).get("/display/tv-1/slides").expect(200);
+
+    expect(loadOfflineFeedMock).not.toHaveBeenCalled();
+  });
 });

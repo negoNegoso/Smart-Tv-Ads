@@ -67,6 +67,33 @@ export const GetVitrineFeedResponse = zod.object({
   "version": zod.string().nullable(),
   "forcedAt": zod.coerce.date().nullable()
 }).nullish(),
+  "offline": zod.object({
+  "geradoEm": zod.coerce.date(),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}).and(zod.object({
+  "agenda": zod.object({
+  "inicio": zod.coerce.date().optional(),
+  "fim": zod.coerce.date(),
+  "dias": zod.array(zod.number()).optional(),
+  "faixas": zod.array(zod.object({
+  "start": zod.number(),
+  "end": zod.number()
+})).optional()
+}).optional()
+})))
+}).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),
   "campaignId": zod.number().nullish(),
@@ -1057,6 +1084,33 @@ export const GetDisplayFeedResponse = zod.object({
   "appUpdate": zod.object({
   "version": zod.string().nullable(),
   "forcedAt": zod.coerce.date().nullable()
+}).nullish(),
+  "offline": zod.object({
+  "geradoEm": zod.coerce.date(),
+  "slides": zod.array(zod.object({
+  "announcementId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "title": zod.string(),
+  "displayText": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "duration": zod.number(),
+  "qrImageUrl": zod.string().nullish(),
+  "mediaKind": zod.string(),
+  "youtubeId": zod.string().nullish(),
+  "playbackMode": zod.string().nullish(),
+  "audioMode": zod.string().nullish(),
+  "videoIds": zod.array(zod.string()).nullish()
+}).and(zod.object({
+  "agenda": zod.object({
+  "inicio": zod.coerce.date().optional(),
+  "fim": zod.coerce.date(),
+  "dias": zod.array(zod.number()).optional(),
+  "faixas": zod.array(zod.object({
+  "start": zod.number(),
+  "end": zod.number()
+})).optional()
+}).optional()
+})))
 }).nullish(),
   "slides": zod.array(zod.object({
   "announcementId": zod.number(),

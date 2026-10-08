@@ -493,6 +493,30 @@ export type DisplayFeedAppUpdate = {
   forcedAt: string | null;
 } | null;
 
+export type OfflineSlideAgendaFaixasItem = {
+  start: number;
+  end: number;
+};
+
+export type OfflineSlideAgenda = {
+  inicio?: string;
+  fim: string;
+  dias?: number[];
+  faixas?: OfflineSlideAgendaFaixasItem[];
+};
+
+export type OfflineSlide = DisplaySlide & {
+  agenda?: OfflineSlideAgenda;
+};
+
+/**
+ * @nullable
+ */
+export type DisplayFeedOffline = {
+  geradoEm: string;
+  slides: OfflineSlide[];
+} | null;
+
 export interface DisplayFeed {
   screen: DisplayFeedScreen;
   /** @nullable */
@@ -501,6 +525,8 @@ export interface DisplayFeed {
   ticker?: DisplayFeedTicker;
   /** @nullable */
   appUpdate?: DisplayFeedAppUpdate;
+  /** @nullable */
+  offline?: DisplayFeedOffline;
   slides: DisplaySlide[];
 }
 

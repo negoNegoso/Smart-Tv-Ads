@@ -4,6 +4,7 @@ import { db, devicesTable, clientsTable, companiesTable } from "@workspace/db";
 import { GetDeviceSlidesResponse, GetDisplayFeedResponse } from "@workspace/api-zod";
 import { deviceOrientationOf } from "@workspace/db/orientation";
 import { loadDeviceSlides } from "../lib/device-feed";
+import { loadOfflineFeed } from "../lib/offline-feed";
 import { parseStorageHeader } from "../lib/device-storage";
 import { touchDeviceSession } from "../lib/device-sessions";
 import { latestTvAppReleaseForFeed } from "../lib/tv-app-release";
@@ -105,6 +106,8 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
   }
   // Nunca lança e nunca segura o feed além do teto (lib/tv-app-release.ts).
   const latest = await latestTvAppReleaseForFeed();
+  // Nunca lança: falha vira null e a TV segue com a lista salva antes.
+  const offline = await loadOfflineFeed(tv.device, req.log, tv.now);
   res.json(
     GetDisplayFeedResponse.parse({
       screen: { orientation: deviceOrientationOf(tv.device.orientation) },
@@ -126,6 +129,7 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
         updateRequestedAt: tv.device.updateRequestedAt,
         now: tv.now,
       }),
+      offline,
       slides: tv.slides,
     }),
   );
