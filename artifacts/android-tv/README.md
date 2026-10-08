@@ -84,9 +84,24 @@ gh secret set SIGNAGE_KEY_ALIAS --body signage
 gh secret set SIGNAGE_KEY_PASS        # pede a senha no terminal
 ```
 
-O repositório é público: o APK do Release fica baixável por qualquer um (ele
-só abre o domínio público). O keystore fica só nos secrets e é apagado do
-runner ao fim do job.
+O keystore fica só nos secrets e é apagado do runner ao fim do job.
+
+**O repositório é privado**, então o link `releases/latest/download/` do GitHub
+dá 404 para quem baixa sem login — as TVs e o navegador da box. Elas baixam
+pela API do painel (`https://smart-tv-ads.vercel.app/api/tv-app/`), que lê a
+release com um token guardado só no servidor:
+
+- `GET /api/tv-app/update.json` — o mesmo `update.json` da última release.
+- `GET /api/tv-app/signage-tv-X.Y.Z.apk` e `GET /api/tv-app/apk` — redirecionam
+  para um link temporário do APK gerado pelo GitHub (vale alguns minutos).
+
+**Configuração única — token na Vercel:** crie um token *fine-grained* no
+GitHub (Settings → Developer settings → Personal access tokens) com acesso só
+a este repositório e permissão **Contents: Read-only**, e guarde como
+`GITHUB_RELEASES_TOKEN` nas variáveis de ambiente de produção do projeto na
+Vercel. O token expira na data escolhida ao criar: antes disso, gere outro e
+troque a variável — as TVs não mudam nada. Sem ele, a página `/apk` mostra
+"Não foi possível obter o aplicativo agora" e as TVs não acham versão nova.
 
 ## Instalação na TV / TV box (técnico)
 
@@ -187,7 +202,9 @@ temporizador do sistema, só o de suspensão geral.
 
 ## Atualizar o app
 
-O app se atualiza sozinho a partir das releases do GitHub:
+O app se atualiza sozinho a partir das releases do GitHub, pela API do painel
+(versão 1.29 em diante; até a 1.28 o app lia direto do GitHub e precisa que o
+repositório esteja público para achar a versão nova):
 
 - Checa 2 minutos depois de abrir e depois a cada 6 horas.
 - Achou versão nova: baixa e confere o SHA-256.
