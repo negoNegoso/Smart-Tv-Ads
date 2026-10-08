@@ -889,3 +889,51 @@ describe("GET /display/:deviceKey/feed — faixa de recados", () => {
     }
   });
 });
+
+describe("feed: espaço em disco da TV", () => {
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    setMock.mockReset();
+    touchDeviceSessionMock.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [[DEVICE_ROW], [PLAYLIST_ROW], []];
+    selectCallIndex = 0;
+  });
+
+  it("grava a leitura do cabeçalho junto com o lastSeenAt", async () => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+
+    await request(app)
+      .get("/display/tv-1/feed")
+      .set("X-Signage-Storage", "livre=1000;total=8000;cache=300;arquivos=12")
+      .expect(200);
+
+    const valores = setMock.mock.calls[0]![0] as Record<string, unknown>;
+    expect(valores).toMatchObject({
+      storageFreeBytes: 1000,
+      storageTotalBytes: 8000,
+      cacheBytes: 300,
+      cacheFiles: 12,
+    });
+    expect(valores.storageReportedAt).toBeInstanceOf(Date);
+    expect(valores.storageReportedAt).toEqual(valores.lastSeenAt);
+  });
+
+  it.each([[undefined], ["livre=-1;total=2;cache=3;arquivos=1"]])(
+    "sem cabeçalho válido (%s) não mexe nas colunas",
+    async (cabecalho) => {
+      const app = await buildApp();
+      const { default: request } = await import("supertest");
+
+      const req = request(app).get("/display/tv-1/feed");
+      await (cabecalho ? req.set("X-Signage-Storage", cabecalho) : req).expect(200);
+
+      const valores = setMock.mock.calls[0]![0] as Record<string, unknown>;
+      expect(valores).not.toHaveProperty("storageFreeBytes");
+      expect(valores).not.toHaveProperty("storageReportedAt");
+    },
+  );
+});

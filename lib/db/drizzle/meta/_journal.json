@@ -169,6 +169,13 @@
       "when": 1791456731699,
       "tag": "0023_clammy_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791486149971,
+      "tag": "0024_worthless_edwin_jarvis",
+      "breakpoints": true
     }
   ]
 }
