@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, companiesTable } from "@workspace/db";
 import { formatClock } from "../lib/editorial/clock";
 import { fetchForecast } from "../lib/editorial/forecast";
@@ -20,10 +20,18 @@ router.get("/editorial/weather.png", async (req, res): Promise<void> => {
     return;
   }
   const [company] = await db
-    .select({ name: companiesTable.name, city: companiesTable.city, lat: companiesTable.lat, lng: companiesTable.lng })
+    .select({
+      name: companiesTable.name,
+      city: companiesTable.city,
+      lat: companiesTable.lat,
+      lng: companiesTable.lng,
+      // Rota pública com id sequencial: só quem tem TV real com o clima ligado
+      // responde, senão qualquer um listaria a cidade e o nome de todas as lojas.
+      usesWeather: sql<boolean>`exists (select 1 from devices d join clients c on c.id = d.client_id where c.company_id = ${companiesTable.id} and d.show_weather and not d.showcase)`,
+    })
     .from(companiesTable)
     .where(eq(companiesTable.id, companyId));
-  if (!company || company.lat == null || company.lng == null) {
+  if (!company || !company.usesWeather || company.lat == null || company.lng == null) {
     res.status(404).json({ error: "Empresa sem localização." });
     return;
   }

@@ -22,7 +22,7 @@ async function buildApp(): Promise<Express> {
   return app;
 }
 
-const LOJA = { name: "Padaria Pão Bom", city: "São José dos Campos", lat: -23.18, lng: -45.89 };
+const LOJA = { name: "Padaria Pão Bom", city: "São José dos Campos", lat: -23.18, lng: -45.89, usesWeather: true };
 const PREVISAO = { current: { temperature: 27, code: 2 }, today: { max: 31, min: 18, code: 2 }, nextDays: [] };
 
 beforeEach(() => {
@@ -74,6 +74,7 @@ describe("GET /editorial/weather.png", () => {
   it.each([
     ["empresa inexistente", [], "12"],
     ["empresa sem coordenadas", [{ ...LOJA, lat: null }], "12"],
+    ["empresa sem TV com o clima ligado", [{ ...LOJA, usesWeather: false }], "12"],
     ["company inválido", [LOJA], "abc"],
     ["company zero", [LOJA], "0"],
   ])("404: %s, sem buscar o clima", async (_caso, rows, company) => {
