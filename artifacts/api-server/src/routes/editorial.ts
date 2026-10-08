@@ -27,7 +27,10 @@ router.get("/editorial/weather.png", async (req, res): Promise<void> => {
       lng: companiesTable.lng,
       // Rota pública com id sequencial: só quem tem TV real com o clima ligado
       // responde, senão qualquer um listaria a cidade e o nome de todas as lojas.
-      usesWeather: sql<boolean>`exists (select 1 from devices d join clients c on c.id = d.client_id where c.company_id = ${companiesTable.id} and d.show_weather and not d.showcase)`,
+      // A empresa vai com a tabela escrita: em select de uma tabela só o
+      // drizzle tira o prefixo de ${companiesTable.id}, e o "id" solto fica
+      // ambíguo entre devices e clients dentro do exists.
+      usesWeather: sql<boolean>`exists (select 1 from devices d join clients c on c.id = d.client_id where c.company_id = ${sql.identifier("companies")}.${sql.identifier("id")} and d.show_weather and not d.showcase)`,
     })
     .from(companiesTable)
     .where(eq(companiesTable.id, companyId));
