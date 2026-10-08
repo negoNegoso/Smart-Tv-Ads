@@ -3,6 +3,17 @@
  * pelo servidor; aqui é só agrupar, filtrar e escrever.
  */
 
+import { formatBytes } from './bytes';
+
+export interface DeviceStorageInfo {
+  freeBytes: number;
+  totalBytes: number;
+  cacheBytes: number;
+  cacheFiles: number;
+  reportedAt: string;
+  low: boolean;
+}
+
 export interface FleetRow {
   id: number;
   clientName: string;
@@ -14,9 +25,10 @@ export interface FleetRow {
   appVersion: string | null;
   outdated: boolean;
   updateRequestedAt: string | null;
+  storage: DeviceStorageInfo | null;
 }
 
-export type FleetFilter = 'all' | 'online' | 'offline' | 'outdated';
+export type FleetFilter = 'all' | 'online' | 'offline' | 'outdated' | 'lowStorage';
 
 /**
  * A vitrine da landing fica fora das contas: ela aparece online por causa das
@@ -34,6 +46,7 @@ export function fleetCounts(devices: FleetRow[]) {
     online,
     offline: tvs.length - online,
     outdated: tvs.filter((d) => d.outdated).length,
+    lowStorage: tvs.filter((d) => d.storage?.low).length,
   };
 }
 
@@ -81,6 +94,7 @@ export function filterFleet(devices: FleetRow[], filter: FleetFilter): FleetRow[
       if (filter === 'online') return d.isOnline;
       if (filter === 'offline') return !d.isOnline;
       if (filter === 'outdated') return d.outdated;
+      if (filter === 'lowStorage') return !!d.storage?.low;
       return true;
     })
     .sort((a, b) => Number(a.isOnline) - Number(b.isOnline) || a.name.localeCompare(b.name, 'pt-BR'));
@@ -113,4 +127,8 @@ export function updateRequestedLabel(updateRequestedAt: string | null, now: Date
   // Inclui pedido "no futuro": relógio do banco à frente do navegador.
   if (minutes < 1) return 'atualização pedida agora';
   return `atualização pedida há ${minutes} min`;
+}
+
+export function storageLabel(s: DeviceStorageInfo): string {
+  return `${formatBytes(s.freeBytes)} livres de ${formatBytes(s.totalBytes)} · cache ${formatBytes(s.cacheBytes)}`;
 }

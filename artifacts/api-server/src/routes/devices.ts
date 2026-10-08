@@ -10,6 +10,7 @@ import {
   announcementsTable,
 } from "@workspace/db";
 import { pieceOrientationOf, screenOrientationOf } from "@workspace/db/orientation";
+import { storageView } from "../lib/device-storage";
 import { showcaseConflictMessage } from "../lib/showcase";
 import { normalizeTickerMessages } from "../lib/ticker";
 import {
@@ -61,6 +62,11 @@ async function getDeviceWithClient(where: SQL) {
       tickerMessages: devicesTable.tickerMessages,
       companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       createdAt: devicesTable.createdAt,
+      storageFreeBytes: devicesTable.storageFreeBytes,
+      storageTotalBytes: devicesTable.storageTotalBytes,
+      cacheBytes: devicesTable.cacheBytes,
+      cacheFiles: devicesTable.cacheFiles,
+      storageReportedAt: devicesTable.storageReportedAt,
     })
     .from(devicesTable)
     .innerJoin(clientsTable, eq(clientsTable.id, devicesTable.clientId))
@@ -159,7 +165,13 @@ router.get("/devices/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Device not found" });
     return;
   }
-  res.json(GetDeviceResponse.parse(row));
+  const { storageFreeBytes, storageTotalBytes, cacheBytes, cacheFiles, storageReportedAt, ...device } = row;
+  res.json(
+    GetDeviceResponse.parse({
+      ...device,
+      storage: storageView({ storageFreeBytes, storageTotalBytes, cacheBytes, cacheFiles, storageReportedAt }),
+    }),
+  );
 });
 
 // Update device

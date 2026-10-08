@@ -51,6 +51,7 @@ export * from './devicePreviewSlide';
 export * from './devicePreviewSlideSource';
 export * from './deviceSession';
 export * from './deviceSessions';
+export * from './deviceStorage';
 export * from './deviceUpdate';
 export * from './deviceUpdateOrientation';
 export * from './displayFeed';

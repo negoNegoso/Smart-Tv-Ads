@@ -28,6 +28,9 @@ const DEVICE = {
   showWeather: false,
   companyHasCoordinates: true,
   tickerMessages: [] as string[],
+  storage: null as null | {
+    freeBytes: number; totalBytes: number; cacheBytes: number; cacheFiles: number; reportedAt: string; low: boolean;
+  },
 };
 
 const ANUNCIO = {
@@ -118,6 +121,29 @@ function stubTv(device: typeof DEVICE, anuncios: unknown[], patches: unknown[] =
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('espaço no aparelho', () => {
+  it('mostra o espaço livre, o cache e quando foi lido', async () => {
+    const device = {
+      ...DEVICE,
+      storage: {
+        freeBytes: 1.2 * 1024 ** 3, totalBytes: 8 * 1024 ** 3, cacheBytes: 340 * 1024 ** 2, cacheFiles: 3,
+        reportedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), low: false,
+      },
+    };
+    stubTv(device, []);
+    renderPagina();
+    const bloco = await screen.findByTestId('device-storage');
+    expect(bloco).toHaveTextContent('1,2 GB livres de 8 GB · cache 340 MB');
+    expect(bloco).toHaveTextContent('lido há 5 min');
+  });
+
+  it('TV sem leitura avisa que ainda não há espaço lido', async () => {
+    stubTv(DEVICE, []);
+    renderPagina();
+    expect(await screen.findByText('Sem leitura de espaço ainda.')).toBeInTheDocument();
+  });
+});
 
 describe('orientação da TV', () => {
   it('mostra o caminho a partir do Parque de TVs', async () => {

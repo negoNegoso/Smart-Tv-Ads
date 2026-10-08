@@ -39,6 +39,7 @@ import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientati
 import { PageHeader } from '@/components/page-header';
 import { DevicePreview } from '@/components/device-preview';
 import { DeviceMusicField } from '@/components/device-music-field';
+import { DeviceStorageInfo } from '@/components/device-storage-info';
 import { DeviceTickerField } from '@/components/device-ticker-field';
 import { DeviceConnectionHistory } from '@/components/device-connection-history';
 import { tvFrameClass } from '@/components/piece-preview';
@@ -587,6 +588,8 @@ export default function DeviceDetail() {
       <DeviceMusicField deviceId={deviceId} musicUrl={device.musicUrl ?? null} />
 
       <DeviceTickerField deviceId={deviceId} messages={device.tickerMessages ?? NO_MESSAGES} showcase={device.showcase} />
+
+      <DeviceStorageInfo storage={device.storage} />
 
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
           ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a
