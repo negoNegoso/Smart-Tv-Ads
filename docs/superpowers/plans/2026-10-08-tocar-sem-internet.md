@@ -22,7 +22,7 @@
 - Cabeçalho: `X-Signage-Storage: livre=<bytes>;total=<bytes>;cache=<bytes>;arquivos=<n>`.
 - Ponte nova: `window.SignageCache` com `baixar(json)` e `estado()`.
 - Chave do `localStorage`: `signage-offline`.
-- Comandos: API `pnpm --filter @workspace/api-server exec vitest run <arquivo>`; web `pnpm --filter @workspace/signage exec vitest run <arquivo>`; Android `cd artifacts/android-tv && ./gradlew testDebugUnitTest --tests '<Classe>'`; codegen `pnpm --filter @workspace/api-spec run codegen`; migração `DATABASE_URL=postgres://u:p@localhost:5432/x pnpm --filter @workspace/db run generate`; tipos `pnpm -w run typecheck`.
+- Comandos (rodar a partir da raiz da worktree): API `pnpm --filter @workspace/api-server exec vitest run <arquivo>`; web `pnpm --filter @workspace/signage exec vitest run <arquivo>`; Android `cd artifacts/android-tv && ./gradlew testDebugUnitTest --tests '<Classe>'`; codegen `pnpm --filter @workspace/api-spec run codegen`; migração `DATABASE_URL=postgres://u:p@localhost:5432/x pnpm --filter @workspace/db run generate`; tipos `pnpm -w run typecheck`.
 
 ## Review Focus
 
@@ -532,17 +532,11 @@ describe("loadOfflineFeed", () => {
     ]);
   });
 
-  it("busca campanhas que começam em até 7 dias", async () => {
-    selectResults = [[], []];
-    const spy = vi.spyOn(await import("../device-feed"), "buildCampaignSlidesQuery");
-    await loadOfflineFeed(DEVICE, log, NOW);
-    // Se o spy não pegar a chamada interna (import direto no módulo), troque
-    // por um teste de `buildCampaignSlidesQuery(now, startsBy)` no
-    // device-feed-query.test — a regra é: startsBy = now + 7 dias.
-    if (spy.mock.calls.length) {
-      expect(spy.mock.calls[0]![1]).toEqual(new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000));
-    }
-    spy.mockRestore();
+  it("horizonte da lista é de 7 dias", async () => {
+    // A consulta com `startsBy` tem teste próprio (device-feed-query.test);
+    // aqui fica a constante que a liga ao `now`.
+    const { OFFLINE_HORIZON_MS } = await import("../offline-feed");
+    expect(OFFLINE_HORIZON_MS).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   it("concorrente e campanha de outra TV não entram", async () => {
@@ -1796,20 +1790,41 @@ git commit -m "feat(tv): pede as artes ao app e informa o espaço em disco" -m "
     }
 
     @Test
-    fun `teto encolhe quando o disco esta apertado`() {
-        // 600 MB livres - 500 MB de reserva = ~100 bytes de folga no teste: só cabe uma arte de 60.
-        val folga = 100L
-        var livre = ArteCache.RESERVA_BYTES + folga
+    fun `disco apertado libera o que saiu da lista antes de desistir`() {
+        // Disco realista: o livre cai conforme o cache cresce.
+        val base = ArteCache.RESERVA_BYTES + 130
         server.put("a.png", ByteArray(60))
         server.put("b.png", ByteArray(60))
-        val c = cache(limite = 1_000_000, livre = { livre })
+        server.put("c.png", ByteArray(60))
+        val c = cache(limite = 1_000_000, livre = { base - tamanhoDoCache() })
         assertTrue(c.baixarAntes(url("a.png")))
-        livre -= 60
         Thread.sleep(10)
         assertTrue(c.baixarAntes(url("b.png")))
-        val arquivos = dir.listFiles().orEmpty().filter { it.isFile }
-        assertEquals(1, arquivos.size)
+        // Sobram 10 bytes acima da reserva: "c" só cabe se "a" (fora da lista) sair.
+        c.manterLista(listOf(url("b.png"), url("c.png")))
+        assertTrue(c.baixarAntes(url("c.png")))
+        server.pedidos.clear()
+        c.resposta(url("b.png"))
+        assertTrue("b ficou", server.pedidos.isEmpty())
+        assertEquals(2, dir.listFiles().orEmpty().count { it.isFile && !it.name.endsWith(".part") })
     }
+
+    @Test
+    fun `disco apertado e tudo na lista atual: nao baixa`() {
+        val base = ArteCache.RESERVA_BYTES + 70
+        server.put("a.png", ByteArray(60))
+        server.put("b.png", ByteArray(60))
+        val c = cache(limite = 1_000_000, livre = { base - tamanhoDoCache() })
+        c.manterLista(listOf(url("a.png"), url("b.png")))
+        assertTrue(c.baixarAntes(url("a.png")))
+        assertFalse(c.baixarAntes(url("b.png")))
+        server.pedidos.clear()
+        c.resposta(url("a.png"))
+        assertTrue("a ficou", server.pedidos.isEmpty())
+    }
+
+    private fun tamanhoDoCache(): Long =
+        dir.listFiles().orEmpty().filter { it.isFile && !it.name.endsWith(".part") }.sumOf { it.length() }
 
     @Test
     fun `limpeza tira primeiro o que saiu da lista atual`() {
@@ -1886,22 +1901,39 @@ Expected: FAIL (compilação: `ehQrDaTv`, `baixarAntes`, `manterLista`, `estado`
 ```
 
   - `resposta`: troque `if (!ehArte(url)) return null` + `mimeDaExtensao` por `if (!aceita(url)) return null; val mime = mimeDaExtensao(url)!!`.
-  - `baixar(url, alvo)`: antes de abrir conexão, `if (livre() < RESERVA_BYTES) return null`; depois do `responseCode == 200`, `val tamanho = conn.contentLengthLong; if (tamanho > 0 && livre() - tamanho < RESERVA_BYTES) return null` (comentário: "Box/stick cheio trava: a arte fica na rede, como antes do cache").
-  - `respeitarLimite(manter)`:
+  - Reserva de disco (é a forma prática do teto `min(1 GB, livre + cache − 500 MB)` da spec: o cache só cresce enquanto sobra a reserva, e abre espaço apagando antes de desistir):
 
 ```kotlin
     /**
-     * Teto efetivo: o menor entre o limite e o que cabe sem passar da reserva
-     * de disco. Sai primeiro o que não está na lista atual, depois o usado
-     * há mais tempo (a recém-baixada fica).
+     * Garante `precisa` bytes acima da reserva, apagando arte do cache: primeiro
+     * o que saiu da lista atual, depois o usado há mais tempo, nunca o que está
+     * na lista atual nem `manter`. Box/stick cheio trava — nessa hora a arte
+     * fica na rede, como antes do cache.
      */
+    private fun liberarPara(precisa: Long, manter: File? = null): Boolean {
+        if (livre() - precisa >= RESERVA_BYTES) return true
+        val candidatas = artesEmDisco()
+            .filter { it != manter && it.name !in naLista }
+            .sortedBy { it.lastModified() }
+        for (f in candidatas) {
+            f.delete()
+            if (livre() - precisa >= RESERVA_BYTES) return true
+        }
+        return false
+    }
+```
+
+  - `baixar(url, alvo)`: antes de abrir conexão, `if (!liberarPara(0)) return null`; depois do `responseCode == 200`, `val tamanho = conn.contentLengthLong.coerceAtLeast(0); if (!liberarPara(tamanho)) return null`.
+  - `respeitarLimite(manter)` continua cuidando só de `limiteBytes`, mas na ordem nova (fora da lista primeiro):
+
+```kotlin
+    /** Passou do limite: sai primeiro o que não está na lista atual, depois o usado há mais tempo (a recém-baixada fica). */
     private fun respeitarLimite(manter: File) {
         val artes = artesEmDisco()
         var total = artes.sumOf { it.length() }
-        val teto = minOf(limiteBytes, livre() + total - RESERVA_BYTES)
         val ordem = artes.sortedWith(compareBy<File>({ it.name in naLista }, { it.lastModified() }))
         for (f in ordem) {
-            if (total <= teto) break
+            if (total <= limiteBytes) break
             if (f == manter) continue
             val tamanho = f.length()
             if (f.delete()) total -= tamanho
