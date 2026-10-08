@@ -8,12 +8,15 @@
 import type { DisplayFeedAppUpdate } from './displayFeedAppUpdate';
 import type { DisplayFeedMusic } from './displayFeedMusic';
 import type { DisplayFeedScreen } from './displayFeedScreen';
+import type { DisplayFeedTicker } from './displayFeedTicker';
 import type { DisplaySlide } from './displaySlide';
 
 export interface DisplayFeed {
   screen: DisplayFeedScreen;
   /** @nullable */
   music?: DisplayFeedMusic;
+  /** @nullable */
+  ticker?: DisplayFeedTicker;
   /** @nullable */
   appUpdate?: DisplayFeedAppUpdate;
   slides: DisplaySlide[];

@@ -1,0 +1,1 @@
+ALTER TABLE "devices" ADD COLUMN "ticker_messages" text[] DEFAULT '{}' NOT NULL;

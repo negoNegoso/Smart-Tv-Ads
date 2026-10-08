@@ -34,7 +34,7 @@ vi.mock("@workspace/db", () => ({
     select: () => makeChain(selectQueue.shift() ?? []),
     update: () => makeChain(updateResult),
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather", tickerMessages: "tickerMessages" },
   devicePlaylistTable: {},
   announcementsTable: {},
   clientsTable: { id: "id", companyId: "companyId" },
@@ -254,6 +254,36 @@ describe("PATCH /devices/:id — clima e hora", () => {
     const { default: request } = await import("supertest");
     const res = await request(app).patch("/devices/1").send({ showWeather: "sim" });
     expect(res.status).toBe(400);
+    expect(setMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /devices/:id — faixa de recados", () => {
+  it("grava os recados normalizados e devolve a TV com eles", async () => {
+    // 1) TV atual  2) TV com cliente (resposta)
+    selectQueue = [
+      [{ id: 1, showcase: false, orientation: "landscape" }],
+      [{ ...DEVICE, tickerMessages: ["Pão às 17h", "Siga @padaria"] }],
+    ];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app)
+      .patch("/devices/1")
+      .send({ tickerMessages: ["  Pão às 17h  ", "", "Siga @padaria"] });
+    expect(res.status).toBe(200);
+    expect(setMock).toHaveBeenCalledWith(expect.objectContaining({ tickerMessages: ["Pão às 17h", "Siga @padaria"] }));
+    expect(res.body.tickerMessages).toEqual(["Pão às 17h", "Siga @padaria"]);
+  });
+
+  it.each([
+    ["6 recados", ["a", "b", "c", "d", "e", "f"], "Até 5 recados."],
+    ["recado longo", ["x".repeat(81)], "Cada recado tem até 80 caracteres."],
+  ])("400 com a mensagem: %s, sem tocar no banco", async (_caso, tickerMessages, error) => {
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    const res = await request(app).patch("/devices/1").send({ tickerMessages });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error });
     expect(setMock).not.toHaveBeenCalled();
   });
 });
