@@ -586,7 +586,7 @@ export default function DeviceDetail() {
 
       <DeviceMusicField deviceId={deviceId} musicUrl={device.musicUrl ?? null} />
 
-      <DeviceTickerField deviceId={deviceId} messages={device.tickerMessages ?? NO_MESSAGES} />
+      <DeviceTickerField deviceId={deviceId} messages={device.tickerMessages ?? NO_MESSAGES} showcase={device.showcase} />
 
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
           ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a

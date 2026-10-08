@@ -14,7 +14,16 @@ const MAX_CARACTERES = 80;
  * Recados que correm na faixa do rodapé da TV. Campo vazio não vai para o
  * servidor; lista vazia tira a faixa.
  */
-export function DeviceTickerField({ deviceId, messages }: { deviceId: number; messages: string[] }) {
+export function DeviceTickerField({
+  deviceId,
+  messages,
+  showcase,
+}: {
+  deviceId: number;
+  messages: string[];
+  /** TV da vitrine da landing: o feed dela não leva a faixa. */
+  showcase: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [recados, setRecados] = useState<string[]>(messages);
@@ -24,7 +33,11 @@ export function DeviceTickerField({ deviceId, messages }: { deviceId: number; me
 
   const update = useUpdateDevice({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (d) => {
+        // A resposta é a TV já normalizada: linhas em branco e espaços das
+        // pontas somem mesmo quando a lista gravada não mudou (o efeito acima
+        // não dispararia).
+        setRecados(d.tickerMessages ?? []);
         queryClient.invalidateQueries({ queryKey: getGetDeviceQueryKey(deviceId) });
         queryClient.invalidateQueries({ queryKey: getGetDevicePreviewQueryKey(deviceId) });
         toast({ title: 'Faixa salva.' });
@@ -43,6 +56,7 @@ export function DeviceTickerField({ deviceId, messages }: { deviceId: number; me
       <p className="text-muted-foreground mb-2">
         Os recados correm no rodapé da TV, juntos, em loop. O anúncio fica inteiro acima da faixa, com fundo desfocado nas bordas.
       </p>
+      {showcase && <p className="text-muted-foreground mb-2">A vitrine da landing não mostra a faixa.</p>}
       <div className="space-y-2">
         {recados.map((recado, index) => (
           <div key={index} className="flex items-center gap-2">
