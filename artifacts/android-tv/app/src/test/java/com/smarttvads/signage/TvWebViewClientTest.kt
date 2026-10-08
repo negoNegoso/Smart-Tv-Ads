@@ -5,14 +5,21 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class TvWebViewClientTest {
+    @get:Rule
+    val tmp = TemporaryFolder()
+
     private class Eventos : TvWebViewClient.Listener {
         var falhas = 0
         var cargas = 0
@@ -22,12 +29,16 @@ class TvWebViewClientTest {
         override fun onRendererGone() { rendererMorto++ }
     }
 
-    private fun pedido(principal: Boolean) = object : WebResourceRequest {
-        override fun getUrl(): Uri = Uri.parse("https://smart-tv-ads.vercel.app/tv")
+    private fun pedido(
+        principal: Boolean,
+        url: String = "https://smart-tv-ads.vercel.app/tv",
+        metodo: String = "GET",
+    ) = object : WebResourceRequest {
+        override fun getUrl(): Uri = Uri.parse(url)
         override fun isForMainFrame() = principal
         override fun isRedirect() = false
         override fun hasGesture() = false
-        override fun getMethod() = "GET"
+        override fun getMethod() = metodo
         override fun getRequestHeaders(): Map<String, String> = emptyMap()
     }
 
@@ -106,5 +117,41 @@ class TvWebViewClientTest {
         client.onPageFinished(webView, "https://x/tv")
         assertEquals(1, eventos.falhas)
         assertEquals(1, eventos.cargas)
+    }
+
+    @Test
+    fun `arte de sub-recurso sai do cache em disco`() {
+        TestHttpServer().use { server ->
+            val base = "http://127.0.0.1:${server.port}/real/"
+            server.put("a.jpg", "arte".toByteArray())
+            val artes = ArteCache(tmp.root, allowCleartext = true) { it.startsWith(base) }
+            val comCache = TvWebViewClient(eventos, artes)
+
+            repeat(2) {
+                val resp = comCache.shouldInterceptRequest(webView, pedido(principal = false, url = base + "a.jpg"))
+                assertArrayEquals("arte".toByteArray(), resp!!.data.readBytes())
+            }
+            assertEquals(listOf("/real/a.jpg"), server.pedidos.toList())
+        }
+    }
+
+    @Test
+    fun `pagina principal e metodo diferente de GET nao passam pelo cache`() {
+        TestHttpServer().use { server ->
+            val base = "http://127.0.0.1:${server.port}/real/"
+            server.put("a.jpg", "arte".toByteArray())
+            val comCache = TvWebViewClient(eventos, ArteCache(tmp.root, allowCleartext = true) { true })
+
+            assertNull(comCache.shouldInterceptRequest(webView, pedido(principal = true, url = base + "a.jpg")))
+            assertNull(
+                comCache.shouldInterceptRequest(webView, pedido(principal = false, url = base + "a.jpg", metodo = "POST")),
+            )
+            assertEquals(emptyList<String>(), server.pedidos.toList())
+        }
+    }
+
+    @Test
+    fun `sem cache configurado deixa a WebView buscar`() {
+        assertNull(client.shouldInterceptRequest(webView, pedido(principal = false)))
     }
 }

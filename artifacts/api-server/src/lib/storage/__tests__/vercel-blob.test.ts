@@ -28,6 +28,14 @@ describe("VercelBlobStore", () => {
     expect(options).toMatchObject({ access: "public", contentType: "image/png" });
   });
 
+  it("pede cache de 1 ano: a URL é única e nunca é sobrescrita", async () => {
+    const store = new VercelBlobStore();
+
+    await store.put(Buffer.from("x"), "image/png", "foto.png");
+
+    expect(put.mock.calls[0]![2]).toMatchObject({ cacheControlMaxAge: 31_536_000 });
+  });
+
   it("preserva a extensão do arquivo original", async () => {
     const store = new VercelBlobStore();
 

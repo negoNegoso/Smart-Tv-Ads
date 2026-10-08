@@ -3,6 +3,9 @@ import path from "node:path";
 import { put as putBlob, del as delBlob } from "@vercel/blob";
 import type { MediaStore } from "./types";
 
+/** Um ano. */
+const CACHE_ARTE_SEGUNDOS = 31_536_000;
+
 /**
  * Production implementation on Vercel. Reads BLOB_READ_WRITE_TOKEN from the
  * environment through the SDK, so no explicit credential is passed here.
@@ -14,6 +17,10 @@ export class VercelBlobStore implements MediaStore {
       access: "public",
       contentType: mimetype,
       addRandomSuffix: false,
+      // Cada arte ganha um UUID e nunca é sobrescrita: o navegador pode
+      // guardá-la de vez. Explícito para não depender do padrão do Blob —
+      // cada nova transferência conta no limite mensal do plano.
+      cacheControlMaxAge: CACHE_ARTE_SEGUNDOS,
     });
     return result.url;
   }

@@ -14,8 +14,12 @@ import android.webkit.WebViewClient
 /**
  * Traduz os callbacks da WebView em três eventos que a Activity entende.
  * A navegação fica dentro da WebView (comportamento padrão de WebViewClient).
+ * Com [artes], as artes dos slides saem do cache em disco em vez da rede.
  */
-class TvWebViewClient(private val listener: Listener) : WebViewClient() {
+class TvWebViewClient(
+    private val listener: Listener,
+    private val artes: ArteCache? = null,
+) : WebViewClient() {
 
     interface Listener {
         /** A página principal (`/tv`) não carregou: rede ou HTTP >= 400. */
@@ -40,6 +44,12 @@ class TvWebViewClient(private val listener: Listener) : WebViewClient() {
 
     override fun onPageFinished(view: WebView, url: String?) {
         if (!failed) listener.onPageLoaded()
+    }
+
+    // API 21+. Roda fora da main thread; null = a WebView busca sozinha.
+    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        if (artes == null || request.isForMainFrame || request.method != "GET") return null
+        return artes.resposta(request.url.toString())
     }
 
     // API 23+.
