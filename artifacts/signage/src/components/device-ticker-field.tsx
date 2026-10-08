@@ -41,7 +41,7 @@ export function DeviceTickerField({ deviceId, messages }: { deviceId: number; me
     <div className="mb-6 rounded-lg border px-3 py-2.5 text-sm">
       <p className="font-medium">Faixa de recados</p>
       <p className="text-muted-foreground mb-2">
-        Os recados correm no rodapé da TV, juntos, em loop. O anúncio encolhe um pouco para não ficar coberto.
+        Os recados correm no rodapé da TV, juntos, em loop. O anúncio fica inteiro acima da faixa, com fundo desfocado nas bordas.
       </p>
       <div className="space-y-2">
         {recados.map((recado, index) => (

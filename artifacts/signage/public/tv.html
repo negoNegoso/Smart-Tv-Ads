@@ -230,6 +230,11 @@
     #stage.com-faixa #overlay,
     #stage.com-faixa #qr-box { bottom: 11vh; }
     #stage.com-faixa #progress-track { bottom: 8vh; }
+    /* Com a faixa o slot fica 1920×994: 16:9 passa na tolerância de 10% e iria
+       em cover, cortando ~8% em cima e embaixo. Com a faixa a arte vai sempre
+       inteira (contain), com a mesma arte desfocada preenchendo as bordas. */
+    #stage.com-faixa .slot-fundo { display: block; }
+    #stage.com-faixa .slot-arte { background-size: contain; }
     /* Começa fora da tela à direita (padding de 100%) e anda até sair pela
        esquerda; a duração vem do JS para a velocidade não depender do tamanho. */
     #ticker-text {
@@ -1107,11 +1112,12 @@
         return Math.max(arte, tela) / Math.min(arte, tela) > 1.1;
       }
 
-      // Medida do palco (já girado na TV em pé). Sem layout (0×0), usa a
+      // Medida da área que a arte de fato ocupa (o slot, já girado na TV em
+      // pé): com a faixa ela é menor que o palco. Sem layout (0×0), usa a
       // proporção nominal da orientação.
       function medidaDoPalco() {
-        var w = stageEl.offsetWidth;
-        var h = stageEl.offsetHeight;
+        var w = slotA.offsetWidth;
+        var h = slotA.offsetHeight;
         if (w > 0 && h > 0) { return [w, h]; }
         return screenOrientation === 'landscape' ? [16, 9] : [9, 16];
       }
@@ -1126,8 +1132,11 @@
 
         var palco = medidaDoPalco();
         var ehImagem = !slide.mediaKind || slide.mediaKind === 'image';
-        var moldura = ehImagem && !!img &&
-          precisaDeMoldura(img.naturalWidth || img.width, img.naturalHeight || img.height, palco[0], palco[1]);
+        // Com a faixa a arte vai sempre inteira (ver `#stage.com-faixa` no CSS):
+        // o fundo desfocado precisa da imagem, então a moldura é obrigatória.
+        var comFaixa = stageEl.className.indexOf('com-faixa') !== -1;
+        var moldura = ehImagem && !!img && (comFaixa ||
+          precisaDeMoldura(img.naturalWidth || img.width, img.naturalHeight || img.height, palco[0], palco[1]));
 
         next.getElementsByClassName('slot-arte')[0].style.backgroundImage = 'url(' + url + ')';
         // Sem moldura o fundo fica vazio: nada para o navegador desfocar.

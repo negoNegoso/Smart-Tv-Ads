@@ -88,7 +88,7 @@ export default function Display() {
         <div data-testid="player-area" className="absolute inset-x-0 top-0" style={{ bottom: tickerText ? '8vh' : 0 }}>
           {/* key: girou a TV, recomeça do primeiro slide no formato novo (mesma regra do tv.html). */}
           {/* Passar pelo estado de erro/vazio desmonta o palco: ao voltar, o rodízio recomeça sem cursor de playlist nem posição de vídeo — aceito. */}
-          <PlayerStage key={orientation} slides={slides} onPlay={sendPlay} />
+          <PlayerStage key={orientation} slides={slides} onPlay={sendPlay} wholeArt={!!tickerText} />
         </div>
         {tickerText && <TickerBar text={tickerText} />}
       </div>

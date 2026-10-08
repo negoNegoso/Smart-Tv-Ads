@@ -632,6 +632,59 @@ describe("tv.html: arte fora da proporção da tela", () => {
   it("o desfoque tem prefixo -webkit- para os WebViews antigos", () => {
     expect(HTML).toMatch(/\.slot-fundo\s*\{[^}]*-webkit-filter:\s*blur\(/);
   });
+
+  describe("com a faixa de recados", () => {
+    // O slot fica 1920×994 (palco menos 8vh): 16:9 passa na tolerância de 10%
+    // e iria em cover, cortando ~8% em cima e embaixo. Com a faixa a arte vai
+    // sempre inteira, com o fundo desfocado.
+    it("o CSS põe a arte em contain e liga o fundo desfocado sob a faixa", () => {
+      const css = Array.from(document.querySelectorAll("style")).map((e) => e.textContent).join("\n");
+      expect(css).toMatch(/#stage\.com-faixa \.slot-arte\s*\{[^}]*background-size:\s*contain/);
+      expect(css).toMatch(/#stage\.com-faixa \.slot-fundo\s*\{[^}]*display:\s*block/);
+    });
+
+    it("arte 16:9 com faixa ganha moldura e fundo, mesmo dentro da tolerância de proporção", () => {
+      faixa = { text: "Pão quentinho às 17h" };
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      responder("https://blob/a.png", true, [1920, 1080]);
+
+      expect(emMoldura()).toBe(true);
+      expect(fundo()).toContain("https://blob/a.png");
+    });
+
+    it("sem faixa, a mesma arte 16:9 segue em tela cheia", () => {
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      responder("https://blob/a.png", true, [1920, 1080]);
+
+      expect(emMoldura()).toBe(false);
+      expect(fundo()).toBe("");
+    });
+
+    it("a decisão mede o slot da arte, não o palco", () => {
+      // Palco 16:9, mas o slot (área real da arte) é 4:5: a arte 16:9 foge da
+      // proporção do slot e precisa de moldura. Medindo o palco, não precisaria.
+      const medida = (el: HTMLElement) =>
+        el.id === "stage" ? [1600, 900] : el.id === "slot-a" || el.id === "slot-b" ? [720, 900] : [0, 0];
+      const largura = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+        return medida(this)[0];
+      });
+      const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+        return medida(this)[1];
+      });
+      try {
+        listaDeSlides = [slide(1, "https://blob/a.png")];
+        carregarTv();
+        responder("https://blob/a.png", true, [1600, 900]);
+
+        expect(emMoldura()).toBe(true);
+      } finally {
+        largura.mockRestore();
+        altura.mockRestore();
+      }
+    });
+  });
 });
 
 describe("tv.html: vídeo do YouTube em modo natural", () => {

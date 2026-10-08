@@ -14,15 +14,21 @@ import { cn } from '@/lib/utils';
  *
  * `allowFrame` falso para a capa de reserva do YouTube: tem faixas pretas
  * embutidas, que apareceriam inteiras.
+ *
+ * `wholeArt` força a moldura qualquer que seja a proporção: com a faixa de
+ * recados o player perde 8vh e a arte 16:9 passaria na tolerância de 10%,
+ * indo em cover e perdendo as bordas. Vale só com `allowFrame`.
  */
 export function ArtLayers({
   url,
   alt,
   allowFrame = true,
+  wholeArt = false,
 }: {
   url: string;
   alt: string;
   allowFrame?: boolean;
+  wholeArt?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   // Desfoque em px quando há moldura; null = arte em cover.
@@ -41,13 +47,13 @@ export function ArtLayers({
       const w = box.offsetWidth;
       const h = box.offsetHeight;
       // 4% do lado curto: na TV é o 4vh do tv.html.
-      setBlurPx(precisaDeMoldura(img.naturalWidth, img.naturalHeight, w, h) ? Math.min(w, h) * 0.04 : null);
+      setBlurPx(wholeArt || precisaDeMoldura(img.naturalWidth, img.naturalHeight, w, h) ? Math.min(w, h) * 0.04 : null);
     };
     img.src = url;
     return () => {
       vivo = false;
     };
-  }, [url, allowFrame]);
+  }, [url, allowFrame, wholeArt]);
 
   const framed = blurPx !== null;
 
