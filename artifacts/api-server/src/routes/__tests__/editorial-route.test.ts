@@ -1,14 +1,32 @@
 import type { Express } from "express";
+import type { SQL } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let companyRows: unknown[] = [];
 const fetchForecastMock = vi.hoisted(() => vi.fn());
 const renderWeatherMock = vi.hoisted(() => vi.fn());
+const lastQuery = vi.hoisted(() => ({ sql: "" }));
 
-vi.mock("@workspace/db", () => ({
-  db: { select: () => ({ from: () => ({ where: async () => companyRows }) }) },
-  companiesTable: { id: "id", name: "name", city: "city", lat: "lat", lng: "lng" },
-}));
+// Tabelas de verdade e drizzle sem conexão: a consulta é montada como em
+// produção (o SQL fica em lastQuery), só as linhas vêm de companyRows.
+vi.mock("@workspace/db", async () => {
+  const schema = await import("@workspace/db/schema");
+  const { drizzle } = await import("drizzle-orm/node-postgres");
+  const real = drizzle.mock();
+  return {
+    ...schema,
+    db: {
+      select: (fields: Parameters<typeof real.select>[0]) => ({
+        from: (table: typeof schema.companiesTable) => ({
+          where: async (where: SQL | undefined) => {
+            lastQuery.sql = real.select(fields).from(table).where(where).toSQL().sql;
+            return companyRows;
+          },
+        }),
+      }),
+    },
+  };
+});
 vi.mock("../../lib/editorial/forecast", () => ({ fetchForecast: (...a: unknown[]) => fetchForecastMock(...a) }));
 vi.mock("../../lib/editorial/render", () => ({ renderWeather: (...a: unknown[]) => renderWeatherMock(...a) }));
 
@@ -46,6 +64,15 @@ describe("GET /editorial/weather.png", () => {
     expect(art.city).toBe("São José dos Campos");
     expect(art.forecast).toEqual(PREVISAO);
     expect(art.clock).toMatch(/ · \d{2}:\d{2}$/);
+  });
+
+  it("a subconsulta do clima ligado aponta para a empresa, não para o id de devices/clients", async () => {
+    const { default: request } = await import("supertest");
+    await request(await buildApp()).get("/editorial/weather.png?company=12");
+    // Em select de uma tabela só o drizzle escreve a coluna sem a tabela
+    // ("id"); dentro do exists, com devices e clients, o Postgres recusa por
+    // ambiguidade e toda imagem de clima dava 500.
+    expect(lastQuery.sql).toContain('c.company_id = "companies"."id"');
   });
 
   it("em pé quando o=portrait; sem o, deitado", async () => {
