@@ -43,6 +43,8 @@ let atualizacao: unknown = undefined;
 // antigo, sem o campo).
 let semInternet: unknown = undefined;
 let gets: string[] = [];
+// Cabeçalhos de cada GET enviado, na ordem (um objeto por requisição).
+let cabecalhosDoGet: Array<Record<string, string>> = [];
 // Corpo devolvido quando statusDaLista é um erro HTTP (não 200, não 0/rede).
 // O 404 "de verdade" da API vem com este corpo (ver routes/display.ts); um
 // teste troca isto para simular um 404 de outra origem (proxy, misroute).
@@ -172,6 +174,7 @@ beforeEach(() => {
   atualizacao = undefined;
   semInternet = undefined;
   gets = [];
+  cabecalhosDoGet = [];
   corpoDeErro = '{"error":"Device not found"}';
   Object.defineProperty(window, "localStorage", {
     value: criarStorageFake(),
@@ -202,7 +205,10 @@ beforeEach(() => {
       this.method = method;
       this.url = url;
     }
-    setRequestHeader() {}
+    cabecalhos: Record<string, string> = {};
+    setRequestHeader(nome: string, valor: string) {
+      this.cabecalhos[nome] = valor;
+    }
     send(body?: string) {
       if (this.method === "POST") {
         posts.push({ url: this.url, payload: JSON.parse(body ?? "{}"), status: statusDoPost });
@@ -219,6 +225,7 @@ beforeEach(() => {
         return;
       }
       gets.push(this.url);
+      cabecalhosDoGet.push(this.cabecalhos);
       this.readyState = 4;
       this.status = statusDaLista;
       if (statusDaLista === 200) {
@@ -2204,5 +2211,72 @@ describe("tv.html: sem internet", () => {
     expect(document.getElementById("stage")!.className).toContain("com-faixa");
     // Mesmo seletor do teste "TV em pé: a faixa continua depois do refresh".
     expect(document.getElementById("stage")!.className).toContain("portrait-right");
+  });
+});
+
+describe("tv.html: ponte de cache do app", () => {
+  let baixados: string[][] = [];
+  let estado = '{"livre":1000,"total":8000,"cache":300,"arquivos":12}';
+
+  beforeEach(() => {
+    baixados = [];
+    estado = '{"livre":1000,"total":8000,"cache":300,"arquivos":12}';
+    vi.stubGlobal("SignageCache", {
+      baixar: (json: string) => { baixados.push(JSON.parse(json)); },
+      estado: () => estado,
+    });
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+  });
+
+  it("pede ao app as imagens e os QR da lista sem internet", () => {
+    semInternet = {
+      geradoEm: "2026-10-08T18:00:00Z",
+      slides: [
+        { ...slide(9, "https://x.public.blob.vercel-storage.com/p.png"), qrImageUrl: "/api/qr/abc.png" },
+        slide(10, "https://x.public.blob.vercel-storage.com/q.png"),
+      ],
+    };
+    carregarTv();
+    expect(baixados).toHaveLength(1);
+    expect(baixados[0]).toEqual([
+      "https://x.public.blob.vercel-storage.com/p.png",
+      `${window.location.origin}/api/qr/abc.png`,
+      "https://x.public.blob.vercel-storage.com/q.png",
+    ]);
+  });
+
+  it("feed sem offline não pede nada", () => {
+    carregarTv();
+    expect(baixados).toHaveLength(0);
+  });
+
+  it("manda o espaço em disco no cabeçalho do feed", () => {
+    carregarTv();
+    expect(cabecalhosDoGet[0]!["X-Signage-Storage"]).toBe("livre=1000;total=8000;cache=300;arquivos=12");
+  });
+
+  it("estado inválido: sem cabeçalho e sem quebrar", () => {
+    estado = "lixo";
+    carregarTv();
+    expect(cabecalhosDoGet[0]).not.toHaveProperty("X-Signage-Storage");
+    responder("https://blob/a.png", true);
+    expect(noAr()).toBe("https://blob/a.png");
+  });
+
+  it("ponte que lança não interrompe o rodízio", () => {
+    vi.stubGlobal("SignageCache", {
+      baixar: () => { throw new Error("x"); },
+      estado: () => { throw new Error("x"); },
+    });
+    semInternet = { geradoEm: "2026-10-08T18:00:00Z", slides: [slide(9, "https://blob/p.png")] };
+    carregarTv();
+    responder("https://blob/a.png", true);
+    expect(noAr()).toBe("https://blob/a.png");
+  });
+
+  it("sem a ponte (navegador, APK antigo): sem cabeçalho", () => {
+    vi.stubGlobal("SignageCache", undefined);
+    carregarTv();
+    expect(cabecalhosDoGet[0]).not.toHaveProperty("X-Signage-Storage");
   });
 });

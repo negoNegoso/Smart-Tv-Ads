@@ -482,9 +482,14 @@
       // vai junto (5º argumento) porque nem todo 404 é o do device — um
       // proxy/misroute pode devolver outro corpo, e só o corpo exato da API
       // (GetDisplayFeed -> routes/display.ts) deve abrir o pareamento.
-      function xhrGet(url, cb) {
+      function xhrGet(url, cb, cabecalhos) {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
+        if (cabecalhos) {
+          for (var nome in cabecalhos) {
+            if (cabecalhos.hasOwnProperty(nome)) { xhr.setRequestHeader(nome, cabecalhos[nome]); }
+          }
+        }
         xhr.onreadystatechange = function () {
           if (xhr.readyState !== 4) { return; }
           if (xhr.status >= 200 && xhr.status < 300) {
@@ -1440,6 +1445,35 @@
         } catch (e) {} // cheio ou bloqueado: a TV segue online como antes
       }
 
+      // O app (window.SignageCache) baixa para o disco tudo que a lista sem
+      // internet pode tocar — inclusive a campanha das 18h às 15h, que ainda
+      // nunca apareceu na tela. Navegador e APK antigo não têm a ponte.
+      function pedirDownloads(offline) {
+        var ponte = window.SignageCache;
+        if (!offline || !offline.slides || !ponte || typeof ponte.baixar !== 'function') { return; }
+        var urls = [];
+        for (var i = 0; i < offline.slides.length; i++) {
+          var s = offline.slides[i];
+          if (s.imageUrl) { urls.push(imgUrl(s.imageUrl)); }
+          if (s.qrImageUrl) { urls.push(apiBase() + s.qrImageUrl); }
+        }
+        try { ponte.baixar(JSON.stringify(urls)); } catch (e) {}
+      }
+
+      // Espaço em disco do box, lido pelo app, vai para o parque de TVs.
+      function cabecalhoDeEspaco() {
+        var ponte = window.SignageCache;
+        if (!ponte || typeof ponte.estado !== 'function') { return null; }
+        try {
+          var e = JSON.parse(ponte.estado());
+          var campos = [e.livre, e.total, e.cache, e.arquivos];
+          for (var i = 0; i < campos.length; i++) {
+            if (typeof campos[i] !== 'number') { return null; }
+          }
+          return 'livre=' + e.livre + ';total=' + e.total + ';cache=' + e.cache + ';arquivos=' + e.arquivos;
+        } catch (err) { return null; }
+      }
+
       function lerSemInternet() {
         try {
           var bruto = window.localStorage.getItem(OFFLINE_KEY);
@@ -1534,6 +1568,7 @@
 
       function fetchAndStart(key, isRefresh) {
         var url = apiBase() + '/api/display/' + encodeURIComponent(key) + '/feed';
+        var espaco = cabecalhoDeEspaco();
         xhrGet(url, function (err, data, status, body) {
           // Só o 404 exato do device (routes/display.ts) é "sem device ainda":
           // qualquer outro corpo (proxy, misroute) é tratado como falha comum,
@@ -1559,6 +1594,7 @@
           }
           hidePairing();
           salvarSemInternet(data);
+          pedirDownloads(data.offline);
 
           // Antes do teste de lista vazia: a música vale mesmo sem peças.
           aplicarMusica(data.music);
@@ -1570,7 +1606,7 @@
           aplicarFaixa(data.ticker);
 
           aplicarLista(lista, isRefresh, girou);
-        });
+        }, espaco ? { 'X-Signage-Storage': espaco } : null);
       }
 
       // ─── Tela cheia ───────────────────────────────────────────────────────
