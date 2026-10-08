@@ -417,7 +417,10 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
             return false
         }
         TvWebViewConfig.apply(view)
-        view.webViewClient = TvWebViewClient(this)
+        // filesDir, não cacheDir: o sistema esvazia o cacheDir quando falta
+        // espaço, e cache que some é a TV baixando as artes de novo. O
+        // ArteCache tem limite próprio.
+        view.webViewClient = TvWebViewClient(this, ArteCache(File(filesDir, "artes")))
         // Antes do loadUrl: a ponte só existe em página carregada depois dela.
         view.addJavascriptInterface(musica, MusicaDeFundo.NOME_NA_PAGINA)
         view.addJavascriptInterface(atualizacaoPelaPagina, AtualizacaoPelaPagina.NOME_NA_PAGINA)
