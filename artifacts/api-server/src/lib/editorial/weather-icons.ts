@@ -19,7 +19,7 @@ export function iconFor(code: number): IconKind {
 }
 
 const DEFS = `<defs>
-<linearGradient id="cloud" x1="0" y1="24" x2="0" y2="76" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9C3EE"/></linearGradient>
+<linearGradient id="cloud" x1="0" y1="24" x2="0" y2="76" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFE6E1"/></linearGradient>
 <radialGradient id="sun" cx="0.38" cy="0.35" r="0.7"><stop offset="0" stop-color="#FFF1A8"/><stop offset="0.55" stop-color="#FFC93C"/><stop offset="1" stop-color="#F59E0B"/></radialGradient>
 <radialGradient id="glow"><stop offset="0.6" stop-color="#FFD54A" stop-opacity="0.45"/><stop offset="1" stop-color="#FFD54A" stop-opacity="0"/></radialGradient>
 <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DE3FF"/><stop offset="1" stop-color="#2F7BEA"/></linearGradient>
@@ -43,7 +43,7 @@ const BODIES: Record<IconKind, string> = {
   cloud: cloud(),
   fog:
     cloud(-8) +
-    `<g stroke="#C9BEF5" stroke-width="5" stroke-linecap="round"><line x1="24" y1="78" x2="76" y2="78"/><line x1="32" y1="89" x2="70" y2="89"/></g>`,
+    `<g stroke="#9FEBDB" stroke-width="5" stroke-linecap="round"><line x1="24" y1="78" x2="76" y2="78"/><line x1="32" y1="89" x2="70" y2="89"/></g>`,
   rain: cloud(-10) + drop(36, 72) + drop(52, 78) + drop(68, 72),
   storm:
     cloud(-10) +

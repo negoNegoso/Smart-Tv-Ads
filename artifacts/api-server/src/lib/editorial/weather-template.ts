@@ -5,16 +5,18 @@ import type { Forecast } from "./forecast";
 export type WeatherArt = { city: string; clock: string; forecast: Forecast | null };
 export type WeatherOrientation = "landscape" | "portrait";
 
-// Roxo noturno em gradiente, no estilo do app de clima de referência: tem de
-// ler como "informação", não como anúncio nem como aviso (que é vermelho).
+// Teal da marca (#28D8B3, o --primary do portal) sobre verde-petróleo escuro:
+// o slide fica com a cara do produto e lê como "informação", não como anúncio
+// nem como aviso (que é vermelho).
 const COLORS = {
-  background: "linear-gradient(180deg, #2B2560 0%, #4A3A9A 55%, #7B5CC8 100%)",
+  background: "linear-gradient(180deg, #071A1C 0%, #0A3833 55%, #0E6B5D 100%)",
   text: "#FFFFFF",
-  muted: "#C9BEF5",
+  muted: "#9FEBDB",
   pill: "rgba(255, 255, 255, 0.08)",
   pillBorder: "rgba(255, 255, 255, 0.16)",
-  today: "linear-gradient(180deg, #8B74E8 0%, #5B45C2 100%)",
-  todayBorder: "rgba(255, 255, 255, 0.45)",
+  // Texto escuro sobre o teal, como nos botões do portal: branco daria 1,8:1.
+  today: "#28D8B3",
+  todayText: "#04201B",
 };
 
 const node = (type: string, props: Record<string, unknown>) => ({ type, props });
@@ -33,7 +35,7 @@ const text = (content: string, style: Record<string, unknown>) =>
 
 type PillDay = { label: string; code: number; max: number; min: number; today: boolean };
 
-/** Pílula de um dia; a de hoje ganha o destaque que o "Now" tem na referência. */
+/** Pílula de um dia; a de hoje ganha o destaque que o "Now" tem na referência, na cor da marca. */
 function pill(day: PillDay, portrait: boolean): unknown {
   return node("div", {
     style: {
@@ -44,13 +46,13 @@ function pill(day: PillDay, portrait: boolean): unknown {
       width: portrait ? 210 : 270,
       padding: "36px 0",
       borderRadius: 120,
-      border: `2px solid ${day.today ? COLORS.todayBorder : COLORS.pillBorder}`,
+      color: day.today ? COLORS.todayText : COLORS.text,
       ...(day.today
-        ? { backgroundImage: COLORS.today, boxShadow: "0 16px 40px rgba(20, 10, 60, 0.45)" }
-        : { backgroundColor: COLORS.pill }),
+        ? { backgroundColor: COLORS.today, border: `2px solid ${COLORS.today}`, boxShadow: "0 16px 40px rgba(0, 0, 0, 0.45)" }
+        : { backgroundColor: COLORS.pill, border: `2px solid ${COLORS.pillBorder}` }),
     },
     children: [
-      text(day.label, { fontSize: 40, fontWeight: 700, color: day.today ? COLORS.text : COLORS.muted }),
+      text(day.label, { fontSize: 40, fontWeight: 700, color: day.today ? COLORS.todayText : COLORS.muted }),
       weatherIcon(day.code, portrait ? 120 : 130),
       text(`${degrees(day.max)} / ${degrees(day.min)}`, { fontSize: 38 }),
     ],
