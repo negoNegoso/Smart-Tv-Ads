@@ -568,7 +568,7 @@ export default function DeviceDetail() {
           id="device-weather"
           aria-label="Clima e hora"
           checked={device.showWeather ?? false}
-          disabled={updateWeather.isPending || !device.companyHasCoordinates}
+          disabled={updateWeather.isPending || (!device.companyHasCoordinates && !device.showWeather)}
           onCheckedChange={(checked) => updateWeather.mutate({ id: deviceId, data: { showWeather: checked } })}
         />
         <div className="text-sm">

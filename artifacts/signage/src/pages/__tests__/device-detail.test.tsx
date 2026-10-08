@@ -369,4 +369,14 @@ describe('histórico de conexão', () => {
     expect(await screen.findByRole('switch', { name: 'Clima e hora' })).toBeDisabled();
     expect(screen.getByText('Cadastre o CEP da empresa para ativar.')).toBeInTheDocument();
   });
+
+  it('TV com clima ligado e empresa sem CEP: ainda dá para desligar', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, companyHasCoordinates: false, showWeather: true }, [ANUNCIO], patches);
+    renderPagina();
+    const chave = await screen.findByRole('switch', { name: 'Clima e hora' });
+    expect(chave).toBeEnabled();
+    await userEvent.click(chave);
+    await waitFor(() => expect(patches).toEqual([{ showWeather: false }]));
+  });
 });
