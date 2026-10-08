@@ -124,7 +124,7 @@ class TvWebViewClientTest {
         TestHttpServer().use { server ->
             val base = "http://127.0.0.1:${server.port}/real/"
             server.put("a.jpg", "arte".toByteArray())
-            val artes = ArteCache(tmp.root, allowCleartext = true) { it.startsWith(base) }
+            val artes = ArteCache(tmp.root, allowCleartext = true, ehArte = { it.startsWith(base) })
             val comCache = TvWebViewClient(eventos, artes)
 
             repeat(2) {
@@ -140,7 +140,7 @@ class TvWebViewClientTest {
         TestHttpServer().use { server ->
             val base = "http://127.0.0.1:${server.port}/real/"
             server.put("a.jpg", "arte".toByteArray())
-            val comCache = TvWebViewClient(eventos, ArteCache(tmp.root, allowCleartext = true) { true })
+            val comCache = TvWebViewClient(eventos, ArteCache(tmp.root, allowCleartext = true, ehArte = { true }))
 
             assertNull(comCache.shouldInterceptRequest(webView, pedido(principal = true, url = base + "a.jpg")))
             assertNull(
