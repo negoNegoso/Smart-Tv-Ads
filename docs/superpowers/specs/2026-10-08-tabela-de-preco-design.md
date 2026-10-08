@@ -16,8 +16,8 @@ próprio anunciante"):
 | # | Sub-projeto | Depende de |
 |---|---|---|
 | A | **Tabela de preço e cálculo** (este) | — |
-| B | Orçamento na landing (visitante → pedido) | A |
-| C | Orçamento no portal do anunciante (→ campanha pendente) | A |
+| B | Pedido de proposta na landing: visitante escolhe telas, inserções e período e envia; o pedido chega ao admin com o valor calculado; o site abre o WhatsApp do cliente numa conversa com a empresa e a mensagem pronta ("Acabei de pedir a proposta #123…") | A |
+| C | Pedido de proposta no portal do anunciante (mesma regra; vira campanha pendente quando o admin aprova) | A |
 
 ## Regras decididas
 
@@ -32,9 +32,10 @@ próprio anunciante"):
    vitrine — a mesma conta da prévia de alcance de hoje (`previewReach`).
 6. **Sem preço configurado, não há orçamento** (a calculadora some onde for
    mostrada).
-7. **Só o admin edita o preço** e, neste sub-projeto, só o admin calcula
-   orçamento. B e C abrem o cálculo para visitante/anunciante com as regras
-   deles.
+7. **Só o admin vê preço.** O cliente (visitante da landing ou anunciante no
+   portal) nunca vê o valor: ele pede a proposta, o pedido chega ao admin já
+   com o valor calculado e o admin entra em contato para fechar (B e C).
+   Neste sub-projeto só o admin edita o preço e calcula orçamento.
 
 ## Dados
 
@@ -168,8 +169,10 @@ Web:
 
 ## Fora do escopo
 
-- Calculadora pública na landing, pedido, campanha pendente (B e C).
-- Trocar o preço fixo da landing pelo da tabela (B).
+- Pedido de proposta na landing e no portal, lista de propostas do admin,
+  abertura do WhatsApp e campanha pendente (B e C). O preço nunca é exposto
+  em rota pública.
+- O que fazer com o preço fixo escrito na landing (decidir no B).
 - Preço por segmento/TV, faixa nobre, CPM, cupom, cobrança.
 
 ## PR
