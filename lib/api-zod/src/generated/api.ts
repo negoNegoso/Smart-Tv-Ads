@@ -60,6 +60,9 @@ export const GetVitrineFeedResponse = zod.object({
   "kind": zod.enum(['youtube_video', 'youtube_playlist']),
   "youtubeId": zod.string()
 }).nullish(),
+  "ticker": zod.object({
+  "text": zod.string()
+}).nullish(),
   "appUpdate": zod.object({
   "version": zod.string().nullable(),
   "forcedAt": zod.coerce.date().nullable()
@@ -710,6 +713,7 @@ export const ListDevicesResponseItem = zod.object({
   "musicUrl": zod.string().nullish(),
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
 })
 export const ListDevicesResponse = zod.array(ListDevicesResponseItem)
@@ -742,6 +746,7 @@ export const CreateDeviceResponse = zod.object({
   "musicUrl": zod.string().nullish(),
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -766,6 +771,7 @@ export const GetDeviceByKeyResponse = zod.object({
   "musicUrl": zod.string().nullish(),
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -787,6 +793,7 @@ export const GetDeviceResponse = zod.object({
   "musicUrl": zod.string().nullish(),
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -804,7 +811,8 @@ export const UpdateDeviceBody = zod.object({
   "orientation": zod.enum(['landscape', 'portrait_right', 'portrait_left']).optional(),
   "showcase": zod.boolean().optional(),
   "musicUrl": zod.string().nullish(),
-  "showWeather": zod.boolean().optional()
+  "showWeather": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional()
 })
 
 export const UpdateDeviceResponse = zod.object({
@@ -820,6 +828,7 @@ export const UpdateDeviceResponse = zod.object({
   "musicUrl": zod.string().nullish(),
   "showWeather": zod.boolean().optional(),
   "companyHasCoordinates": zod.boolean().optional(),
+  "tickerMessages": zod.array(zod.string()).optional(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1041,6 +1050,9 @@ export const GetDisplayFeedResponse = zod.object({
   "music": zod.object({
   "kind": zod.enum(['youtube_video', 'youtube_playlist']),
   "youtubeId": zod.string()
+}).nullish(),
+  "ticker": zod.object({
+  "text": zod.string()
 }).nullish(),
   "appUpdate": zod.object({
   "version": zod.string().nullable(),

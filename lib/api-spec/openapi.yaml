@@ -1703,6 +1703,10 @@ components:
         showWeather: { type: boolean }
         # A empresa dona da TV tem lat/lng; sem isso o clima não pode ser ligado.
         companyHasCoordinates: { type: boolean }
+        # Recados da faixa do rodapé desta TV.
+        tickerMessages:
+          type: array
+          items: { type: string }
         createdAt: { type: string, format: date-time }
 
     DeviceInput:
@@ -1724,6 +1728,11 @@ components:
         # Link de vídeo ou playlist do YouTube. null ou vazio tira a música.
         musicUrl: { type: ["string", "null"] }
         showWeather: { type: boolean }
+        # Recados da faixa (até 5, até 80 caracteres). Sem maxItems/maxLength
+        # aqui de propósito: a API valida e devolve a mensagem em português.
+        tickerMessages:
+          type: array
+          items: { type: string }
 
     # ── Parque de TVs ────────────────────────────────────────────────────────
     FleetDevice:
@@ -1876,6 +1885,13 @@ components:
           properties:
             kind: { type: string, enum: [youtube_video, youtube_playlist] }
             youtubeId: { type: string }
+        # Faixa de recados no rodapé. Fora de `slides`: não é peça, não conta
+        # exibição. Nulo = TV sem faixa (ou aviso urgente no ar).
+        ticker:
+          type: ["object", "null"]
+          required: [text]
+          properties:
+            text: { type: string }
         # Aviso para o app Android checar atualização agora. O servidor só
         # avisa: o app segue lendo o update.json e conferindo o APK.
         appUpdate:

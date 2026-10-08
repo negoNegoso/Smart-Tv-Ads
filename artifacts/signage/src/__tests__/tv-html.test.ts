@@ -34,6 +34,8 @@ let statusDaLista = 200;
 let orientacao = "landscape";
 // Música de fundo que o /feed devolve (null = TV sem música).
 let musica: unknown = null;
+// Faixa de recados que o /feed devolve (undefined = servidor antigo, sem o campo).
+let faixa: unknown = undefined;
 // Aviso de atualização do app que o /feed devolve (undefined = servidor
 // antigo, sem o campo).
 let atualizacao: unknown = undefined;
@@ -156,6 +158,7 @@ beforeEach(() => {
   statusDaLista = 200;
   orientacao = "landscape";
   musica = null;
+  faixa = undefined;
   atualizacao = undefined;
   gets = [];
   corpoDeErro = '{"error":"Device not found"}';
@@ -210,7 +213,7 @@ beforeEach(() => {
       if (statusDaLista === 200) {
         // /feed embrulha a lista com a orientação da TV; /slides é a lista pura.
         this.responseText = this.url.indexOf("/feed") >= 0
-          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, slides: listaDeSlides })
+          ? JSON.stringify({ screen: { orientation: orientacao }, music: musica, appUpdate: atualizacao, ticker: faixa, slides: listaDeSlides })
           : JSON.stringify(listaDeSlides);
       } else if (statusDaLista === 0) {
         this.responseText = ""; // rede caiu: sem corpo, como um XHR de verdade
@@ -628,6 +631,60 @@ describe("tv.html: arte fora da proporção da tela", () => {
 
   it("o desfoque tem prefixo -webkit- para os WebViews antigos", () => {
     expect(HTML).toMatch(/\.slot-fundo\s*\{[^}]*-webkit-filter:\s*blur\(/);
+  });
+
+  describe("com a faixa de recados", () => {
+    // O slot fica 1920×994 (palco menos 8vh): 16:9 passa na tolerância de 10%
+    // e iria em cover, cortando ~8% em cima e embaixo. Com a faixa a arte vai
+    // sempre inteira, com o fundo desfocado.
+    it("o CSS põe a arte em contain e liga o fundo desfocado sob a faixa", () => {
+      carregarTv();
+      const css = Array.from(document.querySelectorAll("style")).map((e) => e.textContent).join("\n");
+      expect(css).toMatch(/#stage\.com-faixa \.slot-arte\s*\{[^}]*background-size:\s*contain/);
+      expect(css).toMatch(/#stage\.com-faixa \.slot-fundo\s*\{[^}]*display:\s*block/);
+    });
+
+    it("arte 16:9 com faixa ganha moldura e fundo, mesmo dentro da tolerância de proporção", () => {
+      faixa = { text: "Pão quentinho às 17h" };
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      responder("https://blob/a.png", true, [1920, 1080]);
+
+      expect(emMoldura()).toBe(true);
+      expect(fundo()).toContain("https://blob/a.png");
+    });
+
+    it("sem faixa, a mesma arte 16:9 segue em tela cheia", () => {
+      listaDeSlides = [slide(1, "https://blob/a.png")];
+      carregarTv();
+      responder("https://blob/a.png", true, [1920, 1080]);
+
+      expect(emMoldura()).toBe(false);
+      expect(fundo()).toBe("");
+    });
+
+    it("a decisão mede o slot da arte, não o palco", () => {
+      // Palco 16:9, mas o slot (área real da arte) é 4:5: a arte 16:9 foge da
+      // proporção do slot e precisa de moldura. Medindo o palco, não precisaria.
+      const medida = (el: HTMLElement) =>
+        el.id === "stage" ? [1600, 900] : el.id === "slot-a" || el.id === "slot-b" ? [720, 900] : [0, 0];
+      const largura = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+        return medida(this)[0];
+      });
+      const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+        return medida(this)[1];
+      });
+      try {
+        listaDeSlides = [slide(1, "https://blob/a.png")];
+        carregarTv();
+        responder("https://blob/a.png", true, [1600, 900]);
+
+        expect(emMoldura()).toBe(true);
+      } finally {
+        largura.mockRestore();
+        altura.mockRestore();
+      }
+    });
   });
 });
 
@@ -1806,5 +1863,125 @@ describe("tv.html: aviso de atualização do app", () => {
     vi.stubGlobal("SignageUpdate", {});
     atualizacao = SINAL;
     expect(() => carregarTv()).not.toThrow();
+  });
+});
+
+describe("tv.html: faixa de recados", () => {
+  const stage = () => document.getElementById("stage")!;
+  const texto = () => document.getElementById("ticker-text")!;
+
+  it("com ticker: mostra o texto e o palco ganha com-faixa", () => {
+    faixa = { text: "Pão quentinho às 17h · Siga @padaria" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(texto().textContent).toBe("Pão quentinho às 17h · Siga @padaria");
+    expect(stage().className).toContain("com-faixa");
+  });
+
+  it("duração cresce com o texto, com mínimo de 12s", () => {
+    faixa = { text: "Curto" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(texto().style.animationDuration).toBe("12s");
+
+    faixa = { text: "x".repeat(200) };
+    vi.advanceTimersByTime(60000);
+    expect(texto().style.animationDuration).toBe("50s");
+  });
+
+  it("sem ticker: sem faixa", () => {
+    faixa = null;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    expect(stage().className).not.toContain("com-faixa");
+    expect(texto().textContent).toBe("");
+  });
+
+  it("servidor antigo, sem o campo: não quebra e fica sem faixa", () => {
+    faixa = undefined;
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    responder("https://blob/a.png", true);
+    expect(noAr()).toBe("https://blob/a.png");
+    expect(stage().className).not.toContain("com-faixa");
+  });
+
+  it("refresh com o mesmo texto não reescreve a faixa", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    const no = texto().firstChild;
+    vi.advanceTimersByTime(60000);
+    expect(texto().firstChild).toBe(no);
+    expect(stage().className).toContain("com-faixa");
+  });
+
+  it("refresh com texto novo troca", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    faixa = { text: "Hoje fechamos às 18h" };
+    vi.advanceTimersByTime(60000);
+    expect(texto().textContent).toBe("Hoje fechamos às 18h");
+  });
+
+  it("texto novo reinicia a animação do início (none e depois vazio)", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    // Registra cada atribuição ao nome da animação: sem o reinício, o
+    // navegador seguiria a animação de onde estava, com o texto já trocado.
+    const estilo = texto().style as unknown as Record<string, string>;
+    const gravado: string[] = [];
+    for (const prop of ["animationName", "webkitAnimationName"]) {
+      Object.defineProperty(estilo, prop, {
+        configurable: true,
+        get: () => "",
+        set: (v: string) => gravado.push(prop + "=" + v),
+      });
+    }
+    faixa = { text: "Hoje fechamos às 18h" };
+    vi.advanceTimersByTime(60000);
+    expect(texto().textContent).toBe("Hoje fechamos às 18h");
+    expect(gravado).toEqual([
+      "webkitAnimationName=none",
+      "animationName=none",
+      "webkitAnimationName=",
+      "animationName=",
+    ]);
+
+    // Mesmo texto no refresh seguinte: não mexe na animação.
+    gravado.length = 0;
+    vi.advanceTimersByTime(60000);
+    expect(gravado).toEqual([]);
+  });
+
+  it("os keyframes usam translate3d (camada própria nas TVs antigas)", () => {
+    expect(HTML).toMatch(/@-webkit-keyframes ticker-correr\s*\{[^}]*translate3d\(0,\s*0,\s*0\)[^}]*\}[^}]*translate3d\(-100%,\s*0,\s*0\)/);
+    expect(HTML).toMatch(/@keyframes ticker-correr\s*\{[^}]*translate3d\(0,\s*0,\s*0\)[^}]*\}[^}]*translate3d\(-100%,\s*0,\s*0\)/);
+  });
+
+  it("o comentário de aplicarMusica fica logo acima da função", () => {
+    expect(HTML).toMatch(/\/\/ Chamada a cada feed lido com sucesso\.[^\n]*\n(\s*\/\/[^\n]*\n)*\s*function aplicarMusica\(/);
+  });
+
+  it("refresh com ticker nulo tira a faixa", () => {
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    faixa = null;
+    vi.advanceTimersByTime(60000);
+    expect(stage().className).not.toContain("com-faixa");
+    expect(texto().textContent).toBe("");
+  });
+
+  it("TV em pé: a faixa continua depois do refresh (o giro reescreve a classe do palco)", () => {
+    orientacao = "portrait_right";
+    faixa = { text: "Pão quentinho às 17h" };
+    listaDeSlides = [slide(1, "https://blob/a.png")];
+    carregarTv();
+    vi.advanceTimersByTime(60000);
+    expect(stage().className).toContain("portrait-right");
+    expect(stage().className).toContain("com-faixa");
   });
 });

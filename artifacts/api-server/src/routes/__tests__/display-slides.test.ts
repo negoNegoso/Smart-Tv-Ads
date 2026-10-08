@@ -58,7 +58,7 @@ vi.mock("@workspace/db", () => ({
       return makeChain(undefined);
     },
   },
-  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather" },
+  devicesTable: { id: "id", clientId: "clientId", deviceKey: "deviceKey", orientation: "orientation", showcase: "showcase", musicUrl: "musicUrl", showWeather: "showWeather", tickerMessages: "tickerMessages" },
   devicePlaylistTable: { deviceId: "deviceId", isActive: "isActive", displayOrder: "displayOrder", announcementId: "announcementId" },
   announcementsTable: { id: "id", isActive: "isActive", orientation: "orientation", title: "title", imageUrl: "imageUrl", duration: "duration", source: "source" },
   urgentAlertsTable: { id: "id", endedAt: "endedAt", endsAt: "endsAt" },
@@ -830,5 +830,62 @@ describe("GET /display/:deviceKey/feed — clima e hora", () => {
     const peca = { announcementId: 901, title: "Aviso", imageUrl: "/api/uploads/aviso.png", duration: 15 };
     const slides = await ids(TV_COM_CLIMA, [[aviso], [peca]]);
     expect(slides.map((s) => s.announcementId)).toEqual([901]);
+  });
+});
+
+describe("GET /display/:deviceKey/feed — faixa de recados", () => {
+  const RECADOS = ["Pão quentinho às 17h", "Siga @padaria"];
+
+  beforeEach(() => {
+    dbSelect.mockReset();
+    dbUpdate.mockReset();
+    panelSlidesForClientMock.mockReset();
+    panelSlidesForClientMock.mockResolvedValue([]);
+    selectResults = [];
+    selectCallIndex = 0;
+  });
+
+  async function feed(device: Record<string, unknown>, extra: unknown[] = [[]]) {
+    selectResults = [[device], [PLAYLIST_ROW], [CAMPAIGN_ROW], ...extra];
+    const app = await buildApp();
+    const { default: request } = await import("supertest");
+    return (await request(app).get("/display/tv-1/feed")).body;
+  }
+
+  it("TV com recados recebe o texto da faixa", async () => {
+    const body = await feed({ ...DEVICE_ROW, showcase: false, tickerMessages: RECADOS });
+    expect(body.ticker).toEqual({ text: "Pão quentinho às 17h · Siga @padaria" });
+  });
+
+  it("TV sem recados: ticker nulo", async () => {
+    const body = await feed({ ...DEVICE_ROW, showcase: false, tickerMessages: [] });
+    expect(body.ticker).toBeNull();
+  });
+
+  it("linha sem a coluna (servidor em transição): ticker nulo", async () => {
+    const body = await feed({ ...DEVICE_ROW, showcase: false });
+    expect(body.ticker).toBeNull();
+  });
+
+  it("vitrine não tem faixa", async () => {
+    const body = await feed({ ...DEVICE_ROW, showcase: true, tickerMessages: RECADOS });
+    expect(body.ticker).toBeNull();
+  });
+
+  it("aviso urgente no ar tira a faixa", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-08T15:00:00Z"), toFake: ["Date"] });
+    try {
+      const aviso = {
+        id: 1, title: "Aviso", body: null, targetMode: "all", segmentIds: [], companyIds: [],
+        startsAt: new Date("2026-10-08T14:00:00Z"), endsAt: new Date("2026-10-08T16:00:00Z"), endedAt: null,
+        landscapeAnnouncementId: 901, portraitAnnouncementId: 902, createdAt: new Date("2026-10-08T14:00:00Z"),
+      };
+      const peca = { announcementId: 901, title: "Aviso", imageUrl: "/api/uploads/aviso.png", duration: 15 };
+      const body = await feed({ ...DEVICE_ROW, showcase: false, tickerMessages: RECADOS }, [[aviso], [peca]]);
+      expect(body.slides.map((s: { announcementId: number }) => s.announcementId)).toEqual([901]);
+      expect(body.ticker).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

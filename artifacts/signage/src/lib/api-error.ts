@@ -25,5 +25,8 @@ export function mensagemDeErro(err: unknown, fallback: string): string {
   // O 400 da música de fundo também já sai do servidor em português.
   if (mensagem === "Link do YouTube inválido") return mensagem;
 
+  // Os 400 da faixa de recados (limites de quantidade e de tamanho) também.
+  if (mensagem === "Até 5 recados." || mensagem === "Cada recado tem até 80 caracteres.") return mensagem;
+
   return fallback;
 }

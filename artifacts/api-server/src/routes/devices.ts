@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { pieceOrientationOf, screenOrientationOf } from "@workspace/db/orientation";
 import { showcaseConflictMessage } from "../lib/showcase";
+import { normalizeTickerMessages } from "../lib/ticker";
 import {
   ListDevicesQueryParams,
   ListDevicesResponse,
@@ -57,6 +58,7 @@ async function getDeviceWithClient(where: SQL) {
       showcase: devicesTable.showcase,
       musicUrl: devicesTable.musicUrl,
       showWeather: devicesTable.showWeather,
+      tickerMessages: devicesTable.tickerMessages,
       companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       createdAt: devicesTable.createdAt,
     })
@@ -186,6 +188,16 @@ router.patch("/devices/:id", async (req, res): Promise<void> => {
     } else {
       data.musicUrl = link;
     }
+  }
+  // Recados da faixa: a mesma regra vale para quem chama pela API sem o
+  // formulário — lista limpa e dentro do limite, ou 400 com o motivo.
+  if (data.tickerMessages !== undefined) {
+    const ticker = normalizeTickerMessages(data.tickerMessages);
+    if (!ticker.ok) {
+      res.status(400).json({ error: ticker.error });
+      return;
+    }
+    data.tickerMessages = ticker.messages;
   }
   const [current] = await db
     .select({ id: devicesTable.id, showcase: devicesTable.showcase, orientation: devicesTable.orientation })

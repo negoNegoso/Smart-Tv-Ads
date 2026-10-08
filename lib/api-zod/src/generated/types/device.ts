@@ -22,5 +22,6 @@ export interface Device {
   musicUrl?: string | null;
   showWeather?: boolean;
   companyHasCoordinates?: boolean;
+  tickerMessages?: string[];
   createdAt: Date;
 }

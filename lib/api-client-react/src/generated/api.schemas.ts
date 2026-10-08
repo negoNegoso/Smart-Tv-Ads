@@ -318,6 +318,7 @@ export interface Device {
   musicUrl?: string | null;
   showWeather?: boolean;
   companyHasCoordinates?: boolean;
+  tickerMessages?: string[];
   createdAt: string;
 }
 
@@ -349,6 +350,7 @@ export interface DeviceUpdate {
   /** @nullable */
   musicUrl?: string | null;
   showWeather?: boolean;
+  tickerMessages?: string[];
 }
 
 export interface FleetDevice {
@@ -477,6 +479,13 @@ export type DisplayFeedMusic = {
 /**
  * @nullable
  */
+export type DisplayFeedTicker = {
+  text: string;
+} | null;
+
+/**
+ * @nullable
+ */
 export type DisplayFeedAppUpdate = {
   /** @nullable */
   version: string | null;
@@ -488,6 +497,8 @@ export interface DisplayFeed {
   screen: DisplayFeedScreen;
   /** @nullable */
   music?: DisplayFeedMusic;
+  /** @nullable */
+  ticker?: DisplayFeedTicker;
   /** @nullable */
   appUpdate?: DisplayFeedAppUpdate;
   slides: DisplaySlide[];

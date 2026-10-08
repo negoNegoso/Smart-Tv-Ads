@@ -59,6 +59,7 @@ export * from './displayFeedMusic';
 export * from './displayFeedMusicKind';
 export * from './displayFeedScreen';
 export * from './displayFeedScreenOrientation';
+export * from './displayFeedTicker';
 export * from './displaySlide';
 export * from './fleet';
 export * from './fleetDevice';

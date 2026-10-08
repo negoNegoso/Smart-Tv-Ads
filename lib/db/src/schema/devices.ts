@@ -32,6 +32,9 @@ export const devicesTable = pgTable(
     // Slide de clima e hora na volta desta TV. Desligado por padrão: nada
     // muda numa loja até o admin ligar.
     showWeather: boolean("show_weather").notNull().default(false),
+    // Recados que correm na faixa do rodapé desta TV (até 5, até 80
+    // caracteres cada; a API valida). Vazio = TV sem faixa.
+    tickerMessages: text("ticker_messages").array().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

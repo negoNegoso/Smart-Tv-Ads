@@ -16,6 +16,8 @@ export interface PlayerStageProps {
   onPlay?: (slide: DisplaySlide) => void;
   /** Slide na tela mudou (null = lista vazia). */
   onSlideChange?: (slide: DisplaySlide | null) => void;
+  /** Arte sempre inteira, com fundo desfocado (display com faixa de recados). */
+  wholeArt?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ export interface PlayerStageProps {
  * das TVs (ver `.player-stage` em index.css). Com cqmin escala da TV de 55" à moldura de 28rem sem mudar proporção. Não gira:
  * girar a TV em pé é assunto da casca do display.
  */
-export function PlayerStage({ slides, muted = false, paused = false, onPlay, onSlideChange }: PlayerStageProps) {
+export function PlayerStage({ slides, muted = false, paused = false, onPlay, onSlideChange, wholeArt = false }: PlayerStageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   // Conta cada avanço. Com uma peça só, (0 + 1) % 1 = 0: o índice não muda e
@@ -230,7 +232,12 @@ export function PlayerStage({ slides, muted = false, paused = false, onPlay, onS
           >
             {/* Só slide de imagem ganha moldura: a miniatura de reserva do
                 YouTube tem faixas pretas embutidas. */}
-            <ArtLayers url={posterUrl} alt="" allowFrame={!slide.mediaKind || slide.mediaKind === 'image'} />
+            <ArtLayers
+              url={posterUrl}
+              alt=""
+              allowFrame={!slide.mediaKind || slide.mediaKind === 'image'}
+              wholeArt={wholeArt}
+            />
           </motion.div>
         </AnimatePresence>
       )}

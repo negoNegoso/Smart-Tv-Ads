@@ -27,6 +27,7 @@ const DEVICE = {
   showcase: false,
   showWeather: false,
   companyHasCoordinates: true,
+  tickerMessages: [] as string[],
 };
 
 const ANUNCIO = {
@@ -378,5 +379,83 @@ describe('histórico de conexão', () => {
     expect(chave).toBeEnabled();
     await userEvent.click(chave);
     await waitFor(() => expect(patches).toEqual([{ showWeather: false }]));
+  });
+});
+
+describe('faixa de recados', () => {
+  it('escreve um recado e salva a lista sem vazios', async () => {
+    const patches: unknown[] = [];
+    stubTv(DEVICE, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Recado 1' }), 'Pão quentinho às 17h');
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+    await waitFor(() => expect(patches).toEqual([{ tickerMessages: ['Pão quentinho às 17h'] }]));
+  });
+
+  it('mostra os recados gravados e "+ recado" some no quinto', async () => {
+    stubTv({ ...DEVICE, tickerMessages: ['a', 'b', 'c', 'd'] }, [ANUNCIO]);
+    renderPagina();
+    expect(await screen.findByRole('textbox', { name: 'Recado 4' })).toHaveValue('d');
+    await userEvent.click(screen.getByRole('button', { name: '+ recado' }));
+    expect(screen.queryByRole('button', { name: '+ recado' })).not.toBeInTheDocument();
+  });
+
+  it('remover todos e salvar manda lista vazia', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, tickerMessages: ['Pão quentinho às 17h'] }, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover recado 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+    await waitFor(() => expect(patches).toEqual([{ tickerMessages: [] }]));
+  });
+
+  it('erro 400 do servidor aparece no toast e o texto digitado fica no campo', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
+        if (init?.method === 'PATCH') return json({ error: 'Cada recado tem até 80 caracteres.' }, 400);
+        if (url.includes('/playlist')) return json([]);
+        if (url.includes('/preview')) return json([]);
+        if (url.includes('/announcements')) return json([ANUNCIO]);
+        if (url.includes('/devices/1')) return json(DEVICE);
+        return json([]);
+      }),
+    );
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Recado 1' }), 'Pão quentinho às 17h');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+
+    await waitFor(() => expect(textoNaTela()).toContain('Cada recado tem até 80 caracteres.'));
+    expect(screen.getByRole('textbox', { name: 'Recado 1' })).toHaveValue('Pão quentinho às 17h');
+  });
+
+  it('depois de salvar, a linha em branco some mesmo com a lista gravada igual', async () => {
+    const patches: unknown[] = [];
+    stubTv({ ...DEVICE, tickerMessages: ['Pão quentinho às 17h'] }, [ANUNCIO], patches);
+    renderPagina();
+    await userEvent.click(await screen.findByRole('button', { name: '+ recado' }));
+    expect(screen.getByRole('textbox', { name: 'Recado 2' })).toHaveValue('');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar recados' }));
+
+    await waitFor(() => expect(patches).toEqual([{ tickerMessages: ['Pão quentinho às 17h'] }]));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Recado 2' })).not.toBeInTheDocument());
+    expect(screen.getByRole('textbox', { name: 'Recado 1' })).toHaveValue('Pão quentinho às 17h');
+  });
+
+  it('TV da vitrine avisa que a landing não mostra a faixa', async () => {
+    stubTv({ ...DEVICE, showcase: true }, [ANUNCIO]);
+    renderPagina();
+    expect(await screen.findByText('A vitrine da landing não mostra a faixa.')).toBeInTheDocument();
+  });
+
+  it('TV comum não mostra o aviso da vitrine', async () => {
+    stubTv(DEVICE, [ANUNCIO]);
+    renderPagina();
+    await screen.findByRole('button', { name: '+ recado' });
+    expect(screen.queryByText('A vitrine da landing não mostra a faixa.')).not.toBeInTheDocument();
   });
 });

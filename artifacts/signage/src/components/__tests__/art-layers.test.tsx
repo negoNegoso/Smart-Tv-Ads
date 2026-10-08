@@ -94,6 +94,32 @@ describe('ArtLayers', () => {
     expect(fundo(container)).toBeNull();
   });
 
+  it('wholeArt força a moldura mesmo com a proporção dentro da tolerância', () => {
+    // Caixa 16:9 e arte 16:9: sem wholeArt iria em cover.
+    caixa = { w: 160, h: 90 };
+    const { container } = render(<ArtLayers url="/a.png" alt="Arte" wholeArt />);
+    carregar(1920, 1080);
+
+    expect(arte(container).className).toContain('object-contain');
+    expect(fundo(container)!.style.backgroundImage).toContain('/a.png');
+  });
+
+  it('sem wholeArt, a mesma arte 16:9 na caixa 16:9 segue em cover', () => {
+    caixa = { w: 160, h: 90 };
+    const { container } = render(<ArtLayers url="/a.png" alt="Arte" />);
+    carregar(1920, 1080);
+
+    expect(arte(container).className).toContain('object-cover');
+    expect(fundo(container)).toBeNull();
+  });
+
+  it('wholeArt não vale para a capa de reserva do YouTube (allowFrame falso)', () => {
+    const { container } = render(<ArtLayers url="/yt.jpg" alt="Arte" allowFrame={false} wholeArt />);
+    carregar(480, 360);
+    expect(arte(container).className).toContain('object-cover');
+    expect(fundo(container)).toBeNull();
+  });
+
   it('mantém o alt na arte da frente', () => {
     const { getByAltText } = render(<ArtLayers url="/a.png" alt="Oferta" />);
     expect(getByAltText('Oferta').getAttribute('src')).toBe('/a.png');

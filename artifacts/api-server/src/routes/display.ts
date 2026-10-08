@@ -9,6 +9,7 @@ import { latestTvAppReleaseForFeed } from "../lib/tv-app-release";
 import { appUpdateSignal } from "../lib/tv-app-update";
 import { tvAppVersionFromUserAgent } from "../lib/tv-app-version";
 import { musicRefFromUrl } from "../lib/youtube/music";
+import { tickerText } from "../lib/ticker";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ async function loadForTv(req: Request) {
       showWeather: devicesTable.showWeather,
       companyHasCoordinates: sql<boolean>`(${companiesTable.lat} is not null and ${companiesTable.lng} is not null)`,
       musicUrl: devicesTable.musicUrl,
+      tickerMessages: devicesTable.tickerMessages,
       updateRequestedAt: devicesTable.updateRequestedAt,
     })
     .from(devicesTable)
@@ -61,8 +63,11 @@ async function loadForTv(req: Request) {
   }
 
   const slides = await loadDeviceSlides(device, req.log);
+  // Aviso urgente toma a tela inteira, faixa incluída. Decidido aqui porque
+  // a origem do slide sai antes da resposta.
+  const alertActive = slides.some((slide) => slide.source === "alert");
   // A origem do slide é só para a prévia do admin; a TV não precisa dela.
-  return { device, appVersion, now, slides: slides.map(({ source, ...slide }) => slide) };
+  return { device, appVersion, now, alertActive, slides: slides.map(({ source, ...slide }) => slide) };
 }
 
 // Mantida para TVs com tv.html antigo em cache: mesma lista, sem o giro.
@@ -89,6 +94,13 @@ router.get("/display/:deviceKey/feed", async (req, res): Promise<void> => {
       // Fora de `slides`: música não é peça e não conta exibição. Link que o
       // parser não reconhece vira null, e a TV segue só com as peças.
       music: musicRefFromUrl(tv.device.musicUrl),
+      // Faixa de recados: fora de `slides` como a música. Some na vitrine
+      // (espelhada na landing) e durante aviso urgente.
+      ticker: (() => {
+        if (tv.device.showcase || tv.alertActive) return null;
+        const text = tickerText(tv.device.tickerMessages ?? []);
+        return text ? { text } : null;
+      })(),
       // Aviso para o app checar atualização agora: versão nova no ar ou
       // pedido do admin. Só avisa; o app decide o que instalar.
       appUpdate: appUpdateSignal({

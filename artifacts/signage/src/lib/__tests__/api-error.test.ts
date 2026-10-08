@@ -34,6 +34,12 @@ describe('mensagemDeErro', () => {
     expect(mensagemDeErro(undefined, FALLBACK)).toBe(FALLBACK);
   });
 
+  it('deixa passar os erros de limite da faixa de recados, que já vêm em português', () => {
+    for (const error of ['Até 5 recados.', 'Cada recado tem até 80 caracteres.']) {
+      expect(mensagemDeErro({ status: 400, data: { error } }, FALLBACK)).toBe(error);
+    }
+  });
+
   it('deixa passar o erro do link de música, que já vem em português', () => {
     const err = { status: 400, data: { error: 'Link do YouTube inválido' } };
     expect(mensagemDeErro(err, FALLBACK)).toBe('Link do YouTube inválido');

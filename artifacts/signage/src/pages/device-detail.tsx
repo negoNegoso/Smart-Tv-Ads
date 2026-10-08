@@ -39,6 +39,7 @@ import { pieceOrientationOf, screenOrientationOf } from '@workspace/db/orientati
 import { PageHeader } from '@/components/page-header';
 import { DevicePreview } from '@/components/device-preview';
 import { DeviceMusicField } from '@/components/device-music-field';
+import { DeviceTickerField } from '@/components/device-ticker-field';
 import { DeviceConnectionHistory } from '@/components/device-connection-history';
 import { tvFrameClass } from '@/components/piece-preview';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,8 @@ const DEVICE_ORIENTATION_OPTIONS = [
   { value: 'portrait_right', label: 'Retrato, girada para a direita ↻' },
   { value: 'portrait_left', label: 'Retrato, girada para a esquerda ↺' },
 ] as const;
+
+const NO_MESSAGES: string[] = [];
 
 async function copyToClipboard(text: string): Promise<boolean> {
   if (navigator.clipboard?.writeText) {
@@ -582,6 +585,8 @@ export default function DeviceDetail() {
       </div>
 
       <DeviceMusicField deviceId={deviceId} musicUrl={device.musicUrl ?? null} />
+
+      <DeviceTickerField deviceId={deviceId} messages={device.tickerMessages ?? NO_MESSAGES} showcase={device.showcase} />
 
       {/* Playlist e análises à esquerda, prévia à direita: mexer na playlist e
           ver o efeito na TV sem rolar a página. Em tela estreita empilha, com a

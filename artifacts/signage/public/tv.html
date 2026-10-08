@@ -205,6 +205,57 @@
       color: #000;
     }
     #qr-img { display: block; width: 12vh; height: 12vh; }
+    /* Faixa de recados no rodapé. Com ela o palco ganha `com-faixa` e tudo o
+       que ficava no rodapé sobe: nenhuma arte paga fica coberta. Espelho de
+       src/components/ticker-bar.tsx — mudou lá, mude aqui. */
+    #ticker {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 8vh;
+      background: #111;
+      color: #fff;
+      overflow: hidden;
+      white-space: nowrap;
+      display: none;
+      z-index: 4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 4.5vh;
+      line-height: 8vh;
+    }
+    #stage.com-faixa #ticker { display: block; }
+    /* O #yt-slot tem bottom:0 em estilo inline: só !important vence. */
+    #stage.com-faixa #slot-a,
+    #stage.com-faixa #slot-b,
+    #stage.com-faixa #yt-slot { bottom: 8vh !important; }
+    #stage.com-faixa #overlay,
+    #stage.com-faixa #qr-box { bottom: 11vh; }
+    #stage.com-faixa #progress-track { bottom: 8vh; }
+    /* Com a faixa o slot fica 1920×994: 16:9 passa na tolerância de 10% e iria
+       em cover, cortando ~8% em cima e embaixo. Com a faixa a arte vai sempre
+       inteira (contain), com a mesma arte desfocada preenchendo as bordas. */
+    #stage.com-faixa .slot-fundo { display: block; }
+    #stage.com-faixa .slot-arte { background-size: contain; }
+    /* Começa fora da tela à direita (padding de 100%) e anda até sair pela
+       esquerda; a duração vem do JS para a velocidade não depender do tamanho. */
+    #ticker-text {
+      display: inline-block;
+      padding-left: 100%;
+      -webkit-animation-name: ticker-correr;
+      animation-name: ticker-correr;
+      -webkit-animation-timing-function: linear;
+      animation-timing-function: linear;
+      -webkit-animation-iteration-count: infinite;
+      animation-iteration-count: infinite;
+    }
+    /* translate3d (em vez de translateX) força camada própria nas TVs antigas. */
+    @-webkit-keyframes ticker-correr {
+      from { -webkit-transform: translate3d(0, 0, 0); }
+      to { -webkit-transform: translate3d(-100%, 0, 0); }
+    }
+    @keyframes ticker-correr {
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(-100%, 0, 0); }
+    }
     /* Espelha `src/components/fullscreen-hint.tsx` — mudou aqui, mude la.
        Acima do #empty-screen para o operador ver o aviso mesmo sem slides. */
     #fs-hint {
@@ -237,6 +288,7 @@
     </div>
 
     <div id="qr-box"><div id="qr-label">SAIBA +</div><img id="qr-img" alt="" /></div>
+    <div id="ticker"><div id="ticker-text"></div></div>
 
     <div id="empty-screen">
       <svg id="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -769,6 +821,37 @@
         musicaVigia = setInterval(vigiarMusica, MUSICA_VIGIA_MS);
       }
 
+      // ─── Faixa de recados ────────────────────────────────────────────────
+      // O servidor manda o texto pronto (recados juntos com " · "). Texto igual
+      // ao que já corre não é reescrito: a faixa não pula a cada refresh.
+      // Chamada depois de applyOrientation, que reescreve a classe do palco.
+      var faixaTexto = '';
+      function aplicarFaixa(ticker) {
+        var el = document.getElementById('ticker-text');
+        var texto = ticker && typeof ticker.text === 'string' ? ticker.text : '';
+        if (!texto) {
+          stageEl.className = stageEl.className.replace(/\s*com-faixa/g, '');
+          if (faixaTexto) { el.textContent = ''; }
+          faixaTexto = '';
+          return;
+        }
+        if (stageEl.className.indexOf('com-faixa') === -1) {
+          stageEl.className = stageEl.className ? stageEl.className + ' com-faixa' : 'com-faixa';
+        }
+        if (texto === faixaTexto) { return; }
+        faixaTexto = texto;
+        el.textContent = texto;
+        var segundos = Math.max(12, Math.ceil(texto.length * 0.25)) + 's';
+        el.style.webkitAnimationDuration = segundos;
+        el.style.animationDuration = segundos;
+        // Recomeça do início: sem isso o texto novo entraria no meio da corrida.
+        el.style.webkitAnimationName = 'none';
+        el.style.animationName = 'none';
+        void el.offsetWidth; // força o recálculo para a animação recomeçar do início
+        el.style.webkitAnimationName = '';
+        el.style.animationName = '';
+      }
+
       // Chamada a cada feed lido com sucesso. `music` é o que o servidor
       // mandou: { kind, youtubeId }, null (TV sem música) ou undefined
       // (servidor antigo).
@@ -1036,11 +1119,12 @@
         return Math.max(arte, tela) / Math.min(arte, tela) > 1.1;
       }
 
-      // Medida do palco (já girado na TV em pé). Sem layout (0×0), usa a
+      // Medida da área que a arte de fato ocupa (o slot, já girado na TV em
+      // pé): com a faixa ela é menor que o palco. Sem layout (0×0), usa a
       // proporção nominal da orientação.
       function medidaDoPalco() {
-        var w = stageEl.offsetWidth;
-        var h = stageEl.offsetHeight;
+        var w = slotA.offsetWidth;
+        var h = slotA.offsetHeight;
         if (w > 0 && h > 0) { return [w, h]; }
         return screenOrientation === 'landscape' ? [16, 9] : [9, 16];
       }
@@ -1055,8 +1139,11 @@
 
         var palco = medidaDoPalco();
         var ehImagem = !slide.mediaKind || slide.mediaKind === 'image';
-        var moldura = ehImagem && !!img &&
-          precisaDeMoldura(img.naturalWidth || img.width, img.naturalHeight || img.height, palco[0], palco[1]);
+        // Com a faixa a arte vai sempre inteira (ver `#stage.com-faixa` no CSS):
+        // o fundo desfocado precisa da imagem, então a moldura é obrigatória.
+        var comFaixa = stageEl.className.indexOf('com-faixa') !== -1;
+        var moldura = ehImagem && !!img && (comFaixa ||
+          precisaDeMoldura(img.naturalWidth || img.width, img.naturalHeight || img.height, palco[0], palco[1]));
 
         next.getElementsByClassName('slot-arte')[0].style.backgroundImage = 'url(' + url + ')';
         // Sem moldura o fundo fica vazio: nada para o navegador desfocar.
@@ -1352,6 +1439,8 @@
           avisarAtualizacao(data.appUpdate);
 
           var girou = applyOrientation(data.screen && data.screen.orientation);
+          // Depois do giro: applyOrientation reescreve a classe do palco.
+          aplicarFaixa(data.ticker);
 
           // Lista vazia é resposta boa do servidor, não falha: a TV tem de
           // parar. Antes isso caía no mesmo return do erro e a campanha
