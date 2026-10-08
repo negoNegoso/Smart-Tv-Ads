@@ -45,6 +45,9 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
     private lateinit var updateController: UpdateController
     private lateinit var musica: MusicaDeFundo
     internal lateinit var atualizacaoPelaPagina: AtualizacaoPelaPagina
+    // Um cache só para a WebView (servir) e para a ponte (baixar antes).
+    private lateinit var artes: ArteCache
+    private lateinit var cachePelaPagina: CachePelaPagina
 
     /**
      * Executor da checagem de atualização, um por instância. Sem shutdown no
@@ -141,6 +144,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         findViewById<View>(R.id.ajuste_configuracoes).setOnClickListener { openDisplaySettings() }
         updateController = updateControllerFactory(this)
         musica = MusicaDeFundo(this)
+        // filesDir, não cacheDir: o sistema esvazia o cacheDir quando falta
+        // espaço, e cache que some é a TV baixando as artes de novo. O
+        // ArteCache tem limite e reserva de disco próprios.
+        artes = ArteCache(File(filesDir, "artes"))
+        cachePelaPagina = CachePelaPagina(artes)
         atualizacaoPelaPagina = AtualizacaoPelaPagina(handler) {
             if (!avisoDaPaginaSuspenso) checarAtualizacao()
         }
@@ -417,13 +425,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
             return false
         }
         TvWebViewConfig.apply(view)
-        // filesDir, não cacheDir: o sistema esvazia o cacheDir quando falta
-        // espaço, e cache que some é a TV baixando as artes de novo. O
-        // ArteCache tem limite próprio.
-        view.webViewClient = TvWebViewClient(this, ArteCache(File(filesDir, "artes")))
+        view.webViewClient = TvWebViewClient(this, artes)
         // Antes do loadUrl: a ponte só existe em página carregada depois dela.
         view.addJavascriptInterface(musica, MusicaDeFundo.NOME_NA_PAGINA)
         view.addJavascriptInterface(atualizacaoPelaPagina, AtualizacaoPelaPagina.NOME_NA_PAGINA)
+        view.addJavascriptInterface(cachePelaPagina, CachePelaPagina.NOME_NA_PAGINA)
         container.addView(
             view,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
