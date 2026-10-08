@@ -7,6 +7,7 @@ import {
 } from '@workspace/api-client-react';
 import { FullscreenHint } from '@/components/fullscreen-hint';
 import { PlayerStage } from '@/components/player-stage';
+import { TickerBar } from '@/components/ticker-bar';
 import { stageStyle } from '@/lib/stage-rotation';
 
 // Referência estável: `[]` novo a cada render reiniciaria o timer do slide.
@@ -26,6 +27,7 @@ export default function Display() {
   });
   const slides = feed?.slides ?? NO_SLIDES;
   const orientation = feed?.screen.orientation;
+  const tickerText = feed?.ticker?.text ?? null;
 
   // Prova de exibição da TV: a key identifica o device.
   const sendPlay = (slide: DisplaySlide) => {
@@ -81,9 +83,14 @@ export default function Display() {
   return (
     <div className="relative h-[100dvh] w-screen bg-black overflow-hidden select-none">
       <div style={stageStyle(orientation)}>
-        {/* key: girou a TV, recomeça do primeiro slide no formato novo (mesma regra do tv.html). */}
-        {/* Passar pelo estado de erro/vazio desmonta o palco: ao voltar, o rodízio recomeça sem cursor de playlist nem posição de vídeo — aceito. */}
-        <PlayerStage key={orientation} slides={slides} onPlay={sendPlay} />
+        {/* Com faixa, o player termina acima dela: nenhuma arte paga fica
+            coberta (mesma regra do `com-faixa` do tv.html). */}
+        <div data-testid="player-area" className="absolute inset-x-0 top-0" style={{ bottom: tickerText ? '8vh' : 0 }}>
+          {/* key: girou a TV, recomeça do primeiro slide no formato novo (mesma regra do tv.html). */}
+          {/* Passar pelo estado de erro/vazio desmonta o palco: ao voltar, o rodízio recomeça sem cursor de playlist nem posição de vídeo — aceito. */}
+          <PlayerStage key={orientation} slides={slides} onPlay={sendPlay} />
+        </div>
+        {tickerText && <TickerBar text={tickerText} />}
       </div>
       <FullscreenHint />
     </div>

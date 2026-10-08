@@ -300,3 +300,9 @@
     --u: 1cqmin;
   }
 }
+
+/* Faixa de recados (components/ticker-bar.tsx): mesmo keyframe do tv.html. */
+@keyframes ticker-correr {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
