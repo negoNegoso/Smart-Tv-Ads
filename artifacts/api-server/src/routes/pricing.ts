@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { campaignReachesDevice, previewReach } from "../lib/ad-eligibility";
-import { loadAdvertiserIdentity } from "../lib/campaigns/reach";
-import { loadPricing, loadQuoteNetwork, savePricing } from "../lib/pricing/store";
+import { computeQuote } from "../lib/pricing/compute";
+import { loadPricing, savePricing } from "../lib/pricing/store";
 import { QUOTE_PERIODS, quote, type QuotePeriod } from "../lib/pricing/quote";
 
 /**
@@ -56,38 +55,17 @@ router.post("/quotes/preview", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Dados inválidos." });
     return;
   }
-  const { advertiserId, loopInsertions, period, ...target } = parsed.data;
-
-  const pricing = await loadPricing();
-  // Sem preço configurado não há orçamento: quem chama esconde o valor.
-  if (!pricing) {
+  const result = await computeQuote(parsed.data);
+  if (result.status === "unavailable") {
+    // Sem preço configurado não há orçamento: quem chama esconde o valor.
     res.json({ available: false });
     return;
   }
-
-  let identity = { advertiserSegmentId: null as number | null, advertiserCompanyId: null as number | null };
-  if (advertiserId !== undefined) {
-    const advertiser = await loadAdvertiserIdentity(advertiserId);
-    if (!advertiser) {
-      res.status(404).json({ error: "Anunciante não encontrado." });
-      return;
-    }
-    identity = { advertiserSegmentId: advertiser.segmentId, advertiserCompanyId: advertiser.companyId };
+  if (result.status === "advertiser-not-found") {
+    res.status(404).json({ error: "Anunciante não encontrado." });
+    return;
   }
-
-  // Mesma conta da prévia de alcance do formulário de campanha.
-  const network = await loadQuoteNetwork();
-  const reach = previewReach({ ...target, ...identity }, network);
-  // previewReach lista concorrentes da rede inteira (para o formulário marcá-los
-  // antes da seleção). No orçamento o número fala do alvo escolhido: só conta
-  // a TV de concorrente que o alvo alcançaria.
-  const competitors = new Set(reach.competitorDeviceIds);
-  const blockedByCompetitor = network.filter((d) => competitors.has(d.id) && campaignReachesDevice(target, d)).length;
-  res.json({
-    available: true,
-    reach: { tvs: reach.reachedCount, blockedByCompetitor },
-    quote: quote(pricing, { tvs: reach.reachedCount, loopInsertions, period }),
-  });
+  res.json({ available: true, reach: result.reach, quote: result.quote });
 });
 
 export default router;
