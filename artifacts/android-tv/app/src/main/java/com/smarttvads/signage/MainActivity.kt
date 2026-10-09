@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
@@ -335,8 +336,11 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
         movedToBack = moveTaskToBack(true)
     }
 
-    private fun openUpdateConfirmation() {
+    private fun openUpdateConfirmation(automatica: Boolean = false) {
         val confirmation = UpdateState.pendingConfirmation ?: return
+        if (automatica) {
+            UpdateState.confirmacaoAutomaticaAberta(SystemClock.elapsedRealtime() + ConfirmaAtualizacao.JANELA_MS)
+        }
         // A sessão só vale uma vez: se a pessoa cancelar, chega ABORTED e a
         // checagem refaz a sessão com o APK já baixado.
         UpdateState.clear()
@@ -350,6 +354,12 @@ class MainActivity : Activity(), TvWebViewClient.Listener, UpdateState.Listener 
 
     override fun onUpdateReady(versionName: String) {
         retryImediatoUsado = false
+        // Serviço de acessibilidade ligado: ele aperta "Instalar" sozinho,
+        // então abre a confirmação já, sem esperar alguém apertar OK.
+        if (ConfirmaAtualizacaoService.ligado(this)) {
+            openUpdateConfirmation(automatica = true)
+            return
+        }
         handler.removeCallbacks(hideUpdateBanner)
         updateBanner.text = getString(R.string.update_ready, versionName)
         updateBanner.visibility = View.VISIBLE

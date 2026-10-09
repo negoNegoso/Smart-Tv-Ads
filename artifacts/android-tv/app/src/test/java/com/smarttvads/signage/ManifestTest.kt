@@ -71,6 +71,16 @@ class ManifestTest {
         assertTrue(info.requestedPermissions!!.contains("android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"))
     }
 
+    // Sem a permissão BIND_ACCESSIBILITY_SERVICE qualquer app poderia se
+    // ligar ao serviço; o sistema também não o lista em Acessibilidade.
+    @Test
+    fun `servico de confirmacao automatica protegido pela permissao do sistema`() {
+        val info = context.packageManager.getServiceInfo(
+            android.content.ComponentName(context, ConfirmaAtualizacaoService::class.java), 0,
+        )
+        assertEquals("android.permission.BIND_ACCESSIBILITY_SERVICE", info.permission)
+    }
+
     @Test
     fun `receiver do instalador registrado e nao exportado`() {
         val info = context.packageManager.getReceiverInfo(

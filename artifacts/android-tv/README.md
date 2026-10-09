@@ -218,6 +218,28 @@ repositório esteja público para achar a versão nova):
   alguém aperta **OK** no controle → o Android pergunta "Atualizar?" →
   confirmar. O mesmo aviso aparece no Android 12+ se o sistema recusar a
   instalação silenciosa.
+- **Box chinesa que diz "Android 13" mas é Android 9–11 por dentro** (muito
+  comum: "512GB + 1TB", chip Amlogic/Allwinner): o sistema também pede
+  confirmação. Confira a versão real com
+  `adb shell getprop ro.build.version.sdk` (28 = Android 9, 30 = 11, 31+ =
+  instala sozinho). Para não precisar de ninguém, ligue uma vez a
+  **confirmação automática** (serviço de acessibilidade do app, versão 1.32
+  em diante): Configurações → Acessibilidade → Smart Vale TV → ligar, ou pelo
+  adb:
+
+  ```bash
+  adb shell settings put secure enabled_accessibility_services \
+    com.smarttvads.signage/com.smarttvads.signage.ConfirmaAtualizacaoService
+  adb shell settings put secure accessibility_enabled 1
+  ```
+
+  Com ela ligada, quando a atualização fica pronta o app abre o diálogo do
+  sistema e o serviço aperta "Instalar" sozinho, sem aviso na tela. O serviço
+  só escuta o instalador do sistema e só confirma até 2 minutos depois de o
+  próprio app abrir o diálogo, e só se o nome do app estiver nele: não aprova
+  instalação de outro app. Atualizar e reiniciar a box mantêm o serviço
+  ligado; **"Forçar parada" do app desliga** (regra do Android) e aí volta o
+  aviso de OK até religar.
 - Nos dois casos o app é reinstalado e reiniciado, com a mesma key (TV continua
   vinculada). Em TV box com Android comum onde o Signage TV é a tela inicial,
   o sistema traz o painel de volta sozinho. Em Android TV / Google TV
@@ -293,6 +315,9 @@ deploy web.
       painel volta com a mesma key.
 - [ ] Android 12+, já na 1.15.1 ou mais nova: com versão nova na release, o
       app se atualiza sem aviso nem OK e volta com a mesma key.
+- [ ] Android 9–11 com a confirmação automática ligada: com versão nova na
+      release, o diálogo do sistema abre e fecha sozinho e o app volta na
+      versão nova, sem ninguém apertar nada.
 - [ ] Com o Signage TV como tela inicial numa TV box com Android comum, o
       painel volta sozinho depois de atualizar.
 - [ ] Se a TV ficar no launcher do sistema depois de atualizar (comum em

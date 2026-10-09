@@ -196,6 +196,47 @@ class MainActivityUpdateTest {
         assertEquals(View.GONE, a.aviso().visibility)
     }
 
+    private fun ligarConfirmacaoAutomatica() {
+        val a = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        android.provider.Settings.Secure.putString(
+            a.contentResolver,
+            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            android.content.ComponentName(a, ConfirmaAtualizacaoService::class.java).flattenToString(),
+        )
+    }
+
+    // Box com Android 9–11 (o sistema sempre pergunta): com o serviço de
+    // acessibilidade ligado, ninguém precisa apertar OK.
+    @Test
+    fun `com confirmacao automatica ligada abre a confirmacao na hora sem aviso`() {
+        ligarConfirmacaoAutomatica()
+        val a = abrir()
+        UpdateState.ready("1.2.0", Intent("confirmar"))
+        assertEquals("confirmar", shadowOf(a).nextStartedActivity?.action)
+        assertNull(UpdateState.pendingConfirmation)
+        assertEquals(View.GONE, a.aviso().visibility)
+        assertTrue(UpdateState.confirmacaoAutomaticaAte != null)
+    }
+
+    @Test
+    fun `sem confirmacao automatica espera o OK`() {
+        val a = abrir()
+        UpdateState.ready("1.2.0", Intent("confirmar"))
+        assertNull(shadowOf(a).nextStartedActivity)
+        assertNull(UpdateState.confirmacaoAutomaticaAte)
+        assertEquals(View.VISIBLE, a.aviso().visibility)
+    }
+
+    @Test
+    fun `fim da sessao fecha a janela da confirmacao automatica`() {
+        ligarConfirmacaoAutomatica()
+        abrir()
+        UpdateState.sessionStarted(7)
+        UpdateState.ready("1.2.0", Intent("confirmar"))
+        UpdateState.failed(aborted = false)
+        assertNull(UpdateState.confirmacaoAutomaticaAte)
+    }
+
     @Test
     fun `ok sem atualizacao pronta nao abre nada`() {
         val a = abrir()
