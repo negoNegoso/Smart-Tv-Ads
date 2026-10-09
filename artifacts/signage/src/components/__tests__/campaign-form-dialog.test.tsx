@@ -168,32 +168,35 @@ describe('CampaignFormDialog', () => {
     vi.stubGlobal('fetch', fetchPorUrl({
       available: true,
       reach: { tvs: 1, blockedByCompetitor: 1 },
-      quote: { tvs: 1, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 5000, discountPct: 0, monthlyCents: 5000, totalCents: 5000, savingsCents: 0, minimumApplied: true },
+      quote: { tvs: 1, loopInsertions: 1, period: 'monthly', months: 1, pricePerTvCents: 1500, grossCents: 1500, monthlyListCents: 5000, discountPct: 0, monthlyCents: 5000, totalCents: 5000, savingsCents: 0, minimumApplied: true },
     }));
     renderDialog();
     const linha = await screen.findByTestId('table-price');
     expect(linha.textContent?.replace(/\s/g, ' ')).toContain('Valor de tabela: R$ 50,00/mês');
-    expect(linha).toHaveTextContent('1 TV, sem a vitrine');
-    expect(linha).toHaveTextContent('mínimo aplicado');
+    const texto = linha.textContent?.replace(/\s/g, ' ');
+    expect(texto).toContain('R$ 15,00 × 1 TV × 1 inserção = R$ 15,00 → vale o mínimo de R$ 50,00 por mês');
+    expect(texto).toContain('São as TVs do alvo que podem exibir a campanha, sem a vitrine e sem as de concorrente.');
   });
 
   it('mostra a contagem de TVs no plural', async () => {
     vi.stubGlobal('fetch', fetchPorUrl({
       available: true,
       reach: { tvs: 10, blockedByCompetitor: 0 },
-      quote: { tvs: 10, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 15000, discountPct: 0, monthlyCents: 15000, totalCents: 15000, savingsCents: 0, minimumApplied: false },
+      quote: { tvs: 10, loopInsertions: 1, period: 'monthly', months: 1, pricePerTvCents: 1500, grossCents: 15000, monthlyListCents: 15000, discountPct: 0, monthlyCents: 15000, totalCents: 15000, savingsCents: 0, minimumApplied: false },
     }));
     renderDialog();
     const linha = await screen.findByTestId('table-price');
-    expect(linha).toHaveTextContent('10 TVs, sem a vitrine');
-    expect(linha).not.toHaveTextContent('mínimo aplicado');
+    const texto = linha.textContent?.replace(/\s/g, ' ');
+    expect(texto).toContain('Valor de tabela: R$ 150,00/mês');
+    expect(texto).toContain('R$ 15,00 × 10 TVs × 1 inserção = R$ 150,00 por mês');
+    expect(texto).not.toContain('vale o mínimo');
   });
 
   it('alvo vazio (0 TVs) não mostra valor de tabela', async () => {
     const fetchMock = fetchPorUrl({
       available: true,
       reach: { tvs: 0, blockedByCompetitor: 0 },
-      quote: { tvs: 0, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 0, discountPct: 0, monthlyCents: 0, totalCents: 0, savingsCents: 0, minimumApplied: false },
+      quote: { tvs: 0, loopInsertions: 1, period: 'monthly', months: 1, pricePerTvCents: 1500, grossCents: 0, monthlyListCents: 0, discountPct: 0, monthlyCents: 0, totalCents: 0, savingsCents: 0, minimumApplied: false },
     });
     vi.stubGlobal('fetch', fetchMock);
     renderDialog();
@@ -228,5 +231,13 @@ describe('CampaignFormDialog', () => {
       const ultimo = JSON.parse(String((pedidos.at(-1)![1] as RequestInit).body));
       expect(ultimo).toMatchObject({ advertiserId: 3, loopInsertions: 3, period: 'monthly' });
     });
+  });
+
+  it('explica o que são as inserções por volta', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
+    renderDialog();
+    expect(
+      await screen.findByText('Quantas vezes o anúncio aparece a cada volta da programação da TV. 2× = aparece duas vezes por volta, e custa o dobro.'),
+    ).toBeInTheDocument();
   });
 });

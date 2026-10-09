@@ -23,6 +23,10 @@ export type Quote = {
   loopInsertions: number;
   period: QuotePeriod;
   months: number;
+  /** Preço por TV usado na conta (o admin vê a conta inteira na tela). */
+  pricePerTvCents: number;
+  /** Preço por TV × TVs × inserções, antes do mínimo e do desconto. */
+  grossCents: number;
   /** Mensal antes do desconto, já com o mínimo. */
   monthlyListCents: number;
   discountPct: number;
@@ -52,6 +56,8 @@ export function quote(pricing: Pricing, input: { tvs: number; loopInsertions: nu
     loopInsertions: input.loopInsertions,
     period: input.period,
     months,
+    pricePerTvCents: pricing.pricePerTvCents,
+    grossCents: bruto,
     monthlyListCents,
     discountPct,
     monthlyCents,

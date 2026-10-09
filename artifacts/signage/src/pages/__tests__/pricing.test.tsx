@@ -74,15 +74,28 @@ describe('Pricing', () => {
     stub(TABELA);
     renderPage();
     await waitFor(() => expect(screen.getByLabelText('Preço por TV por mês')).toHaveValue('15,00'));
-    expect(normaliza(screen.getByTestId('exemplo-preco').textContent)).toBe(
-      '10 TVs × 2 inserções, anual: R$ 240,00 por mês (R$ 2.880,00 no ano)',
-    );
+    const exemplo = () => normaliza(screen.getByTestId('exemplo-preco').textContent);
+    expect(exemplo()).toContain('Exemplo: 10 TVs, anúncio 2 vezes por volta, plano anual');
+    expect(exemplo()).toContain('R$ 15,00 × 10 TVs × 2 inserções = R$ 300,00 por mês');
+    expect(exemplo()).toContain('−20% (anual) = R$ 240,00 por mês · R$ 2.880,00 no ano');
     const preco = screen.getByLabelText('Preço por TV por mês');
     await userEvent.clear(preco);
     await userEvent.type(preco, '20');
-    expect(normaliza(screen.getByTestId('exemplo-preco').textContent)).toBe(
-      '10 TVs × 2 inserções, anual: R$ 320,00 por mês (R$ 3.840,00 no ano)',
+    expect(exemplo()).toContain('R$ 20,00 × 10 TVs × 2 inserções = R$ 400,00 por mês');
+    expect(exemplo()).toContain('−20% (anual) = R$ 320,00 por mês · R$ 3.840,00 no ano');
+  });
+
+  it('explica a conta e cada campo', async () => {
+    stub(null);
+    renderPage();
+    await screen.findByLabelText('Preço por TV por mês');
+    expect(screen.getByTestId('como-calcula')).toHaveTextContent(
+      'preço por TV × número de TVs × inserções por volta',
     );
+    expect(screen.getByText('Quanto custa 1 TV por mês, com o anúncio aparecendo 1 vez a cada volta da programação.')).toBeInTheDocument();
+    expect(screen.getByText('O mínimo cobrado mesmo com poucas TVs. Deixe 0 para não ter mínimo.')).toBeInTheDocument();
+    expect(screen.getByText('Desconto sobre o valor mensal para quem fecha 3 meses.')).toBeInTheDocument();
+    expect(screen.getByText('Desconto sobre o valor mensal para quem fecha 12 meses.')).toBeInTheDocument();
   });
 
   it('salva com os centavos certos e avisa', async () => {

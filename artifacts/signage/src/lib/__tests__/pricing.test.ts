@@ -10,6 +10,8 @@ describe("quote", () => {
       loopInsertions: 1,
       period: "monthly",
       months: 1,
+      pricePerTvCents: 1500,
+      grossCents: 15000,
       monthlyListCents: 15000,
       discountPct: 0,
       monthlyCents: 15000,
@@ -27,6 +29,13 @@ describe("quote", () => {
     const q = quote(tabela, { tvs: 2, loopInsertions: 1, period: "monthly" });
     expect(q.monthlyListCents).toBe(5000);
     expect(q.minimumApplied).toBe(true);
+  });
+
+  it("traz o preço por TV e o bruto antes do mínimo (para mostrar a conta)", () => {
+    const q = quote(tabela, { tvs: 2, loopInsertions: 1, period: "monthly" });
+    expect(q.pricePerTvCents).toBe(1500);
+    expect(q.grossCents).toBe(3000);
+    expect(q.monthlyListCents).toBe(5000);
   });
 
   it("exatamente no mínimo não conta como mínimo aplicado", () => {
