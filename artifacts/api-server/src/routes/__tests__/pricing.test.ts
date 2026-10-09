@@ -109,6 +109,24 @@ describe("POST /quotes/preview", () => {
     expect(loadAdvertiserIdentity).toHaveBeenCalledWith(7);
   });
 
+  it("concorrente fora do alvo não conta: devices [3]", async () => {
+    loadAdvertiserIdentity.mockResolvedValue({ companyId: 20, segmentId: PADARIA });
+    const res = await (await req()).post("/quotes/preview").send({ targetMode: "devices", deviceIds: [3], advertiserId: 7 });
+    expect(res.body.reach).toEqual({ tvs: 1, blockedByCompetitor: 0 });
+  });
+
+  it("concorrente dentro do alvo conta: devices [2,3] (a TV 2 é a concorrente)", async () => {
+    loadAdvertiserIdentity.mockResolvedValue({ companyId: 20, segmentId: PADARIA });
+    const res = await (await req()).post("/quotes/preview").send({ targetMode: "devices", deviceIds: [2, 3], advertiserId: 7 });
+    expect(res.body.reach).toEqual({ tvs: 1, blockedByCompetitor: 1 });
+  });
+
+  it("segmento sem concorrente no alvo: segments [2]", async () => {
+    loadAdvertiserIdentity.mockResolvedValue({ companyId: 20, segmentId: PADARIA });
+    const res = await (await req()).post("/quotes/preview").send({ targetMode: "segments", segmentIds: [2], advertiserId: 7 });
+    expect(res.body.reach.blockedByCompetitor).toBe(0);
+  });
+
   it("por TVs escolhidas", async () => {
     const res = await (await req()).post("/quotes/preview").send({ targetMode: "devices", deviceIds: [1, 3] });
     expect(res.body.reach.tvs).toBe(2);

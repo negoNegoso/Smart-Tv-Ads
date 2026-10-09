@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { previewReach } from "../lib/ad-eligibility";
+import { campaignReachesDevice, previewReach } from "../lib/ad-eligibility";
 import { loadAdvertiserIdentity } from "../lib/campaigns/reach";
 import { loadPricing, loadQuoteNetwork, savePricing } from "../lib/pricing/store";
 import { QUOTE_PERIODS, quote, type QuotePeriod } from "../lib/pricing/quote";
@@ -76,10 +76,16 @@ router.post("/quotes/preview", async (req, res): Promise<void> => {
   }
 
   // Mesma conta da prévia de alcance do formulário de campanha.
-  const reach = previewReach({ ...target, ...identity }, await loadQuoteNetwork());
+  const network = await loadQuoteNetwork();
+  const reach = previewReach({ ...target, ...identity }, network);
+  // previewReach lista concorrentes da rede inteira (para o formulário marcá-los
+  // antes da seleção). No orçamento o número fala do alvo escolhido: só conta
+  // a TV de concorrente que o alvo alcançaria.
+  const competitors = new Set(reach.competitorDeviceIds);
+  const blockedByCompetitor = network.filter((d) => competitors.has(d.id) && campaignReachesDevice(target, d)).length;
   res.json({
     available: true,
-    reach: { tvs: reach.reachedCount, blockedByCompetitor: reach.competitorDeviceIds.length },
+    reach: { tvs: reach.reachedCount, blockedByCompetitor },
     quote: quote(pricing, { tvs: reach.reachedCount, loopInsertions, period }),
   });
 });
