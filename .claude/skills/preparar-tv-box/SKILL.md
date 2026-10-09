@@ -32,9 +32,13 @@ encontrar algo fora do roteiro.
 5. **Conferir:** `adb reboot`, espere subir e confira painel na frente
    (`dumpsys activity activities | grep mResumedActivity`) e, com API ≤ 30,
    o serviço ainda em `enabled_accessibility_services`.
-6. **Depuração:** avise o usuário se aparecer `ro.adb.secure=0` e pergunte se
-   desliga (`--desligar-adb` corta o acesso remoto). Não desligue sem ele
-   responder.
+6. **Suporte remoto ou depuração:** pergunte se a box terá suporte remoto.
+   - Sim → rode de novo com `--aplicar --tailscale`. Na TV a pessoa aperta OK
+     na permissão de VPN e aprova o código de login no painel do Tailscale
+     (aprovar é dela; não entre na conta). Confira com `tailscale status` e
+     `adb connect 100.x.y.z:5555`, reinicie e confira de novo pelo 100.x.
+   - Não → com `ro.adb.secure=0`, ofereça `--desligar-adb`. Não desligue sem
+     a pessoa responder.
 
 ## Falhas comuns
 
@@ -44,6 +48,7 @@ encontrar algo fora do roteiro.
 | "desligada de novo por outro app" | app do fabricante regrava a acessibilidade | o script mostra o `pkg:` que gravou; desative-o, inclua em `SISTEMA_DESATIVAR`, rode de novo |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | app instalado com outra assinatura (build debug) | desinstalar perde a key da TV: pergunte antes |
 | Conexão adb cai entre comandos | box derruba o transporte | conecte e rode os comandos na mesma chamada |
+| `scrcpy`: "Command not found: adb" | adb fora do PATH | `ADB=~/Library/Android/sdk/platform-tools/adb scrcpy -s <ip>:5555` |
 | Serviço desligado depois de um tempo | alguém deu "Forçar parada" no app | rode o script de novo |
 
 ## Ao terminar
