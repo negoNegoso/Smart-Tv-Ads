@@ -2,28 +2,34 @@
 # Deixa uma TV box/stick pronta para o Smart Vale TV, pelo adb na rede.
 # Roteiro completo e o porquê de cada passo: artifacts/android-tv/docs/preparar-tv-box.md
 #
-# Uso: bash preparar-tv-box.sh <ip[:porta]> [--aplicar] [--desligar-adb]
+# Uso: bash preparar-tv-box.sh <ip[:porta]> [--aplicar] [--tailscale | --desligar-adb]
 #   sem --aplicar   só diagnostica e mostra o que faria (nada muda na box)
 #   --aplicar       instala/atualiza o app, limpa os apps, liga a confirmação automática
+#   --tailscale     instala o Tailscale e deixa a VPN sempre ligada (suporte remoto)
 #   --desligar-adb  no fim, desliga a depuração (corta o acesso remoto)
 set -uo pipefail
 
 ALVO="${1:-}"
 [[ -z "$ALVO" || "$ALVO" == -* ]] && { sed -n 2,9p "$0"; exit 2; }
 [[ "$ALVO" == *:* ]] || ALVO="$ALVO:5555"
-APLICAR=0; DESLIGAR_ADB=0
+APLICAR=0; DESLIGAR_ADB=0; TAILSCALE=0
 for a in "${@:2}"; do
   case "$a" in
     --aplicar) APLICAR=1 ;;
     --desligar-adb) DESLIGAR_ADB=1 ;;
+    --tailscale) TAILSCALE=1 ;;
     *) echo "opção desconhecida: $a"; exit 2 ;;
   esac
 done
 
+# Suporte remoto pelo Tailscale é adb: desligar a depuração o tornaria inútil.
+(( TAILSCALE && DESLIGAR_ADB )) && { echo "--tailscale e --desligar-adb não combinam"; exit 2; }
+
 APP=com.smarttvads.signage
+TAILSCALE_PKG=com.tailscale.ipn
 SERVICO="$APP/$APP.ConfirmaAtualizacaoService"
 # Ficam instalados mesmo sendo de terceiros.
-TERCEIROS_MANTIDOS=" $APP com.android.chrome "
+TERCEIROS_MANTIDOS=" $APP com.android.chrome $TAILSCALE_PKG "
 # Achados em box chinesa "Android 13" (Amlogic, API 28). com.abc.ninja se diz
 # "keychain", roda como uid system e instala/remove apps em silêncio;
 # com.master.accessibility apaga a lista de acessibilidade (desliga o nosso
@@ -141,6 +147,35 @@ elif (( APLICAR )); then
   fi
 else
   echo "  [faria] ligar $SERVICO e conferir se continua ligada depois de 10 s"
+fi
+
+if (( TAILSCALE )); then
+  titulo "Tailscale (suporte remoto)"
+  if sh_ pm list packages | grep -qx "package:$TAILSCALE_PKG"; then
+    echo "  já instalado"
+  elif (( APLICAR )); then
+    TMP=$(mktemp -d)
+    BASE=https://pkgs.tailscale.com/stable
+    NOME=$(curl -fsSL "$BASE/" | grep -oE 'tailscale-android-universal-[0-9.]+\.apk' | sort -uV | tail -1)
+    [[ -n "$NOME" ]] || { echo "  não achei o APK em $BASE"; exit 1; }
+    curl -fsSL -o "$TMP/$NOME" "$BASE/$NOME" || exit 1
+    [[ "$(curl -fsSL "$BASE/$NOME.sha256")" == "$(shasum -a 256 "$TMP/$NOME" | cut -d' ' -f1)" ]] \
+      || { echo "  SHA-256 do Tailscale não confere; abortando"; exit 1; }
+    # push + pm install: o adb install direto de 100 MB travou no Wi-Fi da box.
+    "$ADB" push "$TMP/$NOME" /data/local/tmp/tailscale.apk >/dev/null && \
+      sh_ pm install -r /data/local/tmp/tailscale.apk | sed 's/^/  /'
+    sh_ rm -f /data/local/tmp/tailscale.apk
+    rm -rf "$TMP"
+  else
+    echo "  [faria] baixar o APK oficial de pkgs.tailscale.com, conferir SHA-256 e instalar"
+  fi
+  # VPN sempre ligada: volta sozinha depois de reiniciar. Sem lockdown: se o
+  # Tailscale cair, o painel continua com internet.
+  faz "$ADB" shell settings put secure always_on_vpn_app $TAILSCALE_PKG
+  faz "$ADB" shell settings put secure always_on_vpn_lockdown 0
+  faz "$ADB" shell am start -n $TAILSCALE_PKG/.MainActivity
+  echo "  Na TV: OK na permissão de VPN e aprove o código de login no painel do"
+  echo "  Tailscale (Machines → Add device) ou pelo QR. Depois: tailscale status no Mac."
 fi
 
 titulo "Painel"

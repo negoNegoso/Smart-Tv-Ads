@@ -62,7 +62,7 @@ desvio para as configurações, e a confirmação automática não acha o botão
 
 ### 3. Remove apps de terceiros
 
-Fica só o Smart Vale TV e o Chrome. Box chinesa costuma vir com IPTV pirata,
+Fica só o Smart Vale TV, o Chrome e o Tailscale (se instalado). Box chinesa costuma vir com IPTV pirata,
 lojas paralelas e players que competem por memória e rede (`pm uninstall`).
 
 ### 4. Desativa apps de sistema suspeitos ou inúteis
@@ -113,6 +113,39 @@ no Wi-Fi da loja entra como root sem autorização. Desligar corta também o
 nosso acesso remoto (para voltar, religar nas Opções do desenvolvedor). Se
 precisar manter para manutenção, deixe a box numa rede separada do caixa e
 dos pagamentos.
+
+## Suporte remoto (Tailscale)
+
+O IP da box na loja (`192.168.x.y`) só é alcançável de dentro da loja. Com o
+Tailscale (VPN privada, grátis até 100 aparelhos) a box ganha um IP fixo
+`100.x.y.z` que funciona de qualquer lugar, sem abrir porta no roteador, e
+o adb funciona por ele igual a hoje.
+
+Uma vez por box:
+
+1. `bash artifacts/android-tv/scripts/preparar-tv-box.sh 192.168.x.y --aplicar --tailscale`
+   (instala o APK oficial de `pkgs.tailscale.com` com SHA-256 conferido, deixa
+   a VPN sempre ligada sem lockdown e abre o app). O script mantém o
+   Tailscale na lista de apps de terceiros.
+2. Na TV: **OK** na permissão de VPN do Android.
+3. A TV mostra um QR e um código: aprove no painel do Tailscale (Machines →
+   Add device → código) ou lendo o QR com o celular logado na conta.
+4. No Mac (Tailscale instalado e logado na mesma conta):
+
+   ```bash
+   tailscale status                               # acha o IP 100.x da box
+   adb connect 100.x.y.z:5555
+   ADB=~/Library/Android/sdk/platform-tools/adb scrcpy -s 100.x.y.z:5555   # tela e controle
+   bash artifacts/android-tv/scripts/preparar-tv-box.sh 100.x.y.z          # diagnóstico remoto
+   ```
+
+Sem lockdown, se o Tailscale cair o painel continua com internet; só o
+acesso remoto some até ele voltar (volta sozinho depois de reiniciar). Renomeie
+a máquina no painel do Tailscale com o nome da loja.
+
+O adb continua aberto também na rede da loja (`ro.adb.secure=0`): deixe a
+box num Wi-Fi sem clientes e separado do caixa. `--tailscale` e
+`--desligar-adb` não combinam (sem adb não há suporte).
 
 ## Apps desconhecidos
 
