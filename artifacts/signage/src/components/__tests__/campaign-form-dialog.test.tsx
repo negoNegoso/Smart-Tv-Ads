@@ -97,7 +97,9 @@ describe('CampaignFormDialog', () => {
 
   it('resposta velha chegando depois não sobrescreve a do alvo atual', async () => {
     let releaseOld!: () => void;
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    const fetchMock = vi.fn((url: string, init: RequestInit) => {
+      // O orçamento (valor de tabela) é outra pergunta; aqui só o alcance importa.
+      if (url.includes('/quotes/preview')) return json(200, { available: false });
       const body = JSON.parse(init.body as string);
       if (body.targetMode === 'all') {
         return new Promise((resolve) => {
@@ -108,7 +110,7 @@ describe('CampaignFormDialog', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     renderDialog();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([u]) => u.includes('/campaigns/reach-preview'))).toHaveLength(1));
     await userEvent.click(screen.getByLabelText(/TVs escolhidas/));
     expect(await screen.findByTestId('reach-summary')).toHaveTextContent('Alcança 0 de 2 TVs');
     releaseOld();
@@ -154,5 +156,51 @@ describe('CampaignFormDialog', () => {
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['1×', '2×', '3×', '4×', '5×']);
     await userEvent.selectOptions(select, '3');
     expect(select).toHaveValue('3');
+  });
+
+  function fetchPorUrl(quotePreview: unknown) {
+    return vi.fn((url: string, _init?: RequestInit) =>
+      url.includes('/quotes/preview') ? json(200, quotePreview) : json(200, preview()),
+    );
+  }
+
+  it('mostra o valor de tabela com preço configurado', async () => {
+    vi.stubGlobal('fetch', fetchPorUrl({
+      available: true,
+      reach: { tvs: 1, blockedByCompetitor: 1 },
+      quote: { tvs: 1, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 5000, discountPct: 0, monthlyCents: 5000, totalCents: 5000, savingsCents: 0, minimumApplied: true },
+    }));
+    renderDialog();
+    const linha = await screen.findByTestId('table-price');
+    expect(linha.textContent?.replace(/\s/g, ' ')).toContain('Valor de tabela: R$ 50,00/mês');
+    expect(linha).toHaveTextContent('mínimo aplicado');
+  });
+
+  it('sem preço configurado não mostra valor', async () => {
+    const fetchMock = fetchPorUrl({ available: false });
+    vi.stubGlobal('fetch', fetchMock);
+    renderDialog();
+    await screen.findByTestId('reach-summary');
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/quotes/preview'))).toBe(true));
+    expect(screen.queryByTestId('table-price')).not.toBeInTheDocument();
+  });
+
+  it('resposta que não é de orçamento é ignorada (não quebra)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => json(200, preview())));
+    renderDialog();
+    await screen.findByTestId('reach-summary');
+    expect(screen.queryByTestId('table-price')).not.toBeInTheDocument();
+  });
+
+  it('pede o orçamento com as inserções e o anunciante do formulário', async () => {
+    const fetchMock = fetchPorUrl({ available: false });
+    vi.stubGlobal('fetch', fetchMock);
+    renderDialog();
+    await userEvent.selectOptions(await screen.findByLabelText('Inserções por volta'), '3');
+    await waitFor(() => {
+      const pedidos = fetchMock.mock.calls.filter(([u]) => String(u).includes('/quotes/preview'));
+      const ultimo = JSON.parse(String((pedidos.at(-1)![1] as RequestInit).body));
+      expect(ultimo).toMatchObject({ advertiserId: 3, loopInsertions: 3, period: 'monthly' });
+    });
   });
 });

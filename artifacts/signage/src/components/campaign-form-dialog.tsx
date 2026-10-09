@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useQuotePreview } from "@/components/use-quote-preview";
+import { formatCents } from "@/lib/money";
 import { useReachPreview, type ReachPreview } from "@/components/use-reach-preview";
 import { WEEKDAYS, weekdaysLabel } from "@/lib/weekdays";
 import { END_OPTIONS, MAX_TIME_WINDOWS, START_OPTIONS, isValidWindow, minutesToHHMM, timeWindowsLabel } from "@/lib/time-windows";
@@ -258,6 +260,16 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
     { advertiserId: form.selectedAdvertiser, targetMode: form.targetMode, deviceIds: form.selectedDevices, segmentIds: form.selectedSegments },
     open,
   );
+  const tablePrice = useQuotePreview(
+    {
+      advertiserId: form.selectedAdvertiser,
+      targetMode: form.targetMode,
+      deviceIds: form.selectedDevices,
+      segmentIds: form.selectedSegments,
+      loopInsertions: form.loopInsertions,
+    },
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -325,6 +337,12 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <CampaignWeekdayPicker form={form} />
           <CampaignTimeWindowsPicker form={form} />
           <CampaignLoopInsertionsPicker form={form} />
+          {tablePrice ? (
+            <p className="text-sm text-muted-foreground" data-testid="table-price">
+              Valor de tabela: <strong>{formatCents(tablePrice.quote.monthlyCents)}/mês</strong>
+              {tablePrice.quote.minimumApplied ? " (mínimo aplicado)" : ""}
+            </p>
+          ) : null}
           <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
           {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
           <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.timeWindowsValid}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>
