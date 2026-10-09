@@ -6,6 +6,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useQuotePreview } from "@/components/use-quote-preview";
+import { formatCents } from "@/lib/money";
+import { contaDoValor } from "@/lib/pricing-text";
 import { useReachPreview, type ReachPreview } from "@/components/use-reach-preview";
 import { WEEKDAYS, weekdaysLabel } from "@/lib/weekdays";
 import { END_OPTIONS, MAX_TIME_WINDOWS, START_OPTIONS, isValidWindow, minutesToHHMM, timeWindowsLabel } from "@/lib/time-windows";
@@ -132,7 +135,7 @@ export function CampaignLoopInsertionsPicker({ form }: { form: ReturnType<typeof
       >
         {LOOP_INSERTION_OPTIONS.map((n) => <option key={n} value={n}>{n}×</option>)}
       </select>
-      <p className="text-xs text-muted-foreground">Quantas vezes a campanha toca a cada volta da TV. Com várias peças, cada inserção toca todas em sequência.</p>
+      <p className="text-xs text-muted-foreground">Quantas vezes o anúncio aparece a cada volta da programação da TV. 2× = aparece duas vezes por volta, e custa o dobro.</p>
     </div>
   );
 }
@@ -258,6 +261,16 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
     { advertiserId: form.selectedAdvertiser, targetMode: form.targetMode, deviceIds: form.selectedDevices, segmentIds: form.selectedSegments },
     open,
   );
+  const tablePrice = useQuotePreview(
+    {
+      advertiserId: form.selectedAdvertiser,
+      targetMode: form.targetMode,
+      deviceIds: form.selectedDevices,
+      segmentIds: form.selectedSegments,
+      loopInsertions: form.loopInsertions,
+    },
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -325,6 +338,16 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <CampaignWeekdayPicker form={form} />
           <CampaignTimeWindowsPicker form={form} />
           <CampaignLoopInsertionsPicker form={form} />
+          {/* Alvo vazio (0 TVs) não tem valor a mostrar. */}
+          {tablePrice && tablePrice.quote.tvs > 0 ? (
+            <div className="space-y-1 text-sm" data-testid="table-price">
+              <p>Valor de tabela: <strong>{formatCents(tablePrice.quote.monthlyCents)}/mês</strong></p>
+              {/* A conta por extenso, e quais TVs entram: a prévia de alcance conta a vitrine, o orçamento não. */}
+              <p className="text-xs text-muted-foreground">
+                {contaDoValor(tablePrice.quote)}. São as TVs do alvo que podem exibir a campanha, sem a vitrine e sem as de concorrente.
+              </p>
+            </div>
+          ) : null}
           <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
           {/* Sem exigir peça marcada: a campanha pode existir só para receber o encarte do lojista. */}
           <DialogFooter><Button type="submit" disabled={form.selectedAdvertiser === null || !form.timeWindowsValid}>{isEditing ? "Salvar alterações" : "Publicar campanha"}</Button></DialogFooter>

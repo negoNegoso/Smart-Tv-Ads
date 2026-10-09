@@ -20,6 +20,7 @@ import Display from './pages/display';
 import Companies from './pages/companies';
 import UrgentAlerts from './pages/urgent-alerts';
 import Segments from './pages/segments';
+import Pricing from './pages/pricing';
 import CompanyDetailPage from './pages/company-detail';
 import LegacyRedirect from './pages/legacy-redirect';
 import DeviceDetail from './pages/device-detail';
@@ -92,6 +93,9 @@ function AdminRoutes() {
       </Route>
       <Route path="/avisos">
         <Layout><UrgentAlerts /></Layout>
+      </Route>
+      <Route path="/precos">
+        <Layout><Pricing /></Layout>
       </Route>
       <Route path="/clients">
         <Redirect to="/companies" />

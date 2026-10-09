@@ -176,6 +176,13 @@
       "when": 1791486149971,
       "tag": "0024_worthless_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791512040673,
+      "tag": "0025_optimal_triton",
+      "breakpoints": true
     }
   ]
 }
