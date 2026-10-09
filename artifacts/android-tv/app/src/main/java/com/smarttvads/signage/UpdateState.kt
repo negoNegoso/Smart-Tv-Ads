@@ -39,6 +39,18 @@ object UpdateState {
     var listener: Listener? = null
 
     /**
+     * Até quando (SystemClock.elapsedRealtime) o ConfirmaAtualizacaoService
+     * pode apertar "Instalar". Só existe depois de o próprio app abrir a
+     * confirmação: fora dela o serviço não aprova nada.
+     */
+    var confirmacaoAutomaticaAte: Long? = null
+        private set
+
+    fun confirmacaoAutomaticaAberta(ate: Long) {
+        confirmacaoAutomaticaAte = ate
+    }
+
+    /**
      * Pode checar atualização agora? Não com confirmação esperando o OK nem
      * com sessão do instalador em andamento: uma checagem nova chamaria
      * prepare() de novo, e a varredura de sessões velhas mataria a que está
@@ -58,6 +70,7 @@ object UpdateState {
      */
     private fun sessionEnded() {
         activeSessionId = null
+        confirmacaoAutomaticaAte = null
     }
 
     fun ready(versionName: String, confirmation: Intent) {
