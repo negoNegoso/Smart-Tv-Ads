@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  BadgeDollarSign,
   BarChart3,
   Building2,
   KeyRound,
@@ -44,6 +45,7 @@ export const adminNav: NavGroup[] = [
     items: [
       { href: '/companies', label: 'Empresas', icon: Building2 },
       { href: '/segments', label: 'Segmentos', icon: Tags },
+      { href: '/precos', label: 'Preços', icon: BadgeDollarSign },
     ],
   },
   {
