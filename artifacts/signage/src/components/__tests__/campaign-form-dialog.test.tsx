@@ -173,7 +173,33 @@ describe('CampaignFormDialog', () => {
     renderDialog();
     const linha = await screen.findByTestId('table-price');
     expect(linha.textContent?.replace(/\s/g, ' ')).toContain('Valor de tabela: R$ 50,00/mês');
+    expect(linha).toHaveTextContent('1 TV, sem a vitrine');
     expect(linha).toHaveTextContent('mínimo aplicado');
+  });
+
+  it('mostra a contagem de TVs no plural', async () => {
+    vi.stubGlobal('fetch', fetchPorUrl({
+      available: true,
+      reach: { tvs: 10, blockedByCompetitor: 0 },
+      quote: { tvs: 10, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 15000, discountPct: 0, monthlyCents: 15000, totalCents: 15000, savingsCents: 0, minimumApplied: false },
+    }));
+    renderDialog();
+    const linha = await screen.findByTestId('table-price');
+    expect(linha).toHaveTextContent('10 TVs, sem a vitrine');
+    expect(linha).not.toHaveTextContent('mínimo aplicado');
+  });
+
+  it('alvo vazio (0 TVs) não mostra valor de tabela', async () => {
+    const fetchMock = fetchPorUrl({
+      available: true,
+      reach: { tvs: 0, blockedByCompetitor: 0 },
+      quote: { tvs: 0, loopInsertions: 1, period: 'monthly', months: 1, monthlyListCents: 0, discountPct: 0, monthlyCents: 0, totalCents: 0, savingsCents: 0, minimumApplied: false },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderDialog();
+    await screen.findByTestId('reach-summary');
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/quotes/preview'))).toBe(true));
+    expect(screen.queryByTestId('table-price')).not.toBeInTheDocument();
   });
 
   it('sem preço configurado não mostra valor', async () => {

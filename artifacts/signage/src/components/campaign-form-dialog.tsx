@@ -337,10 +337,13 @@ export function CampaignFormDialog({ open, onOpenChange, advertisers, announceme
           <CampaignWeekdayPicker form={form} />
           <CampaignTimeWindowsPicker form={form} />
           <CampaignLoopInsertionsPicker form={form} />
-          {tablePrice ? (
+          {/* Alvo vazio (0 TVs) não tem valor a mostrar. */}
+          {tablePrice && tablePrice.quote.tvs > 0 ? (
             <p className="text-sm text-muted-foreground" data-testid="table-price">
+              {/* A prévia de alcance conta a vitrine; o orçamento não. Dizer as TVs evita a divergência. */}
               Valor de tabela: <strong>{formatCents(tablePrice.quote.monthlyCents)}/mês</strong>
-              {tablePrice.quote.minimumApplied ? " (mínimo aplicado)" : ""}
+              {` · ${tablePrice.reach.tvs} ${tablePrice.reach.tvs === 1 ? "TV" : "TVs"}, sem a vitrine`}
+              {tablePrice.quote.minimumApplied ? " · mínimo aplicado" : ""}
             </p>
           ) : null}
           <CampaignTargetPicker form={form} devices={devices} segments={segments} preview={preview} />
