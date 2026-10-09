@@ -297,7 +297,8 @@ describe('Parque de TVs', () => {
     stubFleet(PARQUE);
     renderPage();
     expect(await screen.findByText(/As TVs se atualizam sozinhas em poucos minutos depois de cada release/)).toBeInTheDocument();
-    expect(screen.getByText(/Em Android 11 ou anterior, alguém precisa apertar OK no controle/)).toBeInTheDocument();
+    expect(screen.getByText(/Em Android 11 ou anterior, só instalam sozinhas com a confirmação automática ligada/)).toBeInTheDocument();
+    expect(screen.getByText(/sem ela, alguém precisa apertar OK no controle/)).toBeInTheDocument();
   });
 
   it('parque vazio não oferece "Atualizar todas"', async () => {

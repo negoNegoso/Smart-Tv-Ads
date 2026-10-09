@@ -97,8 +97,9 @@ export default function Fleet() {
                   : 'Não foi possível consultar a última versão publicada; nenhuma TV é marcada como desatualizada.'}
               </p>
               <p className="text-sm text-muted-foreground">
-                As TVs se atualizam sozinhas em poucos minutos depois de cada release. Em Android 11 ou anterior,
-                alguém precisa apertar OK no controle.
+                As TVs se atualizam sozinhas em poucos minutos depois de cada release. Em Android 11 ou anterior, só
+                instalam sozinhas com a confirmação automática ligada (app 1.32 ou mais novo, ligada ao preparar a
+                box); sem ela, alguém precisa apertar OK no controle.
               </p>
             </CardHeader>
             <CardContent>
