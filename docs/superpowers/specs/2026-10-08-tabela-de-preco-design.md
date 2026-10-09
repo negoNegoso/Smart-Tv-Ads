@@ -114,12 +114,12 @@ Registrada em `routes/index.ts` depois de `requireAdmin`.
   - Com linha → `{ available: true, reach: { tvs, blockedByCompetitor },
     quote: Quote }`.
   - `advertiserId` inexistente → 404 "Anunciante não encontrado.".
-- `openapi.yaml`: schemas `Pricing`, `PricingUpdate`, `QuotePreviewInput`,
-  `QuotePreview`; codegen.
+- Fora do `openapi.yaml`, como `/campaigns/reach-preview` e os avisos
+  urgentes: o painel usa um cliente escrito à mão (`lib/pricing-api.ts`).
 
-Se `previewReach` já excluir a vitrine, reaproveitar; senão, o filtro da
-vitrine entra em `loadNetwork` só para esta rota (sem mudar a prévia de
-alcance existente) — o plano confere no código.
+`loadNetwork` inclui a vitrine; esta rota usa uma consulta própria
+(`loadQuoteNetwork`, sem `devices.showcase`), sem mudar a prévia de alcance
+existente.
 
 ## Admin (`artifacts/signage`)
 
@@ -149,9 +149,9 @@ API:
 - `quote.test.ts`: bruto simples; inserções multiplicam; mínimo aplicado e
   não aplicado; `tvs = 0` sem mínimo; trimestral e anual com desconto;
   arredondamento (ex.: 3333 × 85% = 2833); `savingsCents`.
-- `pricing-route.test.ts`: `GET` null sem linha; `PUT` cria e atualiza a
-  linha 1; 400 para negativo, desconto 91, não inteiro; não-admin 401/403
-  (seguir o padrão das rotas admin).
+- `pricing.test.ts` (rotas): `GET` null sem linha; `PUT` grava; 400 para
+  negativo, desconto 91, não inteiro (o bloqueio de não-admin é o
+  `requireAdmin` de `routes/index.ts`, como nas outras rotas de gestão).
 - `quotes-preview.test.ts`: `available: false` sem preço; com preço, `tvs`
   igual à prévia de alcance para o mesmo alvo; concorrente fora quando
   `advertiserId` vem; vitrine fora; 404 anunciante inexistente; 400 para
