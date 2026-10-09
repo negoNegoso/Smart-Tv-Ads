@@ -233,6 +233,11 @@ repositório esteja público para achar a versão nova):
   adb shell settings put secure accessibility_enabled 1
   ```
 
+  O roteiro completo para deixar uma box nova pronta (versão real do Android,
+  app, limpeza de apps suspeitos, confirmação automática, depuração) está em
+  [docs/preparar-tv-box.md](docs/preparar-tv-box.md), com o script
+  `scripts/preparar-tv-box.sh` que faz tudo pelo adb.
+
   Com ela ligada, quando a atualização fica pronta o app abre o diálogo do
   sistema e o serviço aperta "Instalar" sozinho, sem aviso na tela. O serviço
   só escuta o instalador do sistema e só confirma até 2 minutos depois de o
