@@ -18,6 +18,7 @@ import analyticsRouter from "./analytics";
 import urgentAlertsRouter from "./urgent-alerts";
 import advertisersRouter from "./advertisers";
 import campaignReachRouter from "./campaign-reach";
+import pricingRouter from "./pricing";
 import storageRouter from "./storage";
 import qrRouter from "./qr";
 import tvAppRouter from "./tv-app";
@@ -64,5 +65,6 @@ router.use(analyticsRouter);
 router.use(urgentAlertsRouter);
 router.use(advertisersRouter);
 router.use(campaignReachRouter);
+router.use(pricingRouter);
 
 export default router;
